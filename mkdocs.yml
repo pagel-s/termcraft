@@ -1,0 +1,30 @@
+site_name: termcraft
+site_description: Early-alpha terminal-first 2D sandbox game with a classic survival arc.
+site_url: https://pagel-s.github.io/termcraft/
+repo_url: https://github.com/pagel-s/termcraft
+repo_name: pagel-s/termcraft
+
+docs_dir: docs
+site_dir: site
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Gameplay: gameplay.md
+  - Supported Content: supported-content.md
+  - Media Credits: media-credits.md
+  - World Format: world-format.md
+  - Developer: developer.md
+
+theme:
+  name: readthedocs
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - fenced_code
+  - toc:
+      permalink: true
+
+strict: true

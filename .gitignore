@@ -1,0 +1,19 @@
+/target
+/site/
+
+# Game save data (local state)
+/saves/
+
+# Local installed/debug game binary
+/termcraft
+
+# Rust/Cargo
+**/*.rs.bk
+
+# Python docs envs
+.venv/
+
+# Editor/OS artifacts
+.DS_Store
+.idea/
+.vscode/
