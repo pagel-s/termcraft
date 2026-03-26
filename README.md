@@ -54,6 +54,7 @@ Install Rust first:
 
 - [rustup.rs](https://rustup.rs/)
 
+
 Clone the repo and start the game:
 
 ```bash
@@ -81,6 +82,14 @@ termcraft
 ```
 
 Local saves are written into `saves/` inside the repo.
+
+### Distro Packages
+
+On Arch Linux, you can install the [AUR package](https://aur.archlinux.org/packages/termcraft):
+
+```bash
+paru -S termcraft
+```
 
 ## Controls Snapshot
 
