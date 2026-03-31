@@ -1,6 +1,6 @@
 <div align="center">
   <h1>termcraft</h1>
-  <p><strong>Terminal-olny 2D sandbox survival in Rust, tuned toward a classic early-2012 block-survival loop.</strong></p>
+  <p><strong>Terminal based 2D sandbox survival in Rust, tuned toward a classic early-2012 block-survival loop.</strong></p>
   <p>
     <a href="https://pagel-s.github.io/termcraft/"><img alt="Docs" src="https://img.shields.io/badge/docs-project%20guide-2f6feb?style=flat-square"></a>
     <a href="."><img alt="Version" src="https://img.shields.io/badge/version-0.1.0-3a7a3a?style=flat-square"></a>
