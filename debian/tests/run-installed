@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+# Verify the binary is installed and executable
+test -x /usr/games/termcraft
+echo "termcraft binary found and executable"

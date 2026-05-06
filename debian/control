@@ -1,0 +1,30 @@
+Source: termcraft
+Section: games
+Priority: optional
+Maintainer: Vítězslav Dvořák <info@vitexsoftware.cz>
+Build-Depends:
+ debhelper-compat (= 13),
+ cargo,
+ rustc,
+ imagemagick,
+Standards-Version: 4.7.0
+Homepage: https://github.com/pagel-s/termcraft
+Rules-Requires-Root: no
+Vcs-Git: https://salsa.debian.org/games-team/termcraft.git
+Vcs-Browser: https://salsa.debian.org/games-team/termcraft
+
+Package: termcraft
+Architecture: any
+Multi-Arch: foreign
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Description: terminal-based 2D sandbox survival game
+ termcraft is a terminal-based 2D sandbox survival game written in Rust,
+ inspired by the classic early-2012 block-survival gameplay loop.
+ .
+ Features include procedural Overworld, Nether, and End generation,
+ mining, placement, inventory, crafting, furnaces, brewing, boats, and
+ chests. Health, hunger, combat, weather, fluids, gravity blocks, crops,
+ and farming are also present. Passive and hostile mobs, villages,
+ dungeons, strongholds, and Nether fortresses complete the experience.
