@@ -1,0 +1,99 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_VERSION: "1.88.0"
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  crates-io:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: rustup toolchain install "$RUST_VERSION" --profile minimal
+
+      - name: Validate release tag
+        id: release
+        run: |
+          set -euo pipefail
+
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+
+          if [[ "$tag" == "$version" ]]; then
+            echo "Release tags must start with v, for example v0.1.0." >&2
+            exit 1
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tag '$tag' is not a supported SemVer tag." >&2
+            exit 1
+          fi
+
+          manifest_version="$(
+            cargo +"$RUST_VERSION" metadata --locked --no-deps --format-version 1 \
+              | python3 -c 'import json, sys; print(json.load(sys.stdin)["packages"][0]["version"])'
+          )"
+
+          if [[ "$version" != "$manifest_version" ]]; then
+            echo "Tag version $version does not match Cargo.toml version $manifest_version." >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check crates.io version
+        id: crates
+        run: |
+          set -euo pipefail
+
+          status="$(
+            curl -sS -o /dev/null -w "%{http_code}" \
+              "https://crates.io/api/v1/crates/termcraft/${{ steps.release.outputs.version }}"
+          )"
+
+          case "$status" in
+            200)
+              echo "Version ${{ steps.release.outputs.version }} is already published; skipping upload."
+              echo "published=true" >> "$GITHUB_OUTPUT"
+              ;;
+            404)
+              echo "Version ${{ steps.release.outputs.version }} is not published yet."
+              echo "published=false" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unexpected crates.io API response: $status" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Verify package
+        if: steps.crates.outputs.published == 'false'
+        run: cargo +"$RUST_VERSION" publish --dry-run --locked
+
+      - name: Authenticate with crates.io
+        if: steps.crates.outputs.published == 'false'
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+
+      - name: Publish to crates.io
+        if: steps.crates.outputs.published == 'false'
+        run: cargo +"$RUST_VERSION" publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

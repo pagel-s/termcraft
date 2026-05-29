@@ -93,6 +93,8 @@ Useful operational files:
 - `docs/`: detailed player and developer documentation
 - `scripts/release_smoke.sh`: local release smoke gate
 - `RELEASE_CHECKLIST.md`: release/tag checklist in the repo root
+- `.github/workflows/ci.yml`: formatting, checks, tests, and package dry-run
+- `.github/workflows/publish.yml`: tag-triggered crates.io publish workflow
 
 ## Documentation And Media
 
