@@ -12,8 +12,24 @@ Use this checklist before cutting a release tag.
    - `git pull --ff-only`
 2. Run full smoke gates:
    - `./scripts/release_smoke.sh`
+   - `cargo fmt --check`
+   - `cargo check --all-targets`
+   - `cargo clippy --all-targets -- -D warnings`
+   - `cargo test --quiet`
 3. Optional long-run soak for stability:
    - `timeout 120s cargo run --quiet -- server 127.0.0.1:25569`
+
+## Crates.io Package
+
+1. Inspect packaged files:
+   - `cargo package --list`
+   - Confirm `docs/assets/*.mp4` and `docs/assets/*.gif` are not included.
+2. Build and verify the package archive:
+   - `cargo package`
+   - Confirm the compressed `.crate` file is under the crates.io size limit.
+3. Confirm package metadata and name availability:
+   - `cargo search termcraft`
+   - `cargo publish --dry-run`
 
 ## Sanity Play Checks
 

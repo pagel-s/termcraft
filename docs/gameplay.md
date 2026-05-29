@@ -92,4 +92,4 @@ If you do not want these in the eventual public build, remove or gate them befor
 
 ## Saves
 
-The game autosaves during play and persists local progression under `saves/`.
+The game autosaves during play and persists local progression under the per-user save directory. Set `TERMCRAFT_SAVE_DIR` to override it.

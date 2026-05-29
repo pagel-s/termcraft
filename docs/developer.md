@@ -70,6 +70,7 @@ The main renderer lives in `src/renderer/terminal.rs`.
 - chunk saves live in `src/world/chunk.rs`
 - progression saves live in `src/engine/state.rs`
 - both use atomic temp-file writes
+- production builds resolve saves through `src/save_path.rs`
 - chunk saves use a compressed `MCCF` envelope
 - progression saves are versioned bincode payloads
 
@@ -101,7 +102,7 @@ Docs publishing is built from:
 - `docs/`
 - `.github/workflows/docs.yml`
 
-Current checked-in media used by the public docs:
+Current checked-in media used by the public docs and excluded from the crates.io package:
 
 - `docs/assets/termcraft.gif`: README teaser
 - `docs/assets/termcraft.mp4`: docs landing-page highlight

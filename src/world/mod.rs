@@ -2,6 +2,7 @@ pub mod block;
 pub mod chunk;
 pub mod item;
 
+use crate::save_path;
 use block::BlockType;
 use chunk::{CHUNK_HEIGHT, CHUNK_WIDTH, Chunk};
 use item::{Inventory, ItemType};
@@ -293,6 +294,8 @@ impl World {
     }
 
     pub fn new_for_dimension(dimension: Dimension) -> Self {
+        save_path::migrate_legacy_saves_once();
+
         let save_key = match dimension {
             Dimension::Overworld => "overworld".to_string(),
             Dimension::Nether => "nether".to_string(),
@@ -376,8 +379,8 @@ impl World {
         }
     }
 
-    fn world_seed_path(save_key: &str) -> String {
-        format!("saves/{}_world_seed.bin", save_key)
+    fn world_seed_path(save_key: &str) -> std::path::PathBuf {
+        save_path::save_file(&format!("{save_key}_world_seed.bin"))
     }
 
     fn load_world_seed_data(save_key: &str) -> Option<WorldSeedData> {
@@ -402,7 +405,7 @@ impl World {
         }
 
         let seed_data = Self::create_world_seed_data();
-        let _ = std::fs::create_dir_all("saves");
+        let _ = std::fs::create_dir_all(save_path::save_dir());
         if let Ok(encoded) = bincode::serialize(&seed_data) {
             let _ = std::fs::write(Self::world_seed_path(save_key), encoded);
         }
