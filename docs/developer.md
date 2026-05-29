@@ -70,6 +70,7 @@ The main renderer lives in `src/renderer/terminal.rs`.
 - chunk saves live in `src/world/chunk.rs`
 - progression saves live in `src/engine/state.rs`
 - both use atomic temp-file writes
+- production builds resolve saves through `src/save_path.rs`
 - chunk saves use a compressed `MCCF` envelope
 - progression saves are versioned bincode payloads
 
@@ -92,6 +93,8 @@ Useful operational files:
 - `docs/`: detailed player and developer documentation
 - `scripts/release_smoke.sh`: local release smoke gate
 - `RELEASE_CHECKLIST.md`: release/tag checklist in the repo root
+- `.github/workflows/ci.yml`: formatting, checks, tests, and package dry-run
+- `.github/workflows/publish.yml`: tag-triggered crates.io publish workflow
 
 ## Documentation And Media
 
@@ -101,7 +104,9 @@ Docs publishing is built from:
 - `docs/`
 - `.github/workflows/docs.yml`
 
-Current checked-in media used by the public docs:
+The GitHub README keeps the rich local media preview. The crates.io package uses `README-crates.md`, which avoids packaged media and points to hosted docs/video instead.
+
+Current checked-in media used by the public docs and excluded from the crates.io package:
 
 - `docs/assets/termcraft.gif`: README teaser
 - `docs/assets/termcraft.mp4`: docs landing-page highlight

@@ -38,7 +38,7 @@ fn main() -> std::io::Result<()> {
     renderer.restore()?;
 
     if let Err(e) = res {
-        eprintln!("Game Error: {}", e);
+        eprintln!("Game Error: {e}");
     }
 
     Ok(())

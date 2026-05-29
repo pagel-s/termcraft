@@ -1,5 +1,6 @@
 /target
 /site/
+.codex
 
 # Game save data (local state)
 /saves/

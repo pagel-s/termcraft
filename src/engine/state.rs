@@ -25,6 +25,7 @@ use crate::entities::villager::Villager;
 use crate::entities::wolf::Wolf;
 use crate::entities::zombie::Zombie;
 use crate::entities::zombie_pigman::ZombiePigman;
+use crate::save_path;
 use crate::world::block::BlockType;
 use crate::world::chunk::{CHUNK_HEIGHT, CHUNK_WIDTH};
 use crate::world::item::{Inventory, ItemStack, ItemType, Recipe};
@@ -38,7 +39,7 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum CollisionType {
@@ -332,7 +333,7 @@ const PLAYER_PROGRESS_VERSION_V4: u16 = 4;
 const PLAYER_PROGRESS_VERSION_V3: u16 = 3;
 const PLAYER_PROGRESS_VERSION_V2: u16 = 2;
 const PLAYER_PROGRESS_VERSION_V1: u16 = 1;
-const PLAYER_PROGRESS_PATH: &str = "saves/player_progression.bin";
+const PLAYER_PROGRESS_FILE: &str = "player_progression.bin";
 const PLAYER_PROGRESS_TMP_SUFFIX: &str = ".tmp";
 const VILLAGE_SCAN_RADIUS: i32 = 112;
 const VILLAGER_MAX_PER_HUT: usize = 2;
@@ -1383,8 +1384,12 @@ impl GameState {
         armor_slots
     }
 
-    fn load_progression_data_from_path(path: &str) -> Option<PlayerProgressSaveData> {
-        let encoded = std::fs::read(path).ok()?;
+    fn progression_path() -> PathBuf {
+        save_path::save_file(PLAYER_PROGRESS_FILE)
+    }
+
+    fn load_progression_data_from_path(path: impl AsRef<Path>) -> Option<PlayerProgressSaveData> {
+        let encoded = std::fs::read(path.as_ref()).ok()?;
         if let Ok(data) = bincode::deserialize::<PlayerProgressSaveData>(&encoded) {
             if data.version == PLAYER_PROGRESS_VERSION {
                 return Some(data);
@@ -1419,12 +1424,14 @@ impl GameState {
         None
     }
 
-    fn progression_temp_path(path: &str) -> String {
-        format!("{path}{PLAYER_PROGRESS_TMP_SUFFIX}")
+    fn progression_temp_path(path: impl AsRef<Path>) -> PathBuf {
+        let mut temp_path = path.as_ref().as_os_str().to_os_string();
+        temp_path.push(PLAYER_PROGRESS_TMP_SUFFIX);
+        PathBuf::from(temp_path)
     }
 
-    fn write_progression_payload_atomically(path: &str, payload: &[u8]) -> std::io::Result<()> {
-        if let Some(parent) = Path::new(path).parent() {
+    fn write_progression_payload_atomically(path: &Path, payload: &[u8]) -> std::io::Result<()> {
+        if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
         let temp_path = Self::progression_temp_path(path);
@@ -1440,9 +1447,12 @@ impl GameState {
         Ok(())
     }
 
-    fn save_progression_data_to_path(path: &str, data: &PlayerProgressSaveData) -> Option<()> {
+    fn save_progression_data_to_path(
+        path: impl AsRef<Path>,
+        data: &PlayerProgressSaveData,
+    ) -> Option<()> {
         let encoded = bincode::serialize(data).ok()?;
-        Self::write_progression_payload_atomically(path, &encoded).ok()?;
+        Self::write_progression_payload_atomically(path.as_ref(), &encoded).ok()?;
         Some(())
     }
 
@@ -1450,7 +1460,8 @@ impl GameState {
         if cfg!(test) {
             return None;
         }
-        Self::load_progression_data_from_path(PLAYER_PROGRESS_PATH)
+        save_path::migrate_legacy_saves_once();
+        Self::load_progression_data_from_path(Self::progression_path())
     }
 
     fn to_progression_save_data(&self) -> PlayerProgressSaveData {
@@ -1503,7 +1514,7 @@ impl GameState {
             return;
         }
         let data = self.to_progression_save_data();
-        let _ = Self::save_progression_data_to_path(PLAYER_PROGRESS_PATH, &data);
+        let _ = Self::save_progression_data_to_path(Self::progression_path(), &data);
     }
 
     pub fn autosave_world_step(&mut self, max_chunks: usize) -> bool {
@@ -4732,8 +4743,7 @@ impl GameState {
         if let Some(partner_slot) = self.anvil_partner_for_hotbar() {
             let partner_hotbar = partner_slot + 1;
             format!(
-                "Combine with slot {} | cost {} levels | Enchant L{}",
-                partner_hotbar, ANVIL_COMBINE_LEVEL_COST, held_enchant
+                "Combine with slot {partner_hotbar} | cost {ANVIL_COMBINE_LEVEL_COST} levels | Enchant L{held_enchant}"
             )
         } else {
             "No matching item found in inventory to combine.".to_string()
@@ -16373,7 +16383,7 @@ mod tests {
             .iter()
             .filter(|item| item.item_type == ItemType::NetherWart)
             .count();
-        assert!(wart_drops >= 2, "wart drops were {}", wart_drops);
+        assert!(wart_drops >= 2, "wart drops were {wart_drops}");
         assert_eq!(state.world.get_block(1, 9), BlockType::Air);
     }
 
@@ -22398,7 +22408,7 @@ mod tests {
         GameState::save_progression_data_to_path(&path, &data).expect("helper save should succeed");
 
         assert!(std::path::Path::new(&path).exists());
-        assert!(!std::path::Path::new(&temp_path).exists());
+        assert!(!temp_path.exists());
 
         let _ = std::fs::remove_file(path);
     }

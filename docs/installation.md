@@ -2,7 +2,7 @@
 
 > Version: `0.1.0`
 >
-> Status: early alpha. The recommended way to play right now is local single-player from source.
+> Status: early alpha. The recommended way to play right now is local single-player.
 
 ## Requirements
 
@@ -23,6 +23,15 @@ rustc --version
 cargo --version
 ```
 
+## Install From Crates.io
+
+```bash
+cargo install termcraft
+termcraft
+```
+
+Cargo installs the binary into your local Cargo bin directory, typically `~/.cargo/bin`.
+
 ## Clone The Repository
 
 ```bash
@@ -38,7 +47,7 @@ From the repo root:
 cargo run --release
 ```
 
-This is the simplest and most accurate way to launch the game right now.
+This is the simplest way to test local source changes.
 
 ## Build A Reusable Binary
 
@@ -49,7 +58,7 @@ cargo build --release
 ./target/release/termcraft
 ```
 
-## Install Into Cargo's Local Bin Path
+## Install From A Local Checkout
 
 If you want to run `termcraft` directly from your shell after cloning locally:
 
@@ -74,11 +83,13 @@ If right-click is unreliable in your terminal, use `F` as the explicit hovered-b
 
 ## Save Location
 
-Saves are repo-local:
+Saves are written to the per-user data directory:
 
-- `saves/`
+- Linux: `$XDG_DATA_HOME/termcraft/saves`, or `~/.local/share/termcraft/saves` when `XDG_DATA_HOME` is unset
+- macOS: `~/Library/Application Support/termcraft/saves`
+- Windows: `%APPDATA%\termcraft\saves`
 
-That means the game writes world and progression data into the checkout directory, not into a global OS save folder.
+Set `TERMCRAFT_SAVE_DIR` to override this location. Existing repo-local `./saves` files are copied into the default user data directory on first run.
 
 ## Experimental Networking
 

@@ -8,17 +8,23 @@ This page documents the current on-disk save layout as implemented in the repo t
 
 ## Save Directory Layout
 
-Current local save files live in `saves/`:
+Current local save files live in the configured save directory. By default this is the per-user data directory:
+
+- Linux: `$XDG_DATA_HOME/termcraft/saves`, or `~/.local/share/termcraft/saves` when `XDG_DATA_HOME` is unset
+- macOS: `~/Library/Application Support/termcraft/saves`
+- Windows: `%APPDATA%\termcraft\saves`
+
+Set `TERMCRAFT_SAVE_DIR` to override this location. Existing repo-local `./saves` files are copied into the default user data directory on first run.
 
 ```text
-saves/
+<save-dir>/
   overworld_chunk_<x>.bin
   nether_chunk_<x>.bin
   end_chunk_<x>.bin
   player_progression.bin
 ```
 
-Chunk saves are namespaced by dimension. Older legacy overworld chunk paths are still migrated on load.
+Chunk saves are namespaced by dimension. Older legacy overworld chunk filenames are still migrated on load.
 
 ## Chunk Geometry
 

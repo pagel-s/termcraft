@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_VERSION: "1.88.0"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt --component clippy
+
+      - name: Check formatting
+        run: cargo +"$RUST_VERSION" fmt --check
+
+      - name: Check all targets
+        run: cargo +"$RUST_VERSION" check --all-targets --locked
+
+      - name: Clippy
+        run: cargo +"$RUST_VERSION" clippy --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo +"$RUST_VERSION" test --locked --quiet
+
+      - name: Verify package
+        run: cargo +"$RUST_VERSION" publish --dry-run --locked
