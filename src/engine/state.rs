@@ -4743,8 +4743,7 @@ impl GameState {
         if let Some(partner_slot) = self.anvil_partner_for_hotbar() {
             let partner_hotbar = partner_slot + 1;
             format!(
-                "Combine with slot {} | cost {} levels | Enchant L{}",
-                partner_hotbar, ANVIL_COMBINE_LEVEL_COST, held_enchant
+                "Combine with slot {partner_hotbar} | cost {ANVIL_COMBINE_LEVEL_COST} levels | Enchant L{held_enchant}"
             )
         } else {
             "No matching item found in inventory to combine.".to_string()
@@ -16384,7 +16383,7 @@ mod tests {
             .iter()
             .filter(|item| item.item_type == ItemType::NetherWart)
             .count();
-        assert!(wart_drops >= 2, "wart drops were {}", wart_drops);
+        assert!(wart_drops >= 2, "wart drops were {wart_drops}");
         assert_eq!(state.world.get_block(1, 9), BlockType::Air);
     }
 

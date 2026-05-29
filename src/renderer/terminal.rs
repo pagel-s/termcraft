@@ -2789,7 +2789,8 @@ impl Renderer {
                 (
                     Self::inventory_item_label(stack.item_type),
                     if enchant_level > 0 {
-                        format!("+{}", enchant_level.min(9))
+                        let badge_level = enchant_level.min(9);
+                        format!("+{badge_level}")
                     } else {
                         "  ".to_string()
                     },
@@ -2810,15 +2811,11 @@ impl Renderer {
             };
             let left_edge = if is_selected { '>' } else { '[' };
             let right_edge = if is_selected { '<' } else { ']' };
+            let slot_number = i + 1;
             self.put_str(
                 slot_x,
                 ui_y + 1,
-                &format!(
-                    "{left_edge}{:>2} {:<2} {:>2} {right_edge}",
-                    i + 1,
-                    label,
-                    badge
-                ),
+                &format!("{left_edge}{slot_number:>2} {label:<2} {badge:>2} {right_edge}"),
                 slot_fg,
                 slot_bg,
             );
@@ -2827,7 +2824,7 @@ impl Renderer {
             self.put_str(
                 slot_x + 5,
                 ui_y + 2,
-                &format!("{:>5}", metric),
+                &format!("{metric:>5}"),
                 metric_fg,
                 slot_bg,
             );
@@ -2837,7 +2834,8 @@ impl Renderer {
         let detail_line = if let Some(stack) = &state.inventory.slots[state.hotbar_index as usize] {
             Self::hotbar_selected_detail(stack, state.selected_hotbar_enchant_level())
         } else {
-            format!("Held: slot {} empty", state.hotbar_index + 1)
+            let empty_slot = state.hotbar_index + 1;
+            format!("Held: slot {empty_slot} empty")
         };
         let detail_fg = state.inventory.slots[state.hotbar_index as usize]
             .as_ref()
@@ -2852,7 +2850,7 @@ impl Renderer {
             self.put_str(
                 1,
                 ui_y + 3,
-                &format!("{detail:<width$}", width = detail_w),
+                &format!("{detail:<detail_w$}"),
                 detail_fg,
                 hud_bg,
             );
@@ -2873,17 +2871,11 @@ impl Renderer {
         if state.player.hunger % 2.0 >= 1.0 {
             n_str.push('+');
         }
-        self.put_str(
-            hud_x,
-            1,
-            &format!("{:<15}", h_str),
-            Color::Red,
-            Color::Reset,
-        );
+        self.put_str(hud_x, 1, &format!("{h_str:<15}"), Color::Red, Color::Reset);
         self.put_str(
             hud_x,
             2,
-            &format!("{:<15}", n_str),
+            &format!("{n_str:<15}"),
             Color::Rgb {
                 r: 205,
                 g: 133,
@@ -2891,10 +2883,11 @@ impl Renderer {
             },
             Color::Reset,
         );
+        let armor_points = state.total_armor_points();
         self.put_str(
             hud_x,
             3,
-            &format!("Armor {:>2}/20", state.total_armor_points()),
+            &format!("Armor {armor_points:>2}/20"),
             Color::Cyan,
             Color::Reset,
         );
@@ -2940,7 +2933,7 @@ impl Renderer {
                 self.put_str(
                     hud_x - 2,
                     3,
-                    &format!("{:<20}", headline),
+                    &format!("{headline:<20}"),
                     Self::rgb(Self::lerp_rgb(
                         (185, 135, 255),
                         (255, 255, 255),
@@ -2958,7 +2951,7 @@ impl Renderer {
                 self.put_str(
                     hud_x - 2,
                     3,
-                    &format!("Dragon [{}]", hp_bar),
+                    &format!("Dragon [{hp_bar}]"),
                     Color::Rgb {
                         r: 235,
                         g: 115,
@@ -3218,7 +3211,7 @@ impl Renderer {
             self.put_str(
                 hud_x,
                 6,
-                &format!("│ Target: {:<12} │", t_str),
+                &format!("│ Target: {t_str:<12} │"),
                 Color::Yellow,
                 Color::Reset,
             );
@@ -3506,10 +3499,11 @@ impl Renderer {
             Color::DarkGrey,
             panel_bg,
         );
+        let last_health = state.player.health.max(0.0);
         self.put_str(
             panel_x + 2,
             panel_y + panel_h - 2,
-            &format!("Last health: {:.1}", state.player.health.max(0.0)),
+            &format!("Last health: {last_health:.1}"),
             Color::DarkGrey,
             panel_bg,
         );
@@ -3584,9 +3578,11 @@ impl Renderer {
         );
 
         let (rule_spawn, rule_day, rule_weather, rule_keep_inv) = state.game_rule_flags();
+        let difficulty_name = state.difficulty_name();
+        let game_rules_preset_name = state.game_rules_preset_name();
         let rows = [
-            format!("Difficulty        : {}", state.difficulty_name()),
-            format!("Gamerule preset   : {}", state.game_rules_preset_name()),
+            format!("Difficulty        : {difficulty_name}"),
+            format!("Gamerule preset   : {game_rules_preset_name}"),
             format!(
                 "doMobSpawning     : {}",
                 if rule_spawn { "ON" } else { "OFF" }
@@ -3638,13 +3634,7 @@ impl Renderer {
             if line.len() > line_width {
                 line.truncate(line_width);
             }
-            self.put_str(
-                panel_x + 3,
-                y,
-                &format!("{line:<width$}", width = line_width),
-                fg,
-                bg,
-            );
+            self.put_str(panel_x + 3, y, &format!("{line:<line_width$}"), fg, bg);
         }
     }
 
@@ -4117,19 +4107,20 @@ impl Renderer {
         }
 
         if stack.count > 1 {
-            return (format!("x{:>2}", stack.count.min(99)), Color::Cyan);
+            let stack_count = stack.count.min(99);
+            return (format!("x{stack_count:>2}"), Color::Cyan);
         }
 
         ("".to_string(), Color::DarkGrey)
     }
 
     fn hotbar_selected_detail(stack: &ItemStack, enchant_level: u8) -> String {
-        let mut detail = format!("Held: {} x{}", stack.item_type.name(), stack.count);
+        let item_name = stack.item_type.name();
+        let stack_count = stack.count;
+        let mut detail = format!("Held: {item_name} x{stack_count}");
         if let (Some(d), Some(m)) = (stack.durability, stack.item_type.max_durability()) {
-            detail.push_str(&format!(
-                " | Dur {}%",
-                ((d as f32 / m as f32) * 100.0) as i32
-            ));
+            let durability_pct = ((d as f32 / m as f32) * 100.0) as i32;
+            detail.push_str(&format!(" | Dur {durability_pct}%"));
         }
         if enchant_level > 0 {
             detail.push_str(&format!(" | Ench +{enchant_level}"));
@@ -4152,10 +4143,11 @@ impl Renderer {
             Self::inventory_item_color(stack.item_type)
         };
         self.put_str(sx + 1, sy, &icon, icon_fg, slot_bg);
+        let stack_count = stack.count.min(99);
         self.put_str(
             sx + 3,
             sy,
-            &format!("{:>2}", stack.count.min(99)),
+            &format!("{stack_count:>2}"),
             if is_selected {
                 Color::Black
             } else {
@@ -4174,10 +4166,9 @@ impl Renderer {
         bg: Color,
     ) {
         let (fg, mut line) = if let Some(stack) = state.selected_inventory_preview_item() {
-            (
-                Color::Cyan,
-                format!("Selected: {} x{}", stack.item_type.name(), stack.count),
-            )
+            let item_name = stack.item_type.name();
+            let stack_count = stack.count;
+            (Color::Cyan, format!("Selected: {item_name} x{stack_count}"))
         } else {
             (
                 Color::DarkGrey,
@@ -4187,7 +4178,7 @@ impl Renderer {
         if line.len() > width {
             line.truncate(width);
         }
-        self.put_str(x, y, &format!("{line:<width$}", width = width), fg, bg);
+        self.put_str(x, y, &format!("{line:<width$}"), fg, bg);
     }
 
     fn draw_inventory_overlay(&mut self, state: &GameState) {
@@ -4353,10 +4344,11 @@ impl Renderer {
                     1 => "Standard Enchant + Repair",
                     _ => "Major Enchant + Repair",
                 };
+                let option_number = option_idx + 1;
                 self.put_str(
                     box_x + 2,
                     box_y + 13 + option_idx as i32,
-                    &format!("{}. Cost {} levels -> {}", option_idx + 1, cost, desc),
+                    &format!("{option_number}. Cost {cost} levels -> {desc}"),
                     fg,
                     bg,
                 );
@@ -4404,10 +4396,11 @@ impl Renderer {
                     3 => "Awkward Potion + Ghast Tear -> Potion of Regeneration",
                     _ => "Awkward Potion + Magma Cream -> Fire Resistance",
                 };
+                let option_number = option_idx + 1;
                 self.put_str(
                     box_x + 2,
                     box_y + 13 + option_idx as i32,
-                    &format!("{}. {}", option_idx + 1, desc),
+                    &format!("{option_number}. {desc}"),
                     fg,
                     bg,
                 );
@@ -4444,18 +4437,16 @@ impl Renderer {
                 };
                 let mut ing_str = String::new();
                 for (ing, amt) in r.ingredient_requirements() {
-                    ing_str.push_str(&format!("{} x{}, ", ing.name(), amt));
+                    let ingredient_name = ing.name();
+                    ing_str.push_str(&format!("{ingredient_name} x{amt}, "));
                 }
+                let recipe_number = i + 1;
+                let result_name = r.result.name();
+                let result_count = r.result_count;
                 self.put_str(
                     rx,
                     ry,
-                    &format!(
-                        "{}. {} x{} <- {}",
-                        i + 1,
-                        r.result.name(),
-                        r.result_count,
-                        ing_str
-                    ),
+                    &format!("{recipe_number}. {result_name} x{result_count} <- {ing_str}"),
                     fg,
                     bg,
                 );
@@ -4533,10 +4524,11 @@ impl Renderer {
                     },
                     output_bg,
                 );
+                let output_count = count.min(99);
                 self.put_str(
                     output_x + 3,
                     output_y,
-                    &format!("{:>2}", count.min(99)),
+                    &format!("{output_count:>2}"),
                     if output_selected {
                         Color::Black
                     } else {
