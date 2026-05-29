@@ -10,22 +10,25 @@
   <p>
     <a href="https://pagel-s.github.io/termcraft/">Docs</a>
     ·
-    <a href="https://pagel-s.github.io/termcraft/installation/">Installation</a>
+    <a href="docs/installation.md">Installation</a>
     ·
-    <a href="https://pagel-s.github.io/termcraft/gameplay/">Gameplay</a>
+    <a href="docs/gameplay.md">Gameplay</a>
     ·
-    <a href="https://pagel-s.github.io/termcraft/supported-content/">Supported Content</a>
+    <a href="docs/supported-content.md">Supported Content</a>
     ·
-    <a href="https://pagel-s.github.io/termcraft/media-credits/">Media Credits</a>
+    <a href="docs/media-credits.md">Media Credits</a>
   </p>
 </div>
 
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
 > Early alpha. The game is playable, but some systems are still rough or buggy.
->
-> Demo video: https://youtu.be/kR986Xqzj7E  
-> Soundtrack in the full highlight: [Fantasy Orchestral Theme](https://opengameart.org/content/fantasy-orchestral-theme) by Joth and [Boss Battle #2 \[Symphonic Metal\]](https://opengameart.org/content/boss-battle-2-symphonic-metal) by nene via OpenGameArt, both `CC0`. Full details: [Media Credits](https://pagel-s.github.io/termcraft/media-credits/)
+
+![termcraft highlight](docs/assets/termcraft.gif)
+
+> Full highlight video: [termcraft.mp4](docs/assets/termcraft.mp4)  
+> YouTube: https://youtu.be/kR986Xqzj7E  
+> Soundtrack in the full highlight: [Fantasy Orchestral Theme](https://opengameart.org/content/fantasy-orchestral-theme) by Joth and [Boss Battle #2 \[Symphonic Metal\]](https://opengameart.org/content/boss-battle-2-symphonic-metal) by nene via OpenGameArt, both `CC0`. Full details: [Media Credits](docs/media-credits.md)
 
 ## Overview
 
@@ -154,4 +157,4 @@ Set `TERMCRAFT_SAVE_DIR` to override this location. Existing repo-local `./saves
 - chunk files: `<save-dir>/<dimension>_chunk_<x>.bin`
 - progression file: `<save-dir>/player_progression.bin`
 
-See [World Format](https://pagel-s.github.io/termcraft/world-format/) for the current save layout.
+See [World Format](docs/world-format.md) for the current save layout.

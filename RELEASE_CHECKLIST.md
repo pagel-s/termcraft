@@ -23,6 +23,7 @@ Use this checklist before cutting a release tag.
 
 1. Inspect packaged files:
    - `cargo package --list`
+   - Confirm `README-crates.md` is included and `README.md` is not included.
    - Confirm `docs/assets/*.mp4` and `docs/assets/*.gif` are not included.
 2. Build and verify the package archive:
    - `cargo package`

@@ -8,14 +8,14 @@ license = "AGPL-3.0-only"
 repository = "https://github.com/pagel-s/termcraft"
 homepage = "https://pagel-s.github.io/termcraft/"
 documentation = "https://pagel-s.github.io/termcraft/"
-readme = "README.md"
+readme = "README-crates.md"
 keywords = ["terminal", "game", "sandbox", "survival", "ascii"]
 categories = ["games", "command-line-utilities"]
 include = [
     "/Cargo.toml",
     "/Cargo.lock",
     "/LICENSE",
-    "/README.md",
+    "/README-crates.md",
     "/src/**",
     "/docs/developer.md",
     "/docs/gameplay.md",

@@ -102,6 +102,8 @@ Docs publishing is built from:
 - `docs/`
 - `.github/workflows/docs.yml`
 
+The GitHub README keeps the rich local media preview. The crates.io package uses `README-crates.md`, which avoids packaged media and points to hosted docs/video instead.
+
 Current checked-in media used by the public docs and excluded from the crates.io package:
 
 - `docs/assets/termcraft.gif`: README teaser
