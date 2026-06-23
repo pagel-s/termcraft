@@ -1,0 +1,21 @@
+termcraft for Debian
+--------------------
+
+termcraft saves game data relative to the current working directory under
+a "saves/" subdirectory. Run the game from a writable directory of your
+choice; the save files will be created there automatically.
+
+To start the game:
+
+  termcraft
+
+To run a headless multiplayer server:
+
+  termcraft server [bind_addr]
+
+To connect as a multiplayer client:
+
+  termcraft connect [server_addr]
+
+Note: this game is an unofficial fan project, not affiliated with Mojang
+or Microsoft.

@@ -1,0 +1,69 @@
+.TH TERMCRAFT 6 "2026-05-06" "0.1.0" "Games"
+.SH NAME
+termcraft \- terminal-based 2D sandbox survival game
+.SH SYNOPSIS
+.B termcraft
+.RI [ server | client | connect ]
+.RI [ address ]
+.SH DESCRIPTION
+.B termcraft
+is a terminal-based 2D sandbox survival game written in Rust,
+inspired by the classic early-2012 block-survival gameplay loop.
+.PP
+Features include procedural Overworld, Nether, and End generation,
+mining, placement, inventory, crafting, furnaces, brewing, boats, and
+chests. Health, hunger, combat, weather, fluids, gravity blocks, crops,
+and farming are present. Passive and hostile mobs, villages, dungeons,
+strongholds, and Nether fortresses complete the experience.
+.SH MODES
+.TP
+.B (no argument)
+Start the game in local single-player mode.
+.TP
+.B server \fR[\fIbind_addr\fR]
+Start a headless multiplayer TCP server. Default address: 127.0.0.1:25565.
+.TP
+.B client | connect \fR[\fIserver_addr\fR]
+Connect to a multiplayer server. Default address: 127.0.0.1:25565.
+.SH CONTROLS
+.TP
+.BR A / D ", arrow keys"
+Move left / right.
+.TP
+.BR W / Up / Space
+Jump or swim up.
+.TP
+.B X
+Toggle sneak.
+.TP
+.B E
+Open inventory.
+.TP
+.BR 1 \- 9
+Hotbar slot selection.
+.TP
+.B Left Click
+Mine block or attack entity.
+.TP
+.B Right Click
+Place block or interact.
+.TP
+.B F
+Explicit block-use fallback (if right-click is unreliable in your terminal).
+.TP
+.B O
+Settings menu.
+.TP
+.BR Q / Esc
+Close UI or quit from world view.
+.SH FILES
+Game saves are written to a
+.B saves/
+subdirectory relative to the current working directory.
+.SH NOTES
+This game is an unofficial fan project, not affiliated with Mojang or
+Microsoft. Client/server multiplayer mode is experimental.
+.SH AUTHORS
+Sebastian Pagel <pagel.sebastian.1@gmail.com>
+.SH SEE ALSO
+Project page: https://github.com/pagel-s/termcraft

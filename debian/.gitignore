@@ -1,0 +1,14 @@
+# debhelper build artifacts
+.debhelper/
+debhelper-build-stamp
+files
+*.substvars
+
+# package staging trees
+termcraft/
+termcraft-dbgsym/
+
+# pre-generated scaled icons (built from termcraft.png at build time)
+termcraft-48.png
+termcraft-64.png
+termcraft-128.png

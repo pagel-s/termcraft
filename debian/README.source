@@ -1,0 +1,21 @@
+termcraft for Debian
+--------------------
+
+This package is built using dh-cargo (the Debian helper for Rust/Cargo
+packages). Building requires network access to download Rust crate
+dependencies from crates.io, or a pre-populated cargo registry cache.
+
+For fully offline builds (e.g. in the Debian build daemon), vendor the
+dependencies before building:
+
+  cargo vendor vendor/
+  mkdir -p .cargo
+  cat >> .cargo/config.toml <<'EOF'
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"
+EOF
+
+Then include the vendor/ directory in the source tarball.

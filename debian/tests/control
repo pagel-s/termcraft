@@ -1,0 +1,3 @@
+Tests: run-installed
+Depends: termcraft
+Restrictions: allow-stderr

@@ -1,0 +1,29 @@
+#!/usr/bin/make -f
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+# Ensure rustup shim resolves correctly when building locally
+export RUSTUP_TOOLCHAIN ?= stable
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	cargo build --release
+
+override_dh_auto_install:
+	install -D -m 755 target/release/termcraft \
+		debian/termcraft/usr/games/termcraft
+	install -D -m 644 debian/termcraft.6 \
+		debian/termcraft/usr/share/man/man6/termcraft.6
+	install -D -m 644 debian/io.github.pagel_s.termcraft.metainfo.xml \
+		debian/termcraft/usr/share/metainfo/io.github.pagel_s.termcraft.metainfo.xml
+	for size in 48 64 128 200; do \
+		install -d debian/termcraft/usr/share/icons/hicolor/$${size}x$${size}/apps; \
+		convert -filter point -resize $${size}x$${size} debian/termcraft.png \
+			debian/termcraft/usr/share/icons/hicolor/$${size}x$${size}/apps/io.github.pagel_s.termcraft.png; \
+	done
+
+override_dh_auto_test:
+	cargo test --quiet
+
+override_dh_auto_clean:
+	cargo clean || true

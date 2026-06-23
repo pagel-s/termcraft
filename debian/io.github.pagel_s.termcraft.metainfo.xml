@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="console-application">
+  <id>io.github.pagel_s.termcraft</id>
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>AGPL-3.0-only</project_license>
+  <name>termcraft</name>
+  <summary>Terminal-based 2D sandbox survival game</summary>
+
+  <description>
+    <p>
+      termcraft is a 2D sandbox survival game that runs entirely in the
+      terminal, written in Rust. It follows the classic early-2012
+      block-survival gameplay loop: mine, craft, explore, and survive.
+    </p>
+    <p>Key features:</p>
+    <ul>
+      <li>Procedural Overworld, Nether, and End dimension generation</li>
+      <li>Mining, placement, inventory, crafting, furnaces, and brewing</li>
+      <li>Health, hunger, combat, weather, and fluid simulation</li>
+      <li>Passive and hostile mobs including creepers, skeletons, and the Ender Dragon</li>
+      <li>Villages, dungeons, strongholds, and Nether fortresses</li>
+      <li>Local save persistence with autosave</li>
+      <li>Experimental client/server multiplayer mode</li>
+    </ul>
+    <p>
+      termcraft is an unofficial fan project and is not affiliated with
+      Mojang or Microsoft.
+    </p>
+  </description>
+
+  <icon type="stock">io.github.pagel_s.termcraft</icon>
+
+  <developer id="io.github.pagel_s">
+    <name>Sebastian Pagel</name>
+  </developer>
+
+  <url type="homepage">https://github.com/pagel-s/termcraft</url>
+  <url type="bugtracker">https://github.com/pagel-s/termcraft/issues</url>
+
+  <provides>
+    <binary>termcraft</binary>
+  </provides>
+
+  <categories>
+    <category>Game</category>
+    <category>Simulation</category>
+  </categories>
+
+  <releases>
+    <release version="0.1.0" date="2026-03-21">
+      <description>
+        <p>Initial public release.</p>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-fantasy">mild</content_attribute>
+  </content_rating>
+</component>
