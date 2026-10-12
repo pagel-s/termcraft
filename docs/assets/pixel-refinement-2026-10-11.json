@@ -1,0 +1,308 @@
+{
+  "date": "2026-10-11",
+  "version": "0.1.0",
+  "development_build": true,
+  "network_protocol": 10,
+  "progression_format": 7,
+  "binary_sha256": "c74524e6c05d78b342be964a0652f9dbf9cf1b58a3f35dc327ea0559702818b8",
+  "source_files_sha256": {
+    "src/engine/game_loop.rs": "e5ffe9924ebcb98297a971ff55daf09d1833c3c7d3e8ee74915985861d8e8d7f",
+    "src/engine/network_client.rs": "601ab718ba474b8f8cb7766608188408dd7d028fefd4ea2079fd2f1c14dce848",
+    "src/engine/net.rs": "2a529a269d1315f5a8f9c4a4bbdd93d28d4e6da0179d8633843275d99a6a8619",
+    "src/engine/state.rs": "367ff968c8b93afe2bf5cc35e38126c3b418a1bdb222136666d6b0caeaded6d1",
+    "src/engine/physics_tests.rs": "649c679213a1e65629ba02e2bbd929f7f93d8cd197d47d9400c7d6c5e55bfcbd",
+    "src/renderer/terminal.rs": "e8f4b38206c14551fdd79b7c6edf1d1aae2f0d2e3cf77f035c04788b5d4ba4f1",
+    "src/renderer/materials.rs": "21cdbab283282e5b6c9d0568a853b27fe130922a9c7f750fa7c016fae45019b6",
+    "src/renderer/sprites.rs": "73983a60878844f94c600fd2bcc4bfb7f649b4d8f38ec6479db324db0284a14f",
+    "src/renderer/motion.rs": "39f0d5db4097931e0705168f336708619ee06ee6ed114ccc77e546f1f42fa3ec",
+    "src/world/mod.rs": "ebb601c19f980c04f4b5b5f9782206929a985d8efc629402cf116cfe3950ad56",
+    "examples/pixel_review.rs": "40e9fd19ac69dddce4bcb34eb4bc36cf9eaccb26016b35a68082356f03b3e630",
+    "examples/render_profile.rs": "81f64702d8b38a12267399ca446b47dd8d5c50242336e937d74f0a780a03cf7f",
+    "Cargo.toml": "0a38c9e2c00ae9731864693f3284d2fa857fd7fe4e9a6cb269aafd3424513461",
+    "scripts/package_release.py": "79897924e525c92fe08d5919b23feba4ac6525ff94077cea4309e2bc20c9bfd8"
+  },
+  "checks": {
+    "stable_rust": "1.98.1",
+    "minimum_rust": "1.88.0",
+    "unit_tests": {
+      "stable": 577,
+      "minimum_rust": 577,
+      "failed": 0
+    },
+    "format": "passed",
+    "strict_all_target_clippy": {
+      "stable": "passed",
+      "minimum_rust": "passed"
+    },
+    "optimized_build": "passed",
+    "real_tcp_regressions": {
+      "passed": 3,
+      "failed": 0,
+      "coverage": [
+        "contested resources, craft/build, save/reconnect/restart",
+        "live host-controlled MCP director, guest restrictions and cancellation",
+        "eight actors, delayed link, stalled readers and saved restart"
+      ]
+    },
+    "native_archive": "See the separate dist/native-qualification-20261011.json report; the archive is built after this report.",
+    "strict_mkdocs": "passed",
+    "offline_cargo_package_verification": "passed"
+  },
+  "enhanced_terminal_input": {
+    "results": {
+      "native": {
+        "mode": "native",
+        "status": "passed",
+        "held_without_repeat_delta": 3.5199957117647105,
+        "release_drift": 0.058554777599995944,
+        "arrow_delta": -2.823529413935625,
+        "focus_loss_cleared": true,
+        "terminal_restored": true,
+        "artifacts": "/tmp/termcraft-foundation-ui-13iyenwp"
+      },
+      "coop": {
+        "mode": "coop",
+        "status": "passed",
+        "held_without_repeat_delta": 3.519999356764707,
+        "release_drift": 0.025285017599999904,
+        "arrow_delta": -2.823529413935625,
+        "focus_loss_cleared": true,
+        "terminal_restored": true,
+        "artifacts": "/tmp/termcraft-foundation-ui-53jbgu5w"
+      }
+    },
+    "method": "Real Unix PTY, enhanced capability replies and press/release/focus sequences, disposable flat world; authoritative position observed through director tools. Also checks F3/F4, inventory and terminal restoration.",
+    "hold_without_repeat_seconds": 0.75,
+    "release_drift_measurement_seconds": 0.3,
+    "limits": "Automated Linux input evidence, not terminal presentation latency or human acceptance. Repeat-only input, Windows/macOS and WAN feel remain unqualified."
+  },
+  "ssh": {
+    "status": "passed",
+    "openssh": "OpenSSH_10.2p1 Ubuntu-2ubuntu3.6, OpenSSL 3.5.5 27 Jan 2026",
+    "paramiko": "5.0.0",
+    "binary_sha256": "c74524e6c05d78b342be964a0652f9dbf9cf1b58a3f35dc327ea0559702818b8",
+    "encrypted_key_authenticated_sessions": 7,
+    "forwarded_channels": 14,
+    "reconnect_and_restart": true,
+    "rejected_authentication": true,
+    "rejected_forwarding": true,
+    "rejected_host_key": true,
+    "missing_game_server": true,
+    "dropped_link_restores_terminal": true,
+    "tunnel_processes_reaped": true,
+    "duration_seconds": 13.247,
+    "limits": "Local OpenSSH-to-Paramiko fixture. No real remote account, WAN or human gameplay qualification."
+  },
+  "renderer_profile": {
+    "data": {
+      "color_mode": "color",
+      "limits": "Real renderer and ANSI encoding to a counting writer; excludes emulator presentation, kernel I/O, simulation, model and networking.",
+      "results": [
+        {
+          "bytes": 46301,
+          "frames": 210,
+          "p50_ms": 0.458899,
+          "p95_ms": 0.487076,
+          "p99_ms": 0.5631879999999999,
+          "scene": "daylight",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 76704,
+          "frames": 210,
+          "p50_ms": 0.761285,
+          "p95_ms": 0.764033,
+          "p99_ms": 0.766931,
+          "scene": "daylight",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 1691319,
+          "frames": 210,
+          "p50_ms": 0.498562,
+          "p95_ms": 0.526086,
+          "p99_ms": 0.5276350000000001,
+          "scene": "storm",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 4532984,
+          "frames": 210,
+          "p50_ms": 0.858225,
+          "p95_ms": 0.869591,
+          "p99_ms": 0.879493,
+          "scene": "storm",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 70412,
+          "frames": 210,
+          "p50_ms": 0.295617,
+          "p95_ms": 0.30729100000000004,
+          "p99_ms": 0.31299000000000005,
+          "scene": "torch_cave",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 107453,
+          "frames": 210,
+          "p50_ms": 0.463218,
+          "p95_ms": 0.5018410000000001,
+          "p99_ms": 0.522308,
+          "scene": "torch_cave",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 60704,
+          "frames": 210,
+          "p50_ms": 0.45892099999999997,
+          "p95_ms": 0.476659,
+          "p99_ms": 0.484008,
+          "scene": "dense_mobs",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 103891,
+          "frames": 210,
+          "p50_ms": 0.7688839999999999,
+          "p95_ms": 0.780813,
+          "p99_ms": 0.79079,
+          "scene": "dense_mobs",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 44945,
+          "frames": 210,
+          "p50_ms": 0.35729,
+          "p95_ms": 0.361454,
+          "p99_ms": 0.365148,
+          "scene": "nether",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 73528,
+          "frames": 210,
+          "p50_ms": 0.5700599999999999,
+          "p95_ms": 0.574504,
+          "p99_ms": 0.584679,
+          "scene": "nether",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 43927,
+          "frames": 210,
+          "p50_ms": 0.334277,
+          "p95_ms": 0.342674,
+          "p99_ms": 0.34479,
+          "scene": "end",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 72071,
+          "frames": 210,
+          "p50_ms": 0.5350729999999999,
+          "p95_ms": 0.538304,
+          "p99_ms": 0.542913,
+          "scene": "end",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        }
+      ]
+    },
+    "scope": "Final renderer source, optimized example, 210 frames/case; first 30 omitted from percentiles. Player stationary, fixed geometry and scene effects. Each frame uses one output write. Closer field of view differs from older wide-view baseline; no equal-coverage speedup or end-to-end latency claim. Moving-camera bandwidth is not measured here.",
+    "measured_executable_sha256": "607eaa80890b89b4a9ce1b651c14a9da871e0fc4ae457cb0add45435594b02f6"
+  },
+  "visual_review": {
+    "direction_selected": "terminal pixel art",
+    "provenance": "docs/design/pixel-refinement/provenance.md",
+    "scene_source": "examples/pixel_review.rs",
+    "capture_executable_sha256": "733a3c8593483a52d4de4bb98175ccddc561400e219cac80c89180b957f84c23",
+    "generated_geometry": [
+      "village hut"
+    ],
+    "staged_geometry": [
+      "Nether chamber",
+      "End scene",
+      "cave",
+      "physics course"
+    ],
+    "terminal_cells": [
+      160,
+      48
+    ],
+    "block_pixel_size": [
+      8,
+      8
+    ],
+    "humanoid_pixel_rows": 16,
+    "source_motion_samples": 144,
+    "source_presentation_fps": 60,
+    "gif_source_frame_ms": 20,
+    "human_acceptance": false,
+    "asset_sha256": {
+      "end.png": "ddac05a7c0ec1d781322dabd32d7b26a28cd46868f63e263a0fcdd8495714b9f",
+      "nether.png": "c1057a248dd1c9647a076fdda257d996598f54d6f61aa2ce1b50e84e41054fb5",
+      "village.png": "f18ef66e33b00ee81e23cd78536a3071d63fc3544b59b9aecb0becf8bfff8d2c",
+      "motion.json": "0731f7f2e90353fa161b0ea35fc7ab2f7061bd61e3dbdb525d240fef8c4a0e04",
+      "cave.png": "514631cbefd02a4217e2a0d323d1721760d363de5cb226f239e0e3fea9a3fa31",
+      "movement.gif": "f5ca0ba1a900977d44966d2fbf9252277e21167d88a7c343de75100a1415adfb",
+      "worlds.png": "ddbcf4c9fda7199c0401f9d4de89cca0d838ff0a3862efaa33576bc9d211d973"
+    }
+  },
+  "open_quality_gates": [
+    "Human native/co-op precision and obstacle-course assessment",
+    "Terminal quantization, repeat-only initial-repeat gap and real SSH/WAN correction quality",
+    "Consistent HUD/combat feedback, larger villages and bespoke creature/equipment animation",
+    "Boat/fluid movement, full survival campaign and sustained human co-op",
+    "Clean Windows/macOS terminal and archive qualification",
+    "Stairs/slabs retain full-tile collision; richer stepping and fluid/boat physics are not added by the art atlas."
+  ],
+  "publication": "None; uncommitted local development candidate."
+}

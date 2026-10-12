@@ -31,4 +31,12 @@ pub enum ClientCommand {
     TravelToSpawn,
     EquipDiamondLoadout,
     UseAt(i32, i32),
+    AimAt(i32, i32),
+    InventoryClick(u16, u8),
+    CraftGrid(bool),
+    CraftRecipe(u16),
+    Enchant(u8),
+    Anvil,
+    Brew(u8),
+    ClearCraftGrid,
 }

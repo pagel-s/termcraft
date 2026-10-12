@@ -9,9 +9,9 @@ use std::time::{Duration, Instant};
 const TICKS_PER_SECOND: u64 = 20;
 const TICK_DURATION: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 const MAX_CATCHUP_TICKS_PER_FRAME: u8 = 5;
-// These are only fallback timeouts for terminals that fail to emit key-release
-// events. Keep them comfortably above common OS repeat delays so held movement
-// does not stutter between the initial press and the first repeat packet.
+// Legacy terminals cannot distinguish a tap from a hold before OS repeat starts.
+// These bounded fallback pulses favor stopping after taps. Release-reporting
+// terminals bypass them entirely and retain input until key-up or focus loss.
 const HORIZONTAL_INPUT_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(150);
 const HORIZONTAL_INPUT_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(96);
 const HORIZONTAL_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(320);
@@ -20,12 +20,8 @@ const JUMP_INPUT_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(160);
 const JUMP_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(420);
 const AUTOSAVE_INTERVAL: Duration = Duration::from_secs(45);
 const AUTOSAVE_CHUNK_BUDGET_PER_FRAME: usize = 1;
-const TARGET_FPS: u64 = 30;
+const TARGET_FPS: u64 = 60;
 const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / TARGET_FPS);
-const GROUNDED_HORIZONTAL_RELEASE_BRAKE: f64 = 0.18;
-const AIR_HORIZONTAL_RELEASE_BRAKE: f64 = 0.28;
-const GROUNDED_STALE_CLEAR_BRAKE: f64 = 0.08;
-const AIR_STALE_CLEAR_BRAKE: f64 = 0.3;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum HorizontalDirection {
@@ -35,6 +31,7 @@ enum HorizontalDirection {
 
 pub struct GameLoop {
     state: GameState,
+    director: super::director::Director,
     left_last_input_at: Option<Instant>,
     right_last_input_at: Option<Instant>,
     left_repeat_observed: bool,
@@ -42,10 +39,12 @@ pub struct GameLoop {
     jump_last_input_at: Option<Instant>,
     jump_repeat_observed: bool,
     jump_held_active: bool,
+    key_releases: bool,
     last_inventory_left_drag_slot: Option<usize>,
     last_inventory_right_drag_slot: Option<usize>,
     last_autosave_at: Instant,
     autosave_in_progress: bool,
+    cache_retry_after: Instant,
 }
 
 impl Default for GameLoop {
@@ -65,8 +64,14 @@ impl GameLoop {
     }
 
     pub fn new() -> Self {
+        Self::with_state(GameState::new())
+    }
+
+    pub fn with_state(mut state: GameState) -> Self {
+        let director = super::director::Director::new(&mut state);
         Self {
-            state: GameState::new(),
+            state,
+            director,
             left_last_input_at: None,
             right_last_input_at: None,
             left_repeat_observed: false,
@@ -74,29 +79,68 @@ impl GameLoop {
             jump_last_input_at: None,
             jump_repeat_observed: false,
             jump_held_active: false,
+            key_releases: false,
             last_inventory_left_drag_slot: None,
             last_inventory_right_drag_slot: None,
             last_autosave_at: Instant::now(),
             autosave_in_progress: false,
+            cache_retry_after: Instant::now(),
         }
     }
 
+    fn persist_session(&mut self) -> std::io::Result<()> {
+        self.state.try_persist_world_and_progress()?;
+        self.director
+            .save(&self.state)
+            .map_err(std::io::Error::other)
+    }
+
     pub fn run(&mut self, renderer: &mut Renderer) -> std::io::Result<()> {
+        let result = self.run_inner(renderer);
+        if let Err(error) = result {
+            let root = std::env::temp_dir().join(format!(
+                "termcraft-recovery-{}",
+                super::server_save::token()
+            ));
+            let recovery = self.state.write_recovery_directory(&root).and_then(|()| {
+                self.director
+                    .write_recovery(&root)
+                    .map_err(std::io::Error::other)
+            });
+            return Err(std::io::Error::other(match recovery {
+                Ok(()) => format!(
+                    "{error}. Partial recovery of loaded chunks and player state saved to {}. Original files preserved; read RECOVERY.txt before restoring.",
+                    root.display()
+                ),
+                Err(recovery) => format!("{error}. Recovery snapshot also failed: {recovery}"),
+            }));
+        }
+        Ok(())
+    }
+
+    fn run_inner(&mut self, renderer: &mut Renderer) -> std::io::Result<()> {
+        self.key_releases = renderer.reports_key_releases();
         let mut last_tick = Instant::now();
         let mut next_frame_deadline = Instant::now();
         let mut running = true;
 
         while running {
+            self.state.world.check_storage()?;
+            self.director.poll(&mut self.state, Instant::now());
             // Handle Input (Non-blocking)
             while event::poll(Duration::from_millis(0))? {
                 let ev = event::read()?;
+                if matches!(&ev, Event::Key(key) if key.kind == KeyEventKind::Release) {
+                    self.key_releases = true;
+                    renderer.note_key_release();
+                }
                 match ev {
                     Event::Key(key_event) => {
                         if self.state.is_showing_startup_splash() {
                             if key_event.kind == KeyEventKind::Press {
                                 match key_event.code {
                                     KeyCode::Char('q') | KeyCode::Esc => {
-                                        self.state.persist_world_and_progress();
+                                        self.persist_session()?;
                                         running = false;
                                     }
                                     _ => self.state.dismiss_startup_splash(),
@@ -108,15 +152,15 @@ impl GameLoop {
                             if key_event.kind == KeyEventKind::Press {
                                 match key_event.code {
                                     KeyCode::Char('q') | KeyCode::Esc => {
-                                        self.state.persist_world_and_progress();
+                                        self.persist_session()?;
                                         running = false;
                                     }
-                                    KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Char('r') => {
-                                        if self.state.can_respawn_from_death_screen() {
-                                            self.state.apply_client_command(
-                                                ClientCommand::RespawnFromDeathScreen,
-                                            );
-                                        }
+                                    KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Char('r')
+                                        if self.state.can_respawn_from_death_screen() =>
+                                    {
+                                        self.state.apply_client_command(
+                                            ClientCommand::RespawnFromDeathScreen,
+                                        );
                                     }
                                     _ => {}
                                 }
@@ -127,7 +171,7 @@ impl GameLoop {
                             if key_event.kind == KeyEventKind::Press {
                                 match key_event.code {
                                     KeyCode::Char('q') => {
-                                        self.state.persist_world_and_progress();
+                                        self.persist_session()?;
                                         running = false;
                                     }
                                     KeyCode::Esc | KeyCode::Enter | KeyCode::Char(' ') => {
@@ -183,17 +227,46 @@ impl GameLoop {
                                                 ClientCommand::SettingsMoveDown,
                                             );
                                         }
-                                        KeyCode::Enter | KeyCode::Char(' ') => {
-                                            if key_event.kind == KeyEventKind::Press {
-                                                self.state.apply_client_command(
-                                                    ClientCommand::SettingsApply,
-                                                );
-                                            }
+                                        KeyCode::Enter | KeyCode::Char(' ')
+                                            if key_event.kind == KeyEventKind::Press =>
+                                        {
+                                            self.state
+                                                .apply_client_command(ClientCommand::SettingsApply);
                                         }
                                         _ => {}
                                     }
                                 }
                                 KeyEventKind::Release => {}
+                            }
+                            continue;
+                        }
+                        if self.state.chat.open {
+                            if matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat)
+                            {
+                                match key_event.code {
+                                    KeyCode::Esc => self.state.chat.open = false,
+                                    KeyCode::Enter if key_event.kind == KeyEventKind::Press => {
+                                        self.state.chat.open = false;
+                                        let request = std::mem::take(&mut self.state.chat.draft);
+                                        self.director.submit(&mut self.state, request);
+                                    }
+                                    KeyCode::Backspace => {
+                                        self.state.chat.draft.pop();
+                                    }
+                                    KeyCode::Char('c')
+                                        if key_event.modifiers.contains(KeyModifiers::CONTROL) =>
+                                    {
+                                        self.director.cancel(&mut self.state)
+                                    }
+                                    KeyCode::Char(c)
+                                        if !key_event.modifiers.intersects(
+                                            KeyModifiers::CONTROL | KeyModifiers::ALT,
+                                        ) =>
+                                    {
+                                        self.state.chat.insert(&c.to_string())
+                                    }
+                                    _ => {}
+                                }
                             }
                             continue;
                         }
@@ -203,13 +276,29 @@ impl GameLoop {
                         match key_event.kind {
                             KeyEventKind::Press => {
                                 match key_event.code {
+                                    KeyCode::F(4) => renderer.toggle_zoom(),
+                                    KeyCode::F(3) => {
+                                        self.state.show_debug_overlay =
+                                            !self.state.show_debug_overlay;
+                                    }
+                                    KeyCode::Char('t' | 'T') if !self.state.inventory_open => {
+                                        self.clear_horizontal_input_state();
+                                        self.clear_jump_hold_state();
+                                        self.state.apply_client_command(
+                                            ClientCommand::SetPrimaryAction(false),
+                                        );
+                                        self.state.apply_client_command(
+                                            ClientCommand::SetSneakHeld(false),
+                                        );
+                                        self.state.chat.open = true;
+                                    }
                                     KeyCode::Char('q') | KeyCode::Esc => {
                                         if self.state.inventory_open {
                                             self.state.apply_client_command(
                                                 ClientCommand::ToggleInventory,
                                             );
                                         } else {
-                                            self.state.persist_world_and_progress();
+                                            self.persist_session()?;
                                             running = false;
                                         }
                                     }
@@ -378,7 +467,11 @@ impl GameLoop {
                             }
                         }
                     }
+                    Event::Paste(text) if self.state.chat.open => self.state.chat.insert(&text),
                     Event::Mouse(mouse_event) => {
+                        if self.state.chat.open {
+                            continue;
+                        }
                         if self.state.is_showing_startup_splash() {
                             self.state.mouse_x = mouse_event.column;
                             self.state.mouse_y = mouse_event.row;
@@ -555,7 +648,23 @@ impl GameLoop {
             let now = Instant::now();
             self.clear_stale_horizontal_input(now);
             self.clear_stale_jump_input(now);
+            let save_started = Instant::now();
             self.maybe_autosave(now);
+            if now >= self.cache_retry_after {
+                let mut viewers = vec![self.state.player.x.floor() as i32];
+                viewers.extend(self.state.remote_players.iter().map(|p| p.x.floor() as i32));
+                if let Err(error) = self.state.world.trim_chunk_cache(&viewers, 1) {
+                    self.state.save_error.replace(Some(format!(
+                        "Chunk save failed; keeping terrain in memory: {error}"
+                    )));
+                    self.cache_retry_after = now + Duration::from_secs(5);
+                }
+            }
+            self.state
+                .performance
+                .save_and_cache
+                .record(save_started.elapsed());
+            let now = Instant::now();
 
             // Fixed-step update with bounded catch-up keeps motion cadence stable.
             let mut catchup_ticks = 0u8;
@@ -564,7 +673,9 @@ impl GameLoop {
             {
                 let (bx, by) =
                     renderer.screen_to_world(&self.state, self.state.mouse_x, self.state.mouse_y);
+                renderer.capture_motion_step(&self.state);
                 self.update_logic(bx, by);
+                self.state.world.check_storage()?;
                 last_tick += TICK_DURATION;
                 catchup_ticks = catchup_ticks.saturating_add(1);
             }
@@ -573,52 +684,66 @@ impl GameLoop {
             {
                 // Drop excess lag rather than spiraling under heavy terminal load.
                 last_tick = now;
+                self.state.performance.dropped_catchups += 1;
             }
 
             // Render once per frame budget to stabilize terminal pacing.
-            let frame_alpha = (now.duration_since(last_tick).as_secs_f64()
-                / TICK_DURATION.as_secs_f64())
-            .clamp(0.0, 1.0);
-            renderer.render(&self.state, frame_alpha)?;
-
-            next_frame_deadline += FRAME_DURATION;
-            let after_render = Instant::now();
-            if after_render < next_frame_deadline {
-                std::thread::sleep(next_frame_deadline - after_render);
-            } else if after_render.duration_since(next_frame_deadline) > FRAME_DURATION {
-                // Resync when the terminal stalls for too long.
-                next_frame_deadline = after_render;
+            if now >= next_frame_deadline {
+                let frame_alpha = (now.duration_since(last_tick).as_secs_f64()
+                    / TICK_DURATION.as_secs_f64())
+                .clamp(0.0, 1.0);
+                let render_started = Instant::now();
+                renderer.render(&self.state, frame_alpha)?;
+                self.state
+                    .performance
+                    .render
+                    .record(render_started.elapsed());
+                next_frame_deadline = now + FRAME_DURATION;
             }
+            // poll wakes for input without consuming it. Input is processed immediately,
+            // while rendering stays bounded and simulation retains its fixed 20 Hz step.
+            let wake_at = next_frame_deadline.min(last_tick + TICK_DURATION);
+            event::poll(wake_at.saturating_duration_since(Instant::now()))?;
         }
 
         Ok(())
     }
 
     fn update_logic(&mut self, target_bx: i32, target_by: i32) {
+        let started = Instant::now();
         self.state.update(target_bx, target_by);
+        self.state.performance.tick.record(started.elapsed());
     }
 
     fn maybe_autosave(&mut self, now: Instant) {
-        if self.autosave_in_progress {
-            if !self
-                .state
-                .autosave_world_step(AUTOSAVE_CHUNK_BUDGET_PER_FRAME)
-            {
-                self.state.save_progression();
-                self.autosave_in_progress = false;
-                self.last_autosave_at = now;
-            }
+        if !self.autosave_in_progress
+            && now.duration_since(self.last_autosave_at) < AUTOSAVE_INTERVAL
+        {
             return;
         }
-
-        if now.duration_since(self.last_autosave_at) >= AUTOSAVE_INTERVAL {
-            if self
-                .state
-                .autosave_world_step(AUTOSAVE_CHUNK_BUDGET_PER_FRAME)
-            {
-                self.autosave_in_progress = true;
-            } else {
-                self.state.save_progression();
+        let result = self
+            .state
+            .world
+            .try_save_dirty_chunk_budget(AUTOSAVE_CHUNK_BUDGET_PER_FRAME)
+            .and_then(|pending| {
+                if !pending {
+                    self.state.try_save_progression()?;
+                }
+                Ok(pending)
+            });
+        match result {
+            Ok(pending) => {
+                self.autosave_in_progress = pending;
+                if !pending {
+                    self.state.save_error.replace(None);
+                    self.last_autosave_at = now;
+                }
+            }
+            Err(error) => {
+                self.state
+                    .save_error
+                    .replace(Some(format!("Autosave failed; retrying: {error}")));
+                self.autosave_in_progress = false;
                 self.last_autosave_at = now;
             }
         }
@@ -710,13 +835,6 @@ impl GameLoop {
         }
         self.set_direction_last_input_at(direction, None);
         self.set_direction_repeat_observed(direction, false);
-
-        if !self.state.moving_left && !self.state.moving_right {
-            self.apply_horizontal_brake(
-                GROUNDED_HORIZONTAL_RELEASE_BRAKE,
-                AIR_HORIZONTAL_RELEASE_BRAKE,
-            );
-        }
     }
 
     fn handle_jump_press(&mut self, now: Instant, explicit_repeat: bool) {
@@ -832,6 +950,9 @@ impl GameLoop {
     }
 
     fn clear_stale_horizontal_input(&mut self, now: Instant) {
+        if self.key_releases {
+            return;
+        }
         let left_stale = self.state.moving_left
             && self.left_last_input_at.is_none_or(|ts| {
                 now.duration_since(ts) > self.stale_timeout_for_direction(HorizontalDirection::Left)
@@ -842,20 +963,18 @@ impl GameLoop {
                     > self.stale_timeout_for_direction(HorizontalDirection::Right)
             });
 
-        let mut cleared_any = false;
         if left_stale {
-            cleared_any = self.clear_stale_direction(HorizontalDirection::Left) || cleared_any;
+            self.clear_stale_direction(HorizontalDirection::Left);
         }
         if right_stale {
-            cleared_any = self.clear_stale_direction(HorizontalDirection::Right) || cleared_any;
-        }
-
-        if cleared_any && !self.state.moving_left && !self.state.moving_right {
-            self.apply_horizontal_brake(GROUNDED_STALE_CLEAR_BRAKE, AIR_STALE_CLEAR_BRAKE);
+            self.clear_stale_direction(HorizontalDirection::Right);
         }
     }
 
     fn clear_stale_jump_input(&mut self, now: Instant) {
+        if self.key_releases {
+            return;
+        }
         if !self.jump_held_active {
             return;
         }
@@ -866,23 +985,73 @@ impl GameLoop {
             self.clear_jump_hold_state();
         }
     }
-
-    fn apply_horizontal_brake(&mut self, grounded_factor: f64, air_factor: f64) {
-        let factor = if self.state.player.grounded {
-            grounded_factor
-        } else {
-            air_factor
-        };
-        self.state.player.vx *= factor;
-        if self.state.player.vx.abs() < 0.02 {
-            self.state.player.vx = 0.0;
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn release_reporting_terminal_keeps_held_movement_and_jump_until_key_up() {
+        let mut game = GameLoop::new();
+        game.key_releases = true;
+        let now = Instant::now();
+        game.handle_horizontal_press(HorizontalDirection::Right, now, false);
+        game.handle_jump_press(now, false);
+        // Includes the normal OS initial-repeat gap and a long uninterrupted hold.
+        for delay in [160, 500, 1500] {
+            game.clear_stale_horizontal_input(now + Duration::from_millis(delay));
+            game.clear_stale_jump_input(now + Duration::from_millis(delay));
+            assert!(game.state.moving_right);
+            assert!(game.jump_held_active);
+        }
+        game.handle_horizontal_release(HorizontalDirection::Right);
+        game.clear_jump_hold_state();
+        assert!(!game.state.moving_right);
+        assert!(!game.jump_held_active);
+    }
+
+    #[test]
+    fn autosave_reports_failure_and_retries_without_clearing_unsaved_state() {
+        let root = std::env::temp_dir().join(format!(
+            "termcraft-autosave-{}-{}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
+        let store = crate::worlds::WorldStore::new(root.clone());
+        let path = store
+            .create(
+                "test",
+                "autosave fixture",
+                &crate::world::recipe::WorldRecipe::example(),
+            )
+            .unwrap();
+        let mut game = GameLoop::with_state(GameState::open_in_directory(&path).unwrap());
+        game.state.world.try_save_all().unwrap();
+        let blocked = path.join("player_progression.bin.tmp");
+        std::fs::create_dir(&blocked).unwrap();
+        let due = game.last_autosave_at + AUTOSAVE_INTERVAL;
+        game.maybe_autosave(due);
+        assert!(
+            game.state
+                .save_error
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .contains("Autosave failed")
+        );
+        assert_eq!(game.last_autosave_at, due);
+        assert!(!path.join("player_progression.bin").exists());
+        game.state.player.health = 13.0;
+        std::fs::remove_dir(blocked).unwrap();
+        game.maybe_autosave(due + AUTOSAVE_INTERVAL);
+        assert!(game.state.save_error.borrow().is_none());
+        let reopened = GameState::open_in_directory(&path).unwrap();
+        assert_eq!(reopened.player.health, 13.0);
+        drop(reopened);
+        drop(game);
+        std::fs::remove_dir_all(root).unwrap();
+    }
     use crate::engine::state::CRAFT_GRID_UI_OFFSET;
     use crate::world::item::{Inventory, ItemStack, ItemType};
 

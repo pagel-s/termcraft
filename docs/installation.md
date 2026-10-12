@@ -93,13 +93,17 @@ Set `TERMCRAFT_SAVE_DIR` to override this location. Existing repo-local `./saves
 
 ## Experimental Networking
 
-The repo contains a server/client path, but it is still experimental and should not be treated as a polished public feature yet.
-
-Examples:
+An authoritative local Overworld co-op slice is available for development testing.
+Use three terminals with matching builds:
 
 ```bash
-cargo run --release -- server 0.0.0.0:25565
-cargo run --release -- client 127.0.0.1:25565
+cargo run --release -- server
+cargo run --release -- client --player alice
+cargo run --release -- client --player bob
 ```
 
-Use local single-player as the primary supported mode.
+See [Experimental Local Co-op](multiplayer.md) for named worlds, controls,
+reconnect/save checks and remaining limits. Shared game-master chat and existing-client live authoring are available.
+For SSH joining and native development archives see [Distribution](distribution.md).
+Public hosting and cross-platform qualification are unfinished. Local single-player remains the
+primary supported mode.

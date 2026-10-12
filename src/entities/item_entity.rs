@@ -1,5 +1,6 @@
 use crate::world::item::ItemType;
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ItemEntity {
     pub x: f64,
     pub y: f64,

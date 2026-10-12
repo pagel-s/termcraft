@@ -1,10 +1,13 @@
 use super::command::ClientCommand;
-use super::state::{GameState, WeatherType};
+use super::replication::RuntimeEntities;
+use super::server_save::{ServerSave, token, valid_token};
+use super::state::{GameState, PlayerSession, WeatherType};
 use crate::entities::player::Player;
 use crate::world::Dimension;
 use crate::world::block::BlockType;
 use crate::world::chunk::CHUNK_WIDTH;
 use crate::world::item::ItemType;
+use bincode::Options;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -14,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 6;
+pub const NET_PROTOCOL_VERSION: u16 = 10;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;
@@ -147,11 +150,21 @@ pub struct PeerPlayerSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ServerSnapshot {
     pub protocol: u16,
+    pub acknowledged_sequence: u32,
     pub tick: u64,
     pub dimension: SnapshotDimension,
     pub weather: SnapshotWeather,
     pub time_of_day: f32,
     pub player: PlayerSnapshot,
+    pub chat: super::director::ChatView,
+    pub settings: super::state::SharedSettings,
+    pub session: PlayerSession,
+    pub chest: Option<(i32, i32, crate::world::item::Inventory)>,
+    pub entities: RuntimeEntities,
+    pub thunder_flash: u8,
+    pub rain_intensity: f32,
+    pub wind_intensity: f32,
+    pub thunder_intensity: f32,
     pub remote_players: Vec<PeerPlayerSnapshot>,
     pub hotbar_index: u8,
     pub selected_hotbar_item: Option<ItemType>,
@@ -164,11 +177,21 @@ impl ServerSnapshot {
     pub fn from_state(tick: u64, state: &GameState) -> Self {
         Self {
             protocol: NET_PROTOCOL_VERSION,
+            acknowledged_sequence: 0,
             tick,
             dimension: state.current_dimension.into(),
             weather: state.weather.into(),
             time_of_day: state.time_of_day,
             player: PlayerSnapshot::from_state(state),
+            chat: state.chat.clone(),
+            settings: super::state::SharedSettings::capture(state),
+            session: PlayerSession::capture(state),
+            chest: PlayerSession::capture(state).chest(state),
+            entities: RuntimeEntities::capture(state, state.player.x),
+            thunder_flash: state.thunder_flash_timer,
+            rain_intensity: state.weather_rain_intensity,
+            wind_intensity: state.weather_wind_intensity,
+            thunder_intensity: state.weather_thunder_intensity,
             remote_players: Vec::new(),
             hotbar_index: state.hotbar_index,
             selected_hotbar_item: state.inventory.slots[state.hotbar_index as usize]
@@ -186,6 +209,7 @@ pub struct ChunkColumnSnapshot {
     pub chunk_x: i32,
     pub revision: u64,
     pub blocks: Vec<BlockType>,
+    pub biomes: Vec<crate::world::BiomeType>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -198,8 +222,37 @@ pub struct ChunkDeltaPacket {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ClientHello {
+    pub protocol: u16,
+    pub token: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Welcome {
+    pub protocol: u16,
+    pub client_id: u16,
+    pub server_id: String,
+    pub token: String,
+}
+impl ProtocolTagged for ClientHello {
+    fn protocol_version(&self) -> u16 {
+        self.protocol
+    }
+}
+pub fn write_client_hello(writer: &mut impl Write, hello: &ClientHello) -> io::Result<()> {
+    write_framed_payload(
+        writer,
+        &encode_protocol_message(hello).map_err(codec_error_to_io)?,
+    )
+}
+fn read_client_hello(reader: &mut impl Read) -> io::Result<ClientHello> {
+    decode_protocol_message(&read_framed_payload(reader)?).map_err(codec_error_to_io)
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ServerWireMessage {
-    Snapshot(ServerSnapshot),
+    Welcome(Welcome),
+    Rejected(u16, String),
+    Snapshot(Box<ServerSnapshot>),
     ChunkDelta(ChunkDeltaPacket),
 }
 
@@ -256,6 +309,8 @@ impl ProtocolTagged for ChunkDeltaPacket {
 impl ProtocolTagged for ServerWireMessage {
     fn protocol_version(&self) -> u16 {
         match self {
+            ServerWireMessage::Welcome(welcome) => welcome.protocol,
+            ServerWireMessage::Rejected(protocol, _) => *protocol,
             ServerWireMessage::Snapshot(snapshot) => snapshot.protocol,
             ServerWireMessage::ChunkDelta(packet) => packet.protocol,
         }
@@ -272,6 +327,13 @@ fn validate_protocol(version: u16) -> Result<(), NetCodecError> {
     Ok(())
 }
 
+fn codec_options() -> impl Options {
+    bincode::DefaultOptions::new()
+        .with_fixint_encoding()
+        .with_limit(MAX_NET_FRAME_BYTES as u64)
+        .reject_trailing_bytes()
+}
+
 fn encode_protocol_message<T>(message: &T) -> Result<Vec<u8>, NetCodecError>
 where
     T: Serialize + ProtocolTagged,
@@ -284,7 +346,11 @@ fn decode_protocol_message<T>(encoded: &[u8]) -> Result<T, NetCodecError>
 where
     T: DeserializeOwned + ProtocolTagged,
 {
-    let message: T = bincode::deserialize(encoded)?;
+    let message: T = bincode::DefaultOptions::new()
+        .with_fixint_encoding()
+        .with_limit(MAX_NET_FRAME_BYTES as u64)
+        .reject_trailing_bytes()
+        .deserialize(encoded)?;
     validate_protocol(message.protocol_version())?;
     Ok(message)
 }
@@ -318,6 +384,12 @@ fn codec_error_to_io(err: NetCodecError) -> io::Error {
 }
 
 fn write_framed_payload<W: Write>(writer: &mut W, payload: &[u8]) -> io::Result<()> {
+    if payload.len() > MAX_NET_FRAME_BYTES {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "network frame too large",
+        ));
+    }
     let length_u32 = u32::try_from(payload.len())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "payload too large"))?;
     writer.write_all(&length_u32.to_be_bytes())?;
@@ -340,17 +412,46 @@ fn read_framed_payload<R: Read>(reader: &mut R) -> io::Result<Vec<u8>> {
     Ok(payload)
 }
 
+#[derive(Serialize, Deserialize)]
+enum ClientWireMessage {
+    Input(ClientInputFrame),
+    Chat(String),
+}
 pub fn write_framed_client_input<W: Write>(
     writer: &mut W,
     frame: &ClientInputFrame,
 ) -> io::Result<()> {
-    let payload = encode_client_input(frame).map_err(codec_error_to_io)?;
-    write_framed_payload(writer, &payload)
+    validate_protocol(frame.protocol).map_err(codec_error_to_io)?;
+    write_framed_payload(
+        writer,
+        &codec_options()
+            .serialize(&ClientWireMessage::Input(*frame))
+            .map_err(io::Error::other)?,
+    )
 }
-
+pub fn write_framed_client_chat(writer: &mut impl Write, text: &str) -> io::Result<()> {
+    if text.len() > 2000 || text.chars().any(char::is_control) {
+        return Err(io::Error::other(
+            "chat needs at most 2000 bytes without controls",
+        ));
+    }
+    write_framed_payload(
+        writer,
+        &codec_options()
+            .serialize(&ClientWireMessage::Chat(text.into()))
+            .map_err(io::Error::other)?,
+    )
+}
+fn read_framed_client_message(reader: &mut impl Read) -> io::Result<ClientWireMessage> {
+    codec_options()
+        .deserialize(&read_framed_payload(reader)?)
+        .map_err(io::Error::other)
+}
 pub fn read_framed_client_input<R: Read>(reader: &mut R) -> io::Result<ClientInputFrame> {
-    let payload = read_framed_payload(reader)?;
-    decode_client_input(&payload).map_err(codec_error_to_io)
+    match read_framed_client_message(reader)? {
+        ClientWireMessage::Input(frame) if frame.protocol == NET_PROTOCOL_VERSION => Ok(frame),
+        _ => Err(io::Error::other("expected compatible input frame")),
+    }
 }
 
 pub fn write_framed_server_snapshot<W: Write>(
@@ -380,10 +481,13 @@ pub fn read_framed_server_message<R: Read>(reader: &mut R) -> io::Result<ServerW
 }
 
 pub struct ServerSimulation {
+    director: super::director::Director,
     state: GameState,
     tick: u64,
     primary_client_id: Option<u16>,
-    secondary_players: HashMap<u16, SimulatedClientAvatar>,
+    targets: HashMap<u16, (i32, i32)>,
+    saved: ServerSave,
+    tokens: HashMap<u16, String>,
     pending_inputs: BTreeMap<u64, Vec<ClientInputFrame>>,
     last_applied_sequence_by_client: HashMap<u16, u32>,
     last_seen_input_tick_by_client: HashMap<u16, u64>,
@@ -397,17 +501,90 @@ impl Default for ServerSimulation {
 
 impl ServerSimulation {
     pub fn new() -> Self {
+        Self::with_state(GameState::new())
+    }
+
+    pub fn with_state(mut state: GameState) -> Self {
+        let director = super::director::Director::new(&mut state);
+        let saved = ServerSave {
+            version: 1,
+            id: token(),
+            settings: super::state::SharedSettings::capture(&state),
+            players: Default::default(),
+        };
         Self {
-            state: GameState::new(),
+            director,
+            saved,
+            tokens: HashMap::new(),
+            state,
             tick: 0,
             primary_client_id: None,
-            secondary_players: HashMap::new(),
+            targets: HashMap::new(),
             pending_inputs: BTreeMap::new(),
             last_applied_sequence_by_client: HashMap::new(),
             last_seen_input_tick_by_client: HashMap::new(),
         }
     }
 
+    pub fn load_persistent(&mut self) -> io::Result<()> {
+        let saved = ServerSave::read(&self.state)?;
+        saved
+            .settings
+            .apply(&mut self.state)
+            .map_err(io::Error::other)?;
+        self.saved = saved;
+        self.save()
+    }
+    pub fn authenticate(&mut self, id: u16, resume: Option<&str>) -> io::Result<Welcome> {
+        if self.state.peer_ids().len() >= 8 {
+            return Err(io::Error::other("server is full (8 players)"));
+        }
+        let identity = match resume {
+            Some(t) if !valid_token(t) || !self.saved.players.contains_key(t) => {
+                return Err(io::Error::other(
+                    "unrecognized player credential; select a new profile to join fresh",
+                ));
+            }
+            Some(t) if self.tokens.values().any(|s| s == t) => {
+                return Err(io::Error::other(
+                    "this player is already connected; use another profile",
+                ));
+            }
+            Some(t) => t.to_string(),
+            None if self.saved.players.len() >= 64 => {
+                return Err(io::Error::other(
+                    "server has reached its saved-player limit",
+                ));
+            }
+            None => token(),
+        };
+        self.register_client(id);
+        if let Some(session) = self.saved.players.get(&identity) {
+            self.state.restore_peer(id, session.clone());
+        }
+        self.tokens.insert(id, identity.clone());
+        if let Err(e) = self.save() {
+            self.unregister_client(id);
+            return Err(e);
+        }
+        Ok(Welcome {
+            protocol: NET_PROTOCOL_VERSION,
+            client_id: id,
+            server_id: self.saved.id.clone(),
+            token: identity,
+        })
+    }
+    pub fn save(&mut self) -> io::Result<()> {
+        for (&id, token) in &self.tokens {
+            if let Some(session) = self.state.peer_session(id) {
+                self.saved.players.insert(token.clone(), session);
+            }
+        }
+        self.state.world.try_save_all()?;
+        self.director.save(&self.state).map_err(io::Error::other)?;
+        self.saved.settings = super::state::SharedSettings::capture(&self.state);
+        self.saved.write(self.state.world.save_root())
+    }
     pub fn tick(&self) -> u64 {
         self.tick
     }
@@ -415,89 +592,94 @@ impl ServerSimulation {
     pub fn state(&self) -> &GameState {
         &self.state
     }
+    pub fn maintain_chunk_cache(&mut self) -> io::Result<()> {
+        self.state.world.check_storage()?;
+        let viewers = self
+            .state
+            .peer_ids()
+            .into_iter()
+            .filter_map(|id| {
+                self.state
+                    .peer_session(id)
+                    .map(|s| s.player().x.floor() as i32)
+            })
+            .collect::<Vec<_>>();
+        self.state.world.trim_chunk_cache(&viewers, 1)?;
+        Ok(())
+    }
 
     pub fn register_client(&mut self, client_id: u16) {
+        if self.state.peer_ids().len() >= 8 || self.state.peer_ids().contains(&client_id) {
+            return;
+        }
+        self.state.join_peer(client_id);
         if self.primary_client_id.is_none() {
             self.primary_client_id = Some(client_id);
-            return;
         }
-        if self.secondary_players.contains_key(&client_id) {
-            return;
-        }
-        let approx_x = self.state.player.x.round() as i32;
-        let (spawn_x, spawn_y) = self.state.multiplayer_join_spawn_near(approx_x);
-        self.secondary_players.insert(
-            client_id,
-            SimulatedClientAvatar::new_from_template(spawn_x, spawn_y, &self.state),
-        );
     }
-
     pub fn unregister_client(&mut self, client_id: u16) {
-        self.secondary_players.remove(&client_id);
+        // Drop queued work before a client ID can be reused; disconnected inputs
+        // must never re-register a player or continue an attack.
+        for inputs in self.pending_inputs.values_mut() {
+            inputs.retain(|f| f.client_id != client_id);
+        }
+        if let Some(session) = self.state.disconnect_peer_session(client_id)
+            && let Some(token) = self.tokens.remove(&client_id)
+        {
+            self.saved.players.insert(token, session);
+        }
+        self.state.leave_peer(client_id);
+        self.targets.remove(&client_id);
         self.last_applied_sequence_by_client.remove(&client_id);
         self.last_seen_input_tick_by_client.remove(&client_id);
-
-        if self.primary_client_id != Some(client_id) {
-            return;
+        if self.primary_client_id == Some(client_id) {
+            self.director.host_left(&mut self.state);
+            self.primary_client_id = self.state.peer_ids().first().copied();
         }
-        self.primary_client_id = None;
-        if let Some(next_id) = self.secondary_players.keys().copied().min()
-            && let Some(next_player) = self.secondary_players.remove(&next_id)
-        {
-            self.state.player = next_player.player;
-            self.state.hotbar_index = next_player.hotbar_index;
-            self.state.inventory_open = next_player.inventory_open;
-            self.primary_client_id = Some(next_id);
+        if let Some(primary) = self.primary_client_id {
+            self.state.activate_peer(primary);
         }
     }
-
     pub fn snapshot_for_client(&self, client_id: u16) -> Option<ServerSnapshot> {
-        self.primary_client_id?;
-
-        let mut remote_players = Vec::with_capacity(self.secondary_players.len());
+        let session = self.state.peer_session(client_id)?;
+        let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
         if self.primary_client_id != Some(client_id) {
-            remote_players.push(PeerPlayerSnapshot {
-                client_id: self.primary_client_id.unwrap_or_default(),
-                player: PlayerSnapshot::from_state(&self.state),
-            });
+            snapshot.chat.mode = "host-only".into();
         }
-        for (&other_id, avatar) in &self.secondary_players {
-            if other_id == client_id {
-                continue;
-            }
-            remote_players.push(PeerPlayerSnapshot {
-                client_id: other_id,
-                player: avatar.player_snapshot(),
-            });
-        }
-
-        if self.primary_client_id == Some(client_id) {
-            let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
-            snapshot.remote_players = remote_players;
-            Some(snapshot)
-        } else {
-            self.secondary_players
-                .get(&client_id)
-                .map(|avatar| ServerSnapshot {
-                    protocol: NET_PROTOCOL_VERSION,
-                    tick: self.tick,
-                    dimension: self.state.current_dimension.into(),
-                    weather: self.state.weather.into(),
-                    time_of_day: self.state.time_of_day,
-                    player: avatar.player_snapshot(),
-                    remote_players,
-                    hotbar_index: avatar.hotbar_index,
-                    selected_hotbar_item: avatar.selected_hotbar_item(),
-                    inventory_open: avatar.inventory_open,
-                    death_screen_active: false,
-                    credits_active: false,
+        snapshot.acknowledged_sequence = self
+            .last_applied_sequence_by_client
+            .get(&client_id)
+            .copied()
+            .unwrap_or(0);
+        snapshot.player = PlayerSnapshot::from_player(session.player());
+        snapshot.hotbar_index = session.hotbar_index();
+        snapshot.selected_hotbar_item = session.inventory().slots[snapshot.hotbar_index as usize]
+            .as_ref()
+            .map(|s| s.item_type);
+        snapshot.inventory_open = session.inventory_open();
+        snapshot.death_screen_active = session.dead();
+        snapshot.credits_active = session.credits();
+        snapshot.entities = RuntimeEntities::capture(&self.state, session.player().x);
+        snapshot.chest = session.chest(&self.state);
+        snapshot.session = session;
+        snapshot.remote_players = self
+            .state
+            .peer_ids()
+            .into_iter()
+            .filter(|id| *id != client_id)
+            .filter_map(|id| {
+                self.state.peer_session(id).map(|p| PeerPlayerSnapshot {
+                    client_id: id,
+                    player: PlayerSnapshot::from_player(p.player()),
                 })
-        }
+            })
+            .collect();
+        Some(snapshot)
     }
 
     pub fn enqueue_input(&mut self, frame: ClientInputFrame) {
         if self.primary_client_id != Some(frame.client_id)
-            && !self.secondary_players.contains_key(&frame.client_id)
+            && !self.state.peer_ids().contains(&frame.client_id)
         {
             self.register_client(frame.client_id);
         }
@@ -515,23 +697,68 @@ impl ServerSimulation {
         self.tick = self.tick.saturating_add(1);
         self.apply_inputs_for_tick(self.tick);
         self.prune_inactive_client_sequences();
-        self.state.update(mouse_target_x, mouse_target_y);
-        for avatar in self.secondary_players.values_mut() {
-            let sneaking = avatar.sneaking();
-            self.state.step_remote_player_body(
-                &mut avatar.player,
-                avatar.moving_left,
-                avatar.moving_right,
-                avatar.jump_held,
-                &mut avatar.jump_buffer_ticks,
-                sneaking,
-            );
+        for id in self.state.peer_ids() {
+            if self
+                .last_seen_input_tick_by_client
+                .get(&id)
+                .is_some_and(|last| self.tick.saturating_sub(*last) > SERVER_TICK_RATE)
+            {
+                self.state.activate_peer(id);
+                for cmd in [
+                    ClientCommand::ClearDirectionalInput,
+                    ClientCommand::SetPrimaryAction(false),
+                    ClientCommand::SetJumpHeld(false),
+                    ClientCommand::SetSneakHeld(false),
+                ] {
+                    self.state.apply_client_command(cmd);
+                }
+            }
         }
+        let ids = self.state.peer_ids();
+        for id in &ids {
+            self.state.activate_peer(*id);
+            let (x, y) = self
+                .targets
+                .get(id)
+                .copied()
+                .unwrap_or((mouse_target_x, mouse_target_y));
+            self.state.tick_cooperative_player(x, y);
+        }
+        if let Some(primary) = self.primary_client_id {
+            self.state.activate_peer(primary);
+        }
+        self.state.tick_cooperative_boats();
+        self.state.update(mouse_target_x, mouse_target_y);
+        for id in ids {
+            self.state.activate_peer(id);
+            self.state.finish_cooperative_damage();
+        }
+        if let Some(primary) = self.primary_client_id {
+            self.state.activate_peer(primary);
+        }
+        self.director.poll(&mut self.state, Instant::now());
         self.snapshot()
     }
 
+    fn submit_chat(&mut self, id: u16, text: String) {
+        if self.primary_client_id != Some(id) {
+            return;
+        }
+        if text.len() > 2000 || text.chars().any(char::is_control) {
+            return;
+        }
+        self.state.activate_peer(id);
+        self.director.submit(&mut self.state, text);
+    }
+
     pub fn snapshot(&self) -> ServerSnapshot {
-        ServerSnapshot::from_state(self.tick, &self.state)
+        let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
+        snapshot.acknowledged_sequence = self
+            .primary_client_id
+            .and_then(|id| self.last_applied_sequence_by_client.get(&id))
+            .copied()
+            .unwrap_or(0);
+        snapshot
     }
 
     fn apply_inputs_for_tick(&mut self, tick: u64) {
@@ -554,10 +781,30 @@ impl ServerSimulation {
             if !is_new {
                 continue;
             }
-            if self.primary_client_id == Some(frame.client_id) {
-                self.state.apply_client_command(frame.command);
-            } else if let Some(avatar) = self.secondary_players.get_mut(&frame.client_id) {
-                avatar.apply_command(frame.command);
+            if self.state.activate_peer(frame.client_id) {
+                match frame.command {
+                    ClientCommand::AimAt(x, y) => {
+                        if x.abs_diff(0) <= 100_000 && (0..128).contains(&y) {
+                            self.targets.insert(frame.client_id, (x, y));
+                        }
+                    }
+                    ClientCommand::TravelToOverworld
+                    | ClientCommand::TravelToNether
+                    | ClientCommand::TravelToEnd
+                    | ClientCommand::TravelToSpawn
+                    | ClientCommand::EquipDiamondLoadout
+                    | ClientCommand::CycleDifficulty
+                    | ClientCommand::CycleGameRulesPreset
+                    | ClientCommand::ToggleRuleMobSpawning
+                    | ClientCommand::ToggleRuleDaylightCycle
+                    | ClientCommand::ToggleRuleWeatherCycle
+                    | ClientCommand::ToggleRuleKeepInventory
+                    | ClientCommand::ToggleSettingsMenu
+                    | ClientCommand::SettingsMoveUp
+                    | ClientCommand::SettingsMoveDown
+                    | ClientCommand::SettingsApply => {}
+                    command => self.state.apply_client_command(command),
+                }
             }
             self.last_applied_sequence_by_client
                 .insert(frame.client_id, frame.sequence);
@@ -589,193 +836,6 @@ fn is_newer_sequence(last: u32, candidate: u32) -> bool {
     diff != 0 && diff < (1u32 << 31)
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-struct PredictionInputState {
-    moving_left: bool,
-    moving_right: bool,
-    sneak_toggled: bool,
-    sneak_held: bool,
-    _jump_held: bool,
-}
-
-impl PredictionInputState {
-    fn sneaking(self) -> bool {
-        self.sneak_toggled || self.sneak_held
-    }
-
-    fn apply_command(&mut self, command: ClientCommand) {
-        match command {
-            ClientCommand::SetMoveLeft(active) => {
-                self.moving_left = active;
-                if active {
-                    self.moving_right = false;
-                }
-            }
-            ClientCommand::SetMoveRight(active) => {
-                self.moving_right = active;
-                if active {
-                    self.moving_left = false;
-                }
-            }
-            ClientCommand::ClearDirectionalInput => {
-                self.moving_left = false;
-                self.moving_right = false;
-            }
-            ClientCommand::ToggleSneak => self.sneak_toggled = !self.sneak_toggled,
-            ClientCommand::SetSneakHeld(held) => self.sneak_held = held,
-            ClientCommand::SetJumpHeld(held) => self._jump_held = held,
-            _ => {}
-        }
-    }
-}
-
-struct SimulatedClientAvatar {
-    player: Player,
-    moving_left: bool,
-    moving_right: bool,
-    jump_held: bool,
-    jump_buffer_ticks: u8,
-    sneak_toggled: bool,
-    sneak_held: bool,
-    hotbar_index: u8,
-    hotbar_items: [Option<ItemType>; 9],
-    inventory_open: bool,
-}
-
-impl SimulatedClientAvatar {
-    fn new_from_template(spawn_x: f64, spawn_y: f64, template: &GameState) -> Self {
-        let mut player = Player::new(spawn_x, spawn_y);
-        player.max_health = template.player.max_health;
-        player.health = template.player.max_health;
-        player.max_hunger = template.player.max_hunger;
-        player.hunger = template.player.max_hunger;
-
-        let mut hotbar_items = [None; 9];
-        for (idx, item) in hotbar_items.iter_mut().enumerate() {
-            *item = template.inventory.slots[idx]
-                .as_ref()
-                .map(|stack| stack.item_type);
-        }
-
-        Self {
-            player,
-            moving_left: false,
-            moving_right: false,
-            jump_held: false,
-            jump_buffer_ticks: 0,
-            sneak_toggled: false,
-            sneak_held: false,
-            hotbar_index: template.hotbar_index.min(8),
-            hotbar_items,
-            inventory_open: false,
-        }
-    }
-
-    fn sneaking(&self) -> bool {
-        self.sneak_toggled || self.sneak_held
-    }
-
-    fn selected_hotbar_item(&self) -> Option<ItemType> {
-        self.hotbar_items[self.hotbar_index as usize]
-    }
-
-    fn player_snapshot(&self) -> PlayerSnapshot {
-        PlayerSnapshot::from_player(&self.player)
-    }
-
-    fn apply_command(&mut self, command: ClientCommand) {
-        match command {
-            ClientCommand::QueueJump => {
-                if !self.inventory_open {
-                    self.jump_buffer_ticks = self.jump_buffer_ticks.max(2);
-                }
-            }
-            ClientCommand::SetJumpHeld(held) => {
-                self.jump_held = held && !self.inventory_open;
-            }
-            ClientCommand::SetMoveLeft(active) => {
-                if self.inventory_open {
-                    self.moving_left = false;
-                    self.moving_right = false;
-                    return;
-                }
-                self.moving_left = active;
-                if active {
-                    self.moving_right = false;
-                }
-            }
-            ClientCommand::SetMoveRight(active) => {
-                if self.inventory_open {
-                    self.moving_left = false;
-                    self.moving_right = false;
-                    return;
-                }
-                self.moving_right = active;
-                if active {
-                    self.moving_left = false;
-                }
-            }
-            ClientCommand::ClearDirectionalInput => {
-                self.moving_left = false;
-                self.moving_right = false;
-            }
-            ClientCommand::ToggleSneak => self.sneak_toggled = !self.sneak_toggled,
-            ClientCommand::SetSneakHeld(held) => self.sneak_held = held,
-            ClientCommand::SelectHotbarSlot(idx) => {
-                if idx < 9 {
-                    self.hotbar_index = idx;
-                }
-            }
-            ClientCommand::ToggleInventory => {
-                self.inventory_open = !self.inventory_open;
-                if self.inventory_open {
-                    self.moving_left = false;
-                    self.moving_right = false;
-                    self.jump_held = false;
-                    self.jump_buffer_ticks = 0;
-                }
-            }
-            ClientCommand::EquipDiamondLoadout => {
-                self.hotbar_items = [
-                    Some(ItemType::DiamondSword),
-                    Some(ItemType::Bow),
-                    Some(ItemType::Arrow),
-                    Some(ItemType::CookedBeef),
-                    Some(ItemType::Cobblestone),
-                    Some(ItemType::DiamondPickaxe),
-                    Some(ItemType::EnderPearl),
-                    None,
-                    None,
-                ];
-                self.hotbar_index = 0;
-            }
-            ClientCommand::RespawnFromDeathScreen => {
-                self.player.health = self.player.max_health;
-                self.player.hunger = self.player.max_hunger;
-            }
-            ClientCommand::SkipCompletionCredits
-            | ClientCommand::CycleMovementProfile
-            | ClientCommand::CycleDifficulty
-            | ClientCommand::CycleGameRulesPreset
-            | ClientCommand::ToggleRuleMobSpawning
-            | ClientCommand::ToggleRuleDaylightCycle
-            | ClientCommand::ToggleRuleWeatherCycle
-            | ClientCommand::ToggleRuleKeepInventory
-            | ClientCommand::ToggleSettingsMenu
-            | ClientCommand::SettingsMoveUp
-            | ClientCommand::SettingsMoveDown
-            | ClientCommand::SettingsApply
-            | ClientCommand::SetPrimaryAction(_)
-            | ClientCommand::TravelToOverworld
-            | ClientCommand::TravelToNether
-            | ClientCommand::TravelToEnd
-            | ClientCommand::TravelToSpawn
-            | ClientCommand::UseAt(_, _) => {}
-        }
-        self.player.sneaking = self.sneaking();
-    }
-}
-
 pub struct ClientPredictionState {
     client_id: u16,
     local_tick: u64,
@@ -784,7 +844,7 @@ pub struct ClientPredictionState {
     predicted_snapshot: Option<ServerSnapshot>,
     pending_inputs: Vec<ClientInputFrame>,
     outbound_inputs: Vec<ClientInputFrame>,
-    input_history: Vec<ClientInputFrame>,
+    physics: GameState,
     replicated_chunks: HashMap<i32, ChunkColumnSnapshot>,
 }
 
@@ -798,7 +858,7 @@ impl ClientPredictionState {
             predicted_snapshot: None,
             pending_inputs: Vec::new(),
             outbound_inputs: Vec::new(),
-            input_history: Vec::new(),
+            physics: GameState::network_view(),
             replicated_chunks: HashMap::new(),
         }
     }
@@ -837,11 +897,7 @@ impl ClientPredictionState {
         self.next_sequence = self.next_sequence.wrapping_add(1).max(1);
         self.pending_inputs.push(frame);
         self.outbound_inputs.push(frame);
-        self.input_history.push(frame);
-        if self.input_history.len() > 8192 {
-            let drop = self.input_history.len() - 8192;
-            self.input_history.drain(0..drop);
-        }
+        self.rebuild_prediction_from_authoritative();
         frame
     }
 
@@ -858,7 +914,11 @@ impl ClientPredictionState {
 
     pub fn apply_server_message(&mut self, message: ServerWireMessage) {
         match message {
-            ServerWireMessage::Snapshot(snapshot) => self.apply_authoritative_snapshot(snapshot),
+            ServerWireMessage::Welcome(welcome) => {
+                self.client_id = welcome.client_id;
+            }
+            ServerWireMessage::Rejected(_, _) => {}
+            ServerWireMessage::Snapshot(snapshot) => self.apply_authoritative_snapshot(*snapshot),
             ServerWireMessage::ChunkDelta(delta) => self.apply_chunk_delta(delta),
         }
     }
@@ -875,10 +935,20 @@ impl ClientPredictionState {
             .is_some_and(|s| s.dimension != snapshot.dimension);
         if dimension_changed {
             self.replicated_chunks.clear();
+            self.physics.current_dimension = snapshot.dimension.into();
+            self.physics.world = crate::world::World::network_replica(snapshot.dimension.into());
         }
 
+        let center = (snapshot.player.x.floor() as i32).div_euclid(CHUNK_WIDTH as i32);
+        self.replicated_chunks
+            .retain(|x, _| x.abs_diff(center) <= 6);
+        let _ = self
+            .physics
+            .world
+            .trim_chunk_cache(&[snapshot.player.x.floor() as i32], 0);
         self.local_tick = self.local_tick.max(snapshot.tick);
-        self.pending_inputs.retain(|f| f.tick > snapshot.tick);
+        self.pending_inputs
+            .retain(|f| is_newer_sequence(snapshot.acknowledged_sequence, f.sequence));
         self.authoritative_snapshot = Some(snapshot);
         self.rebuild_prediction_from_authoritative();
     }
@@ -893,150 +963,93 @@ impl ClientPredictionState {
             return;
         }
         for chunk in delta.chunks {
+            self.physics
+                .world
+                .apply_replica_biomes(chunk.chunk_x, &chunk.biomes);
+            let _ = self
+                .physics
+                .world
+                .apply_chunk_column_snapshot(chunk.chunk_x, &chunk.blocks);
             self.replicated_chunks.insert(chunk.chunk_x, chunk);
         }
     }
 
     fn rebuild_prediction_from_authoritative(&mut self) {
-        let Some(authoritative) = self.authoritative_snapshot.clone() else {
+        let Some(authoritative) = &self.authoritative_snapshot else {
             return;
         };
         let mut predicted = authoritative.clone();
-        let mut input_state = self.input_state_at_tick(authoritative.tick);
-        let mut sim_tick = authoritative.tick;
-
-        while sim_tick < self.local_tick {
-            sim_tick += 1;
-            let mut tick_inputs: Vec<ClientInputFrame> = self
-                .pending_inputs
-                .iter()
-                .copied()
-                .filter(|input| input.tick == sim_tick)
-                .collect();
-            tick_inputs.sort_by_key(|f| f.sequence);
-            for input in tick_inputs {
-                Self::apply_command_to_prediction(&mut predicted, &mut input_state, input.command);
+        authoritative.session.apply(&mut self.physics);
+        let _ = authoritative.settings.apply(&mut self.physics);
+        // Public snapshots may also be constructed independently of their session.
+        self.physics.player.x = authoritative.player.x;
+        self.physics.player.y = authoritative.player.y;
+        self.physics.player.vx = authoritative.player.vx;
+        self.physics.player.vy = authoritative.player.vy;
+        self.physics.player.grounded = authoritative.player.grounded;
+        self.physics.inventory_open = authoritative.inventory_open;
+        self.physics.set_remote_ui_modal_state(
+            authoritative.death_screen_active,
+            authoritative.credits_active,
+        );
+        let end_tick = self
+            .local_tick
+            .max(authoritative.tick + u64::from(!self.pending_inputs.is_empty()))
+            .min(authoritative.tick.saturating_add(10));
+        for tick in authoritative.tick.saturating_add(1)..=end_tick {
+            for input in &self.pending_inputs {
+                if input.tick.max(authoritative.tick.saturating_add(1)) == tick {
+                    match input.command {
+                        ClientCommand::ToggleInventory => {
+                            predicted.inventory_open = !predicted.inventory_open;
+                            self.physics.inventory_open = predicted.inventory_open;
+                            if predicted.inventory_open {
+                                self.physics
+                                    .apply_client_command(ClientCommand::ClearDirectionalInput);
+                                self.physics
+                                    .apply_client_command(ClientCommand::SetJumpHeld(false));
+                            }
+                        }
+                        ClientCommand::SelectHotbarSlot(slot) if slot < 9 => {
+                            predicted.hotbar_index = slot;
+                            predicted.selected_hotbar_item =
+                                authoritative.session.inventory().slots[slot as usize]
+                                    .as_ref()
+                                    .map(|s| s.item_type);
+                        }
+                        _ => {}
+                    }
+                    // Prediction only changes the local actor. Terrain edits, combat,
+                    // inventory transactions and survival remain server-authoritative.
+                    if matches!(
+                        input.command,
+                        ClientCommand::SetMoveLeft(_)
+                            | ClientCommand::SetMoveRight(_)
+                            | ClientCommand::ClearDirectionalInput
+                            | ClientCommand::QueueJump
+                            | ClientCommand::SetJumpHeld(_)
+                            | ClientCommand::SetSneakHeld(_)
+                            | ClientCommand::ToggleSneak
+                            | ClientCommand::CycleMovementProfile
+                    ) {
+                        self.physics.apply_client_command(input.command);
+                    }
+                }
             }
-            Self::integrate_predicted_movement(&mut predicted, input_state);
-            predicted.tick = sim_tick;
+            self.physics.predict_motion_tick();
+            predicted.tick = tick;
         }
-
+        // Only publish predicted motion. Replaying movement must not erase the
+        // authoritative mining/bow animation or predict damage/inventory/survival.
+        let motion = PlayerSnapshot::from_state(&self.physics);
+        predicted.player.x = motion.x;
+        predicted.player.y = motion.y;
+        predicted.player.vx = motion.vx;
+        predicted.player.vy = motion.vy;
+        predicted.player.grounded = motion.grounded;
+        predicted.player.facing_right = motion.facing_right;
+        predicted.player.sneaking = motion.sneaking;
         self.predicted_snapshot = Some(predicted);
-    }
-
-    fn input_state_at_tick(&self, tick: u64) -> PredictionInputState {
-        let mut state = PredictionInputState::default();
-        let mut history: Vec<ClientInputFrame> = self
-            .input_history
-            .iter()
-            .copied()
-            .filter(|frame| frame.tick <= tick)
-            .collect();
-        history.sort_by_key(|frame| (frame.tick, frame.sequence));
-        for frame in history {
-            state.apply_command(frame.command);
-        }
-        state
-    }
-
-    fn apply_command_to_prediction(
-        snapshot: &mut ServerSnapshot,
-        input_state: &mut PredictionInputState,
-        command: ClientCommand,
-    ) {
-        input_state.apply_command(command);
-        match command {
-            ClientCommand::ToggleInventory => {
-                snapshot.inventory_open = !snapshot.inventory_open;
-                if snapshot.inventory_open {
-                    input_state.moving_left = false;
-                    input_state.moving_right = false;
-                }
-            }
-            ClientCommand::SelectHotbarSlot(idx) => {
-                if idx < 9 {
-                    snapshot.hotbar_index = idx;
-                }
-            }
-            ClientCommand::QueueJump => {
-                if snapshot.player.grounded {
-                    snapshot.player.vy = -0.5;
-                    snapshot.player.grounded = false;
-                }
-            }
-            ClientCommand::RespawnFromDeathScreen => {
-                snapshot.death_screen_active = false;
-                snapshot.player.health = snapshot.player.max_health;
-                snapshot.player.hunger = snapshot.player.max_hunger;
-            }
-            ClientCommand::SkipCompletionCredits => {
-                snapshot.credits_active = false;
-            }
-            ClientCommand::ClearDirectionalInput
-            | ClientCommand::SetMoveLeft(_)
-            | ClientCommand::SetMoveRight(_)
-            | ClientCommand::ToggleSneak
-            | ClientCommand::SetSneakHeld(_)
-            | ClientCommand::SetJumpHeld(_)
-            | ClientCommand::SetPrimaryAction(_)
-            | ClientCommand::CycleMovementProfile
-            | ClientCommand::CycleDifficulty
-            | ClientCommand::CycleGameRulesPreset
-            | ClientCommand::ToggleRuleMobSpawning
-            | ClientCommand::ToggleRuleDaylightCycle
-            | ClientCommand::ToggleRuleWeatherCycle
-            | ClientCommand::ToggleRuleKeepInventory
-            | ClientCommand::ToggleSettingsMenu
-            | ClientCommand::SettingsMoveUp
-            | ClientCommand::SettingsMoveDown
-            | ClientCommand::SettingsApply
-            | ClientCommand::TravelToOverworld
-            | ClientCommand::TravelToNether
-            | ClientCommand::TravelToEnd
-            | ClientCommand::TravelToSpawn
-            | ClientCommand::EquipDiamondLoadout
-            | ClientCommand::UseAt(_, _) => {}
-        }
-        snapshot.player.sneaking = input_state.sneaking();
-    }
-
-    fn integrate_predicted_movement(
-        snapshot: &mut ServerSnapshot,
-        input_state: PredictionInputState,
-    ) {
-        let controls_blocked =
-            snapshot.inventory_open || snapshot.death_screen_active || snapshot.credits_active;
-        let input_dir = if controls_blocked || input_state.moving_left == input_state.moving_right {
-            0.0
-        } else if input_state.moving_left {
-            -1.0
-        } else {
-            1.0
-        };
-
-        if input_dir != 0.0 {
-            let desired_speed = if snapshot.player.sneaking { 0.22 } else { 0.62 } * input_dir;
-            let accel = if snapshot.player.grounded { 0.48 } else { 0.20 };
-            snapshot.player.vx += (desired_speed - snapshot.player.vx) * accel;
-            snapshot.player.facing_right = input_dir > 0.0;
-        }
-
-        let drag = if input_dir != 0.0 {
-            if snapshot.player.grounded {
-                0.94
-            } else {
-                0.985
-            }
-        } else if snapshot.player.grounded {
-            0.78
-        } else {
-            0.985
-        };
-        snapshot.player.vx *= drag;
-        if snapshot.player.vx.abs() < 0.02 {
-            snapshot.player.vx = 0.0;
-        }
-        snapshot.player.x += snapshot.player.vx;
     }
 }
 
@@ -1045,8 +1058,13 @@ struct ConnectedClient {
     client_id: u16,
     writer: TcpStream,
     known_chunk_revisions: HashMap<i32, u64>,
+    authenticated: bool,
 }
-
+impl Drop for ConnectedClient {
+    fn drop(&mut self) {
+        let _ = self.writer.shutdown(std::net::Shutdown::Both);
+    }
+}
 fn next_client_id(id: &mut u16) -> u16 {
     let current = *id;
     *id = id.wrapping_add(1);
@@ -1055,47 +1073,74 @@ fn next_client_id(id: &mut u16) -> u16 {
     }
     current
 }
-
+enum ServerEvent {
+    Hello(u16, ClientHello),
+    Input(ClientInputFrame),
+    Chat(u16, String),
+    Disconnected(u16),
+}
 fn spawn_client_reader_thread(
     client_id: u16,
     mut reader: TcpStream,
-    input_tx: mpsc::Sender<ClientInputFrame>,
+    tx: mpsc::SyncSender<ServerEvent>,
 ) {
     thread::spawn(move || {
-        while let Ok(mut input) = read_framed_client_input(&mut reader) {
-            input.client_id = client_id;
-            if input_tx.send(input).is_err() {
-                break;
+        if let Ok(hello) = read_client_hello(&mut reader)
+            && tx.send(ServerEvent::Hello(client_id, hello)).is_ok()
+        {
+            let _ = reader.set_read_timeout(None);
+            while let Ok(message) = read_framed_client_message(&mut reader) {
+                let event = match message {
+                    ClientWireMessage::Input(mut input) => {
+                        input.client_id = client_id;
+                        ServerEvent::Input(input)
+                    }
+                    ClientWireMessage::Chat(text)
+                        if text.len() <= 2000 && !text.chars().any(char::is_control) =>
+                    {
+                        ServerEvent::Chat(client_id, text)
+                    }
+                    _ => break,
+                };
+                if tx.send(event).is_err() {
+                    break;
+                }
             }
         }
+        let _ = tx.send(ServerEvent::Disconnected(client_id));
     });
 }
-
 fn accept_pending_clients(
     listener: &TcpListener,
-    input_tx: &mpsc::Sender<ClientInputFrame>,
-    simulation: &mut ServerSimulation,
+    tx: &mpsc::SyncSender<ServerEvent>,
     clients: &mut Vec<ConnectedClient>,
-    next_id_counter: &mut u16,
+    counter: &mut u16,
 ) -> io::Result<()> {
     loop {
         match listener.accept() {
             Ok((writer, _)) => {
+                if clients.len() >= 8 {
+                    let _ = writer.shutdown(std::net::Shutdown::Both);
+                    continue;
+                }
                 writer.set_nodelay(true)?;
-                writer.set_write_timeout(Some(Duration::from_millis(8)))?;
+                writer.set_write_timeout(Some(Duration::from_millis(16)))?;
                 let reader = writer.try_clone()?;
-                reader.set_nodelay(true)?;
-                let client_id = next_client_id(next_id_counter);
-                spawn_client_reader_thread(client_id, reader, input_tx.clone());
-                simulation.register_client(client_id);
+                reader.set_read_timeout(Some(Duration::from_secs(5)))?;
+                let mut id = next_client_id(counter);
+                while clients.iter().any(|c| c.client_id == id) {
+                    id = next_client_id(counter);
+                }
+                spawn_client_reader_thread(id, reader, tx.clone());
                 clients.push(ConnectedClient {
-                    client_id,
+                    client_id: id,
                     writer,
                     known_chunk_revisions: HashMap::new(),
+                    authenticated: false,
                 });
             }
-            Err(err) if err.kind() == io::ErrorKind::WouldBlock => break,
-            Err(err) => return Err(err),
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => break,
+            Err(e) => return Err(e),
         }
     }
     Ok(())
@@ -1125,6 +1170,13 @@ fn build_chunk_delta_packet(
         changed_candidates.push(ChunkColumnSnapshot {
             chunk_x,
             revision,
+            biomes: (0..CHUNK_WIDTH)
+                .map(|x| {
+                    state
+                        .world
+                        .get_biome(chunk_x * CHUNK_WIDTH as i32 + x as i32)
+                })
+                .collect(),
             blocks,
         });
     }
@@ -1176,7 +1228,7 @@ fn send_tick_messages_to_client(
 }
 
 fn build_snapshot_wire_payload(snapshot: &ServerSnapshot) -> io::Result<Vec<u8>> {
-    let message = ServerWireMessage::Snapshot(snapshot.clone());
+    let message = ServerWireMessage::Snapshot(Box::new(snapshot.clone()));
     encode_server_message(&message).map_err(codec_error_to_io)
 }
 
@@ -1199,66 +1251,149 @@ fn consume_due_server_ticks(
 }
 
 pub fn run_headless_tcp_server(bind_addr: &str) -> io::Result<()> {
+    let root = crate::save_path::save_dir()
+        .join("multiplayer")
+        .join("default");
+    std::fs::create_dir_all(&root)?;
+    let _lease = crate::worlds::WorldLease::acquire(&root).map_err(io::Error::other)?;
+    run_headless_tcp_server_with_state(bind_addr, GameState::open_in_directory(&root)?)
+}
+pub fn run_headless_tcp_server_with_state(bind_addr: &str, state: GameState) -> io::Result<()> {
+    if state.current_dimension != Dimension::Overworld {
+        return Err(io::Error::other(
+            "co-op currently requires an Overworld save",
+        ));
+    }
+    let mut simulation = ServerSimulation::with_state(state);
+    simulation.load_persistent()?;
     let listener = TcpListener::bind(bind_addr)?;
     listener.set_nonblocking(true)?;
-
-    let (input_tx, input_rx) = mpsc::channel::<ClientInputFrame>();
-    let mut clients = Vec::<ConnectedClient>::new();
-    let mut next_id_counter: u16 = 1;
-    let mut simulation = ServerSimulation::new();
-
-    let tick_duration = Duration::from_millis(1000 / SERVER_TICK_RATE);
+    eprintln!(
+        "Starting headless server on {} (experimental local co-op, protocol {})",
+        listener.local_addr()?,
+        NET_PROTOCOL_VERSION
+    );
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    #[cfg(unix)]
+    {
+        signal_hook::flag::register(signal_hook::consts::SIGINT, stop.clone())?;
+        signal_hook::flag::register(signal_hook::consts::SIGTERM, stop.clone())?;
+    }
+    let (tx, rx) = mpsc::sync_channel(1024);
+    let mut clients = Vec::new();
+    let mut counter = 1;
+    let duration = Duration::from_millis(1000 / SERVER_TICK_RATE);
     let mut last_tick = Instant::now();
-
-    loop {
-        accept_pending_clients(
-            &listener,
-            &input_tx,
-            &mut simulation,
-            &mut clients,
-            &mut next_id_counter,
-        )?;
-        while let Ok(input) = input_rx.try_recv() {
-            simulation.enqueue_input(input);
-        }
-
-        let now = Instant::now();
-        let due_ticks = consume_due_server_ticks(
-            now,
-            &mut last_tick,
-            tick_duration,
-            SERVER_MAX_CATCHUP_TICKS_PER_LOOP,
-        );
-
-        if due_ticks > 0 {
-            for _ in 0..due_ticks {
-                simulation.step(0, 0);
-                let mut idx = 0;
-                while idx < clients.len() {
-                    let Some(snapshot) = simulation.snapshot_for_client(clients[idx].client_id)
-                    else {
-                        idx += 1;
-                        continue;
-                    };
-                    let snapshot_wire_payload = build_snapshot_wire_payload(&snapshot)?;
-                    let send_res = send_tick_messages_to_client(
-                        &mut clients[idx],
-                        simulation.state(),
-                        &snapshot,
-                        &snapshot_wire_payload,
-                    );
-                    if send_res.is_err() {
-                        let removed = clients.swap_remove(idx);
-                        simulation.unregister_client(removed.client_id);
-                    } else {
-                        idx += 1;
+    let mut last_save = Instant::now();
+    while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+        accept_pending_clients(&listener, &tx, &mut clients, &mut counter)?;
+        for _ in 0..1024 {
+            let Ok(event) = rx.try_recv() else {
+                break;
+            };
+            match event {
+                ServerEvent::Hello(id, hello) => {
+                    if let Some(client) = clients.iter_mut().find(|c| c.client_id == id) {
+                        let auth = simulation
+                            .authenticate(id, hello.token.as_deref())
+                            .and_then(|welcome| {
+                                write_framed_server_message(
+                                    &mut client.writer,
+                                    &ServerWireMessage::Welcome(welcome),
+                                )
+                            });
+                        if let Err(e) = auth {
+                            eprintln!("Join rejected: {e}");
+                            let _ = write_framed_server_message(
+                                &mut client.writer,
+                                &ServerWireMessage::Rejected(NET_PROTOCOL_VERSION, e.to_string()),
+                            );
+                            clients.retain(|c| c.client_id != id);
+                            simulation.unregister_client(id);
+                        } else {
+                            client.authenticated = true;
+                        }
+                    }
+                }
+                ServerEvent::Input(frame) => {
+                    if clients
+                        .iter()
+                        .any(|c| c.client_id == frame.client_id && c.authenticated)
+                    {
+                        simulation.enqueue_input(frame);
+                    }
+                }
+                ServerEvent::Chat(id, text) => {
+                    if clients.iter().any(|c| c.client_id == id && c.authenticated) {
+                        simulation.submit_chat(id, text);
+                    }
+                }
+                ServerEvent::Disconnected(id) => {
+                    clients.retain(|c| c.client_id != id);
+                    simulation.unregister_client(id);
+                    if let Err(e) = simulation.save() {
+                        eprintln!("Server save failed; retaining player data in memory: {e}");
                     }
                 }
             }
-        } else {
+        }
+        let due = consume_due_server_ticks(
+            Instant::now(),
+            &mut last_tick,
+            duration,
+            SERVER_MAX_CATCHUP_TICKS_PER_LOOP,
+        );
+        for _ in 0..due {
+            if simulation.primary_client_id.is_none() {
+                continue;
+            }
+            simulation.step(0, 0);
+            if let Err(e) = simulation.maintain_chunk_cache() {
+                if simulation.state.world.check_storage().is_err() {
+                    return Err(e);
+                }
+                eprintln!("Chunk eviction save failed; terrain retained: {e}");
+            }
+            let mut index = 0;
+            while index < clients.len() {
+                if !clients[index].authenticated {
+                    index += 1;
+                    continue;
+                }
+                let snapshot = simulation
+                    .snapshot_for_client(clients[index].client_id)
+                    .ok_or_else(|| io::Error::other("missing player"))?;
+                let payload = build_snapshot_wire_payload(&snapshot)?;
+                if send_tick_messages_to_client(
+                    &mut clients[index],
+                    simulation.state(),
+                    &snapshot,
+                    &payload,
+                )
+                .is_err()
+                {
+                    let id = clients[index].client_id;
+                    clients.swap_remove(index);
+                    simulation.unregister_client(id);
+                    if let Err(e) = simulation.save() {
+                        eprintln!("Server disconnect save failed; data retained: {e}");
+                    }
+                } else {
+                    index += 1;
+                }
+            }
+        }
+        if last_save.elapsed() >= Duration::from_secs(45) {
+            if let Err(e) = simulation.save() {
+                eprintln!("Server autosave failed; retaining data: {e}");
+            }
+            last_save = Instant::now();
+        }
+        if due == 0 {
             thread::sleep(Duration::from_millis(2));
         }
     }
+    simulation.save()
 }
 
 #[cfg(test)]
@@ -1286,7 +1421,8 @@ mod tests {
 
     #[test]
     fn server_wire_message_roundtrip_codec() {
-        let message = ServerWireMessage::Snapshot(ServerSnapshot::from_state(5, &GameState::new()));
+        let message =
+            ServerWireMessage::Snapshot(Box::new(ServerSnapshot::from_state(5, &GameState::new())));
         let encoded = encode_server_message(&message).expect("encoding should succeed");
         let decoded = decode_server_message(&encoded).expect("decoding should succeed");
         assert_eq!(decoded, message);
@@ -1299,9 +1435,11 @@ mod tests {
         let decoded = decode_server_message(&payload).expect("payload should decode");
         match decoded {
             ServerWireMessage::Snapshot(decoded_snapshot) => {
-                assert_eq!(decoded_snapshot, snapshot);
+                assert_eq!(*decoded_snapshot, snapshot);
             }
-            ServerWireMessage::ChunkDelta(_) => {
+            ServerWireMessage::Welcome(_)
+            | ServerWireMessage::Rejected(_, _)
+            | ServerWireMessage::ChunkDelta(_) => {
                 panic!("snapshot payload must decode as snapshot wire message");
             }
         }
@@ -1543,7 +1681,8 @@ mod tests {
 
     #[test]
     fn framed_server_message_roundtrip() {
-        let message = ServerWireMessage::Snapshot(ServerSnapshot::from_state(7, &GameState::new()));
+        let message =
+            ServerWireMessage::Snapshot(Box::new(ServerSnapshot::from_state(7, &GameState::new())));
         let mut wire = Vec::new();
         write_framed_server_message(&mut wire, &message).expect("framed write should succeed");
 
@@ -1677,10 +1816,125 @@ mod tests {
     }
 
     #[test]
+    fn delayed_snapshot_does_not_acknowledge_an_unreceived_input_by_tick() {
+        let mut client = ClientPredictionState::new(1);
+        let mut state = GameState::network_view();
+        state.player.x = 0.5;
+        state.player.y = 20.0;
+        state.player.grounded = true;
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(
+            ServerSnapshot::from_state(0, &state),
+        )));
+        let command = client.queue_local_command(ClientCommand::SetMoveRight(true));
+        // The server advanced beyond this input's original tick before receiving it.
+        let mut delayed = ServerSnapshot::from_state(4, &state);
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(delayed.clone())));
+        assert_eq!(client.pending_input_count(), 1);
+        assert!(client.predicted_snapshot().unwrap().player.x > state.player.x);
+        delayed.tick = 5;
+        delayed.acknowledged_sequence = command.sequence;
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(delayed)));
+        assert_eq!(client.pending_input_count(), 0);
+    }
+
+    #[test]
+    fn movement_prediction_preserves_authoritative_actions_and_survival() {
+        let mut state = GameState::network_view();
+        state.player.mining_timer = 0.65;
+        state.player.health = 13.0;
+        state.player.hunger = 8.0;
+        state.player.grounded = true;
+        let snapshot = ServerSnapshot::from_state(0, &state);
+        let session = snapshot.session.clone();
+        let mut client = ClientPredictionState::new(1);
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(snapshot)));
+        client.queue_local_command(ClientCommand::SetMoveRight(true));
+        client.advance_local_tick();
+        let predicted = client.predicted_snapshot().unwrap();
+        assert_eq!(predicted.session, session);
+        assert_eq!(predicted.player.health, 13.0);
+        assert_eq!(predicted.player.hunger, 8.0);
+    }
+
+    #[test]
+    fn local_inventory_and_hotbar_feedback_do_not_wait_for_a_server_roundtrip() {
+        let state = GameState::network_view();
+        let mut client = ClientPredictionState::new(1);
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(
+            ServerSnapshot::from_state(0, &state),
+        )));
+        client.queue_local_command(ClientCommand::ToggleInventory);
+        client.queue_local_command(ClientCommand::SelectHotbarSlot(2));
+        let predicted = client.predicted_snapshot().unwrap();
+        assert!(predicted.inventory_open);
+        assert_eq!(predicted.hotbar_index, 2);
+        assert_eq!(predicted.session.inventory(), &state.inventory);
+    }
+
+    #[test]
+    fn predicted_jump_lands_and_running_cannot_pass_through_a_wall() {
+        let mut state = GameState::network_view();
+        state.player.x = 2.5;
+        state.player.y = 20.0;
+        state.player.grounded = true;
+        let mut blocks = vec![BlockType::Air; CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT];
+        for y in 20..crate::world::chunk::CHUNK_HEIGHT {
+            for x in 0..CHUNK_WIDTH {
+                blocks[y * CHUNK_WIDTH + x] = BlockType::Stone;
+            }
+        }
+        for y in 10..20 {
+            blocks[y * CHUNK_WIDTH + 7] = BlockType::Stone;
+        }
+        let mut client = ClientPredictionState::new(1);
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(
+            ServerSnapshot::from_state(0, &state),
+        )));
+        client.apply_server_message(ServerWireMessage::ChunkDelta(ChunkDeltaPacket {
+            protocol: NET_PROTOCOL_VERSION,
+            tick: 0,
+            dimension: SnapshotDimension::Overworld,
+            center_chunk_x: 0,
+            chunks: vec![ChunkColumnSnapshot {
+                chunk_x: 0,
+                revision: 1,
+                biomes: vec![crate::world::BiomeType::Plains; CHUNK_WIDTH],
+                blocks,
+            }],
+        }));
+        client.queue_local_command(ClientCommand::QueueJump);
+        client.queue_local_command(ClientCommand::SetMoveRight(true));
+        assert!(client.predicted_snapshot().unwrap().player.y < 20.0);
+        for _ in 0..10 {
+            client.advance_local_tick();
+        }
+        let player = &client.predicted_snapshot().unwrap().player;
+        assert!(
+            player.x <= 6.751,
+            "predicted player crossed wall: {player:?}"
+        );
+        // A fresh authoritative airborne state permits continued prediction to landing.
+        let next = client.predicted_snapshot().unwrap().clone();
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(ServerSnapshot {
+            acknowledged_sequence: 2,
+            ..next
+        })));
+        for _ in 0..10 {
+            client.advance_local_tick();
+        }
+        let player = &client.predicted_snapshot().unwrap().player;
+        assert!(
+            (player.y - 20.0).abs() < 0.002,
+            "jump did not land: {player:?}"
+        );
+        assert!(player.grounded);
+    }
+
+    #[test]
     fn client_prediction_reconciles_against_authoritative_snapshot() {
         let mut client = ClientPredictionState::new(1);
         let baseline = ServerSnapshot::from_state(0, &GameState::new());
-        client.apply_server_message(ServerWireMessage::Snapshot(baseline.clone()));
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(baseline.clone())));
 
         let move_input = client.queue_local_command(ClientCommand::SetMoveRight(true));
         client.advance_local_tick();
@@ -1694,7 +1948,9 @@ mod tests {
         let mut server = ServerSimulation::new();
         server.enqueue_input(move_input);
         let authoritative_tick_1 = server.step(0, 0);
-        client.apply_server_message(ServerWireMessage::Snapshot(authoritative_tick_1.clone()));
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(
+            authoritative_tick_1.clone(),
+        )));
 
         let predicted_after = client
             .predicted_snapshot()
@@ -1717,11 +1973,11 @@ mod tests {
         let mut client = ClientPredictionState::new(4);
         let mut s5 = ServerSnapshot::from_state(5, &GameState::new());
         s5.tick = 5;
-        client.apply_server_message(ServerWireMessage::Snapshot(s5));
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(s5)));
 
         let mut s4 = ServerSnapshot::from_state(4, &GameState::new());
         s4.tick = 4;
-        client.apply_server_message(ServerWireMessage::Snapshot(s4));
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(s4)));
 
         assert_eq!(
             client
@@ -1735,9 +1991,8 @@ mod tests {
     #[test]
     fn client_prediction_applies_chunk_deltas() {
         let mut client = ClientPredictionState::new(9);
-        client.apply_server_message(ServerWireMessage::Snapshot(ServerSnapshot::from_state(
-            2,
-            &GameState::new(),
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(
+            ServerSnapshot::from_state(2, &GameState::new()),
         )));
         let delta = ChunkDeltaPacket {
             protocol: NET_PROTOCOL_VERSION,
@@ -1746,6 +2001,7 @@ mod tests {
             center_chunk_x: 0,
             chunks: vec![ChunkColumnSnapshot {
                 chunk_x: 0,
+                biomes: vec![crate::world::BiomeType::Plains; CHUNK_WIDTH],
                 revision: 1234,
                 blocks: vec![BlockType::Air; 16],
             }],
@@ -1765,9 +2021,8 @@ mod tests {
     #[test]
     fn client_prediction_ignores_chunk_delta_for_other_dimension() {
         let mut client = ClientPredictionState::new(10);
-        client.apply_server_message(ServerWireMessage::Snapshot(ServerSnapshot::from_state(
-            2,
-            &GameState::new(),
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(
+            ServerSnapshot::from_state(2, &GameState::new()),
         )));
         let delta = ChunkDeltaPacket {
             protocol: NET_PROTOCOL_VERSION,
@@ -1776,6 +2031,7 @@ mod tests {
             center_chunk_x: 0,
             chunks: vec![ChunkColumnSnapshot {
                 chunk_x: 0,
+                biomes: vec![crate::world::BiomeType::Plains; CHUNK_WIDTH],
                 revision: 777,
                 blocks: vec![BlockType::Air; 16],
             }],
@@ -1789,9 +2045,8 @@ mod tests {
     #[test]
     fn client_prediction_clears_replicated_chunks_on_dimension_change_snapshot() {
         let mut client = ClientPredictionState::new(11);
-        client.apply_server_message(ServerWireMessage::Snapshot(ServerSnapshot::from_state(
-            2,
-            &GameState::new(),
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(
+            ServerSnapshot::from_state(2, &GameState::new()),
         )));
         let overworld_delta = ChunkDeltaPacket {
             protocol: NET_PROTOCOL_VERSION,
@@ -1800,6 +2055,7 @@ mod tests {
             center_chunk_x: 0,
             chunks: vec![ChunkColumnSnapshot {
                 chunk_x: 0,
+                biomes: vec![crate::world::BiomeType::Plains; CHUNK_WIDTH],
                 revision: 888,
                 blocks: vec![BlockType::Air; 16],
             }],
@@ -1810,7 +2066,7 @@ mod tests {
         let mut nether_state = GameState::new();
         nether_state.current_dimension = Dimension::Nether;
         let nether_snapshot = ServerSnapshot::from_state(3, &nether_state);
-        client.apply_server_message(ServerWireMessage::Snapshot(nether_snapshot));
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(nether_snapshot)));
 
         assert_eq!(client.replicated_chunk_count(), 0);
     }
@@ -1857,3 +2113,7 @@ mod tests {
         assert_eq!(last_tick, now);
     }
 }
+
+#[cfg(test)]
+#[path = "cooperative_tests.rs"]
+mod cooperative_tests;

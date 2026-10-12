@@ -18,11 +18,26 @@ include = [
     "/README-crates.md",
     "/src/**",
     "/docs/developer.md",
+    "/docs/agents.md",
     "/docs/gameplay.md",
+    "/docs/feel-and-art.md",
+    "/docs/multiplayer.md",
+    "/tests/**",
     "/docs/installation.md",
     "/docs/media-credits.md",
     "/docs/supported-content.md",
     "/docs/world-format.md",
+    "/docs/performance.md",
+    "/docs/assets/performance-*.json",
+    "/docs/distribution.md",
+    "/docs/beta-release-notes.md",
+    "/examples/**",
+    "/scripts/package_release.py",
+    "/scripts/release_smoke.sh",
+    "/scripts/test_ssh_join.py",
+    "/scripts/test_native_archive.py",
+    "/scripts/generate_world.py",
+    "/scripts/demo_director.py",
 ]
 
 [dependencies]
@@ -32,3 +47,7 @@ flate2 = "1.0.35"
 noise = "0.9.0"
 rand = "0.8.5"
 serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.151"
+
+[target.'cfg(unix)'.dependencies]
+signal-hook = "0.3.18"

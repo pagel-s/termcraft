@@ -13,8 +13,12 @@
 
 # Python docs envs
 .venv/
+__pycache__/
 
 # Editor/OS artifacts
 .DS_Store
 .idea/
 .vscode/
+
+# Local development release archives
+/dist/

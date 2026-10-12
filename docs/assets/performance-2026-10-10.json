@@ -1,0 +1,331 @@
+{
+  "date": "2026-10-10",
+  "host": "Linux x86_64, Intel Core i9-13900K, rustc 1.98.1, release profile",
+  "method": "Sequential runs after compiler and regression-test processes completed. Fresh temporary save roots, three runs per terrain/cache combination. Async pipeline and runtime RNG can vary. This is a cache toggle comparison within the same build, not a comparison of release versions.",
+  "runs": [
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.39913699999999996,
+        "p50_ms": 0.196051,
+        "p95_ms": 0.220244,
+        "p99_ms": 0.238741
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 0,
+        "final_resident_chunks": 244,
+        "peak_resident_chunks": 244,
+        "trim": false,
+        "work": {
+          "max_ms": 0.219906,
+          "p50_ms": 0.065983,
+          "p95_ms": 0.071404,
+          "p99_ms": 0.085506
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 0.276229,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "recipe seed 42",
+      "repeat": 1
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.313397,
+        "p50_ms": 0.2043,
+        "p95_ms": 0.22969799999999999,
+        "p99_ms": 0.262026
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 0,
+        "final_resident_chunks": 244,
+        "peak_resident_chunks": 244,
+        "trim": false,
+        "work": {
+          "max_ms": 0.316749,
+          "p50_ms": 0.067308,
+          "p95_ms": 0.10183,
+          "p99_ms": 0.109949
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 0.275439,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "recipe seed 42",
+      "repeat": 2
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.43425400000000003,
+        "p50_ms": 0.21101599999999998,
+        "p95_ms": 0.255173,
+        "p99_ms": 0.324339
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 0,
+        "final_resident_chunks": 244,
+        "peak_resident_chunks": 244,
+        "trim": false,
+        "work": {
+          "max_ms": 0.311029,
+          "p50_ms": 0.096745,
+          "p95_ms": 0.10234499999999999,
+          "p99_ms": 0.11236600000000001
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 0.279269,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "recipe seed 42",
+      "repeat": 3
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.396996,
+        "p50_ms": 0.19697,
+        "p95_ms": 0.22141,
+        "p99_ms": 0.246774
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 236,
+        "final_resident_chunks": 9,
+        "peak_resident_chunks": 9,
+        "trim": true,
+        "work": {
+          "max_ms": 0.35317299999999996,
+          "p50_ms": 0.115546,
+          "p95_ms": 0.172626,
+          "p99_ms": 0.20739200000000002
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 0.203462,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "recipe seed 42",
+      "repeat": 1
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.252435,
+        "p50_ms": 0.19931100000000002,
+        "p95_ms": 0.223076,
+        "p99_ms": 0.244604
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 236,
+        "final_resident_chunks": 9,
+        "peak_resident_chunks": 9,
+        "trim": true,
+        "work": {
+          "max_ms": 0.477625,
+          "p50_ms": 0.11426599999999999,
+          "p95_ms": 0.125692,
+          "p99_ms": 0.17183
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 0.170679,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "recipe seed 42",
+      "repeat": 2
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.330761,
+        "p50_ms": 0.21032,
+        "p95_ms": 0.235459,
+        "p99_ms": 0.257305
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 236,
+        "final_resident_chunks": 9,
+        "peak_resident_chunks": 9,
+        "trim": true,
+        "work": {
+          "max_ms": 0.33321,
+          "p50_ms": 0.14362,
+          "p95_ms": 0.154255,
+          "p99_ms": 0.203988
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 0.167302,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "recipe seed 42",
+      "repeat": 3
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.340338,
+        "p50_ms": 0.210041,
+        "p95_ms": 0.28074000000000005,
+        "p99_ms": 0.290294
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 0,
+        "final_resident_chunks": 244,
+        "peak_resident_chunks": 244,
+        "trim": false,
+        "work": {
+          "max_ms": 7.569682,
+          "p50_ms": 2.4334629999999997,
+          "p95_ms": 2.9156910000000003,
+          "p99_ms": 2.992515
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 13.367108,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "classic seeds 1337/7331/9917/17711",
+      "repeat": 1
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.294211,
+        "p50_ms": 0.208924,
+        "p95_ms": 0.25578500000000004,
+        "p99_ms": 0.286881
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 0,
+        "final_resident_chunks": 244,
+        "peak_resident_chunks": 244,
+        "trim": false,
+        "work": {
+          "max_ms": 7.571045,
+          "p50_ms": 2.415872,
+          "p95_ms": 2.906276,
+          "p99_ms": 2.967797
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 13.398344,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "classic seeds 1337/7331/9917/17711",
+      "repeat": 2
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.293389,
+        "p50_ms": 0.20852800000000002,
+        "p95_ms": 0.269472,
+        "p99_ms": 0.288121
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 0,
+        "final_resident_chunks": 244,
+        "peak_resident_chunks": 244,
+        "trim": false,
+        "work": {
+          "max_ms": 10.917468,
+          "p50_ms": 2.4186110000000003,
+          "p95_ms": 2.905525,
+          "p99_ms": 2.945511
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 13.340731,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "classic seeds 1337/7331/9917/17711",
+      "repeat": 3
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.295736,
+        "p50_ms": 0.203674,
+        "p95_ms": 0.248078,
+        "p99_ms": 0.28138799999999997
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 236,
+        "final_resident_chunks": 8,
+        "peak_resident_chunks": 8,
+        "trim": true,
+        "work": {
+          "max_ms": 9.845053,
+          "p50_ms": 2.397965,
+          "p95_ms": 2.900081,
+          "p99_ms": 3.0232900000000003
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 0.671259,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "classic seeds 1337/7331/9917/17711",
+      "repeat": 1
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.29069700000000004,
+        "p50_ms": 0.208258,
+        "p95_ms": 0.26045799999999997,
+        "p99_ms": 0.28735
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 236,
+        "final_resident_chunks": 8,
+        "peak_resident_chunks": 8,
+        "trim": true,
+        "work": {
+          "max_ms": 9.315003,
+          "p50_ms": 2.418403,
+          "p95_ms": 2.91591,
+          "p99_ms": 3.069133
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 0.678569,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "classic seeds 1337/7331/9917/17711",
+      "repeat": 2
+    },
+    {
+      "dense_mob_ticks": {
+        "max_ms": 0.291536,
+        "p50_ms": 0.207513,
+        "p95_ms": 0.257077,
+        "p99_ms": 0.28750899999999996
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 236,
+        "final_resident_chunks": 8,
+        "peak_resident_chunks": 8,
+        "trim": true,
+        "work": {
+          "max_ms": 9.438979,
+          "p50_ms": 2.389157,
+          "p95_ms": 2.9385209999999997,
+          "p99_ms": 3.0866130000000003
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 0.67504,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "classic seeds 1337/7331/9917/17711",
+      "repeat": 3
+    }
+  ]
+}

@@ -1,0 +1,404 @@
+{
+  "date": "2026-10-11",
+  "version": "0.1.0",
+  "development_build": true,
+  "network_protocol": 10,
+  "progression_format": 7,
+  "binary_sha256": "2c50a69058ae5575b640bf6ca1ed7d7f4bc312f02a476f9d7cbed25137beeb71",
+  "source_files_sha256": {
+    "src/engine/actors.rs": "914fb5817bf7fb1469d1596f73b4b7883dd93d7c04b9453d6f4aad2f5e80d790",
+    "src/engine/agent.rs": "1a815467583d2437ee0ba0e254d054dadcbea61c707ef6ac58e84521795f9cbf",
+    "src/engine/client_identity.rs": "f933ead5814571e06990b1240a64990c501f2ccf3f49d2692e85df4081a47ff7",
+    "src/engine/command.rs": "5d1253c14aa3373f9045fb124afef252df548b7015aa9e3c9250b834e6b1ae11",
+    "src/engine/cooperative_tests.rs": "88634e8dbaa70cb26eefdf88ed035713093d8c6732c4f369fa85ba7d7f20bed0",
+    "src/engine/director.rs": "3e42dfc17fe075d0a27a942efb67d489baa1a706b8b9868cb40288058ab368f9",
+    "src/engine/director_bridge.rs": "779db5699d7d891dd32969cd9caabd5ad4ea6448fb407397035c348e8ffacaa2",
+    "src/engine/game_loop.rs": "e5ffe9924ebcb98297a971ff55daf09d1833c3c7d3e8ee74915985861d8e8d7f",
+    "src/engine/mcp.rs": "1b0560f7053f394a05028cf8fdd8aa6b2bae8ab3360e65d53be7e2eb4dce18ff",
+    "src/engine/metrics.rs": "ae2e4bc6f4b594730cdf7e082dd61c8150e67f3f8784449a9f84d5867449ce26",
+    "src/engine/mod.rs": "2e420b0e72475ed65f857ac5749973fcacae4d57b9e7ffbbfd3455b83b2e74a7",
+    "src/engine/net.rs": "2a529a269d1315f5a8f9c4a4bbdd93d28d4e6da0179d8633843275d99a6a8619",
+    "src/engine/network_client.rs": "601ab718ba474b8f8cb7766608188408dd7d028fefd4ea2079fd2f1c14dce848",
+    "src/engine/physics_tests.rs": "649c679213a1e65629ba02e2bbd929f7f93d8cd197d47d9400c7d6c5e55bfcbd",
+    "src/engine/replication.rs": "e2f0ec01b0080332f8e5fc0776e9073cdc393f920bb0451890dcb69182648c83",
+    "src/engine/server_save.rs": "88614f4fca2e94191308af6edc81acd92c39f0b2f08b81ddd8fd5bddaab49f96",
+    "src/engine/ssh.rs": "ddef288244a3184c0397f4439fe81abbc1eda27fce7c672c4e3f0e66af22dabe",
+    "src/engine/state.rs": "367ff968c8b93afe2bf5cc35e38126c3b418a1bdb222136666d6b0caeaded6d1",
+    "src/entities/arrow.rs": "f8e9f1d7ac90c937f39b1098b51c3f1267ff989543a45c504dee88b376e55ca2",
+    "src/entities/blaze.rs": "d010d5e4f677e723096c6a8289f84d4c65f936bb0629f1e0b26bb2a505e5ac60",
+    "src/entities/boat.rs": "1ae01c7a979f69317ece8edb8182a1aa173a130768160fd8c098ae007abbf7bc",
+    "src/entities/chicken.rs": "d08b5c6c81e915dfd27334b3874fccea96a1b6172bbfad94f147c6b91282c0c8",
+    "src/entities/cow.rs": "c3d8a0788b1e8bd12841b648aad0aa8da750eb9a88531c0550b15229d555c2e8",
+    "src/entities/creeper.rs": "f1d664ad1a18eb5db33d4d41576d349fa2e459fbbbdcc71ff18b575d4662862e",
+    "src/entities/end_crystal.rs": "b1a8093f50c4a473906ec2057ed382ef9fd3a3841abe9b4f0bfc008f71a8fb9d",
+    "src/entities/ender_dragon.rs": "8b702f27743f76da75739926a8ff7dfd35ff81125606a1ebeaea246bdca885d4",
+    "src/entities/enderman.rs": "12e7a60e455280051d0cbcae322fec91a1930c3331ec99e236ea9b7135871dcc",
+    "src/entities/experience_orb.rs": "9a1bb8d47107c8227ad4e5f323d22a3c73d04ac9bdc15280c3c149284f689085",
+    "src/entities/fireball.rs": "6201fa43ff9d2cf83cfd2458347bf712ae847f4b69a980b7b4e4c3d5d6e82ce4",
+    "src/entities/ghast.rs": "ba8ca106a9c272332f5b384a650fa631ddce50038ab5ea5e1a2e9254ceb4d44d",
+    "src/entities/item_entity.rs": "c7695cb7f8d6cb3b1754bffb237aa57abb8f3d6567919e91d3c8e913cceffc70",
+    "src/entities/mod.rs": "dd00ab1f98916d4f32099e70136488245669bf1ea9c3d35bbdbdd3cb615ecd41",
+    "src/entities/ocelot.rs": "4d5811fe7ecbf6c84e0dd5c684ddc5ee5d00af7595f5bfe26a83f20759baeb20",
+    "src/entities/pig.rs": "3ac7e0b9fcc2f49b6e245ca383edee7e9ce6cb62b9ba4270a4fb2b86c49fe733",
+    "src/entities/player.rs": "a023d27a9a5ff754ebb11a347f3b3b9d43d251fe20cc44e6b7c31fd335c4253e",
+    "src/entities/sheep.rs": "ad9358ee93c141b3a061393f1ccc59b9e8156724b4638f5700879d0906bc618e",
+    "src/entities/silverfish.rs": "68b61cf86609320a0021579fd78cc6b6b8c3d92af74aca47857ebf2e0e49a292",
+    "src/entities/skeleton.rs": "0fd1664cb627e77cd327b2334efb3697027c5bcf9e5d75ddd9e423909cb73535",
+    "src/entities/slime.rs": "d947c1f02a120aee12c2d0865b4a17bc690ad73d742d9527d3cb5ef8d408e41e",
+    "src/entities/spider.rs": "52e5939531f1d4d88c4011a4581baf8ede59f19837e844fd87cec0726919195c",
+    "src/entities/squid.rs": "e8c511c0669d2d795c7644afb8f081fafd84d9f1a6c134f8b60bd8c201504e35",
+    "src/entities/villager.rs": "e80a348bb3654ff59cc8b0ae6faed808339f9714ef1e51e37c111cedd5bb87d3",
+    "src/entities/wolf.rs": "3bfe94f5274fd91b5f6c33d318f86a728996bc3429e0bd5fbb3414a6405ab3f7",
+    "src/entities/zombie.rs": "595baea2e15178a19362f20212d5d1a1566b2531fb6b87d598c0d20a2dca2a12",
+    "src/entities/zombie_pigman.rs": "623c080008d7f12c87c0758d51ce28624d4115f4781e0024f1dba92b45df26be",
+    "src/generator.rs": "ded7e61681e85c50188a7db46787b2505830fc010ed74c39b91f06dab4ec6ee0",
+    "src/lib.rs": "561f45eb6f3688f8cb43b58071d680c49058fb361548598ed9b85d6b3ca4ec0d",
+    "src/main.rs": "afe8fb65d5a86b2fec46ee8eb2a35a57ba1a5249011623cd114374cae12ebad2",
+    "src/renderer/lighting.rs": "cd6e4a174b92e016505a5073bdfebf649f9c04371669d8c19bbc2a965ca2b2bc",
+    "src/renderer/materials.rs": "7d3182bc37b314d5c08608ce870b1cde0554e0c7131b0cf6e949a65281644e1c",
+    "src/renderer/mod.rs": "0569b850df797afc3c809ce4acc98072d2978b3f704b4bf9df3496fb255c17ef",
+    "src/renderer/motion.rs": "39f0d5db4097931e0705168f336708619ee06ee6ed114ccc77e546f1f42fa3ec",
+    "src/renderer/shading.rs": "b9de8605b06527320bb54dd6ff86909b1f4982983fa2cc2d759828f4826627a8",
+    "src/renderer/sprites.rs": "3827c5131116bfce5616511d2828c45a56b8f1a409dc0ace70cf1e42b5af839a",
+    "src/renderer/terminal.rs": "cb56cd1aab5539696bd079ed64200f6c7249bfdb8fcbf25743612626e4e76aff",
+    "src/save_path.rs": "1fc474160c75cbc95ab2ce6b853f19c465bb967619c597747651750f14b91366",
+    "src/world/block.rs": "85af3df8cbdfce5f5d1f1ed0f5677634bc7fd746d95b76f4852b74ca1ad907d1",
+    "src/world/chunk.rs": "00e359f47c2db056420d0cdc9ef4d9b280de460ccf29249c33143f677455cc54",
+    "src/world/environment.rs": "545d69216b383b65f904fa79f824a7f8ee880ac5e869a4edddd655ba023e5b70",
+    "src/world/item.rs": "19789af02f37534a459e9c02edf79d4341cdb3342f035c6e712d948d9d3fb585",
+    "src/world/mod.rs": "ebb601c19f980c04f4b5b5f9782206929a985d8efc629402cf116cfe3950ad56",
+    "src/world/recipe.rs": "9002eea8be4fcb41a1f6c016f92097ed3edfac5f1147d8e30712d88762f1dbda",
+    "src/worlds.rs": "398b506316ce006fac7c4873e7f2588259dd861609d12f66f37b08cd2cd5a715",
+    "Cargo.toml": "0a38c9e2c00ae9731864693f3284d2fa857fd7fe4e9a6cb269aafd3424513461",
+    "Cargo.lock": "479f5157de03513501e030b35205fd6c5485463ea45c6ce33720a3865cdf312c",
+    "examples/entity_review.rs": "462062a5a932618bb835191d7cde62678770d606f19169d1da47ca427acc1754",
+    "examples/pixel_review.rs": "40e9fd19ac69dddce4bcb34eb4bc36cf9eaccb26016b35a68082356f03b3e630",
+    "examples/render_profile.rs": "81f64702d8b38a12267399ca446b47dd8d5c50242336e937d74f0a780a03cf7f",
+    "scripts/capture_terminal_art.py": "209defdfb233006e60e7ac60e0d3bc543833c6eda26b0fa0691b8b87d95cea63"
+  },
+  "checks": {
+    "stable_rust": "1.98.1",
+    "minimum_rust": "1.88.0",
+    "unit_tests": {
+      "stable": 585,
+      "minimum_rust": 585,
+      "failed": 0
+    },
+    "format": "passed",
+    "strict_all_target_clippy": {
+      "stable": "passed",
+      "minimum_rust": "passed"
+    },
+    "optimized_binary_and_examples": "passed",
+    "offline_cargo_package_verification": "passed",
+    "strict_mkdocs": "passed",
+    "native_archive": "Separate dist/native-qualification-20261011.json; built after this report."
+  },
+  "change_scope": {
+    "rust_files_changed_since_prior_candidate": [
+      "src/renderer/terminal.rs",
+      "src/renderer/sprites.rs",
+      "src/renderer/materials.rs",
+      "src/renderer/shading.rs"
+    ],
+    "prior_binary_sha256": "c74524e6c05d78b342be964a0652f9dbf9cf1b58a3f35dc327ea0559702818b8",
+    "movement_and_network_source_unchanged_since_prior_candidate": true,
+    "prior_tcp_and_ssh_results": "Historical evidence only in docs/assets/pixel-refinement-2026-10-11.json; not rerun for this renderer-only revision."
+  },
+  "enhanced_terminal_input": {
+    "results": {
+      "native": {
+        "mode": "native",
+        "status": "passed",
+        "held_without_repeat_delta": 3.5199957117647105,
+        "release_drift": 0.058554777599995944,
+        "arrow_delta": -2.5035294262375,
+        "focus_loss_cleared": true,
+        "terminal_restored": true,
+        "artifacts": "/tmp/termcraft-foundation-ui-msnp_or0"
+      },
+      "coop": {
+        "mode": "coop",
+        "status": "passed",
+        "held_without_repeat_delta": 3.519999356764707,
+        "release_drift": 0.025285017599999904,
+        "arrow_delta": -2.823529413935625,
+        "focus_loss_cleared": true,
+        "terminal_restored": true,
+        "artifacts": "/tmp/termcraft-foundation-ui-nv4yikqf"
+      }
+    },
+    "method": "Real Unix PTY, disposable flat saves, enhanced press/release/focus events. Authoritative positions observed through live MCP director tools; also F3/F4, inventory and terminal restoration.",
+    "limits": "Automated Linux check; not human acceptance, emulator/input latency, Windows/macOS or real remote WAN qualification."
+  },
+  "renderer_profile": {
+    "data": {
+      "color_mode": "color",
+      "limits": "Real renderer and ANSI encoding to a counting writer; excludes emulator presentation, kernel I/O, simulation, model and networking.",
+      "results": [
+        {
+          "bytes": 65069,
+          "frames": 210,
+          "p50_ms": 0.769605,
+          "p95_ms": 0.7896799999999999,
+          "p99_ms": 0.805419,
+          "scene": "daylight",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 169550,
+          "frames": 210,
+          "p50_ms": 1.58109,
+          "p95_ms": 1.588678,
+          "p99_ms": 1.591774,
+          "scene": "daylight",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 1710284,
+          "frames": 210,
+          "p50_ms": 0.760861,
+          "p95_ms": 0.773579,
+          "p99_ms": 0.792346,
+          "scene": "storm",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 4624412,
+          "frames": 210,
+          "p50_ms": 1.587623,
+          "p95_ms": 1.6754980000000002,
+          "p99_ms": 1.6901590000000002,
+          "scene": "storm",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 162239,
+          "frames": 210,
+          "p50_ms": 1.042679,
+          "p95_ms": 1.047613,
+          "p99_ms": 1.0536059999999998,
+          "scene": "torch_cave",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 337151,
+          "frames": 210,
+          "p50_ms": 2.441256,
+          "p95_ms": 2.57729,
+          "p99_ms": 2.5962419999999997,
+          "scene": "torch_cave",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 79302,
+          "frames": 210,
+          "p50_ms": 0.797628,
+          "p95_ms": 0.8043739999999999,
+          "p99_ms": 0.818987,
+          "scene": "dense_mobs",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 201871,
+          "frames": 210,
+          "p50_ms": 1.660811,
+          "p95_ms": 1.665452,
+          "p99_ms": 1.689559,
+          "scene": "dense_mobs",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 62125,
+          "frames": 210,
+          "p50_ms": 0.5089969999999999,
+          "p95_ms": 0.536876,
+          "p99_ms": 0.537671,
+          "scene": "nether",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 144481,
+          "frames": 210,
+          "p50_ms": 0.969128,
+          "p95_ms": 1.0259340000000001,
+          "p99_ms": 1.0340449999999999,
+          "scene": "nether",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 58803,
+          "frames": 210,
+          "p50_ms": 0.447098,
+          "p95_ms": 0.451761,
+          "p99_ms": 0.462065,
+          "scene": "end",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 152035,
+          "frames": 210,
+          "p50_ms": 0.8466450000000001,
+          "p95_ms": 0.8546400000000001,
+          "p99_ms": 0.864693,
+          "scene": "end",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        }
+      ]
+    },
+    "measured_executable_sha256": "ebb1355afa4ae397863bdaa15f1509bd5b2a83cff8034a54d5da993c0e4f6621",
+    "p95_ms_range": [
+      0.451761,
+      2.57729
+    ],
+    "method": "210 frames/case; first 30 omitted from timing percentiles. Stationary player/camera, fixed geometry and scene effects. One output write per frame.",
+    "limits": "CPU and ANSI encoding only; excludes emulator presentation, kernel I/O, simulation, model and networking. Richer per-pixel lighting costs more than the prior candidate; no speedup or moving-camera bandwidth claim."
+  },
+  "visual_review": {
+    "provenance": "docs/design/art-audit-2026-10-11/provenance.md",
+    "entity_scene_source": "examples/entity_review.rs",
+    "entity_capture_executable_sha256": "0c40128e5298d362b76ee10082512a826888e025added872d01e86ca786aca56",
+    "world_scene_source": "examples/pixel_review.rs",
+    "world_capture_executable_sha256": "4da63bd68547fd7ff4373dfd2791409a15e5a8f1efe71c8b0380b63590da7dc1",
+    "entity_viewports": [
+      [
+        120,
+        40
+      ],
+      [
+        160,
+        48
+      ],
+      [
+        200,
+        60
+      ]
+    ],
+    "before_entity_scenes": 21,
+    "after_entity_scenes": 27,
+    "world_scenes": 4,
+    "atlas_kinds_covered": 26,
+    "block_pixel_size_large_view": [
+      8,
+      8
+    ],
+    "standard_humanoid_pixel_rows_large_view": 14,
+    "method": "Actual renderer ANSI output rasterized offline at 9x18 terminal cells using exact half-block rectangles and DejaVu Sans Mono for UI glyphs; no image enhancement. Before/after share fixtures/clock/positions. The generated hut is actual procedural geometry; other scenes are staged disposable fixtures.",
+    "human_acceptance": false,
+    "asset_sha256": {
+      "after/cave-120x40.png": "0cfcd6b76ef431bc4ae151e09751b3ee818c65435504f5ed671789c86bf84cbf",
+      "after/cave-160x48.png": "763c619f9661ee7cc845ac60d20f06d0d918cfe7de4a2400f75204c53612a862",
+      "after/cave-200x60.png": "e010d7c4512945f0899cebb01cb48f86c52ac12a8d991749f80f8a2a04abcef6",
+      "after/entities.png": "f37565e366b3f1baaf9b0cf0d8ef1d4072e35f416c3ccf9b28abb4409ffda76b",
+      "after/farm-120x40.png": "b2393d97f209bdacfaee2fb9f4f6a5d87d54ce66527ac180e0d7ed2d3966b6c0",
+      "after/farm-160x48.png": "0c386eef6e6860c738ec062adcb62ede8a5beeb4e344dea8ad9c4e3731ed14d8",
+      "after/farm-200x60.png": "f4071266fd20b6e208eb76e9f4f9b57d192403b71e3bcdb85a1f3acd1ffbcc98",
+      "after/farm_states-120x40.png": "f36890d31d42e8decf5c801b0602463781a8933a1450f1e652fc5a695276ad1f",
+      "after/farm_states-160x48.png": "3fb18f3d2f5e69d24f65bc77e5bfaffa069c6ff5b80bb2838920a2325fa6d5f3",
+      "after/farm_states-200x60.png": "b0079beb96d0442cbdfdda2671b2fc9d8034a4ca64b718b4da27bb17137e7f71",
+      "after/humanoids-120x40.png": "76f2aa8b9648740b6cce7ae4f8424c9cfaeb9f1a0fc8346f1c6c42e390030c73",
+      "after/humanoids-160x48.png": "6e9cfc2e6e3aefdaf3f18d4469a32cff58e98f3b9a4e2acd5beabfaf381295fd",
+      "after/humanoids-200x60.png": "6a7283fc26c698ff8d59688b8c32582358d6bf3bf5b2196a08e24649a6f921b2",
+      "after/nether-120x40.png": "8c6168f2d0669ca84cc60167d3fc342c15ad542a2d495cc085b22ee617a55e06",
+      "after/nether-160x48.png": "a8b34c3e526ae31e46b08ceb710dd1a6770d7980ed4b654cc36ae16cf951349f",
+      "after/nether-200x60.png": "51d8085292c297e246836e61135bf228eea62963158d6f318ab877869cba7c09",
+      "after/night-120x40.png": "5c5dd3f8001f2543db52cace11a55acc1a231d5b6fbc16474af8732cb832957f",
+      "after/night-160x48.png": "6433cb984777d0a5fd206899665d0e6a83cad515581ea5b51721a87f69175e77",
+      "after/night-200x60.png": "dba8e3c4d4739d423f711e0b53b6fee8e44f41d7543f4da4e2df62de26faffb7",
+      "after/poses-120x40.png": "3a4d3a008600a58f04acab37902dd212606b3dd60b97a363c49ae8b2a67fab1e",
+      "after/poses-160x48.png": "2f7300b1cc7eab5871a78db1d32569aeafa535728a879aa9d27f86459c378377",
+      "after/poses-200x60.png": "9daf12e311afdcfb89d3097ad706a7d8a580363a1043eae5fc2e47971670ce76",
+      "after/props-120x40.png": "5bde46a4a6349c375ca7d6857616cf28d3e959504a926417f4d595259ac12f1b",
+      "after/props-160x48.png": "594093531191b18242f8aaeee37ff861e204b676e0dbbdaf65f40d2e38d9222d",
+      "after/props-200x60.png": "07dd81c46e742118e147fc05c89ab6b5cd5827340f3d730bacf74ed3f975605e",
+      "after/small-120x40.png": "17a08e89feed4ada7556b14492ec9bd2fbdd6440cfb2270d8e94a68197d6b472",
+      "after/small-160x48.png": "409bdb7f52af307a9dd4ac78c7bafa9ad88f35cdb89208acdbfe403c3b54ee79",
+      "after/small-200x60.png": "f47c45ee4b6eabef13c3da0b7e5f77be3806eb0ee6b5d6a189588c121940968a",
+      "before/cave-120x40.png": "f618fe8c3adc2516a1d7855faaf4c962fd051646f3724533c9b47118f3dee096",
+      "before/cave-160x48.png": "72e5c20cfd78160b7f89df2b75180bc8a5fec2d8756cf70964c9022a16165f46",
+      "before/cave-200x60.png": "5b02b82ddd5fdfb5aba0d1fddef57c1e1dbdde927fce87a0ced55d4d93789789",
+      "before/entities.png": "d2d1810fe67f4529ba5bcbd98a2e16c488adb7cfcefd67aa012cafd10c0712e2",
+      "before/farm-120x40.png": "3393f61f143ca625a6fde7e0f2b1bae6287549b5a5ce61f84c2be50fc6008442",
+      "before/farm-160x48.png": "47eeebfff337cc897167d006c575eefcf29aa6d2c1275818732744b620ca07bb",
+      "before/farm-200x60.png": "fa544c5fc596190360e553892b655eecd287bba23ac783c137dfb2ed791bd649",
+      "before/humanoids-120x40.png": "76bfc181a426457d01433119266997d2efee97dce709e9fb3767ca9b36c38c2a",
+      "before/humanoids-160x48.png": "7ef7bd2e0f27e760c28e04ce61e94ebe26e1748c1e81c7de7efb34b00d5a4004",
+      "before/humanoids-200x60.png": "017cd1f601dfa0a9281e9f76917c17eab7f255efaa169fa37337691ab6698017",
+      "before/nether-120x40.png": "2df3fc268176825352c1b3d31749a4a9be8f7c358b608ad3467b5f9935f0127c",
+      "before/nether-160x48.png": "38c948a319a907a440695b3d98d32119e93618a81ef94ff0b983f38ee389a32c",
+      "before/nether-200x60.png": "00d61650816603df3bed8740632e41f308f5c84b885a3971ec44c6b0dd15d9b0",
+      "before/night-120x40.png": "6a3cec695529812090e75a09127c015398eb45b0142278a711f13f51b9327853",
+      "before/night-160x48.png": "5787fca2024f3101c50026c68fe896b3e5fc13484d572b203df893bdec67d568",
+      "before/night-200x60.png": "92ef15e54493a20d7adad6e3e0d6691ce425ae353603aa4640240a77d88a53c4",
+      "before/props-120x40.png": "35b52167edae2dfde4bcfe9e4cd36df22cdb1fb3efe6af12ceaff5835c5c5168",
+      "before/props-160x48.png": "5155021842c1469b4a797a629bda35c04084502297a83f361e83f89dee68fcaf",
+      "before/props-200x60.png": "000394d4ee09f848b9e709a17a1f46d1cb025f954cc84cf3f9962f5b68f19b10",
+      "before/small-120x40.png": "4a216c591913a91247d087cf0aeb0296542d7d262f1e7f63eb7a2ea6964075ca",
+      "before/small-160x48.png": "08dd71df63b968ebca3a657c7ed6f782bac76df949eb026791e7b8fb9288ccef",
+      "before/small-200x60.png": "c308cee18733ac9f6277fca28b0c8a3c8a7c59964a39cdc2237a44cee34f6a1a",
+      "cave.png": "ff97e5daf3cb7cd1b96d0fd398273d24c23a07f770c3b750f360a670117829ec",
+      "comparison.png": "3c7e2bb664771a3d0af378abcf220df69b5bcc489a566c3faa9b7dda81ba0802",
+      "end.png": "9d819e80832e6d867110e8efc2e9c3c8b7bfd4fcfe0bf603efcc3eac90a903c3",
+      "nether.png": "2fe145e95747528b674dc263a885a6ace33786a4e73b13f996b11308363a228d",
+      "provenance.md": "d9ed309d2fcc0860e42f0f1e47a00a3b931d17fc8628e80e9697957e76363414",
+      "village.png": "dd8de51d9185c5dd84df2bbd294bbd3e5c659bb3818197b9c6ada1a8cc15c793",
+      "worlds.png": "d6e7625dd1dcf72b797a53ae807042aa06c6e09f243bd045e0dc6b7f9274303d"
+    }
+  },
+  "remaining_visual_work": [
+    "General projected sunlight/cast shadows beyond bounded ground contact and terrain/room occlusion.",
+    "Bespoke creature attack/flight/locomotion and equipment animation; stronger combat feedback.",
+    "Finer furniture/stair/slab collision and passive-mob bounds aligned with artwork.",
+    "Larger villages, HUD refinement and human visual consistency acceptance.",
+    "Terminal fonts, clean Windows/macOS and real remote SSH/WAN feel qualification."
+  ],
+  "publication": "None; uncommitted local development candidate."
+}

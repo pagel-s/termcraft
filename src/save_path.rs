@@ -10,7 +10,14 @@ const SAVE_DIR_ENV: &str = "TERMCRAFT_SAVE_DIR";
 static MIGRATE_LEGACY_SAVES: Once = Once::new();
 
 pub fn save_dir() -> PathBuf {
-    explicit_save_dir().unwrap_or_else(default_save_dir)
+    #[cfg(test)]
+    {
+        default_save_dir()
+    }
+    #[cfg(not(test))]
+    {
+        explicit_save_dir().unwrap_or_else(default_save_dir)
+    }
 }
 
 pub fn save_file(file_name: &str) -> PathBuf {
@@ -41,7 +48,22 @@ fn explicit_save_dir() -> Option<PathBuf> {
 
 #[cfg(test)]
 fn default_save_dir() -> PathBuf {
-    PathBuf::from(LEGACY_SAVE_DIR)
+    // Parallel tests must never share progression/chunk files or touch real saves.
+    // PID namespaces can reuse IDs across invocations sharing the same /tmp.
+    static ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    let root = ROOT.get_or_init(|| {
+        std::env::temp_dir().join(format!(
+            "termcraft-unit-{}-{:032x}",
+            std::process::id(),
+            rand::random::<u128>()
+        ))
+    });
+    let thread = std::thread::current();
+    let name = thread.name().unwrap_or("worker");
+    let hash = name.bytes().fold(0xcbf29ce484222325u64, |hash, byte| {
+        (hash ^ byte as u64).wrapping_mul(0x100000001b3)
+    });
+    root.join(format!("{hash:016x}"))
 }
 
 #[cfg(all(not(test), target_os = "windows"))]

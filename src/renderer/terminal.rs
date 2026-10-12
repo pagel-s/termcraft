@@ -3,22 +3,32 @@ use crate::engine::state::{
     WeatherType,
 };
 use crate::world::Dimension;
+#[path = "materials.rs"]
+mod materials;
+#[path = "motion.rs"]
+mod motion;
+#[path = "shading.rs"]
+mod shading;
+#[path = "sprites.rs"]
+mod sprites;
 use crate::world::block::BlockType;
 use crate::world::chunk::CHUNK_HEIGHT;
 use crate::world::item::{ItemStack, ItemType, Recipe};
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
-        DisableMouseCapture, EnableMouseCapture, KeyboardEnhancementFlags,
+        DisableBracketedPaste, DisableFocusChange, DisableMouseCapture, EnableBracketedPaste,
+        EnableFocusChange, EnableMouseCapture, KeyboardEnhancementFlags,
         PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute, queue,
     style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
     terminal::{
         Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
-        enable_raw_mode, size,
+        enable_raw_mode, size, supports_keyboard_enhancement,
     },
 };
+use sprites::{ActorSprite, SpriteKind};
 use std::io::{Stdout, Write, stdout};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -46,16 +56,36 @@ pub struct Renderer {
     back_buffer: Vec<RenderCell>,
     light_buffer: Vec<u8>,
     light_scratch: Vec<u8>,
+    light_frontier: [Vec<usize>; 16],
+    frame_output: Vec<u8>,
     precipitation_buffer: Vec<PrecipitationType>,
     camera_y: f64,
     camera_initialized: bool,
+    key_releases: bool,
+    world_view: Option<(i32, i32, i32, i32, i32)>,
+    zoom: bool,
+    pixel_colors: bool,
+    actor_sprites: Vec<ActorSprite>,
+    motion: motion::MotionHistory,
+    player_preview: Option<Box<motion::PlayerPreview>>,
+    frame_seconds: f64,
+    last_frame_at: Option<std::time::Instant>,
+    vertical_pixel_offset: i32,
+    pixel_horizons: Vec<(i32, i32)>,
 }
 
 impl Renderer {
     pub fn new() -> std::io::Result<Self> {
         let (cols, rows) = size()?;
+        Ok(Self::with_size(cols, rows))
+    }
+
+    /// Offscreen rendering uses the same composition and ANSI output as live play.
+    pub fn with_size(cols: u16, rows: u16) -> Self {
+        let cols = cols.max(1);
+        let rows = rows.max(1);
         let buffer_size = (cols as usize) * (rows as usize);
-        Ok(Self {
+        Self {
             stdout: stdout(),
             width: cols,
             height: rows,
@@ -63,18 +93,40 @@ impl Renderer {
             back_buffer: vec![RenderCell::default(); buffer_size],
             light_buffer: Vec::new(),
             light_scratch: Vec::new(),
+            light_frontier: std::array::from_fn(|_| Vec::new()),
+            frame_output: Vec::new(),
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
-        })
+            key_releases: false,
+            world_view: None,
+            zoom: true,
+            pixel_colors: true,
+            actor_sprites: Vec::new(),
+            motion: motion::MotionHistory::default(),
+            player_preview: None,
+            frame_seconds: 1.0 / 60.0,
+            last_frame_at: None,
+            vertical_pixel_offset: 0,
+            pixel_horizons: Vec::new(),
+        }
     }
 
     pub fn init(&mut self) -> std::io::Result<()> {
         enable_raw_mode()?;
+        if std::env::var_os("NO_COLOR").is_some() {
+            self.zoom = false;
+            self.pixel_colors = false;
+        }
+        // Enhanced terminals (and native Windows input) report real key-up events.
+        // Expiring their held keys on an OS-repeat timer interrupts continuous motion.
+        self.key_releases = cfg!(windows) || supports_keyboard_enhancement().unwrap_or(false);
         execute!(
             self.stdout,
             EnterAlternateScreen,
             EnableMouseCapture,
+            EnableBracketedPaste,
+            EnableFocusChange,
             PushKeyboardEnhancementFlags(
                 KeyboardEnhancementFlags::REPORT_EVENT_TYPES
                     | KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
@@ -87,28 +139,52 @@ impl Renderer {
     }
 
     pub fn restore(&mut self) -> std::io::Result<()> {
-        execute!(
+        let screen = execute!(
             self.stdout,
             PopKeyboardEnhancementFlags,
             DisableMouseCapture,
+            DisableBracketedPaste,
+            DisableFocusChange,
             Show,
             LeaveAlternateScreen,
             ResetColor
-        )?;
-        disable_raw_mode()?;
-        Ok(())
+        );
+        let raw_mode = disable_raw_mode();
+        screen.and(raw_mode)
     }
 
     pub fn screen_to_world(&self, state: &GameState, screen_x: u16, screen_y: u16) -> (i32, i32) {
-        let view_char_x = (state.player.x * 2.0).round() as i32;
-        let view_char_y = self.view_char_y(state.player.y);
-        let screen_center_x = (self.width / 2) as i32;
-        let screen_center_y = (self.height as i32 * 2) / 3;
-        let world_char_x = (screen_x as i32) + view_char_x - screen_center_x;
-        let block_x = world_char_x.div_euclid(2);
-        let world_char_y = (screen_y as i32) + view_char_y - screen_center_y;
-        let block_y = world_char_y;
+        let (view_x, view_y, center_x, center_y, scale) = self.world_view.unwrap_or_else(|| {
+            (
+                (state.player.x * 2.0).round() as i32,
+                self.view_char_y(state.player.y),
+                (self.width / 2) as i32,
+                (self.height as i32 * 2) / 3,
+                1,
+            )
+        });
+        let block_x = (screen_x as i32 + view_x - center_x).div_euclid(2 * scale);
+        let block_y = (screen_y as i32 * 2 + 1 + view_y * 2 + self.vertical_pixel_offset
+            - center_y * 2)
+            .div_euclid(scale * 2);
         (block_x, block_y)
+    }
+
+    pub fn toggle_zoom(&mut self) {
+        if !self.pixel_colors {
+            return;
+        }
+        self.zoom = !self.zoom;
+        // Picking continues to use the image still on screen until the next frame.
+        self.buffer.fill(RenderCell::default());
+    }
+
+    pub fn reports_key_releases(&self) -> bool {
+        self.key_releases
+    }
+
+    pub fn note_key_release(&mut self) {
+        self.key_releases = true;
     }
 
     fn check_resize(&mut self) -> std::io::Result<()> {
@@ -137,11 +213,20 @@ impl Renderer {
             return;
         }
 
-        let follow = if delta.abs() > 2.0 { 0.45 } else { 0.26 };
-        self.camera_y += delta * follow;
-        if (target_y - self.camera_y).abs() < 0.02 {
-            self.camera_y = target_y;
-        }
+        // A dead zone keeps the terrain steady during ordinary one-block jumps.
+        // Exponential time-based follow has the same response at 30, 60 or 120 fps.
+        let outside = if delta < -1.5 {
+            delta + 1.5
+        } else if delta > 1.0 {
+            delta - 1.0
+        } else {
+            0.0
+        };
+        self.camera_y += outside * (1.0 - (-12.0 * self.frame_seconds.clamp(0.0, 0.1)).exp());
+    }
+
+    pub fn capture_motion_step(&mut self, state: &GameState) {
+        self.motion.capture(state);
     }
 
     fn view_char_y(&self, player_y: f64) -> i32 {
@@ -291,6 +376,7 @@ impl Renderer {
         self.visibility_adjusted_entity_color_at(x, y, fg, false)
     }
 
+    #[cfg(test)]
     fn player_visibility_color_at(&self, x: i32, y: i32, fg: Color) -> Color {
         self.visibility_adjusted_entity_color_at(x, y, fg, true)
     }
@@ -319,17 +405,6 @@ impl Renderer {
                 "<>"
             },
         ]
-    }
-
-    fn put_player_char(&mut self, x: i32, y: i32, ch: char, fg: Color) {
-        let fg = self.player_visibility_color_at(x, y, fg);
-        self.put_char(x, y, ch, fg, Color::Reset);
-    }
-
-    fn put_player_str(&mut self, x: i32, y: i32, s: &str, fg: Color) {
-        for (i, c) in s.chars().enumerate() {
-            self.put_player_char(x + i as i32, y, c, fg);
-        }
     }
 
     fn dim_color(color: Color, factor: f32) -> Color {
@@ -392,6 +467,14 @@ impl Renderer {
             g: rgb.1,
             b: rgb.2,
         }
+    }
+
+    fn target_background(background: Color) -> Color {
+        Self::rgb(Self::lerp_rgb(
+            Self::color_rgb(background).unwrap_or((24, 24, 28)),
+            (245, 195, 75),
+            0.38,
+        ))
     }
 
     fn color_rgb(color: Color) -> Option<(u8, u8, u8)> {
@@ -508,13 +591,6 @@ impl Renderer {
         )
     }
 
-    fn put_player_pose(&mut self, x: i32, y: i32, pose: &str, torso_fg: Color, limb_fg: Color) {
-        for (idx, ch) in pose.chars().enumerate() {
-            let fg = if ch == '|' { torso_fg } else { limb_fg };
-            self.put_player_char(x + idx as i32, y, ch, fg);
-        }
-    }
-
     fn end_victory_banner_lines(ticks_remaining: u16) -> (&'static str, &'static str) {
         if ticks_remaining > 92 {
             ("ENDER DRAGON SLAIN", "Shockwaves tear through the End")
@@ -541,8 +617,10 @@ impl Renderer {
         let elapsed = (140u16.saturating_sub(ticks_remaining)) as f32;
         let progress = (elapsed / 140.0).clamp(0.0, 1.0);
         let pulse = ((elapsed * 0.24).sin() * 0.5 + 0.5).clamp(0.0, 1.0);
-        let origin_sx = (origin_x * 2.0).round() as i32 - view_char_x + screen_center_x;
-        let origin_sy = origin_y.floor() as i32 - view_char_y + screen_center_y;
+        let scale = self.world_view.map_or(1, |view| view.4);
+        let origin_sx =
+            (origin_x * 2.0 * scale as f64).round() as i32 - view_char_x + screen_center_x;
+        let origin_sy = (origin_y * scale as f64).floor() as i32 - view_char_y + screen_center_y;
         let violet = Self::rgb(Self::lerp_rgb(
             (168, 96, 248),
             (255, 255, 255),
@@ -717,7 +795,7 @@ impl Renderer {
                 }
             }
             BlockType::Wood => textured('▒', (164, 114, 60), (102, 66, 30)),
-            BlockType::Leaves => flat('▓', (46, 148, 46)),
+            BlockType::Leaves => textured('▓', (76, 164, 86), (34, 96, 58)),
             BlockType::IronOre => textured('▓', (214, 186, 146), (92, 92, 98)),
             BlockType::GoldOre => textured('▓', (255, 224, 78), (92, 92, 98)),
             BlockType::DiamondOre => textured('▓', (72, 240, 240), (88, 98, 104)),
@@ -1130,17 +1208,73 @@ impl Renderer {
 
     pub fn render(&mut self, state: &GameState, frame_alpha: f64) -> std::io::Result<()> {
         self.check_resize()?;
+        let now = std::time::Instant::now();
+        self.frame_seconds = self
+            .last_frame_at
+            .map_or(1.0 / 60.0, |last| now.duration_since(last).as_secs_f64());
+        self.last_frame_at = Some(now);
+        self.render_to(state, frame_alpha, &mut stdout().lock())
+    }
+
+    pub fn render_to<W: Write>(
+        &mut self,
+        state: &GameState,
+        frame_alpha: f64,
+        output: &mut W,
+    ) -> std::io::Result<()> {
         self.clear_back_buffer();
+        self.actor_sprites.clear();
+        let physical_size = (self.width, self.height);
+        let scale = if self.zoom && self.width >= 140 && self.height >= 44 {
+            4
+        } else if self.zoom && self.width >= 100 && self.height >= 32 {
+            2
+        } else {
+            1
+        };
+        if scale > 1 {
+            self.width = self.width / scale as u16 + 2;
+            self.height = (self.height - 4) / scale as u16 + 5;
+        }
         let frame_alpha = frame_alpha.clamp(0.0, 1.0);
-        let render_player_x = state.player.x + state.player.vx * frame_alpha;
-        let render_player_y = state.player.y + state.player.vy * frame_alpha;
+        if self
+            .motion
+            .dimension
+            .is_some_and(|d| d != state.current_dimension)
+        {
+            self.motion = motion::MotionHistory::default();
+            self.camera_initialized = false;
+        }
+        let preview = self
+            .player_preview
+            .get_or_insert_with(|| Box::new(motion::PlayerPreview::new()));
+        let (render_player_x, render_player_y) = preview.position(state, frame_alpha);
+
         self.update_vertical_camera(render_player_y);
 
-        let view_char_x = (render_player_x * 2.0).round() as i32;
-        let view_char_y = self.view_char_y(render_player_y);
-        let screen_center_x = (self.width / 2) as i32;
-        let screen_center_y = (self.height as i32 * 2) / 3;
+        let physical_view_x = (render_player_x * 2.0 * scale as f64).round() as i32;
+        let physical_view_y = (self.camera_y * scale as f64).floor() as i32;
+        self.vertical_pixel_offset = if scale > 1 {
+            (self.camera_y * scale as f64 * 2.0).floor() as i32 & 1
+        } else {
+            0
+        };
+        let view_char_x = physical_view_x.div_euclid(scale);
+        let view_char_y = physical_view_y.div_euclid(scale);
+        let screen_center_x = physical_size.0 as i32 / 2 / scale;
+        let screen_center_y = if scale > 1 {
+            (physical_size.1 as i32 - 4) * 3 / 4 / scale
+        } else {
+            self.height as i32 * 2 / 3
+        };
         let ui_y = self.height as i32 - 4;
+        self.world_view = Some((
+            physical_view_x,
+            physical_view_y,
+            screen_center_x * scale,
+            screen_center_y * scale,
+            scale,
+        ));
 
         let margin = 6;
         let view_left_bx = (view_char_x - screen_center_x).div_euclid(2);
@@ -1170,9 +1304,9 @@ impl Renderer {
         let is_overworld = state.current_dimension == Dimension::Overworld;
         // Quantize sky/weather animation so the terminal diff changes less often,
         // improving frame pacing without making the sky feel static.
-        let cloud_anim_phase = (state.player.age / 3) as f32;
+        let cloud_anim_phase = (state.player.age / 6) as f32;
         let precip_anim_phase = (state.player.age / 2) as f32;
-        let end_twinkle_phase = (state.player.age / 3) as i32;
+        let end_twinkle_phase = (state.player.age / 8) as i32;
         let mut sky_light = if is_nether {
             8.0
         } else if is_end {
@@ -1205,7 +1339,7 @@ impl Renderer {
         } else {
             0.0
         };
-        let cloud_offset = tod / 2400.0 + cloud_anim_phase * (0.012 + wind_mix * 0.016);
+        let cloud_offset = tod / 2400.0 + cloud_anim_phase * (0.024 + wind_mix * 0.032);
         if is_overworld {
             for (x, entry) in precipitation_by_bx.iter_mut().enumerate() {
                 *entry = state.precipitation_at(min_bx + x as i32);
@@ -1284,33 +1418,26 @@ impl Renderer {
             light[ly * width_b + lx] = 14;
         }
 
-        for _ in 0..18 {
-            light_scratch.copy_from_slice(&light);
-            let mut changed = false;
-            for y in 1..(height_b - 1) {
-                for x in 1..(width_b - 1) {
-                    let bx = min_bx + x as i32;
-                    let by = min_by + y as i32;
-                    let block = state.world.get_block(bx, by);
-                    let drop = if block.is_solid() { 3 } else { 1 };
-                    let l_top = light[(y - 1) * width_b + x];
-                    let l_bottom = light[(y + 1) * width_b + x];
-                    let l_left = light[y * width_b + (x - 1)];
-                    let l_right = light[y * width_b + (x + 1)];
-                    let max_neighbor = l_top.max(l_bottom).max(l_left).max(l_right);
-                    let next_idx = y * width_b + x;
-                    let propagated = max_neighbor.saturating_sub(drop);
-                    if propagated > light_scratch[next_idx] {
-                        light_scratch[next_idx] = propagated;
-                        changed = true;
-                    }
-                }
-            }
-            std::mem::swap(&mut light, &mut light_scratch);
-            if !changed {
-                break;
+        // Cache material attenuation once; light propagation never queries the world.
+        for y in 0..height_b {
+            for x in 0..width_b {
+                light_scratch[y * width_b + x] = if state
+                    .world
+                    .get_block(min_bx + x as i32, min_by + y as i32)
+                    .is_solid()
+                {
+                    3
+                } else {
+                    1
+                };
             }
         }
+        super::lighting::propagate(
+            &mut light,
+            &light_scratch,
+            width_b,
+            &mut self.light_frontier,
+        );
 
         for screen_y in 0..ui_y {
             let world_char_y = screen_y + view_char_y - screen_center_y;
@@ -1616,10 +1743,21 @@ impl Renderer {
                 }
             }
 
-            for crystal in &state.end_crystals {
-                let c_sx = (crystal.x * 2.0).round() as i32 - view_char_x + screen_center_x;
-                let c_sy = crystal.y.floor() as i32 - view_char_y + screen_center_y;
-                if c_sx >= 0 && c_sx < self.width as i32 && c_sy >= 0 && c_sy < self.height as i32 {
+            for (actor_index, crystal) in state.end_crystals.iter().enumerate() {
+                let (actor_x, actor_y) = self.motion.position(
+                    "end_crystals",
+                    actor_index,
+                    (crystal.x, crystal.y),
+                    crystal.age,
+                    frame_alpha,
+                );
+                let c_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x;
+                let c_sy = actor_y.floor() as i32 - view_char_y + screen_center_y;
+                if c_sx >= -4
+                    && c_sx < self.width as i32 + 4
+                    && c_sy >= -4
+                    && c_sy < self.height as i32 + 4
+                {
                     let pulse = if (crystal.age / 3).is_multiple_of(2) {
                         Color::Rgb {
                             r: 255,
@@ -1642,14 +1780,40 @@ impl Renderer {
                     } else {
                         pulse
                     };
-                    self.put_char(c_sx, c_sy, '*', fg, Color::Reset);
+                    if scale > 1 {
+                        self.actor_sprites.push(
+                            ActorSprite::mob(
+                                c_sx,
+                                c_sy,
+                                SpriteKind::Crystal,
+                                true,
+                                0.0,
+                                crystal.age,
+                                fg,
+                            )
+                            .with_subcell(actor_x, actor_y, scale)
+                            .with_hit(crystal.hit_timer > 0),
+                        );
+                    } else {
+                        self.put_char(c_sx, c_sy, '*', fg, Color::Reset);
+                    }
                 }
             }
 
             if let Some(dragon) = &state.ender_dragon {
-                let d_sx = (dragon.x * 2.0).round() as i32 - view_char_x + screen_center_x - 2;
-                let d_sy = dragon.y.floor() as i32 - view_char_y + screen_center_y - 1;
-                if d_sx >= -5 && d_sx < self.width as i32 && d_sy >= -3 && d_sy < self.height as i32
+                let (dragon_x, dragon_y) = self.motion.position(
+                    "dragon",
+                    0,
+                    (dragon.x, dragon.y),
+                    dragon.age,
+                    frame_alpha,
+                );
+                let d_sx = (dragon_x * 2.0).round() as i32 - view_char_x + screen_center_x - 2;
+                let d_sy = dragon_y.floor() as i32 - view_char_y + screen_center_y - 1;
+                if d_sx >= -14
+                    && d_sx < self.width as i32 + 14
+                    && d_sy >= -6
+                    && d_sy < self.height as i32 + 6
                 {
                     let mut d_fg = Color::Rgb {
                         r: 205,
@@ -1663,21 +1827,45 @@ impl Renderer {
                             b: 75,
                         };
                     }
-                    let wings = if (dragon.age / 4).is_multiple_of(2) {
-                        "<^^>"
+                    if scale > 1 {
+                        self.actor_sprites.push(
+                            ActorSprite::mob(
+                                d_sx,
+                                d_sy,
+                                SpriteKind::Dragon,
+                                dragon.facing_right,
+                                dragon.vx,
+                                dragon.age,
+                                d_fg,
+                            )
+                            .with_subcell(dragon_x, dragon_y, scale)
+                            .with_hit(dragon.hit_timer > 0)
+                            .with_dimensions((scale * 12) as usize, (scale * 3) as usize),
+                        );
                     } else {
-                        "/^^\\"
-                    };
-                    let body = if dragon.facing_right { "D>>>" } else { "<<<D" };
-                    self.put_entity_str(d_sx, d_sy - 1, wings, d_fg);
-                    self.put_entity_str(d_sx, d_sy, body, d_fg);
+                        let wings = if (dragon.age / 4).is_multiple_of(2) {
+                            "<^^>"
+                        } else {
+                            "/^^\\"
+                        };
+                        let body = if dragon.facing_right { "D>>>" } else { "<<<D" };
+                        self.put_entity_str(d_sx, d_sy - 1, wings, d_fg);
+                        self.put_entity_str(d_sx, d_sy, body, d_fg);
+                    }
                 }
             }
         }
 
-        for remote in &state.remote_players {
-            let render_remote_x = remote.x + remote.vx * frame_alpha;
-            let render_remote_y = remote.y + remote.vy * frame_alpha;
+        for (actor_index, remote) in state.remote_players.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "remote_players",
+                actor_index,
+                (remote.x, remote.y),
+                u64::from(remote.client_id),
+                frame_alpha,
+            );
+            let render_remote_x = actor_x;
+            let render_remote_y = actor_y;
             let remote_screen_x =
                 (render_remote_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
             let remote_screen_y =
@@ -1696,22 +1884,25 @@ impl Renderer {
             let light_y = (remote_by - min_by).clamp(0, height_b as i32 - 1) as usize;
             let light_val = light[light_y * width_b + light_x];
             let light_factor = (light_val as f32 / 15.0).clamp(0.38, 1.0);
-            let (head_fg, torso_fg, limb_fg) =
-                Self::remote_player_visible_colors(remote.client_id, light_factor);
-            let head_char = if remote.sneaking { "o " } else { "O " };
-            self.put_player_str(remote_screen_x, remote_screen_y - 1, head_char, head_fg);
-            let pose = if remote.vx.abs() > 0.1 {
-                if ((render_remote_x.abs() * 10.0) as i32 + remote.client_id as i32) % 2 == 0 {
-                    "/|"
-                } else {
-                    "|\\"
-                }
-            } else if remote.facing_right {
-                "/|"
-            } else {
-                "|\\"
-            };
-            self.put_player_pose(remote_screen_x, remote_screen_y, pose, torso_fg, limb_fg);
+            let (head_fg, torso_fg, limb_fg) = Self::remote_player_visible_colors(
+                remote.client_id,
+                if scale > 1 { 1.0 } else { light_factor },
+            );
+            self.actor_sprites.push(
+                ActorSprite::humanoid(
+                    remote_screen_x,
+                    remote_screen_y,
+                    SpriteKind::Player,
+                    remote.facing_right,
+                    remote.vx,
+                    state.player.age,
+                    [head_fg, torso_fg, limb_fg],
+                    remote.sneaking,
+                    false,
+                )
+                .with_subcell(render_remote_x, render_remote_y, scale)
+                .with_label(remote.client_id),
+            );
         }
 
         let player_bx = render_player_x.round() as i32;
@@ -1721,72 +1912,65 @@ impl Renderer {
         let p_light_val = light[p_light_y * width_b + p_light_x];
         let p_factor = (p_light_val as f32 / 15.0).clamp(0.4, 1.0);
         let (player_head_fg, player_torso_fg, player_limb_fg) =
-            Self::player_visible_colors(state, p_factor);
+            Self::player_visible_colors(state, if scale > 1 { 1.0 } else { p_factor });
 
-        let player_screen_x = screen_center_x - 1;
-        let player_screen_y = screen_center_y - 1;
-        let head_char = if state.player.sneaking { "o " } else { "O " };
-        self.put_player_str(
-            player_screen_x,
-            player_screen_y - 1,
-            head_char,
-            player_head_fg,
+        let player_screen_x =
+            (render_player_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+        let player_screen_y = render_player_y.floor() as i32 - view_char_y + screen_center_y - 1;
+        self.actor_sprites.push(
+            ActorSprite::humanoid(
+                player_screen_x,
+                player_screen_y,
+                SpriteKind::Player,
+                state.player.facing_right,
+                state.player.vx,
+                state.player.age,
+                [
+                    if scale > 1 {
+                        Self::rgb(Self::player_skin_rgb())
+                    } else {
+                        player_head_fg
+                    },
+                    player_torso_fg,
+                    player_limb_fg,
+                ],
+                state.player.sneaking,
+                state.player.mining_timer > 0.0 || state.player.attack_timer > 5,
+            )
+            .with_subcell(render_player_x, render_player_y, scale)
+            .with_item(
+                state.inventory.slots[state.hotbar_index as usize]
+                    .as_ref()
+                    .map(|s| s.item_type),
+            )
+            .with_pose(!state.player.grounded)
+            .with_helmet(
+                state
+                    .armor_slot_item(0)
+                    .and_then(|s| Self::armor_tint_rgb(s.item_type))
+                    .map(Self::rgb),
+            ),
         );
 
-        if state.player.mining_timer > 0.0 {
-            let swing_char = if (state.player.mining_timer * 10.0) as i32 % 2 == 0 {
-                '-'
-            } else {
-                '/'
-            };
-            if state.player.facing_right {
-                self.put_player_char(player_screen_x, player_screen_y, '|', player_torso_fg);
-                self.put_player_char(
-                    player_screen_x + 1,
-                    player_screen_y,
-                    swing_char,
-                    player_limb_fg,
-                );
-            } else {
-                self.put_player_char(player_screen_x, player_screen_y, swing_char, player_limb_fg);
-                self.put_player_char(player_screen_x + 1, player_screen_y, '|', player_torso_fg);
-            }
-        } else if state.player.vx.abs() > 0.1 {
-            let anim = if (state.player.age / 4).is_multiple_of(2) {
-                "/|"
-            } else {
-                "|\\"
-            };
-            self.put_player_pose(
-                player_screen_x,
-                player_screen_y,
-                anim,
-                player_torso_fg,
-                player_limb_fg,
+        for (actor_index, zombie) in state.zombies.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "zombies",
+                actor_index,
+                (zombie.x, zombie.y),
+                zombie.age,
+                frame_alpha,
             );
-        } else {
-            let idle = if state.player.facing_right {
-                "/|"
-            } else {
-                "|\\"
-            };
-            self.put_player_pose(
-                player_screen_x,
-                player_screen_y,
-                idle,
-                player_torso_fg,
-                player_limb_fg,
-            );
-        }
-
-        for zombie in &state.zombies {
-            let z_sx = (zombie.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let z_sy = zombie.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if z_sx >= 0 && z_sx < self.width as i32 && z_sy >= 0 && z_sy < self.height as i32 {
-                let z_f = (light[((zombie.y - 1.0).floor() as i32 - min_by)
+            let z_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let z_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if z_sx >= -4
+                && z_sx < self.width as i32 + 4
+                && z_sy >= -4
+                && z_sy < self.height as i32 + 4
+            {
+                let z_f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (zombie.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -1809,24 +1993,41 @@ impl Renderer {
                         b: (34.0 * z_f * (1.0 - pulse)) as u8,
                     };
                 }
-                self.put_entity_str(z_sx, z_sy - 1, "Z ", z_fg);
-                let anim = if zombie.vx.abs() > 0.05 && (zombie.age / 4) % 2 == 0 {
-                    "|\\"
-                } else {
-                    "/|"
-                };
-                self.put_entity_str(z_sx, z_sy, anim, z_fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        z_sx,
+                        z_sy,
+                        SpriteKind::Zombie,
+                        zombie.facing_right,
+                        zombie.vx,
+                        zombie.age,
+                        z_fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(zombie.hit_timer > 0),
+                );
             }
         }
 
-        for pigman in &state.pigmen {
-            let p_sx = (pigman.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let p_sy = pigman.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if p_sx >= 0 && p_sx < self.width as i32 && p_sy >= 0 && p_sy < self.height as i32 {
-                let p_f = (light[((pigman.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, pigman) in state.pigmen.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "pigmen",
+                actor_index,
+                (pigman.x, pigman.y),
+                pigman.age,
+                frame_alpha,
+            );
+            let p_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let p_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if p_sx >= -4
+                && p_sx < self.width as i32 + 4
+                && p_sy >= -4
+                && p_sy < self.height as i32 + 4
+            {
+                let p_f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (pigman.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -1850,24 +2051,41 @@ impl Renderer {
                         b: 50,
                     };
                 }
-                self.put_entity_str(p_sx, p_sy - 1, "P ", p_fg);
-                let anim = if pigman.vx.abs() > 0.05 && (pigman.age / 4) % 2 == 0 {
-                    "|\\"
-                } else {
-                    "/|"
-                };
-                self.put_entity_str(p_sx, p_sy, anim, p_fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        p_sx,
+                        p_sy,
+                        SpriteKind::Pigman,
+                        pigman.facing_right,
+                        pigman.vx,
+                        pigman.age,
+                        p_fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(pigman.hit_timer > 0),
+                );
             }
         }
 
-        for ghast in &state.ghasts {
-            let g_sx = (ghast.x * 2.0).round() as i32 - view_char_x + screen_center_x - 2;
-            let g_sy = ghast.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if g_sx >= 0 && g_sx < self.width as i32 && g_sy >= 0 && g_sy < self.height as i32 {
-                let g_f = (light[((ghast.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, ghast) in state.ghasts.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "ghasts",
+                actor_index,
+                (ghast.x, ghast.y),
+                ghast.age,
+                frame_alpha,
+            );
+            let g_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 2;
+            let g_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if g_sx >= -4
+                && g_sx < self.width as i32 + 4
+                && g_sy >= -4
+                && g_sy < self.height as i32 + 4
+            {
+                let g_f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (ghast.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -1889,21 +2107,49 @@ impl Renderer {
                         b: (220.0 * g_f) as u8,
                     };
                 }
-                let sprite = Self::ghast_sprite(ghast.facing_right);
-                self.put_entity_str(g_sx, g_sy - 2, sprite[0], g_fg);
-                self.put_entity_str(g_sx, g_sy - 1, sprite[1], g_fg);
-                self.put_entity_str(g_sx, g_sy, sprite[2], g_fg);
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            g_sx,
+                            g_sy,
+                            SpriteKind::Ghast,
+                            ghast.facing_right,
+                            ghast.vx,
+                            ghast.age,
+                            g_fg,
+                        )
+                        .with_subcell(actor_x, actor_y, scale)
+                        .with_hit(ghast.hit_timer > 0)
+                        .with_alert(ghast.shoot_cooldown < 16),
+                    );
+                } else {
+                    let sprite = Self::ghast_sprite(ghast.facing_right);
+                    self.put_entity_str(g_sx, g_sy - 2, sprite[0], g_fg);
+                    self.put_entity_str(g_sx, g_sy - 1, sprite[1], g_fg);
+                    self.put_entity_str(g_sx, g_sy, sprite[2], g_fg);
+                }
             }
         }
 
-        for blaze in &state.blazes {
-            let b_sx = (blaze.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let b_sy = blaze.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if b_sx >= 0 && b_sx < self.width as i32 && b_sy >= 0 && b_sy < self.height as i32 {
-                let b_f = (light[((blaze.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, blaze) in state.blazes.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "blazes",
+                actor_index,
+                (blaze.x, blaze.y),
+                blaze.age,
+                frame_alpha,
+            );
+            let b_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let b_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if b_sx >= -4
+                && b_sx < self.width as i32 + 4
+                && b_sy >= -4
+                && b_sy < self.height as i32 + 4
+            {
+                let b_f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (blaze.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -1921,20 +2167,48 @@ impl Renderer {
                 } else if blaze.shoot_cooldown < 10 {
                     b_fg = Color::Yellow;
                 }
-                let sprite = Self::blaze_sprite(blaze.age);
-                self.put_entity_str(b_sx, b_sy - 1, sprite[0], b_fg);
-                self.put_entity_str(b_sx, b_sy, sprite[1], b_fg);
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            b_sx,
+                            b_sy,
+                            SpriteKind::Blaze,
+                            blaze.facing_right,
+                            blaze.vx,
+                            blaze.age,
+                            b_fg,
+                        )
+                        .with_subcell(actor_x, actor_y, scale)
+                        .with_hit(blaze.hit_timer > 0)
+                        .with_alert(blaze.shoot_cooldown < 10),
+                    );
+                } else {
+                    let sprite = Self::blaze_sprite(blaze.age);
+                    self.put_entity_str(b_sx, b_sy - 1, sprite[0], b_fg);
+                    self.put_entity_str(b_sx, b_sy, sprite[1], b_fg);
+                }
             }
         }
 
-        for enderman in &state.endermen {
-            let e_sx = (enderman.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let e_sy = enderman.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if e_sx >= 0 && e_sx < self.width as i32 && e_sy >= 0 && e_sy < self.height as i32 {
-                let e_f = (light[((enderman.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, enderman) in state.endermen.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "endermen",
+                actor_index,
+                (enderman.x, enderman.y),
+                enderman.age,
+                frame_alpha,
+            );
+            let e_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let e_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if e_sx >= -4
+                && e_sx < self.width as i32 + 4
+                && e_sy >= -4
+                && e_sy < self.height as i32 + 4
+            {
+                let e_f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (enderman.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.3, 1.0);
@@ -1958,25 +2232,37 @@ impl Renderer {
                         b: 70,
                     };
                 }
-                self.put_entity_str(e_sx, e_sy - 2, "E ", e_fg);
-                self.put_entity_str(e_sx, e_sy - 1, "||", e_fg);
-                let anim = if enderman.vx.abs() > 0.05 && (enderman.age / 4).is_multiple_of(2) {
-                    "/|"
-                } else {
-                    "|\\"
-                };
-                self.put_entity_str(e_sx, e_sy, anim, e_fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        e_sx,
+                        e_sy,
+                        SpriteKind::Enderman,
+                        enderman.facing_right,
+                        enderman.vx,
+                        enderman.age,
+                        e_fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(enderman.hit_timer > 0),
+                );
             }
         }
 
-        for creeper in &state.creepers {
-            let sx = (creeper.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let sy = creeper.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if sx >= 0 && sx < self.width as i32 && sy >= 0 && sy < self.height as i32 {
-                let f = (light[((creeper.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, creeper) in state.creepers.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "creepers",
+                actor_index,
+                (creeper.x, creeper.y),
+                creeper.age,
+                frame_alpha,
+            );
+            let sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if sx >= -4 && sx < self.width as i32 + 4 && sy >= -4 && sy < self.height as i32 + 4 {
+                let f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (creeper.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -2003,25 +2289,39 @@ impl Renderer {
                 if creeper.fuse_timer > 0 && (creeper.age / 2) % 2 == 0 {
                     fg = Color::White;
                 }
-                let head = if creeper.charged { "C " } else { "S " };
-                self.put_entity_str(sx, sy - 1, head, fg);
-                let anim = if creeper.vx.abs() > 0.05 && (creeper.age / 4) % 2 == 0 {
-                    "|\\"
-                } else {
-                    "/|"
-                };
-                self.put_entity_str(sx, sy, anim, fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        sx,
+                        sy,
+                        SpriteKind::Creeper,
+                        creeper.facing_right,
+                        creeper.vx,
+                        creeper.age,
+                        fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(creeper.hit_timer > 0)
+                    .with_alert(creeper.fuse_timer > 0)
+                    .with_variant(creeper.charged),
+                );
             }
         }
 
-        for skeleton in &state.skeletons {
-            let sx = (skeleton.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let sy = skeleton.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if sx >= 0 && sx < self.width as i32 && sy >= 0 && sy < self.height as i32 {
-                let f = (light[((skeleton.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, skeleton) in state.skeletons.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "skeletons",
+                actor_index,
+                (skeleton.x, skeleton.y),
+                skeleton.age,
+                frame_alpha,
+            );
+            let sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if sx >= -4 && sx < self.width as i32 + 4 && sy >= -4 && sy < self.height as i32 + 4 {
+                let f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (skeleton.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -2046,20 +2346,33 @@ impl Renderer {
                         b: (200.0 * f * (1.0 - pulse)) as u8,
                     };
                 }
-                self.put_entity_str(sx, sy - 1, "K ", fg);
-                let anim = if skeleton.vx.abs() > 0.05 && (skeleton.age / 4) % 2 == 0 {
-                    "|\\"
-                } else {
-                    "/|"
-                };
-                self.put_entity_str(sx, sy, anim, fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        sx,
+                        sy,
+                        SpriteKind::Skeleton,
+                        skeleton.facing_right,
+                        skeleton.vx,
+                        skeleton.age,
+                        fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(skeleton.hit_timer > 0),
+                );
             }
         }
 
-        for spider in &state.spiders {
-            let sx = (spider.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let sy = spider.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if sx >= 0 && sx < self.width as i32 && sy >= 0 && sy < self.height as i32 {
+        for (actor_index, spider) in state.spiders.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "spiders",
+                actor_index,
+                (spider.x, spider.y),
+                spider.age,
+                frame_alpha,
+            );
+            let sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if sx >= -4 && sx < self.width as i32 + 4 && sy >= -4 && sy < self.height as i32 + 4 {
                 let f = (light[(sy + view_char_y - screen_center_y - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
@@ -2080,18 +2393,41 @@ impl Renderer {
                         b: (0.0 * f) as u8,
                     }
                 };
-                self.put_entity_str(sx - 1, sy, "/v\\\\", fg);
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            sx,
+                            sy,
+                            SpriteKind::Spider,
+                            spider.facing_right,
+                            spider.vx,
+                            spider.age,
+                            fg,
+                        )
+                        .with_subcell(actor_x, actor_y, scale)
+                        .with_hit(spider.hit_timer > 0),
+                    );
+                } else {
+                    self.put_entity_str(sx - 1, sy, "/v\\\\", fg);
+                }
             }
         }
 
-        for silverfish in &state.silverfish {
-            let sx = (silverfish.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let sy = silverfish.y.floor() as i32 - view_char_y + screen_center_y;
-            if sx >= 0 && sx < self.width as i32 && sy >= 0 && sy < self.height as i32 {
-                let f = (light[((silverfish.y - 0.35).floor() as i32 - min_by)
+        for (actor_index, silverfish) in state.silverfish.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "silverfish",
+                actor_index,
+                (silverfish.x, silverfish.y),
+                silverfish.age,
+                frame_alpha,
+            );
+            let sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let sy = actor_y.floor() as i32 - view_char_y + screen_center_y;
+            if sx >= -4 && sx < self.width as i32 + 4 && sy >= -4 && sy < self.height as i32 + 4 {
+                let f = (light[((actor_y - 0.35).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (silverfish.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -2108,23 +2444,46 @@ impl Renderer {
                         b: (200.0 * f) as u8,
                     }
                 };
-                let body = if (silverfish.age / 3).is_multiple_of(2) {
-                    "~~"
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            sx,
+                            sy,
+                            SpriteKind::Silverfish,
+                            silverfish.facing_right,
+                            silverfish.vx,
+                            silverfish.age,
+                            fg,
+                        )
+                        .with_subcell(actor_x, actor_y, scale)
+                        .with_hit(silverfish.hit_timer > 0),
+                    );
                 } else {
-                    "=="
-                };
-                self.put_entity_str(sx, sy, body, fg);
+                    let body = if (silverfish.age / 3).is_multiple_of(2) {
+                        "~~"
+                    } else {
+                        "=="
+                    };
+                    self.put_entity_str(sx, sy, body, fg);
+                }
             }
         }
 
-        for slime in &state.slimes {
-            let sx = (slime.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let sy = slime.y.floor() as i32 - view_char_y + screen_center_y;
+        for (actor_index, slime) in state.slimes.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "slimes",
+                actor_index,
+                (slime.x, slime.y),
+                slime.age,
+                frame_alpha,
+            );
+            let sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let sy = actor_y.floor() as i32 - view_char_y + screen_center_y;
             if sx >= -3 && sx < self.width as i32 + 3 && sy >= -2 && sy < self.height as i32 + 2 {
-                let f = (light[((slime.y - slime.height() * 0.5).floor() as i32 - min_by)
+                let f = (light[((actor_y - slime.height() * 0.5).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (slime.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.35, 1.0);
@@ -2148,31 +2507,58 @@ impl Renderer {
                         b: (130.0 * f) as u8,
                     };
                 }
-                match slime.size {
-                    4 => {
-                        self.put_entity_str(sx - 1, sy - 1, "ooo", fg);
-                        self.put_entity_str(sx - 1, sy, "O_O", fg);
-                    }
-                    2 => {
-                        self.put_entity_str(sx, sy - 1, "oo", fg);
-                        self.put_entity_str(sx, sy, "o_", fg);
-                    }
-                    _ => {
-                        let ch = if (slime.age / 4).is_multiple_of(2) {
-                            'o'
-                        } else {
-                            '.'
-                        };
-                        self.put_entity_char(sx + 1, sy, ch, fg);
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            sx,
+                            sy,
+                            SpriteKind::Slime,
+                            slime.facing_right,
+                            slime.vx,
+                            slime.age,
+                            fg,
+                        )
+                        .with_subcell(actor_x, actor_y, scale)
+                        .with_hit(slime.hit_timer > 0)
+                        .with_dimensions(
+                            (slime.half_width() * 4.0 * scale as f64).ceil() as usize,
+                            (slime.height() * scale as f64).ceil() as usize,
+                        ),
+                    );
+                } else {
+                    match slime.size {
+                        4 => {
+                            self.put_entity_str(sx - 1, sy - 1, "ooo", fg);
+                            self.put_entity_str(sx - 1, sy, "O_O", fg);
+                        }
+                        2 => {
+                            self.put_entity_str(sx, sy - 1, "oo", fg);
+                            self.put_entity_str(sx, sy, "o_", fg);
+                        }
+                        _ => {
+                            let ch = if (slime.age / 4).is_multiple_of(2) {
+                                'o'
+                            } else {
+                                '.'
+                            };
+                            self.put_entity_char(sx + 1, sy, ch, fg);
+                        }
                     }
                 }
             }
         }
 
-        for fireball in &state.fireballs {
-            let sx = (fireball.x * 2.0).round() as i32 - view_char_x + screen_center_x;
-            let sy = fireball.y.floor() as i32 - view_char_y + screen_center_y;
-            if sx >= 0 && sx < self.width as i32 && sy >= 0 && sy < self.height as i32 {
+        for (actor_index, fireball) in state.fireballs.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "fireballs",
+                actor_index,
+                (fireball.x, fireball.y),
+                fireball.age,
+                frame_alpha,
+            );
+            let sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x;
+            let sy = actor_y.floor() as i32 - view_char_y + screen_center_y;
+            if sx >= -4 && sx < self.width as i32 + 4 && sy >= -4 && sy < self.height as i32 + 4 {
                 let pulse = if (fireball.age / 2).is_multiple_of(2) {
                     Color::Rgb {
                         r: 255,
@@ -2186,22 +2572,61 @@ impl Renderer {
                         b: 20,
                     }
                 };
-                self.put_char(sx, sy, '@', pulse, Color::Reset);
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            sx,
+                            sy,
+                            SpriteKind::Fireball,
+                            fireball.vx >= 0.0,
+                            fireball.vx,
+                            fireball.age,
+                            pulse,
+                        )
+                        .with_subcell(actor_x, actor_y, scale)
+                        .with_dimensions(scale as usize, (scale / 2).max(1) as usize),
+                    );
+                } else {
+                    self.put_char(sx, sy, '@', pulse, Color::Reset);
+                }
             }
         }
 
-        for arrow in &state.arrows {
-            let sx = (arrow.x * 2.0).round() as i32 - view_char_x + screen_center_x;
-            let sy = arrow.y.floor() as i32 - view_char_y + screen_center_y;
-            if sx >= 0 && sx < self.width as i32 && sy >= 0 && sy < self.height as i32 {
-                self.put_char(sx, sy, '*', Color::White, Color::Reset);
+        for (actor_index, arrow) in state.arrows.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "arrows",
+                actor_index,
+                (arrow.x, arrow.y),
+                arrow.age,
+                frame_alpha,
+            );
+            let sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x;
+            let sy = actor_y.floor() as i32 - view_char_y + screen_center_y;
+            if sx >= -4 && sx < self.width as i32 + 4 && sy >= -4 && sy < self.height as i32 + 4 {
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            sx,
+                            sy,
+                            SpriteKind::Arrow,
+                            arrow.vx >= 0.0,
+                            arrow.vx,
+                            arrow.age,
+                            Color::White,
+                        )
+                        .with_subcell(actor_x, actor_y, scale)
+                        .with_dimensions((scale * 2) as usize, 1),
+                    );
+                } else {
+                    self.put_char(sx, sy, '*', Color::White, Color::Reset);
+                }
             }
         }
 
         if let Some((bobber_x, bobber_y, bite_ready)) = state.fishing_bobber() {
             let sx = (bobber_x * 2.0).round() as i32 - view_char_x + screen_center_x;
             let sy = bobber_y.floor() as i32 - view_char_y + screen_center_y;
-            if sx >= 0 && sx < self.width as i32 && sy >= 0 && sy < self.height as i32 {
+            if sx >= -4 && sx < self.width as i32 + 4 && sy >= -4 && sy < self.height as i32 + 4 {
                 let fg = if bite_ready {
                     Color::Yellow
                 } else {
@@ -2212,36 +2637,61 @@ impl Renderer {
             }
         }
 
-        for boat in &state.boats {
-            let b_sx = (boat.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let b_sy = boat.y.floor() as i32 - view_char_y + screen_center_y;
+        for (actor_index, boat) in state.boats.iter().enumerate() {
+            let (actor_x, actor_y) =
+                self.motion
+                    .position("boats", actor_index, (boat.x, boat.y), 0, frame_alpha);
+            let b_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let b_sy = actor_y.floor() as i32 - view_char_y + screen_center_y;
             if b_sx >= -2 && b_sx < self.width as i32 && b_sy >= 0 && b_sy < self.height as i32 {
                 let light_x =
-                    (boat.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize;
+                    (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize;
                 let light_y =
-                    (boat.y.floor() as i32 - min_by).clamp(0, height_b as i32 - 1) as usize;
+                    (actor_y.floor() as i32 - min_by).clamp(0, height_b as i32 - 1) as usize;
                 let light_factor =
                     (light[light_y * width_b + light_x] as f32 / 15.0).clamp(0.45, 1.0);
                 let fg = Self::rgb(Self::scale_rgb((176, 128, 72), light_factor));
-                let hull = if boat.wobble_timer > 0 {
-                    if boat.facing_right { "\\_/" } else { "/_\\" }
-                } else if boat.facing_right {
-                    "[_>"
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            b_sx,
+                            b_sy,
+                            SpriteKind::Boat,
+                            boat.facing_right,
+                            boat.vx,
+                            state.player.age,
+                            fg,
+                        )
+                        .with_subcell(actor_x, actor_y, scale),
+                    );
                 } else {
-                    "<_]"
-                };
-                self.put_entity_str(b_sx, b_sy, hull, fg);
+                    let hull = if boat.wobble_timer > 0 {
+                        if boat.facing_right { "\\_/" } else { "/_\\" }
+                    } else if boat.facing_right {
+                        "[_>"
+                    } else {
+                        "<_]"
+                    };
+                    self.put_entity_str(b_sx, b_sy, hull, fg);
+                }
             }
         }
 
-        for cow in &state.cows {
-            let c_sx = (cow.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let c_sy = cow.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if c_sx >= 0 && c_sx < self.width as i32 && c_sy >= 0 && c_sy < self.height as i32 {
-                let c_f = (light[((cow.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, cow) in state.cows.iter().enumerate() {
+            let (actor_x, actor_y) =
+                self.motion
+                    .position("cows", actor_index, (cow.x, cow.y), cow.age, frame_alpha);
+            let c_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let c_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if c_sx >= -4
+                && c_sx < self.width as i32 + 4
+                && c_sy >= -4
+                && c_sy < self.height as i32 + 4
+            {
+                let c_f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (cow.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -2257,24 +2707,41 @@ impl Renderer {
                         b: 50,
                     };
                 }
-                self.put_entity_str(c_sx, c_sy - 1, "C ", c_fg);
-                let anim = if cow.vx.abs() > 0.02 && (cow.age / 6) % 2 == 0 {
-                    "~~"
-                } else {
-                    "^^"
-                };
-                self.put_entity_str(c_sx, c_sy, anim, c_fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        c_sx,
+                        c_sy,
+                        SpriteKind::Cow,
+                        cow.facing_right,
+                        cow.vx,
+                        cow.age,
+                        c_fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(cow.hit_timer > 0),
+                );
             }
         }
 
-        for sheep in &state.sheep {
-            let s_sx = (sheep.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let s_sy = sheep.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if s_sx >= 0 && s_sx < self.width as i32 && s_sy >= 0 && s_sy < self.height as i32 {
-                let s_f = (light[((sheep.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, sheep) in state.sheep.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "sheep",
+                actor_index,
+                (sheep.x, sheep.y),
+                sheep.age,
+                frame_alpha,
+            );
+            let s_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let s_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if s_sx >= -4
+                && s_sx < self.width as i32 + 4
+                && s_sy >= -4
+                && s_sy < self.height as i32 + 4
+            {
+                let s_f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (sheep.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -2290,24 +2757,38 @@ impl Renderer {
                         b: 50,
                     };
                 }
-                self.put_entity_str(s_sx, s_sy - 1, "S ", s_fg);
-                let anim = if sheep.vx.abs() > 0.02 && (sheep.age / 6) % 2 == 0 {
-                    "vv"
-                } else {
-                    "ww"
-                };
-                self.put_entity_str(s_sx, s_sy, anim, s_fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        s_sx,
+                        s_sy,
+                        SpriteKind::Sheep,
+                        sheep.facing_right,
+                        sheep.vx,
+                        sheep.age,
+                        s_fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(sheep.hit_timer > 0)
+                    .with_variant(sheep.sheared),
+                );
             }
         }
 
-        for pig in &state.pigs {
-            let p_sx = (pig.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let p_sy = pig.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if p_sx >= 0 && p_sx < self.width as i32 && p_sy >= 0 && p_sy < self.height as i32 {
-                let p_f = (light[((pig.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, pig) in state.pigs.iter().enumerate() {
+            let (actor_x, actor_y) =
+                self.motion
+                    .position("pigs", actor_index, (pig.x, pig.y), pig.age, frame_alpha);
+            let p_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let p_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if p_sx >= -4
+                && p_sx < self.width as i32 + 4
+                && p_sy >= -4
+                && p_sy < self.height as i32 + 4
+            {
+                let p_f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (pig.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -2323,24 +2804,41 @@ impl Renderer {
                         b: 50,
                     };
                 }
-                self.put_entity_str(p_sx, p_sy - 1, "P ", p_fg);
-                let anim = if pig.vx.abs() > 0.02 && (pig.age / 6) % 2 == 0 {
-                    "oo"
-                } else {
-                    "vv"
-                };
-                self.put_entity_str(p_sx, p_sy, anim, p_fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        p_sx,
+                        p_sy,
+                        SpriteKind::Pig,
+                        pig.facing_right,
+                        pig.vx,
+                        pig.age,
+                        p_fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(pig.hit_timer > 0),
+                );
             }
         }
 
-        for chicken in &state.chickens {
-            let c_sx = (chicken.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let c_sy = chicken.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if c_sx >= 0 && c_sx < self.width as i32 && c_sy >= 0 && c_sy < self.height as i32 {
-                let c_f = (light[((chicken.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, chicken) in state.chickens.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "chickens",
+                actor_index,
+                (chicken.x, chicken.y),
+                chicken.age,
+                frame_alpha,
+            );
+            let c_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let c_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if c_sx >= -4
+                && c_sx < self.width as i32 + 4
+                && c_sy >= -4
+                && c_sy < self.height as i32 + 4
+            {
+                let c_f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (chicken.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -2356,24 +2854,41 @@ impl Renderer {
                         b: 50,
                     };
                 }
-                self.put_entity_str(c_sx, c_sy - 1, "Ch", c_fg);
-                let anim = if chicken.vx.abs() > 0.02 && (chicken.age / 5) % 2 == 0 {
-                    "``"
-                } else {
-                    "''"
-                };
-                self.put_entity_str(c_sx, c_sy, anim, c_fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        c_sx,
+                        c_sy,
+                        SpriteKind::Chicken,
+                        chicken.facing_right,
+                        chicken.vx,
+                        chicken.age,
+                        c_fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(chicken.hit_timer > 0),
+                );
             }
         }
 
-        for squid in &state.squids {
-            let s_sx = (squid.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let s_sy = squid.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if s_sx >= 0 && s_sx < self.width as i32 && s_sy >= 0 && s_sy < self.height as i32 {
-                let s_f = (light[((squid.y - 0.45).floor() as i32 - min_by)
+        for (actor_index, squid) in state.squids.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "squids",
+                actor_index,
+                (squid.x, squid.y),
+                squid.age,
+                frame_alpha,
+            );
+            let s_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let s_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if s_sx >= -4
+                && s_sx < self.width as i32 + 4
+                && s_sy >= -4
+                && s_sy < self.height as i32 + 4
+            {
+                let s_f = (light[((actor_y - 0.45).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (squid.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.35, 1.0);
@@ -2389,24 +2904,51 @@ impl Renderer {
                         b: 70,
                     };
                 }
-                self.put_entity_str(s_sx, s_sy - 1, "Sq", s_fg);
-                let tentacles = if squid.vx.abs() > 0.02 && (squid.age / 4).is_multiple_of(2) {
-                    "ww"
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            s_sx,
+                            s_sy,
+                            SpriteKind::Squid,
+                            squid.facing_right,
+                            squid.vx,
+                            squid.age,
+                            s_fg,
+                        )
+                        .with_subcell(actor_x, actor_y, scale)
+                        .with_hit(squid.hit_timer > 0),
+                    );
                 } else {
-                    "vv"
-                };
-                self.put_entity_str(s_sx, s_sy, tentacles, s_fg);
+                    self.put_entity_str(s_sx, s_sy - 1, "Sq", s_fg);
+                    let tentacles = if squid.vx.abs() > 0.02 && (squid.age / 4).is_multiple_of(2) {
+                        "ww"
+                    } else {
+                        "vv"
+                    };
+                    self.put_entity_str(s_sx, s_sy, tentacles, s_fg);
+                }
             }
         }
 
-        for wolf in &state.wolves {
-            let w_sx = (wolf.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let w_sy = wolf.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if w_sx >= 0 && w_sx < self.width as i32 && w_sy >= 0 && w_sy < self.height as i32 {
-                let w_f = (light[((wolf.y - 0.6).floor() as i32 - min_by)
+        for (actor_index, wolf) in state.wolves.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "wolves",
+                actor_index,
+                (wolf.x, wolf.y),
+                wolf.age,
+                frame_alpha,
+            );
+            let w_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let w_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if w_sx >= -4
+                && w_sx < self.width as i32 + 4
+                && w_sy >= -4
+                && w_sy < self.height as i32 + 4
+            {
+                let w_f = (light[((actor_y - 0.6).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (wolf.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.35, 1.0);
@@ -2430,24 +2972,42 @@ impl Renderer {
                         b: 70,
                     };
                 }
-                self.put_entity_str(w_sx, w_sy - 1, "W ", w_fg);
-                let body = if wolf.vx.abs() > 0.03 && (wolf.age / 4).is_multiple_of(2) {
-                    "^^"
-                } else {
-                    "vv"
-                };
-                self.put_entity_str(w_sx, w_sy, body, w_fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        w_sx,
+                        w_sy,
+                        SpriteKind::Wolf,
+                        wolf.facing_right,
+                        wolf.vx,
+                        wolf.age,
+                        w_fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(wolf.hit_timer > 0)
+                    .with_alert(wolf.aggressive_timer > 0),
+                );
             }
         }
 
-        for ocelot in &state.ocelots {
-            let o_sx = (ocelot.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let o_sy = ocelot.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if o_sx >= 0 && o_sx < self.width as i32 && o_sy >= 0 && o_sy < self.height as i32 {
-                let o_f = (light[((ocelot.y - 0.6).floor() as i32 - min_by)
+        for (actor_index, ocelot) in state.ocelots.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "ocelots",
+                actor_index,
+                (ocelot.x, ocelot.y),
+                ocelot.age,
+                frame_alpha,
+            );
+            let o_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let o_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if o_sx >= -4
+                && o_sx < self.width as i32 + 4
+                && o_sy >= -4
+                && o_sy < self.height as i32 + 4
+            {
+                let o_f = (light[((actor_y - 0.6).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (ocelot.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.35, 1.0);
@@ -2469,24 +3029,41 @@ impl Renderer {
                         b: (90.0 * o_f) as u8,
                     };
                 }
-                self.put_entity_str(o_sx, o_sy - 1, "Oc", o_fg);
-                let body = if ocelot.vx.abs() > 0.03 && (ocelot.age / 4).is_multiple_of(2) {
-                    "~~"
-                } else {
-                    "''"
-                };
-                self.put_entity_str(o_sx, o_sy, body, o_fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        o_sx,
+                        o_sy,
+                        SpriteKind::Ocelot,
+                        ocelot.facing_right,
+                        ocelot.vx,
+                        ocelot.age,
+                        o_fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(ocelot.hit_timer > 0),
+                );
             }
         }
 
-        for villager in &state.villagers {
-            let v_sx = (villager.x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
-            let v_sy = villager.y.floor() as i32 - view_char_y + screen_center_y - 1;
-            if v_sx >= 0 && v_sx < self.width as i32 && v_sy >= 0 && v_sy < self.height as i32 {
-                let v_f = (light[((villager.y - 1.0).floor() as i32 - min_by)
+        for (actor_index, villager) in state.villagers.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "villagers",
+                actor_index,
+                (villager.x, villager.y),
+                villager.age,
+                frame_alpha,
+            );
+            let v_sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
+            let v_sy = actor_y.floor() as i32 - view_char_y + screen_center_y - 1;
+            if v_sx >= -4
+                && v_sx < self.width as i32 + 4
+                && v_sy >= -4
+                && v_sy < self.height as i32 + 4
+            {
+                let v_f = (light[((actor_y - 1.0).floor() as i32 - min_by)
                     .clamp(0, height_b as i32 - 1) as usize
                     * width_b
-                    + (villager.x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
+                    + (actor_x.round() as i32 - min_bx).clamp(0, width_b as i32 - 1) as usize]
                     as f32
                     / 15.0)
                     .clamp(0.4, 1.0);
@@ -2502,23 +3079,32 @@ impl Renderer {
                         b: 70,
                     };
                 }
-                self.put_entity_str(v_sx, v_sy - 1, "V ", v_fg);
-                let body = if villager.vx.abs() > 0.03 && (villager.age / 6) % 2 == 0 {
-                    "|\\"
-                } else {
-                    "/|"
-                };
-                self.put_entity_str(v_sx, v_sy, body, v_fg);
+                self.actor_sprites.push(
+                    ActorSprite::mob(
+                        v_sx,
+                        v_sy,
+                        SpriteKind::Villager,
+                        villager.facing_right,
+                        villager.vx,
+                        villager.age,
+                        v_fg,
+                    )
+                    .with_subcell(actor_x, actor_y, scale)
+                    .with_hit(villager.hit_timer > 0),
+                );
             }
         }
 
-        self.light_buffer = light;
-        self.light_scratch = light_scratch;
-        self.precipitation_buffer = precipitation_by_bx;
-
-        for item in &state.item_entities {
-            let i_char_x = (item.x * 2.0).round() as i32;
-            let i_char_y = item.y.floor() as i32;
+        for (actor_index, item) in state.item_entities.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "item_entities",
+                actor_index,
+                (item.x, item.y),
+                item.age,
+                frame_alpha,
+            );
+            let i_char_x = (actor_x * 2.0).round() as i32;
+            let i_char_y = actor_y.floor() as i32;
             let i_screen_x = i_char_x - view_char_x + screen_center_x;
             let i_screen_y = i_char_y - view_char_y + screen_center_y;
             if i_screen_x >= 0
@@ -2694,13 +3280,36 @@ impl Renderer {
                     _ => Color::White,
                 };
                 let bob_y = (item.get_bobbing_offset() * 1.0).round() as i32;
-                self.put_char(i_screen_x, i_screen_y + bob_y, 'i', i_fg, Color::Reset);
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            i_screen_x,
+                            i_screen_y,
+                            SpriteKind::Item,
+                            true,
+                            item.vx,
+                            item.age,
+                            Self::inventory_item_color(item.item_type),
+                        )
+                        .with_subcell(actor_x, actor_y + item.get_bobbing_offset(), scale)
+                        .with_item(Some(item.item_type)),
+                    );
+                } else {
+                    self.put_char(i_screen_x, i_screen_y + bob_y, 'i', i_fg, Color::Reset);
+                }
             }
         }
 
-        for orb in &state.experience_orbs {
-            let o_char_x = (orb.x * 2.0).round() as i32;
-            let o_char_y = orb.y.floor() as i32;
+        for (actor_index, orb) in state.experience_orbs.iter().enumerate() {
+            let (actor_x, actor_y) = self.motion.position(
+                "experience_orbs",
+                actor_index,
+                (orb.x, orb.y),
+                orb.age,
+                frame_alpha,
+            );
+            let o_char_x = (actor_x * 2.0).round() as i32;
+            let o_char_y = actor_y.floor() as i32;
             let o_screen_x = o_char_x - view_char_x + screen_center_x;
             let o_screen_y = o_char_y - view_char_y + screen_center_y;
             if o_screen_x >= 0
@@ -2723,32 +3332,38 @@ impl Renderer {
                     }
                 };
                 let bob_y = (orb.get_bobbing_offset() * 1.0).round() as i32;
-                self.put_char(o_screen_x, o_screen_y + bob_y, '*', orb_fg, Color::Reset);
-            }
-        }
-
-        let (hover_bx, hover_by) = self.screen_to_world(state, state.mouse_x, state.mouse_y);
-        let px = render_player_x;
-        let py = render_player_y - 1.0;
-        let dx = px - (hover_bx as f64 + 0.5);
-        let dy = py - (hover_by as f64 + 0.5);
-        let dist = (dx * dx + dy * dy).sqrt();
-        if dist <= 4.5 && !state.inventory_open {
-            let h_sx = (hover_bx * 2) - view_char_x + screen_center_x;
-            let h_sy = hover_by - view_char_y + screen_center_y;
-            if h_sy >= 0 && h_sy < ui_y {
-                if h_sx >= 0 && h_sx < self.width as i32 {
-                    self.back_buffer[(h_sy as usize) * (self.width as usize) + (h_sx as usize)]
-                        .bg = Color::AnsiValue(237);
-                }
-                if h_sx + 1 >= 0 && h_sx + 1 < self.width as i32 {
-                    self.back_buffer
-                        [(h_sy as usize) * (self.width as usize) + ((h_sx + 1) as usize)]
-                        .bg = Color::AnsiValue(237);
+                if scale > 1 {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(
+                            o_screen_x,
+                            o_screen_y,
+                            SpriteKind::Orb,
+                            true,
+                            orb.vx,
+                            orb.age,
+                            orb_fg,
+                        )
+                        .with_subcell(actor_x, actor_y + orb.get_bobbing_offset(), scale)
+                        .with_dimensions(2, 1),
+                    );
+                } else {
+                    self.put_char(o_screen_x, o_screen_y + bob_y, '*', orb_fg, Color::Reset);
                 }
             }
         }
 
+        self.finish_world_view(
+            physical_size,
+            scale,
+            state,
+            &light,
+            (min_bx, min_by, width_b, height_b),
+        );
+        let ui_y = self.height as i32 - 4;
+        let screen_center_x = screen_center_x * scale;
+        let screen_center_y = screen_center_y * scale;
+        let view_char_x = physical_view_x;
+        let view_char_y = physical_view_y;
         self.render_end_victory_sequence(
             state,
             view_char_x,
@@ -2757,6 +3372,25 @@ impl Renderer {
             screen_center_y,
             ui_y,
         );
+        let (hover_bx, hover_by) = self.screen_to_world(state, state.mouse_x, state.mouse_y);
+        let px = render_player_x;
+        let py = render_player_y - 1.0;
+        let dx = px - (hover_bx as f64 + 0.5);
+        let dy = py - (hover_by as f64 + 0.5);
+        let dist = (dx * dx + dy * dy).sqrt();
+        if dist <= 4.5 && !state.inventory_open {
+            let h_sx = (hover_bx * 2 * scale) - view_char_x + screen_center_x;
+            let h_sy = hover_by * scale - view_char_y + screen_center_y;
+            for y in h_sy..h_sy + scale {
+                for x in h_sx..h_sx + 2 * scale {
+                    if x >= 0 && x < self.width as i32 && y >= 0 && y < ui_y {
+                        let cell =
+                            &mut self.back_buffer[y as usize * self.width as usize + x as usize];
+                        cell.bg = Self::target_background(cell.bg);
+                    }
+                }
+            }
+        }
 
         let hud_bg = Color::AnsiValue(236);
         for y in ui_y..(self.height as i32) {
@@ -2857,6 +3491,14 @@ impl Renderer {
         }
 
         let hud_x = self.width as i32 - 22;
+        for x in 0..self.width as i32 {
+            self.put_world_char(x, 0, ' ', Color::White, Color::AnsiValue(234));
+        }
+        for y in 1..=11 {
+            for x in (hud_x - 1).max(0)..self.width as i32 {
+                self.put_world_char(x, y, ' ', Color::White, Color::AnsiValue(234));
+            }
+        }
         let mut h_str = String::new();
         for _ in 0..(state.player.health / 2.0).floor() as i32 {
             h_str.push('♥');
@@ -2871,11 +3513,17 @@ impl Renderer {
         if state.player.hunger % 2.0 >= 1.0 {
             n_str.push('+');
         }
-        self.put_str(hud_x, 1, &format!("{h_str:<15}"), Color::Red, Color::Reset);
+        self.put_str(
+            hud_x,
+            1,
+            &format!("HP   {h_str:<15}"),
+            Color::Red,
+            Color::Reset,
+        );
         self.put_str(
             hud_x,
             2,
-            &format!("{n_str:<15}"),
+            &format!("Food {n_str:<15}"),
             Color::Rgb {
                 r: 205,
                 g: 133,
@@ -2974,10 +3622,11 @@ impl Renderer {
             }
         }
 
-        let chunk_ms = state.world.chunk_metrics.last_load_us as f64 / 1000.0;
-        let chunk_max_ms = state.world.chunk_metrics.max_load_us as f64 / 1000.0;
-        let (rule_spawn, rule_day, rule_weather, rule_keep_inv) = state.game_rule_flags();
-        self.put_str(
+        if state.show_debug_overlay {
+            let chunk_ms = state.world.chunk_metrics.last_load_us as f64 / 1000.0;
+            let chunk_max_ms = state.world.chunk_metrics.max_load_us as f64 / 1000.0;
+            let (rule_spawn, rule_day, rule_weather, rule_keep_inv) = state.game_rule_flags();
+            self.put_str(
             1,
             0,
             &format!(
@@ -3003,6 +3652,50 @@ impl Renderer {
             Color::DarkGrey,
             Color::Reset,
         );
+            self.put_str(1, self.height.saturating_sub(5) as i32,
+                &format!("p95 tick {:.2}ms render {:.2}ms save/cache {:.2}ms | chunks {} evicted {} | drops {} | keys:{}",
+                    state.performance.tick.p95_ms(), state.performance.render.p95_ms(),
+                    state.performance.save_and_cache.p95_ms(), state.world.loaded_chunk_count(),
+                    state.world.chunk_metrics.evicted_chunks, state.performance.dropped_catchups,
+                    if self.key_releases { "release" } else { "repeat" }),
+                Color::Grey, Color::AnsiValue(234));
+        } else {
+            let chat_hint = if state.chat.mode.is_empty() {
+                ""
+            } else {
+                "T: chat  "
+            };
+            let settings_hint = if state.world.is_replica() {
+                ""
+            } else {
+                "  O: settings"
+            };
+            self.put_str(
+                1,
+                0,
+                &format!(
+                    "Termcraft | {:?} | {:?} | {}    {chat_hint}E: inventory{settings_hint}  F3: diagnostics  F4: zoom",
+                    state.current_dimension,
+                    state.weather,
+                    state.difficulty_name()
+                ),
+                Color::Grey,
+                Color::Reset,
+            );
+        }
+        if let Some(error) = state.save_error.borrow().as_ref() {
+            let message: String = error
+                .chars()
+                .map(|c| if c.is_control() { ' ' } else { c })
+                .collect();
+            self.put_str(
+                1,
+                self.height.saturating_sub(1) as i32,
+                &message,
+                Color::Yellow,
+                Color::AnsiValue(52),
+            );
+        }
         if state.eye_guidance_timer > 0 {
             let dir = if state.eye_guidance_dir >= 0 {
                 "E"
@@ -3022,6 +3715,13 @@ impl Renderer {
         }
         if let Some(fishing_status) = state.fishing_status_line() {
             self.put_str(1, 2, fishing_status, Color::Yellow, Color::Reset);
+        }
+        if !state.chat.status.is_empty() {
+            let text: String = format!("GM: {}", state.chat.status)
+                .chars()
+                .take((hud_x - 2).max(0) as usize)
+                .collect();
+            self.put_str(1, 3, &text, Color::Cyan, Color::Reset);
         }
 
         if state.inventory_open {
@@ -3207,15 +3907,36 @@ impl Renderer {
             } else {
                 "Too Far"
             };
-            self.put_str(hud_x, 5, "┌──────────────┐", Color::White, Color::Reset);
+            let target: String = t_str.chars().take(16).collect();
+            self.put_str(hud_x, 7, "┌─ Target ─────────┐", Color::White, Color::Reset);
             self.put_str(
                 hud_x,
-                6,
-                &format!("│ Target: {t_str:<12} │"),
+                8,
+                &format!("│ {target:<16} │"),
                 Color::Yellow,
                 Color::Reset,
             );
-            self.put_str(hud_x, 7, "└──────────────┘", Color::White, Color::Reset);
+            self.put_str(hud_x, 9, "└──────────────────┘", Color::White, Color::Reset);
+            let progress =
+                if state.player.last_mine_x == hover_bx && state.player.last_mine_y == hover_by {
+                    state.player.mining_timer.clamp(0.0, 1.0)
+                } else {
+                    0.0
+                };
+            let feedback = if progress > 0.0 {
+                let filled = (progress * 8.0).floor() as usize;
+                format!(
+                    "Mine [{}{}] {:>3}%",
+                    "#".repeat(filled),
+                    "-".repeat(8 - filled),
+                    (progress * 100.0) as u32
+                )
+            } else if dist > 4.5 {
+                "Move closer to target".into()
+            } else {
+                format!("Reach {dist:.1} / 4.5")
+            };
+            self.put_str(hud_x, 10, &feedback, Color::Cyan, Color::Reset);
         }
 
         if state.is_showing_startup_splash() {
@@ -3226,8 +3947,13 @@ impl Renderer {
             self.draw_credits_overlay(state);
         } else if state.is_settings_menu_open() {
             self.draw_settings_overlay(state);
+        } else if state.chat.open {
+            self.draw_chat_overlay(state);
         }
 
+        let mut encoded = std::mem::take(&mut self.frame_output);
+        encoded.clear();
+        let mut run = String::new();
         let mut last_fg = Color::Reset;
         let mut last_bg = Color::Reset;
         let row_width = self.width as usize;
@@ -3245,7 +3971,7 @@ impl Renderer {
                 let run_fg = cell.fg;
                 let run_bg = cell.bg;
                 let run_start = x;
-                let mut run = String::with_capacity(8);
+                run.clear();
 
                 while x < row_width {
                     let run_idx = row_start + x;
@@ -3262,21 +3988,100 @@ impl Renderer {
                     }
                 }
 
-                queue!(self.stdout, MoveTo(run_start as u16, y))?;
+                queue!(&mut encoded, MoveTo(run_start as u16, y))?;
                 if run_fg != last_fg {
-                    queue!(self.stdout, SetForegroundColor(run_fg))?;
+                    queue!(&mut encoded, SetForegroundColor(run_fg))?;
                     last_fg = run_fg;
                 }
                 if run_bg != last_bg {
-                    queue!(self.stdout, SetBackgroundColor(run_bg))?;
+                    queue!(&mut encoded, SetBackgroundColor(run_bg))?;
                     last_bg = run_bg;
                 }
-                queue!(self.stdout, Print(run))?;
+                queue!(&mut encoded, Print(&run))?;
             }
         }
-        queue!(self.stdout, ResetColor)?;
-        self.stdout.flush()?;
+        queue!(&mut encoded, ResetColor)?;
+        let result = output.write_all(&encoded).and_then(|_| output.flush());
+        self.frame_output = encoded;
+        result?;
         Ok(())
+    }
+
+    fn draw_chat_overlay(&mut self, state: &GameState) {
+        let w = (self.width as i32 - 4).clamp(1, 100);
+        let h = (self.height as i32 - 4).clamp(1, 24);
+        let x = ((self.width as i32 - w) / 2).max(0);
+        let y = ((self.height as i32 - h) / 2).max(0);
+        let bg = Color::AnsiValue(235);
+        for py in y..y + h {
+            for px in x..x + w {
+                self.put_char(px, py, ' ', Color::White, bg);
+            }
+        }
+        if w < 30 || h < 9 {
+            self.put_str(x, y, "Resize terminal for chat", Color::Yellow, bg);
+            return;
+        }
+        for px in x..x + w {
+            self.put_char(px, y, '─', Color::Cyan, bg);
+            self.put_char(px, y + h - 1, '─', Color::Cyan, bg);
+        }
+        for py in y..y + h {
+            self.put_char(x, py, '│', Color::Cyan, bg);
+            self.put_char(x + w - 1, py, '│', Color::Cyan, bg);
+        }
+        let title: String = format!(" AI GAME MASTER | {} ", state.chat.mode)
+            .chars()
+            .take((w - 4) as usize)
+            .collect();
+        self.put_str(x + 2, y, &title, Color::Cyan, bg);
+        let hint: String = if state.chat.mode == "host-only" {
+            "Shared game-master messages. The first connected player controls requests."
+        } else {
+            "Describe a battle, mobs, weather or structure. /connect: your LLM client."
+        }
+        .chars()
+        .take((w - 4) as usize)
+        .collect();
+        self.put_str(x + 2, y + 1, &hint, Color::Grey, bg);
+        let width = (w - 4) as usize;
+        let mut lines = Vec::new();
+        for message in &state.chat.lines {
+            let color = if message.starts_with("You:") {
+                Color::Yellow
+            } else {
+                Color::White
+            };
+            let chars: Vec<char> = message.chars().collect();
+            for part in chars.chunks(width) {
+                lines.push((part.iter().collect::<String>(), color));
+            }
+        }
+        let rows = (h - 7) as usize;
+        for (row, (line, color)) in lines
+            .iter()
+            .skip(lines.len().saturating_sub(rows))
+            .enumerate()
+        {
+            self.put_str(x + 2, y + 3 + row as i32, line, *color, bg);
+        }
+        let prompt: Vec<char> = state.chat.draft.chars().collect();
+        let tail: String = prompt
+            .iter()
+            .skip(prompt.len().saturating_sub(width - 3))
+            .collect();
+        self.put_str(
+            x + 2,
+            y + h - 3,
+            &format!("> {tail}_"),
+            Color::White,
+            Color::AnsiValue(237),
+        );
+        let controls: String = "Enter: send/resume   Esc: close   Ctrl+C: cancel request"
+            .chars()
+            .take(width)
+            .collect();
+        self.put_str(x + 2, y + h - 2, &controls, Color::Grey, bg);
     }
 
     fn draw_credits_overlay(&mut self, state: &GameState) {
@@ -4471,11 +5276,11 @@ impl Renderer {
             self.put_str(craft_info_x, box_y + 10, "CRAFTING GRID", Color::Yellow, bg);
             self.put_str(
                 craft_info_x,
-                box_y + 11,
+                box_y + 18,
                 if state.at_crafting_table {
-                    "3x3 table crafting (shape-sensitive)"
+                    "3x3 table; shapes matter"
                 } else {
-                    "2x2 inventory crafting (shape-sensitive)"
+                    "2x2 inventory; shapes matter"
                 },
                 Color::Cyan,
                 bg,
@@ -4540,18 +5345,18 @@ impl Renderer {
             self.put_str(
                 box_x + 2,
                 box_y + 20,
-                "L-click swap. L/R-drag spread 1. Shift+L output crafts max.",
+                if state.world.is_replica() {
+                    "L-click swap. R-click split. Shift+L quick-move."
+                } else {
+                    "L-click swap. L/R-drag spread 1. Shift+L output crafts max."
+                },
                 Color::DarkGrey,
                 bg,
             );
             self.put_str(
                 box_x + 2,
                 box_y + 21,
-                if state.has_personal_armor_ui() {
-                    "Enter craft 1, Shift+Enter max, Del clears grid. Armor left."
-                } else {
-                    "Enter craft 1, Shift+Enter max, Del clears grid."
-                },
+                "Enter craft 1, Shift+Enter max, Del clears grid.",
                 Color::DarkGrey,
                 bg,
             );
@@ -4740,6 +5545,150 @@ impl Renderer {
 mod tests {
     use super::*;
     use std::collections::HashSet;
+
+    #[test]
+    fn camera_keeps_normal_jumps_steady_and_follow_is_frame_rate_independent() {
+        let mut results = Vec::new();
+        for fps in [30, 60, 120] {
+            let mut renderer = Renderer::with_size(160, 48);
+            renderer.frame_seconds = 1.0 / fps as f64;
+            renderer.update_vertical_camera(20.0);
+            for _ in 0..fps {
+                renderer.update_vertical_camera(18.7);
+            }
+            assert_eq!(renderer.camera_y, 20.0);
+            for _ in 0..fps {
+                renderer.update_vertical_camera(26.0);
+            }
+            results.push(renderer.camera_y);
+        }
+        assert!(results.windows(2).all(|w| (w[0] - w[1]).abs() < 0.00001));
+    }
+
+    #[test]
+    fn half_pixel_overlay_preserves_the_other_half_and_fine_view_picking() {
+        let mut renderer = Renderer::with_size(160, 48);
+        renderer.put_pixel(2, 8, Color::Red);
+        renderer.put_pixel(2, 9, Color::Blue);
+        let cell = renderer.back_buffer[4 * 160 + 2];
+        assert_eq!(cell.fg, Color::Red);
+        assert_eq!(cell.bg, Color::Blue);
+        let mut state = GameState::network_view();
+        state.player.x = -0.25;
+        state.player.y = 34.375;
+        renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        let (vx, vy, cx, cy, scale) = renderer.world_view.unwrap();
+        assert_eq!(scale, 4);
+        assert_eq!(renderer.vertical_pixel_offset, 1);
+        for dx in 0..scale * 2 {
+            let x = (-scale * 2 - vx + cx + dx) as u16;
+            let y = (33 * scale - vy + cy + scale / 2) as u16;
+            assert_eq!(renderer.screen_to_world(&state, x, y), (-1, 33));
+        }
+    }
+
+    #[test]
+    fn rendered_hud_reports_mining_and_peer_identity_with_one_write() {
+        struct Sink {
+            writes: usize,
+        }
+        impl Write for Sink {
+            fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+                self.writes += 1;
+                Ok(b.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let root =
+            std::env::temp_dir().join(format!("termcraft-render-test-{}", rand::random::<u64>()));
+        let mut state = GameState::open_in_directory(&root).unwrap();
+        state.dismiss_startup_splash();
+        state.player.x = 0.5;
+        state.player.y = 64.0;
+        state.mouse_x = 68;
+        state.mouse_y = 24;
+        state.player.last_mine_x = 2;
+        state.player.last_mine_y = 63;
+        state.player.mining_timer = 0.45;
+        state.world.set_block(2, 63, BlockType::Stone);
+        state
+            .remote_players
+            .push(crate::engine::state::RemotePlayerState {
+                client_id: 7,
+                x: 3.0,
+                y: 64.0,
+                vx: 0.0,
+                vy: 0.0,
+                grounded: true,
+                facing_right: true,
+                sneaking: false,
+                health: 20.0,
+                max_health: 20.0,
+                hunger: 20.0,
+                max_hunger: 20.0,
+            });
+        let mut renderer = Renderer::with_size(120, 40);
+        let mut sink = Sink { writes: 0 };
+        renderer.render_to(&state, 0.0, &mut sink).unwrap();
+        let row = |y: usize| {
+            renderer.back_buffer[y * 120..(y + 1) * 120]
+                .iter()
+                .map(|c| c.ch)
+                .collect::<String>()
+        };
+        assert!(row(10).contains("45%"));
+        assert!(row(5).contains("Sprint"));
+        assert!(
+            renderer
+                .back_buffer
+                .iter()
+                .map(|c| c.ch)
+                .collect::<String>()
+                .contains("P7")
+        );
+        assert_eq!(sink.writes, 1);
+        assert_eq!(renderer.back_buffer[0].bg, Color::AnsiValue(234));
+        drop(state);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn zoom_target_mapping_and_jump_position_follow_the_rendered_camera() {
+        let mut state = GameState::network_view();
+        state.player.x = -0.25;
+        state.player.y = 34.0;
+        let mut renderer = Renderer::with_size(121, 41);
+        renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        let (vx, vy, cx, cy, scale) = renderer.world_view.unwrap();
+        assert_eq!(scale, 2);
+        // Every physical cell in a scaled tile maps to that tile, including x < 0.
+        for dy in 0..scale {
+            for dx in 0..scale * 2 {
+                let x = (-scale * 2 - vx + cx + dx) as u16;
+                let y = (33 * scale - vy + cy + dy) as u16;
+                assert_eq!(renderer.screen_to_world(&state, x, y), (-1, 33));
+            }
+        }
+        let before = renderer
+            .actor_sprites
+            .iter()
+            .find(|a| matches!(a.kind, SpriteKind::Player))
+            .unwrap()
+            .y;
+        state.player.y = 32.8;
+        state.player.vy = -0.3;
+        renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        let after = renderer
+            .actor_sprites
+            .iter()
+            .find(|a| matches!(a.kind, SpriteKind::Player))
+            .unwrap()
+            .y;
+        assert!(after < before, "camera easing pinned the jumping player");
+        assert_eq!((renderer.width, renderer.height), (121, 41));
+    }
 
     #[test]
     fn sky_backdrop_occluder_keeps_transparent_surface_blocks_open() {
@@ -5291,9 +6240,22 @@ mod tests {
             back_buffer: vec![RenderCell::default(); 12],
             light_buffer: Vec::new(),
             light_scratch: Vec::new(),
+            light_frontier: std::array::from_fn(|_| Vec::new()),
+            frame_output: Vec::new(),
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            key_releases: false,
+            world_view: None,
+            zoom: true,
+            pixel_colors: true,
+            actor_sprites: Vec::new(),
+            motion: motion::MotionHistory::default(),
+            player_preview: None,
+            frame_seconds: 1.0 / 60.0,
+            last_frame_at: None,
+            vertical_pixel_offset: 0,
+            pixel_horizons: Vec::new(),
         };
         renderer.back_buffer[5] = RenderCell {
             ch: '#',
@@ -5342,9 +6304,22 @@ mod tests {
             back_buffer: vec![RenderCell::default(); 12],
             light_buffer: Vec::new(),
             light_scratch: Vec::new(),
+            light_frontier: std::array::from_fn(|_| Vec::new()),
+            frame_output: Vec::new(),
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            key_releases: false,
+            world_view: None,
+            zoom: true,
+            pixel_colors: true,
+            actor_sprites: Vec::new(),
+            motion: motion::MotionHistory::default(),
+            player_preview: None,
+            frame_seconds: 1.0 / 60.0,
+            last_frame_at: None,
+            vertical_pixel_offset: 0,
+            pixel_horizons: Vec::new(),
         };
         renderer.back_buffer[5] = RenderCell {
             ch: '#',
@@ -5378,9 +6353,22 @@ mod tests {
             back_buffer: vec![RenderCell::default(); 12],
             light_buffer: Vec::new(),
             light_scratch: Vec::new(),
+            light_frontier: std::array::from_fn(|_| Vec::new()),
+            frame_output: Vec::new(),
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            key_releases: false,
+            world_view: None,
+            zoom: true,
+            pixel_colors: true,
+            actor_sprites: Vec::new(),
+            motion: motion::MotionHistory::default(),
+            player_preview: None,
+            frame_seconds: 1.0 / 60.0,
+            last_frame_at: None,
+            vertical_pixel_offset: 0,
+            pixel_horizons: Vec::new(),
         };
         renderer.back_buffer[5] = RenderCell {
             ch: '*',
@@ -5414,9 +6402,22 @@ mod tests {
             back_buffer: vec![RenderCell::default(); 12],
             light_buffer: Vec::new(),
             light_scratch: Vec::new(),
+            light_frontier: std::array::from_fn(|_| Vec::new()),
+            frame_output: Vec::new(),
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            key_releases: false,
+            world_view: None,
+            zoom: true,
+            pixel_colors: true,
+            actor_sprites: Vec::new(),
+            motion: motion::MotionHistory::default(),
+            player_preview: None,
+            frame_seconds: 1.0 / 60.0,
+            last_frame_at: None,
+            vertical_pixel_offset: 0,
+            pixel_horizons: Vec::new(),
         };
         renderer.back_buffer[5] = RenderCell {
             ch: ' ',
@@ -5447,9 +6448,22 @@ mod tests {
             back_buffer: vec![RenderCell::default(); 12],
             light_buffer: Vec::new(),
             light_scratch: Vec::new(),
+            light_frontier: std::array::from_fn(|_| Vec::new()),
+            frame_output: Vec::new(),
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            key_releases: false,
+            world_view: None,
+            zoom: true,
+            pixel_colors: true,
+            actor_sprites: Vec::new(),
+            motion: motion::MotionHistory::default(),
+            player_preview: None,
+            frame_seconds: 1.0 / 60.0,
+            last_frame_at: None,
+            vertical_pixel_offset: 0,
+            pixel_horizons: Vec::new(),
         };
         renderer.back_buffer[5] = RenderCell {
             ch: ' ',
@@ -5480,9 +6494,22 @@ mod tests {
             back_buffer: vec![RenderCell::default(); 12],
             light_buffer: Vec::new(),
             light_scratch: Vec::new(),
+            light_frontier: std::array::from_fn(|_| Vec::new()),
+            frame_output: Vec::new(),
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            key_releases: false,
+            world_view: None,
+            zoom: true,
+            pixel_colors: true,
+            actor_sprites: Vec::new(),
+            motion: motion::MotionHistory::default(),
+            player_preview: None,
+            frame_seconds: 1.0 / 60.0,
+            last_frame_at: None,
+            vertical_pixel_offset: 0,
+            pixel_horizons: Vec::new(),
         };
         renderer.back_buffer[5] = RenderCell {
             ch: ' ',
@@ -5517,9 +6544,22 @@ mod tests {
             back_buffer: vec![RenderCell::default(); 12],
             light_buffer: Vec::new(),
             light_scratch: Vec::new(),
+            light_frontier: std::array::from_fn(|_| Vec::new()),
+            frame_output: Vec::new(),
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            key_releases: false,
+            world_view: None,
+            zoom: true,
+            pixel_colors: true,
+            actor_sprites: Vec::new(),
+            motion: motion::MotionHistory::default(),
+            player_preview: None,
+            frame_seconds: 1.0 / 60.0,
+            last_frame_at: None,
+            vertical_pixel_offset: 0,
+            pixel_horizons: Vec::new(),
         };
         renderer.back_buffer[5] = RenderCell {
             ch: ' ',

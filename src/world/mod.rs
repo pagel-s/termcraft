@@ -1,12 +1,14 @@
 pub mod block;
 pub mod chunk;
+pub mod environment;
 pub mod item;
+pub mod recipe;
 
 use crate::save_path;
 use block::BlockType;
 use chunk::{CHUNK_HEIGHT, CHUNK_WIDTH, Chunk};
 use item::{Inventory, ItemType};
-use noise::{NoiseFn, Perlin};
+use noise::{NoiseFn, Perlin, Seedable};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -21,7 +23,7 @@ pub enum Dimension {
     End,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum BiomeType {
     Desert,
     Tundra,
@@ -44,11 +46,13 @@ pub struct ChunkLoadMetrics {
     pub pending_requests: u64,
     pub last_load_us: u64,
     pub max_load_us: u64,
+    pub evicted_chunks: u64,
 }
 
 const ACTIVE_CHUNK_RADIUS: i32 = 1;
 const PREFETCH_CHUNK_RADIUS: i32 = 3;
 const CHUNK_REQUEST_RETENTION_RADIUS: i32 = PREFETCH_CHUNK_RADIUS + 2;
+const RESIDENT_CHUNK_RADIUS: i32 = PREFETCH_CHUNK_RADIUS + 3;
 const CHUNK_MOTION_LOAD_THRESHOLD_RATIO: f64 = 0.65;
 const SHORELINE_BLEND_RADIUS: i32 = 3;
 const SHORELINE_SHELF_RADIUS: i32 = 4;
@@ -217,6 +221,8 @@ struct ChunkWorkItem {
     chunk_x: i32,
 }
 
+type ChunkWorkResult = (i32, Result<(Chunk, bool), String>);
+
 #[derive(Clone, Copy, Debug)]
 struct NetherFortressLayout {
     center_x: i32,
@@ -259,10 +265,16 @@ impl PartialOrd for ChunkRequest {
 }
 
 pub struct World {
+    replica: bool,
+    simulation_centers: Vec<i32>,
+    replica_biomes: HashMap<i32, BiomeType>,
     chunks: HashMap<i32, Chunk>,
     pub newly_generated_chunks: Vec<i32>,
     pub dimension: Dimension,
     save_key: String,
+    save_root: std::path::PathBuf,
+    recipe: Option<std::sync::Arc<recipe::WorldRecipe>>,
+    pub(crate) environments: Vec<recipe::Region>,
     perlin: Perlin,
     temp_perlin: Perlin,
     moist_perlin: Perlin,
@@ -274,7 +286,8 @@ pub struct World {
     chunk_request_queue: BinaryHeap<ChunkRequest>,
     chunk_request_seq: u64,
     chunk_request_tx: Sender<ChunkWorkItem>,
-    chunk_result_rx: Receiver<(i32, Chunk, bool)>,
+    chunk_result_rx: Receiver<ChunkWorkResult>,
+    load_error: Option<String>,
     pub chunk_metrics: ChunkLoadMetrics,
     pub recent_explosions: Vec<ExplosionEvent>,
     pub recent_explosion_block_losses: Vec<ExplosionBlockLoss>,
@@ -289,19 +302,107 @@ impl Default for World {
 }
 
 impl World {
+    pub(crate) fn is_replica(&self) -> bool {
+        self.replica
+    }
+    pub(crate) fn network_replica(dimension: Dimension) -> Self {
+        let root = std::env::temp_dir().join(format!(
+            ".termcraft-replica-{}-{}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
+        let mut world = Self::new_at(
+            dimension,
+            root,
+            Some(std::sync::Arc::new(recipe::WorldRecipe::example())),
+        );
+        world.replica = true;
+        world
+    }
     pub fn new() -> Self {
         Self::new_for_dimension(Dimension::Overworld)
     }
 
     pub fn new_for_dimension(dimension: Dimension) -> Self {
         save_path::migrate_legacy_saves_once();
+        Self::new_at(dimension, save_path::save_dir(), None)
+    }
 
+    pub fn open_in_directory(
+        dimension: Dimension,
+        root: &std::path::Path,
+    ) -> std::io::Result<Self> {
+        let recipe = recipe::WorldRecipe::read(root)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?
+            .map(std::sync::Arc::new);
+        let world = Self::new_at(dimension, root.to_path_buf(), recipe);
+        world.check_storage()?;
+        Ok(world)
+    }
+
+    pub fn save_root(&self) -> &std::path::Path {
+        &self.save_root
+    }
+
+    pub fn check_storage(&self) -> std::io::Result<()> {
+        match &self.load_error {
+            Some(error) => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                error.clone(),
+            )),
+            None => Ok(()),
+        }
+    }
+
+    pub(crate) fn designed_spawn(&self) -> Option<(i32, i32)> {
+        self.recipe
+            .as_ref()
+            .filter(|_| self.dimension == Dimension::Overworld)
+            .map(|recipe| (0, recipe.surface_y))
+    }
+
+    pub fn for_dimension(&self, dimension: Dimension) -> Self {
+        Self::new_at(dimension, self.save_root.clone(), self.recipe.clone())
+    }
+
+    fn new_at(
+        dimension: Dimension,
+        save_root: std::path::PathBuf,
+        recipe: Option<std::sync::Arc<recipe::WorldRecipe>>,
+    ) -> Self {
         let save_key = match dimension {
             Dimension::Overworld => "overworld".to_string(),
             Dimension::Nether => "nether".to_string(),
             Dimension::End => "end".to_string(),
         };
-        let seeds = Self::load_or_create_world_seed_data(&save_key);
+        let mut load_error = None;
+        let environments = environment::read(&save_root).unwrap_or_else(|error| {
+            load_error = Some(error);
+            Vec::new()
+        });
+        let seeds = if let Some(recipe) = &recipe {
+            WorldSeedData {
+                terrain_seed: recipe.seed,
+                temp_seed: recipe.seed.wrapping_add(1),
+                moist_seed: recipe.seed.wrapping_add(2),
+                cave_seed: recipe.seed.wrapping_add(3),
+            }
+        } else {
+            match Self::try_load_or_create_seed(&save_root, &save_key) {
+                Ok(seeds) => seeds,
+                Err(error) => {
+                    load_error = Some(error.to_string());
+                    // This world cannot load chunks or save. Keep construction
+                    // compatible with infallible callers without replacing data.
+                    WorldSeedData {
+                        terrain_seed: 0,
+                        temp_seed: 0,
+                        moist_seed: 0,
+                        cave_seed: 0,
+                    }
+                }
+            }
+        };
         let terrain_seed = seeds.terrain_seed;
         let temp_seed = seeds.temp_seed;
         let moist_seed = seeds.moist_seed;
@@ -309,9 +410,11 @@ impl World {
         let worker_save_key = save_key.clone();
 
         let (chunk_request_tx, chunk_request_rx) = mpsc::channel::<ChunkWorkItem>();
-        let (chunk_result_tx, chunk_result_rx) = mpsc::channel::<(i32, Chunk, bool)>();
+        let (chunk_result_tx, chunk_result_rx) = mpsc::channel();
         let shared_request_rx = Arc::new(Mutex::new(chunk_request_rx));
         for _ in 0..CHUNK_PIPELINE_WORKERS {
+            let worker_root = save_root.clone();
+            let worker_recipe = recipe.clone();
             let request_rx = Arc::clone(&shared_request_rx);
             let result_tx = chunk_result_tx.clone();
             let worker_save_key = worker_save_key.clone();
@@ -332,22 +435,43 @@ impl World {
                         return;
                     };
                     let chunk_x = work_item.chunk_x;
-                    if let Some(loaded_chunk) = Chunk::load_from_disk(chunk_x, &worker_save_key) {
-                        if result_tx.send((chunk_x, loaded_chunk, false)).is_err() {
-                            return;
+                    match Chunk::try_load_from_directory(chunk_x, &worker_save_key, &worker_root) {
+                        Ok(Some(loaded_chunk)) => {
+                            if result_tx
+                                .send((chunk_x, Ok((loaded_chunk, false))))
+                                .is_err()
+                            {
+                                return;
+                            }
                         }
-                    } else {
-                        let generated_chunk = Self::build_chunk_with_noise(
-                            chunk_x,
-                            dimension,
-                            &worker_save_key,
-                            &perlin,
-                            &temp_perlin,
-                            &moist_perlin,
-                            &cave_perlin,
-                        );
-                        if result_tx.send((chunk_x, generated_chunk, true)).is_err() {
-                            return;
+                        Err(error) => {
+                            if result_tx.send((chunk_x, Err(error.to_string()))).is_err() {
+                                return;
+                            }
+                        }
+                        Ok(None) => {
+                            let mut generated_chunk = if dimension == Dimension::Overworld
+                                && let Some(recipe) = &worker_recipe
+                            {
+                                recipe.build_chunk(chunk_x, &worker_save_key)
+                            } else {
+                                Self::build_chunk_with_noise(
+                                    chunk_x,
+                                    dimension,
+                                    &worker_save_key,
+                                    &perlin,
+                                    &temp_perlin,
+                                    &moist_perlin,
+                                    &cave_perlin,
+                                )
+                            };
+                            generated_chunk.set_save_root(&worker_root);
+                            if result_tx
+                                .send((chunk_x, Ok((generated_chunk, true))))
+                                .is_err()
+                            {
+                                return;
+                            }
                         }
                     }
                 }
@@ -355,10 +479,16 @@ impl World {
         }
 
         Self {
+            replica: false,
+            simulation_centers: Vec::new(),
+            replica_biomes: HashMap::new(),
             chunks: HashMap::new(),
             newly_generated_chunks: Vec::new(),
             dimension,
             save_key,
+            save_root,
+            recipe,
+            environments,
             perlin: Perlin::new(terrain_seed),
             temp_perlin: Perlin::new(temp_seed),
             moist_perlin: Perlin::new(moist_seed),
@@ -371,6 +501,7 @@ impl World {
             chunk_request_seq: 0,
             chunk_request_tx,
             chunk_result_rx,
+            load_error,
             chunk_metrics: ChunkLoadMetrics::default(),
             recent_explosions: Vec::new(),
             recent_explosion_block_losses: Vec::new(),
@@ -379,10 +510,12 @@ impl World {
         }
     }
 
+    #[cfg(test)]
     fn world_seed_path(save_key: &str) -> std::path::PathBuf {
         save_path::save_file(&format!("{save_key}_world_seed.bin"))
     }
 
+    #[cfg(test)]
     fn load_world_seed_data(save_key: &str) -> Option<WorldSeedData> {
         let path = Self::world_seed_path(save_key);
         let encoded = std::fs::read(path).ok()?;
@@ -399,17 +532,60 @@ impl World {
         }
     }
 
+    #[cfg(test)]
     fn load_or_create_world_seed_data(save_key: &str) -> WorldSeedData {
-        if let Some(seed_data) = Self::load_world_seed_data(save_key) {
-            return seed_data;
-        }
+        Self::try_load_or_create_seed(&save_path::save_dir(), save_key).unwrap()
+    }
 
-        let seed_data = Self::create_world_seed_data();
-        let _ = std::fs::create_dir_all(save_path::save_dir());
-        if let Ok(encoded) = bincode::serialize(&seed_data) {
-            let _ = std::fs::write(Self::world_seed_path(save_key), encoded);
+    fn try_load_or_create_seed(
+        root: &std::path::Path,
+        save_key: &str,
+    ) -> std::io::Result<WorldSeedData> {
+        use std::io::Write;
+        let path = root.join(format!("{save_key}_world_seed.bin"));
+        match std::fs::read(&path) {
+            Ok(bytes) => bincode::deserialize(&bytes).map_err(|_| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "cannot decode {}; existing seed was preserved",
+                        path.display()
+                    ),
+                )
+            }),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let seeds = Self::create_world_seed_data();
+                let bytes = bincode::serialize(&seeds).map_err(std::io::Error::other)?;
+                std::fs::create_dir_all(root)?;
+                // Publish a fully written seed without replacing another
+                // writer's file or exposing a partially written seed to readers.
+                let temp = root.join(format!(
+                    ".{save_key}_seed_{}_{}.tmp",
+                    std::process::id(),
+                    rand::random::<u64>()
+                ));
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&temp)?;
+                let result = (|| {
+                    file.write_all(&bytes)?;
+                    file.sync_all()?;
+                    match std::fs::hard_link(&temp, &path) {
+                        Ok(()) => Ok(seeds),
+                        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                            let bytes = std::fs::read(&path)?;
+                            bincode::deserialize(&bytes).map_err(std::io::Error::other)
+                        }
+                        Err(error) => Err(error),
+                    }
+                })();
+                drop(file);
+                let _ = std::fs::remove_file(temp);
+                result
+            }
+            Err(error) => Err(error),
         }
-        seed_data
     }
 
     pub fn get_block(&self, world_x: i32, world_y: i32) -> BlockType {
@@ -432,9 +608,20 @@ impl World {
             .map(|chunk| (chunk.blocks_revision(), chunk.blocks.clone()))
     }
 
+    pub(crate) fn chunk_blocks_revision(&self, chunk_x: i32) -> Option<u64> {
+        self.chunks.get(&chunk_x).map(Chunk::blocks_revision)
+    }
+
     pub fn apply_chunk_column_snapshot(&mut self, chunk_x: i32, blocks: &[BlockType]) -> bool {
         if blocks.len() != CHUNK_WIDTH * CHUNK_HEIGHT {
             return false;
+        }
+        if self.replica {
+            let chunk = self
+                .chunks
+                .entry(chunk_x)
+                .or_insert_with(|| Chunk::new(chunk_x, &self.save_key));
+            return chunk.apply_block_snapshot(blocks);
         }
         let chunk_center_x = chunk_x * CHUNK_WIDTH as i32 + (CHUNK_WIDTH as i32 / 2);
         self.load_chunks_around(chunk_center_x);
@@ -701,6 +888,9 @@ impl World {
     }
 
     pub fn load_chunks_for_motion(&mut self, player_x: f64, player_vx: f64) {
+        if self.replica {
+            return;
+        }
         let load_start = Instant::now();
         self.newly_generated_chunks.clear();
         self.collect_ready_chunks();
@@ -746,9 +936,125 @@ impl World {
     }
 
     pub fn save_all(&mut self) {
-        for chunk in self.chunks.values_mut() {
-            chunk.save_to_disk();
+        let _ = self.try_save_all();
+    }
+
+    pub fn try_save_all(&mut self) -> std::io::Result<()> {
+        if self.replica {
+            return Err(std::io::Error::other(
+                "a network view cannot save server terrain",
+            ));
         }
+        self.check_storage()?;
+        for chunk in self.chunks.values_mut() {
+            chunk.try_save_to_disk()?;
+        }
+        Ok(())
+    }
+
+    /// Preserve known-good memory without touching the source after a storage error.
+    pub(crate) fn write_recovery_directory(&self, root: &std::path::Path) -> std::io::Result<()> {
+        if self.replica {
+            return Err(std::io::Error::other(
+                "network replicas cannot export server saves",
+            ));
+        }
+        let mut directory = std::fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            directory.mode(0o700);
+        }
+        directory.create(root)?;
+        if let Some(recipe) = &self.recipe {
+            std::fs::write(
+                root.join(recipe::RECIPE_FILE),
+                serde_json::to_vec_pretty(recipe.as_ref())?,
+            )?;
+        }
+        let seeds = WorldSeedData {
+            terrain_seed: self.perlin.seed(),
+            temp_seed: self.temp_perlin.seed(),
+            moist_seed: self.moist_perlin.seed(),
+            cave_seed: self.cave_perlin.seed(),
+        };
+        std::fs::write(
+            root.join(format!("{}_world_seed.bin", self.save_key)),
+            bincode::serialize(&seeds).map_err(std::io::Error::other)?,
+        )?;
+        environment::write(root, &self.environments).map_err(std::io::Error::other)?;
+        for chunk in self.chunks.values() {
+            chunk.write_recovery_copy(root)?;
+        }
+        std::fs::write(
+            root.join("RECOVERY.txt"),
+            "Partial recovery: loaded chunks and current player state only. Unloaded regions and runtime entities are absent. Preserve the original world. Overlay these files onto a separate backup copy; do not replace the original folder with this directory. See docs/world-format.md.\n",
+        )
+    }
+
+    pub fn loaded_chunk_count(&self) -> usize {
+        self.chunks.len()
+    }
+
+    /// Retain the working area for each viewer. Failed saves keep their chunks
+    /// resident, and dirty writes are budgeted to avoid one large eviction stall.
+    pub fn trim_chunk_cache(
+        &mut self,
+        player_block_xs: &[i32],
+        max_dirty_saves: usize,
+    ) -> std::io::Result<usize> {
+        self.check_storage()?;
+        if player_block_xs.is_empty() {
+            return Ok(0);
+        }
+        let centers: Vec<i32> = player_block_xs
+            .iter()
+            .map(|x| x.div_euclid(CHUNK_WIDTH as i32))
+            .collect();
+        let mut distant: Vec<i32> = self
+            .chunks
+            .keys()
+            .copied()
+            .filter(|x| {
+                centers
+                    .iter()
+                    .all(|center| x.abs_diff(*center) > RESIDENT_CHUNK_RADIUS as u32)
+            })
+            .collect();
+        distant.sort_unstable_by_key(|x| {
+            std::cmp::Reverse(
+                centers
+                    .iter()
+                    .map(|center| x.abs_diff(*center))
+                    .min()
+                    .unwrap_or(0),
+            )
+        });
+        let mut saved = 0;
+        let mut evicted = 0;
+        for x in distant {
+            let chunk = self.chunks.get_mut(&x).expect("resident chunk");
+            if chunk.dirty && !self.replica {
+                if saved >= max_dirty_saves {
+                    continue;
+                }
+                chunk.try_save_to_disk()?;
+                saved += 1;
+            }
+            self.chunks.remove(&x);
+
+            self.active_fluid_chunks.remove(&x);
+            evicted += 1;
+            self.chunk_metrics.evicted_chunks += 1;
+        }
+        self.replica_biomes
+            .retain(|x, _| self.chunks.contains_key(&x.div_euclid(CHUNK_WIDTH as i32)));
+        self.newly_generated_chunks
+            .retain(|x| self.chunks.contains_key(x));
+        if self.chunks.capacity() > 128 && self.chunks.len() < self.chunks.capacity() / 4 {
+            self.chunks.shrink_to(64.max(self.chunks.len() * 2));
+        }
+        Ok(evicted)
     }
 
     fn has_adjacent_fluid(&self, world_x: i32, world_y: i32) -> bool {
@@ -775,8 +1081,13 @@ impl World {
     }
 
     pub fn save_dirty_chunk_budget(&mut self, max_chunks: usize) -> bool {
+        self.try_save_dirty_chunk_budget(max_chunks).unwrap_or(true)
+    }
+
+    pub fn try_save_dirty_chunk_budget(&mut self, max_chunks: usize) -> std::io::Result<bool> {
+        self.check_storage()?;
         if max_chunks == 0 {
-            return self.chunks.values().any(|chunk| chunk.dirty);
+            return Ok(self.chunks.values().any(|chunk| chunk.dirty));
         }
 
         let mut saved = 0usize;
@@ -784,16 +1095,34 @@ impl World {
             if !chunk.dirty {
                 continue;
             }
-            chunk.save_to_disk();
+            chunk.try_save_to_disk()?;
             saved += 1;
             if saved >= max_chunks {
                 break;
             }
         }
 
-        self.chunks.values().any(|chunk| chunk.dirty)
+        Ok(self.chunks.values().any(|chunk| chunk.dirty))
     }
 
+    fn simulation_chunk_active(&self, chunk: i32, fallback: i32) -> bool {
+        if self.simulation_centers.is_empty() {
+            return chunk.abs_diff(fallback) <= 2;
+        }
+        self.simulation_centers
+            .iter()
+            .any(|center| chunk.abs_diff(*center) <= 2)
+    }
+    pub(crate) fn update_for_players(&mut self, positions: &[i32]) {
+        self.simulation_centers = positions
+            .iter()
+            .map(|x| x.div_euclid(CHUNK_WIDTH as i32))
+            .collect();
+        self.simulation_centers.sort_unstable();
+        self.simulation_centers.dedup();
+        self.update(positions.first().copied().unwrap_or(0));
+        self.simulation_centers.clear();
+    }
     pub fn update(&mut self, center_x: i32) {
         self.tick_counter += 1;
         self.recent_explosions.clear();
@@ -823,7 +1152,7 @@ impl World {
         let mut rng = rand::thread_rng();
         let growth_phase = (self.tick_counter / 20) as i32;
         for (&cx, chunk) in &self.chunks {
-            if (cx - center_chunk).abs() > 2 || !chunk.has_farming_blocks() {
+            if !self.simulation_chunk_active(cx, center_chunk) || !chunk.has_farming_blocks() {
                 continue;
             }
             for y in 0..CHUNK_HEIGHT {
@@ -1183,7 +1512,7 @@ impl World {
         let mut to_remove = Vec::new();
         let decay_phase = (self.tick_counter / 20) as i32;
         for (&cx, chunk) in &self.chunks {
-            if (cx - center_chunk).abs() > 2 || !chunk.has_leaf_blocks() {
+            if !self.simulation_chunk_active(cx, center_chunk) || !chunk.has_leaf_blocks() {
                 continue;
             }
             for y in 0..CHUNK_HEIGHT {
@@ -1247,7 +1576,7 @@ impl World {
         let mut changes = Vec::new();
         let spread_phase = (self.tick_counter / 20) as i32;
         for (&cx, chunk) in &self.chunks {
-            if (cx - center_chunk).abs() > 2 {
+            if !self.simulation_chunk_active(cx, center_chunk) {
                 continue;
             }
             for y in 1..CHUNK_HEIGHT {
@@ -1296,7 +1625,7 @@ impl World {
     fn update_falling_blocks(&mut self, center_chunk: i32) {
         let mut moves = Vec::new();
         for (&cx, chunk) in &self.chunks {
-            if (cx - center_chunk).abs() > 2 || !chunk.has_falling_blocks() {
+            if !self.simulation_chunk_active(cx, center_chunk) || !chunk.has_falling_blocks() {
                 continue;
             }
             for y in (0..(CHUNK_HEIGHT - 1)).rev() {
@@ -1388,7 +1717,7 @@ impl World {
             .iter()
             .copied()
             .filter(|chunk_x| {
-                (chunk_x - center_chunk).abs() <= 2
+                self.simulation_chunk_active(*chunk_x, center_chunk)
                     && self
                         .chunks
                         .get(chunk_x)
@@ -1400,7 +1729,7 @@ impl World {
             .iter()
             .copied()
             .filter(|chunk_x| {
-                (chunk_x - center_chunk).abs() > 2
+                !self.simulation_chunk_active(*chunk_x, center_chunk)
                     && self
                         .chunks
                         .get(chunk_x)
@@ -1566,7 +1895,7 @@ impl World {
     fn update_redstone(&mut self, center_chunk: i32) {
         let mut trigger_changes = Vec::new();
         for (&cx, chunk) in &self.chunks {
-            if (cx - center_chunk).abs() > 2 || !chunk.has_redstone_blocks() {
+            if !self.simulation_chunk_active(cx, center_chunk) || !chunk.has_redstone_blocks() {
                 continue;
             }
             for y in 0..CHUNK_HEIGHT {
@@ -1654,7 +1983,7 @@ impl World {
 
         let mut dust_changes = Vec::new();
         for (&cx, chunk) in &self.chunks {
-            if (cx - center_chunk).abs() > 2 || !chunk.has_redstone_blocks() {
+            if !self.simulation_chunk_active(cx, center_chunk) || !chunk.has_redstone_blocks() {
                 continue;
             }
             for y in 0..CHUNK_HEIGHT {
@@ -1697,7 +2026,7 @@ impl World {
         let mut explosions = Vec::new();
 
         for (&cx, chunk) in &self.chunks {
-            if (cx - center_chunk).abs() > 2 || !chunk.has_redstone_blocks() {
+            if !self.simulation_chunk_active(cx, center_chunk) || !chunk.has_redstone_blocks() {
                 continue;
             }
             for y in 0..CHUNK_HEIGHT {
@@ -2186,7 +2515,41 @@ impl World {
         }
     }
 
+    pub(crate) fn apply_replica_biomes(&mut self, chunk_x: i32, biomes: &[BiomeType]) {
+        if self.replica && biomes.len() == CHUNK_WIDTH {
+            for (x, biome) in biomes.iter().enumerate() {
+                self.replica_biomes
+                    .insert(chunk_x * CHUNK_WIDTH as i32 + x as i32, *biome);
+            }
+        }
+    }
     pub fn get_biome(&self, world_x: i32) -> BiomeType {
+        if self.replica {
+            return self
+                .replica_biomes
+                .get(&world_x)
+                .copied()
+                .unwrap_or(BiomeType::Plains);
+        }
+        if self.dimension == Dimension::Overworld
+            && let Some(region) = self
+                .environments
+                .iter()
+                .find(|r| (r.start_x..=r.end_x).contains(&world_x))
+        {
+            return environment::biome(region.terrain);
+        }
+        if self.dimension == Dimension::Overworld
+            && let Some(recipe) = &self.recipe
+        {
+            return match recipe.terrain_at(world_x) {
+                recipe::Terrain::Plains => BiomeType::Plains,
+                recipe::Terrain::Forest => BiomeType::Forest,
+                recipe::Terrain::Desert => BiomeType::Desert,
+                recipe::Terrain::Tundra => BiomeType::Tundra,
+                recipe::Terrain::Mountains => BiomeType::ExtremeHills,
+            };
+        }
         Self::biome_for_x(&self.temp_perlin, &self.moist_perlin, world_x)
     }
 
@@ -3656,6 +4019,26 @@ impl World {
             }
         }
 
+        // A stepped roof reads as an actual side-on house, with eaves, a ridge
+        // and a chimney. Only newly generated huts receive this silhouette.
+        if roof_y > 4 && biome != BiomeType::Desert {
+            for inset in 1..=2 {
+                for lx in (left + inset)..=(right - inset) {
+                    chunk.set_block(
+                        lx,
+                        (roof_y - 1 - inset as i32) as usize,
+                        if lx == left + inset || lx == right - inset {
+                            roof_edge_block
+                        } else {
+                            roof_cap_block
+                        },
+                    );
+                }
+            }
+            chunk.set_block(right - 1, (roof_y - 2) as usize, BlockType::Cobblestone);
+            chunk.set_block(right - 1, (roof_y - 3) as usize, BlockType::Cobblestone);
+        }
+
         let left_entry_wx = c_start + left as i32 - 1;
         let left_entry_biome = Self::biome_for_x(temp_perlin, moist_perlin, left_entry_wx);
         let left_entry_surface_y = Self::blended_overworld_surface_y(
@@ -3817,13 +4200,21 @@ impl World {
     }
 
     fn collect_ready_chunks(&mut self) {
-        while let Ok((chunk_x, chunk, was_generated)) = self.chunk_result_rx.try_recv() {
+        while let Ok((chunk_x, result)) = self.chunk_result_rx.try_recv() {
             self.pending_chunks.remove(&chunk_x);
             self.queued_chunks.remove(&chunk_x);
             self.in_flight_chunks.remove(&chunk_x);
             if self.chunks.contains_key(&chunk_x) {
                 continue;
             }
+            let (chunk, was_generated) = match result {
+                Ok(result) if self.load_error.is_none() => result,
+                Ok(_) => continue,
+                Err(error) => {
+                    self.load_error.get_or_insert(error);
+                    continue;
+                }
+            };
             if chunk.has_fluids() {
                 self.activate_fluid_chunk_neighbors(chunk_x);
             }
@@ -3838,29 +4229,43 @@ impl World {
     }
 
     fn ensure_chunk_loaded_now(&mut self, chunk_x: i32) {
-        if self.chunks.contains_key(&chunk_x) {
+        if self.chunks.contains_key(&chunk_x) || self.load_error.is_some() {
             return;
         }
         self.pending_chunks.remove(&chunk_x);
         self.queued_chunks.remove(&chunk_x);
         self.in_flight_chunks.remove(&chunk_x);
-        if let Some(loaded_chunk) = Chunk::load_from_disk(chunk_x, &self.save_key) {
-            if loaded_chunk.has_fluids() {
-                self.activate_fluid_chunk_neighbors(chunk_x);
+        match Chunk::try_load_from_directory(chunk_x, &self.save_key, &self.save_root) {
+            Ok(Some(loaded_chunk)) => {
+                if loaded_chunk.has_fluids() {
+                    self.activate_fluid_chunk_neighbors(chunk_x);
+                }
+                self.chunks.insert(chunk_x, loaded_chunk);
+                self.chunk_metrics.sync_loaded += 1;
+                return;
             }
-            self.chunks.insert(chunk_x, loaded_chunk);
-            self.chunk_metrics.sync_loaded += 1;
-            return;
+            Err(error) => {
+                self.load_error = Some(error.to_string());
+                return;
+            }
+            Ok(None) => {}
         }
-        let generated_chunk = Self::build_chunk_with_noise(
-            chunk_x,
-            self.dimension,
-            &self.save_key,
-            &self.perlin,
-            &self.temp_perlin,
-            &self.moist_perlin,
-            &self.cave_perlin,
-        );
+        let mut generated_chunk = if self.dimension == Dimension::Overworld
+            && let Some(recipe) = &self.recipe
+        {
+            recipe.build_chunk(chunk_x, &self.save_key)
+        } else {
+            Self::build_chunk_with_noise(
+                chunk_x,
+                self.dimension,
+                &self.save_key,
+                &self.perlin,
+                &self.temp_perlin,
+                &self.moist_perlin,
+                &self.cave_perlin,
+            )
+        };
+        generated_chunk.set_save_root(&self.save_root);
         if generated_chunk.has_fluids() {
             self.activate_fluid_chunk_neighbors(chunk_x);
         }
@@ -6280,6 +6685,108 @@ impl World {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn storage_test_root() -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "termcraft-storage-{}-{}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
+        std::fs::create_dir(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn corrupt_chunk_is_preserved_and_never_regenerated_or_saved_over() {
+        let root = storage_test_root();
+        let path = root.join("overworld_chunk_0.bin");
+        std::fs::write(&path, b"broken chunk").unwrap();
+        let mut world = World::open_in_directory(Dimension::Overworld, &root).unwrap();
+        world.load_chunks_around(0);
+        assert!(world.check_storage().is_err());
+        assert!(!world.chunks.contains_key(&0));
+        assert!(world.try_save_all().is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"broken chunk");
+        drop(world);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn async_chunk_load_reports_corruption_without_generating_replacement() {
+        let root = storage_test_root();
+        let path = root.join("overworld_chunk_3.bin");
+        std::fs::write(&path, b"broken async chunk").unwrap();
+        let mut world = World::open_in_directory(Dimension::Overworld, &root).unwrap();
+        world.enqueue_chunk_request(3, 0);
+        world.dispatch_chunk_requests();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while world.check_storage().is_ok() && std::time::Instant::now() < deadline {
+            world.collect_ready_chunks();
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        assert!(world.check_storage().is_err());
+        assert!(!world.chunks.contains_key(&3));
+        assert_eq!(std::fs::read(path).unwrap(), b"broken async chunk");
+        drop(world);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn corrupt_seed_is_not_replaced() {
+        let root = storage_test_root();
+        let path = root.join("overworld_world_seed.bin");
+        std::fs::write(&path, b"broken seed").unwrap();
+        assert!(World::open_in_directory(Dimension::Overworld, &root).is_err());
+        assert_eq!(std::fs::read(path).unwrap(), b"broken seed");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_incremental_save_keeps_dirty_chunk_for_retry() {
+        let root = storage_test_root();
+        let mut world = World::open_in_directory(Dimension::Overworld, &root).unwrap();
+        let mut chunk = Chunk::new(0, "overworld");
+        chunk.set_save_root(&root);
+        chunk.set_block(0, 10, BlockType::Stone);
+        world.chunks.insert(0, chunk);
+        let blocked = root.join("overworld_chunk_0.bin.tmp");
+        std::fs::create_dir(&blocked).unwrap();
+        assert!(world.try_save_dirty_chunk_budget(1).is_err());
+        assert!(world.chunks[&0].dirty);
+        std::fs::remove_dir(blocked).unwrap();
+        assert!(!world.try_save_dirty_chunk_budget(1).unwrap());
+        let loaded = Chunk::try_load_from_directory(0, "overworld", &root)
+            .unwrap()
+            .unwrap();
+        assert_eq!(loaded.get_block(0, 10), BlockType::Stone);
+        drop(world);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn cache_eviction_saves_edits_and_pins_multiple_viewers() {
+        let root = storage_test_root();
+        let mut world = World::open_in_directory(Dimension::Overworld, &root).unwrap();
+        for x in [-20, 0, 20] {
+            let mut chunk = Chunk::new(x, "overworld");
+            chunk.set_save_root(&root);
+            chunk.set_block(1, 10, BlockType::DiamondOre);
+            world.chunks.insert(x, chunk);
+        }
+        assert_eq!(world.trim_chunk_cache(&[0, 20 * 32], 1).unwrap(), 1);
+        assert!(world.chunks.contains_key(&0));
+        assert!(world.chunks.contains_key(&20));
+        world.ensure_chunk_loaded_now(-20);
+        assert_eq!(world.get_block(-20 * 32 + 1, 10), BlockType::DiamondOre);
+        std::fs::create_dir(root.join("overworld_chunk_20.bin.tmp")).unwrap();
+        assert!(world.trim_chunk_cache(&[-20 * 32], 1).is_err());
+        assert!(
+            world.chunks[&20].dirty,
+            "failed eviction must retain unsaved edits"
+        );
+        drop(world);
+        std::fs::remove_dir_all(root).unwrap();
+    }
     use crate::world::block::BlockType;
     use crate::world::item::ItemType;
 

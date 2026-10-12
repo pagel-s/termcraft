@@ -11,9 +11,15 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Gameplay: gameplay.md
+  - Movement and art review: feel-and-art.md
+  - Agents and Generated Worlds: agents.md
+  - Experimental Local Co-op: multiplayer.md
+  - Development Distribution and SSH: distribution.md
+  - Next Beta (Development Draft): beta-release-notes.md
   - Supported Content: supported-content.md
   - Media Credits: media-credits.md
   - World Format: world-format.md
+  - Performance and Foundation Checks: performance.md
   - Developer: developer.md
 
 theme:

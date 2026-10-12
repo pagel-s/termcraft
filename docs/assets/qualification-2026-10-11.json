@@ -1,0 +1,231 @@
+{
+  "date": "2026-10-11",
+  "platform": "Linux x86_64, Intel Core i9-13900K",
+  "network": {
+    "delayed_snapshot_gap_p95_ms": 75.976308,
+    "direct_snapshot_gap_p95_ms": 55.88987,
+    "limits": "Automated normal-inventory movement on flat terrain with spawning disabled. Ordered delayed TCP buffers, no packet loss or terminal rendering. Not a human co-op session or survival campaign.",
+    "players": 8,
+    "reconnect_after_restart": true,
+    "relay_delay_per_direction_ms": [
+      80,
+      100,
+      120
+    ],
+    "snapshots_per_player": [
+      2402,
+      2402,
+      2402,
+      2402,
+      2402,
+      2402,
+      2402,
+      2400
+    ],
+    "stalled_reader_phase_seconds": 11.40506723,
+    "stalled_readers_evicted": 7,
+    "status": "passed",
+    "wall_clock_soak_seconds": 120,
+    "worst_healthy_snapshot_gap_during_stall_ms": 164.043449
+  },
+  "ssh": {
+    "status": "passed",
+    "openssh": "OpenSSH_10.2p1 Ubuntu-2ubuntu3.6, OpenSSL 3.5.5 27 Jan 2026",
+    "paramiko": "5.0.0",
+    "binary_sha256": "8ea94a9010d6812de0270230589023e72b414c2be7298cea3c9d7911fd54f897",
+    "encrypted_key_authenticated_sessions": 7,
+    "forwarded_channels": 14,
+    "reconnect_and_restart": true,
+    "rejected_authentication": true,
+    "rejected_forwarding": true,
+    "rejected_host_key": true,
+    "missing_game_server": true,
+    "dropped_link_restores_terminal": true,
+    "tunnel_processes_reaped": true,
+    "duration_seconds": 2.383,
+    "limits": "Local OpenSSH-to-Paramiko fixture. No real remote account, WAN or human gameplay qualification."
+  },
+  "interactive_director": {
+    "status": "passed",
+    "mode": "Codex-authored live plans over real stdio MCP and native bridge, driven interactively by this task; no provider key",
+    "requests": [
+      {
+        "prompt": "Make this area snowy at dawn, with gentle snowfall.",
+        "plan": {
+          "message": "Snow at dawn. Snowfall uses the normal weather intensity.",
+          "actions": [
+            {
+              "type": "environment",
+              "terrain": "tundra",
+              "radius": 24
+            },
+            {
+              "type": "time",
+              "phase": "dawn"
+            },
+            {
+              "type": "weather",
+              "weather": "rain"
+            }
+          ]
+        },
+        "status": "applied",
+        "repairs": 0,
+        "request_to_application_seconds": 13.586,
+        "player": {
+          "health": 20.0,
+          "hunger": 19.327356338500977,
+          "x": 0.5,
+          "y": 64.0
+        }
+      },
+      {
+        "prompt": "Add a few farm animals: cows and pigs to the west, away from me.",
+        "plan": {
+          "message": "Two cows and two pigs are gathering west of you, away from your immediate space.",
+          "actions": [
+            {
+              "type": "spawn",
+              "mob": "cow",
+              "count": 2,
+              "side": "west",
+              "distance": 16
+            },
+            {
+              "type": "spawn",
+              "mob": "pig",
+              "count": 2,
+              "side": "west",
+              "distance": 22
+            }
+          ]
+        },
+        "status": "applied",
+        "repairs": 0,
+        "request_to_application_seconds": 6.049,
+        "player": {
+          "health": 20.0,
+          "hunger": 19.04479598999023,
+          "x": 0.5,
+          "y": 64.0
+        }
+      },
+      {
+        "prompt": "Build a small stone watchtower to the east with a doorway I can walk through.",
+        "plan": {
+          "message": "A small stone watchtower stands east of you, with a two-block doorway, ladder and torch.",
+          "actions": [
+            {
+              "type": "structure",
+              "name": "Stone watchtower",
+              "side": "east",
+              "distance": 16,
+              "blocks": [
+                {
+                  "x": 0,
+                  "y": -6,
+                  "width": 1,
+                  "height": 4,
+                  "block": "stone_bricks"
+                },
+                {
+                  "x": 5,
+                  "y": -6,
+                  "width": 1,
+                  "height": 6,
+                  "block": "stone_bricks"
+                },
+                {
+                  "x": 1,
+                  "y": -6,
+                  "width": 4,
+                  "height": 1,
+                  "block": "stone_bricks"
+                },
+                {
+                  "x": 1,
+                  "y": -3,
+                  "width": 3,
+                  "height": 1,
+                  "block": "planks"
+                },
+                {
+                  "x": 4,
+                  "y": -5,
+                  "width": 1,
+                  "height": 5,
+                  "block": "ladder"
+                },
+                {
+                  "x": 2,
+                  "y": -2,
+                  "width": 1,
+                  "height": 1,
+                  "block": "torch"
+                }
+              ]
+            }
+          ]
+        },
+        "status": "applied",
+        "repairs": 0,
+        "request_to_application_seconds": 9.227,
+        "player": {
+          "health": 20.0,
+          "hunger": 18.599700927734375,
+          "x": 0.5,
+          "y": 64.0
+        }
+      },
+      {
+        "prompt": "Give me a hard battle at dusk: zombies and skeletons approaching from the east.",
+        "plan": {
+          "message": "At dusk, four zombies and two skeletons approach from the east. Use the tower for cover; this is a finite wave.",
+          "actions": [
+            {
+              "type": "time",
+              "phase": "dusk"
+            },
+            {
+              "type": "spawn",
+              "mob": "zombie",
+              "count": 4,
+              "side": "east",
+              "distance": 28
+            },
+            {
+              "type": "spawn",
+              "mob": "skeleton",
+              "count": 2,
+              "side": "east",
+              "distance": 36
+            }
+          ]
+        },
+        "status": "applied",
+        "repairs": 0,
+        "request_to_application_seconds": 7.179,
+        "player": {
+          "health": 20.0,
+          "hunger": 18.25962829589844,
+          "x": 0.5,
+          "y": 64.0
+        }
+      }
+    ],
+    "captured_frames": 68,
+    "limits": "One scripted Linux terminal session with the current Codex task, not an uncoached Claude/Codex registration test or model comparison. Captures are an automated local development demo, not human co-op."
+  },
+  "additional_observation": "An earlier live tower request expired after 90 seconds while the author inspected geometry. It was rejected rather than applied; the successful captured session used four fresh requests. A ladder-over-cave surface search defect found in that session has a dedicated atomic-plan regression.",
+  "final_verification": {
+    "unit_tests": 563,
+    "stable": "1.98.1",
+    "minimum_rust": "1.88.0",
+    "strict_clippy_both_toolchains": true,
+    "real_tcp_regressions": 3,
+    "ssh_repeated_runs_passed": 3,
+    "native_chat_provider_after_surface_fix": true,
+    "current_binary_sha256": "8ea94a9010d6812de0270230589023e72b414c2be7298cea3c9d7911fd54f897",
+    "interactive_capture_precedes_final_surface_fix": true
+  }
+}

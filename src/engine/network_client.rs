@@ -1,11 +1,14 @@
+#[path = "client_identity.rs"]
+mod identity;
 use super::command::ClientCommand;
 use super::net::{
-    ChunkDeltaPacket, ClientInputFrame, ClientPredictionState, SERVER_TICK_RATE, ServerSnapshot,
-    ServerWireMessage, read_framed_server_message, write_framed_client_input,
+    ChunkDeltaPacket, ClientHello, ClientInputFrame, ClientPredictionState, NET_PROTOCOL_VERSION,
+    SERVER_TICK_RATE, ServerSnapshot, ServerWireMessage, read_framed_server_message,
+    write_client_hello, write_framed_client_chat, write_framed_client_input,
 };
 use super::state::GameState;
 use crate::renderer::Renderer;
-use crate::world::item::ItemStack;
+
 use crate::world::{Dimension, World};
 use crossterm::event::{
     self, Event, KeyCode, KeyEventKind, KeyModifiers, ModifierKeyCode, MouseEventKind,
@@ -19,10 +22,10 @@ use std::time::{Duration, Instant};
 
 const CLIENT_TICK_DURATION: Duration = Duration::from_millis(1000 / SERVER_TICK_RATE);
 const CLIENT_MAX_CATCHUP_TICKS_PER_FRAME: u8 = 5;
-const CLIENT_TARGET_FPS: u64 = 30;
+const CLIENT_TARGET_FPS: u64 = 60;
 const CLIENT_FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / CLIENT_TARGET_FPS);
-// Multiplayer still needs a fallback when a terminal drops key-release events,
-// but the timeout must be long enough to survive normal repeat delays.
+// Bounded fallback for legacy terminals without key-up events. Enhanced terminals
+// retain held controls until a real release or focus/modal transition.
 const REMOTE_HORIZONTAL_STALE_TIMEOUT: Duration = Duration::from_millis(150);
 const REMOTE_JUMP_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(340);
 const REMOTE_JUMP_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(160);
@@ -33,8 +36,8 @@ fn queue_client_command(
     pending_outbound: &mut VecDeque<ClientInputFrame>,
     command: ClientCommand,
 ) {
-    let frame = prediction.queue_local_command(command);
-    pending_outbound.push_back(frame);
+    prediction.queue_local_command(command);
+    pending_outbound.extend(prediction.take_outbound_inputs());
 }
 
 fn flush_outbound_commands(
@@ -88,10 +91,21 @@ fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerSnapshot) {
     let target_dimension: Dimension = snapshot.dimension.into();
     if state.current_dimension != target_dimension {
         state.current_dimension = target_dimension;
-        state.world = World::new_for_dimension(target_dimension);
+        state.world = World::network_replica(target_dimension);
         clear_remote_runtime_entities(state);
     }
 
+    state.chat.lines = snapshot.chat.lines.clone();
+    state.chat.status = snapshot.chat.status.clone();
+    state.chat.mode = snapshot.chat.mode.clone();
+    state.chat.pending = snapshot.chat.pending;
+    let _ = snapshot.settings.apply(state);
+    snapshot.session.apply(state);
+    snapshot.entities.apply(state);
+    state.thunder_flash_timer = snapshot.thunder_flash;
+    state.weather_rain_intensity = snapshot.rain_intensity;
+    state.weather_wind_intensity = snapshot.wind_intensity;
+    state.weather_thunder_intensity = snapshot.thunder_intensity;
     state.weather = snapshot.weather.into();
     state.time_of_day = snapshot.time_of_day;
     state.inventory_open = snapshot.inventory_open;
@@ -131,15 +145,16 @@ fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerSnapshot) {
         .load_chunks_for_motion(state.player.x, state.player.vx);
 
     state.hotbar_index = snapshot.hotbar_index.min(8);
-    for slot in 0..9 {
-        state.inventory.slots[slot] = None;
+    if let Some((x, y, inventory)) = &snapshot.chest
+        && let Some(chest) = state
+            .world
+            .ensure_chest_inventory(*x, *y, inventory.capacity)
+    {
+        *chest = inventory.clone();
     }
-    let slot_idx = state.hotbar_index as usize;
-    state.inventory.slots[slot_idx] = snapshot.selected_hotbar_item.map(|item_type| ItemStack {
-        item_type,
-        count: 1,
-        durability: None,
-    });
+    let _ = state
+        .world
+        .trim_chunk_cache(&[state.player.x.floor() as i32], 0);
 }
 
 fn is_jump_key(code: &KeyCode) -> bool {
@@ -153,6 +168,9 @@ fn apply_chunk_delta_to_state(state: &mut GameState, delta: &ChunkDeltaPacket) {
     }
 
     for chunk in &delta.chunks {
+        state
+            .world
+            .apply_replica_biomes(chunk.chunk_x, &chunk.biomes);
         let _ = state
             .world
             .apply_chunk_column_snapshot(chunk.chunk_x, &chunk.blocks);
@@ -188,7 +206,7 @@ fn sync_remote_sneak_hold(
 
 fn spawn_server_message_reader(
     mut reader: TcpStream,
-    tx: mpsc::Sender<io::Result<ServerWireMessage>>,
+    tx: mpsc::SyncSender<io::Result<ServerWireMessage>>,
 ) {
     thread::spawn(move || {
         loop {
@@ -208,38 +226,71 @@ fn spawn_server_message_reader(
 }
 
 pub fn run_tcp_client(connect_addr: &str) -> io::Result<()> {
+    run_tcp_client_with_profile(connect_addr, "player")
+}
+
+pub fn run_tcp_client_with_profile(connect_addr: &str, profile: &str) -> io::Result<()> {
+    run_tcp_client_with_identity(connect_addr, profile, connect_addr)
+}
+pub(crate) fn run_tcp_client_with_identity(
+    connect_addr: &str,
+    profile: &str,
+    identity_addr: &str,
+) -> io::Result<()> {
+    let previous = identity::read(identity_addr, profile)?;
     let mut writer = TcpStream::connect(connect_addr)?;
     writer.set_nodelay(true)?;
     writer.set_write_timeout(Some(Duration::from_millis(16)))?;
+    writer.set_read_timeout(Some(Duration::from_secs(5)))?;
+    write_client_hello(
+        &mut writer,
+        &ClientHello {
+            protocol: NET_PROTOCOL_VERSION,
+            token: previous.as_ref().map(|p| p.token.clone()),
+        },
+    )?;
+    let welcome = match read_framed_server_message(&mut writer)? {
+        ServerWireMessage::Welcome(w) => w,
+        ServerWireMessage::Rejected(_, message) => return Err(io::Error::other(message)),
+        _ => return Err(io::Error::other("server did not send a welcome")),
+    };
+    identity::store(identity_addr, profile, previous.as_ref(), &welcome)?;
+    writer.set_read_timeout(None)?;
     let reader = writer.try_clone()?;
     reader.set_nodelay(true)?;
 
-    let (server_msg_tx, server_msg_rx) = mpsc::channel::<io::Result<ServerWireMessage>>();
-    spawn_server_message_reader(reader, server_msg_tx);
-
+    let (server_msg_tx, server_msg_rx) = mpsc::sync_channel::<io::Result<ServerWireMessage>>(128);
     let mut renderer = Renderer::new()?;
-    renderer.init()?;
+    if let Err(error) = renderer.init() {
+        let _ = renderer.restore();
+        return Err(error);
+    }
 
-    let result = run_tcp_client_loop(&mut writer, &server_msg_rx, &mut renderer);
-    renderer.restore()?;
-    result
+    spawn_server_message_reader(reader, server_msg_tx);
+    let result = run_tcp_client_loop(
+        &mut writer,
+        &server_msg_rx,
+        &mut renderer,
+        welcome.client_id,
+    );
+    let _ = writer.shutdown(std::net::Shutdown::Both);
+    result.and(renderer.restore())
 }
 
 fn run_tcp_client_loop(
     writer: &mut TcpStream,
     server_msg_rx: &mpsc::Receiver<io::Result<ServerWireMessage>>,
     renderer: &mut Renderer,
+    client_id: u16,
 ) -> io::Result<()> {
-    let mut state = GameState::new();
+    let mut state = GameState::network_view();
     clear_remote_runtime_entities(&mut state);
-    for slot in &mut state.inventory.slots {
-        *slot = None;
-    }
+    state.inventory.slots.fill(None);
     state.inventory_open = false;
     state.mouse_x = 0;
     state.mouse_y = 0;
 
-    let mut prediction = ClientPredictionState::new(1);
+    let mut prediction = ClientPredictionState::new(client_id);
     let mut pending_outbound = VecDeque::<ClientInputFrame>::new();
 
     let mut left_active = false;
@@ -254,13 +305,75 @@ fn run_tcp_client_loop(
     let mut last_tick = Instant::now();
     let mut next_frame_deadline = Instant::now();
     let mut running = true;
+    let mut last_heartbeat = Instant::now();
+    let mut key_releases = renderer.reports_key_releases();
 
     while running {
         while event::poll(Duration::from_millis(0))? {
             let ev = event::read()?;
+            if matches!(&ev, Event::Key(key) if key.kind == KeyEventKind::Release) {
+                key_releases = true;
+                renderer.note_key_release();
+            }
+            if state.chat.open {
+                match &ev {
+                    Event::Key(key) if key.kind != KeyEventKind::Release => match key.code {
+                        KeyCode::Esc => state.chat.open = false,
+                        KeyCode::Enter => {
+                            if state.chat.mode == "host-only" {
+                                state.chat.open = false;
+                                continue;
+                            }
+                            let prompt = std::mem::take(&mut state.chat.draft);
+                            flush_outbound_commands(writer, &mut pending_outbound)?;
+                            write_framed_client_chat(writer, &prompt)?;
+                            state.chat.open = false;
+                        }
+                        KeyCode::Backspace => {
+                            state.chat.draft.pop();
+                        }
+                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            if state.chat.mode != "host-only" {
+                                flush_outbound_commands(writer, &mut pending_outbound)?;
+                                write_framed_client_chat(writer, "/cancel")?;
+                            }
+                        }
+                        KeyCode::Char(c)
+                            if !key
+                                .modifiers
+                                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                        {
+                            state.chat.insert(&c.to_string())
+                        }
+                        _ => {}
+                    },
+                    Event::Paste(text) => state.chat.insert(text),
+                    _ => {}
+                }
+                continue;
+            }
             match ev {
                 Event::Key(key_event) => match key_event.kind {
                     KeyEventKind::Press => match key_event.code {
+                        KeyCode::Char('t' | 'T') if !state.inventory_open => {
+                            for command in [
+                                ClientCommand::ClearDirectionalInput,
+                                ClientCommand::SetPrimaryAction(false),
+                                ClientCommand::SetJumpHeld(false),
+                            ] {
+                                queue_client_command(
+                                    &mut prediction,
+                                    &mut pending_outbound,
+                                    command,
+                                );
+                            }
+                            left_active = false;
+                            right_active = false;
+                            jump_held_sent = false;
+                            state.chat.open = true;
+                        }
+                        KeyCode::F(4) => renderer.toggle_zoom(),
+                        KeyCode::F(3) => state.show_debug_overlay = !state.show_debug_overlay,
                         KeyCode::Char('q') | KeyCode::Esc => {
                             if state.inventory_open {
                                 queue_client_command(
@@ -362,6 +475,18 @@ fn run_tcp_client_loop(
                                 ClientCommand::ToggleSneak,
                             );
                         }
+                        KeyCode::Delete if state.inventory_open => queue_client_command(
+                            &mut prediction,
+                            &mut pending_outbound,
+                            ClientCommand::ClearCraftGrid,
+                        ),
+                        KeyCode::Enter if state.inventory_open => queue_client_command(
+                            &mut prediction,
+                            &mut pending_outbound,
+                            ClientCommand::CraftGrid(
+                                key_event.modifiers.contains(KeyModifiers::SHIFT),
+                            ),
+                        ),
                         KeyCode::Enter | KeyCode::Char('r') => {
                             if state.is_showing_death_screen() {
                                 queue_client_command(
@@ -377,9 +502,7 @@ fn run_tcp_client_loop(
                                 );
                             }
                         }
-                        KeyCode::Char(c)
-                            if c.eq_ignore_ascii_case(&'a') || key_event.code == KeyCode::Left =>
-                        {
+                        KeyCode::Left | KeyCode::Char('a' | 'A') => {
                             left_last_input_at = Some(Instant::now());
                             if !left_active {
                                 left_active = true;
@@ -398,9 +521,7 @@ fn run_tcp_client_loop(
                                 );
                             }
                         }
-                        KeyCode::Char(c)
-                            if c.eq_ignore_ascii_case(&'d') || key_event.code == KeyCode::Right =>
-                        {
+                        KeyCode::Right | KeyCode::Char('d' | 'D') => {
                             right_last_input_at = Some(Instant::now());
                             if !right_active {
                                 right_active = true;
@@ -588,22 +709,96 @@ fn run_tcp_client_loop(
                 Event::Mouse(mouse_event) => {
                     state.mouse_x = mouse_event.column;
                     state.mouse_y = mouse_event.row;
-                    if matches!(
-                        mouse_event.kind,
-                        MouseEventKind::Down(crossterm::event::MouseButton::Right)
-                            | MouseEventKind::Drag(crossterm::event::MouseButton::Right)
-                    ) && !state.inventory_open
-                    {
-                        let (bx, by) =
-                            renderer.screen_to_world(&state, state.mouse_x, state.mouse_y);
+                    let (bx, by) = renderer.screen_to_world(&state, state.mouse_x, state.mouse_y);
+                    if !state.inventory_open {
                         queue_client_command(
                             &mut prediction,
                             &mut pending_outbound,
-                            ClientCommand::UseAt(bx, by),
+                            ClientCommand::AimAt(bx, by),
                         );
                     }
-                    if matches!(mouse_event.kind, MouseEventKind::Up(_)) {
-                        state.left_click_down = false;
+                    match mouse_event.kind {
+                        MouseEventKind::Down(button) if state.inventory_open => {
+                            if let Some(slot) = renderer.get_inventory_click(
+                                &state,
+                                mouse_event.column,
+                                mouse_event.row,
+                            ) {
+                                let kind = if mouse_event.modifiers.contains(KeyModifiers::SHIFT) {
+                                    2
+                                } else if button == crossterm::event::MouseButton::Right {
+                                    1
+                                } else {
+                                    0
+                                };
+                                queue_client_command(
+                                    &mut prediction,
+                                    &mut pending_outbound,
+                                    ClientCommand::InventoryClick(slot as u16, kind),
+                                );
+                            } else {
+                                let command = if let Some(i) = renderer.get_enchant_option_click(
+                                    &state,
+                                    mouse_event.column,
+                                    mouse_event.row,
+                                ) {
+                                    Some(ClientCommand::Enchant(i as u8))
+                                } else if renderer.get_anvil_action_click(
+                                    &state,
+                                    mouse_event.column,
+                                    mouse_event.row,
+                                ) {
+                                    Some(ClientCommand::Anvil)
+                                } else if let Some(i) = renderer.get_brewing_option_click(
+                                    &state,
+                                    mouse_event.column,
+                                    mouse_event.row,
+                                ) {
+                                    Some(ClientCommand::Brew(i as u8))
+                                } else {
+                                    renderer
+                                        .get_recipe_click(
+                                            &state,
+                                            mouse_event.column,
+                                            mouse_event.row,
+                                        )
+                                        .map(|i| ClientCommand::CraftRecipe(i as u16))
+                                };
+                                if let Some(command) = command {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        command,
+                                    );
+                                }
+                            }
+                        }
+                        MouseEventKind::Down(crossterm::event::MouseButton::Left)
+                            if !state.inventory_open =>
+                        {
+                            queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::SetPrimaryAction(true),
+                            )
+                        }
+                        MouseEventKind::Up(crossterm::event::MouseButton::Left) => {
+                            queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::SetPrimaryAction(false),
+                            )
+                        }
+                        MouseEventKind::Down(crossterm::event::MouseButton::Right)
+                            if !state.inventory_open =>
+                        {
+                            queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::UseAt(bx, by),
+                            )
+                        }
+                        _ => {}
                     }
                     sync_remote_sneak_hold(
                         &mut prediction,
@@ -613,6 +808,11 @@ fn run_tcp_client_loop(
                     );
                 }
                 Event::FocusLost => {
+                    queue_client_command(
+                        &mut prediction,
+                        &mut pending_outbound,
+                        ClientCommand::SetPrimaryAction(false),
+                    );
                     if left_active || right_active {
                         left_active = false;
                         right_active = false;
@@ -657,7 +857,8 @@ fn run_tcp_client_loop(
         }
 
         let now = Instant::now();
-        if left_active
+        if !key_releases
+            && left_active
             && left_last_input_at
                 .is_none_or(|ts| now.duration_since(ts) > REMOTE_HORIZONTAL_STALE_TIMEOUT)
         {
@@ -669,7 +870,8 @@ fn run_tcp_client_loop(
                 ClientCommand::SetMoveLeft(false),
             );
         }
-        if right_active
+        if !key_releases
+            && right_active
             && right_last_input_at
                 .is_none_or(|ts| now.duration_since(ts) > REMOTE_HORIZONTAL_STALE_TIMEOUT)
         {
@@ -681,7 +883,8 @@ fn run_tcp_client_loop(
                 ClientCommand::SetMoveRight(false),
             );
         }
-        if jump_held_sent
+        if !key_releases
+            && jump_held_sent
             && jump_last_input_at.is_none_or(|ts| {
                 now.duration_since(ts)
                     > if jump_repeat_observed {
@@ -705,7 +908,11 @@ fn run_tcp_client_loop(
         while now.duration_since(last_tick) >= CLIENT_TICK_DURATION
             && catchup_ticks < CLIENT_MAX_CATCHUP_TICKS_PER_FRAME
         {
+            renderer.capture_motion_step(&state);
             prediction.advance_local_tick();
+            if let Some(predicted) = prediction.predicted_snapshot() {
+                sync_state_from_snapshot(&mut state, predicted);
+            }
             last_tick += CLIENT_TICK_DURATION;
             catchup_ticks = catchup_ticks.saturating_add(1);
         }
@@ -715,6 +922,15 @@ fn run_tcp_client_loop(
             last_tick = now;
         }
 
+        if now.duration_since(last_heartbeat) >= Duration::from_millis(250) {
+            let (x, y) = renderer.screen_to_world(&state, state.mouse_x, state.mouse_y);
+            queue_client_command(
+                &mut prediction,
+                &mut pending_outbound,
+                ClientCommand::AimAt(x, y),
+            );
+            last_heartbeat = now;
+        }
         flush_outbound_commands(writer, &mut pending_outbound)?;
 
         loop {
@@ -722,6 +938,12 @@ fn run_tcp_client_loop(
                 Ok(Ok(message)) => {
                     prediction.apply_server_message(message.clone());
                     match message {
+                        ServerWireMessage::Welcome(_) => {
+                            return Err(io::Error::other("unexpected second welcome"));
+                        }
+                        ServerWireMessage::Rejected(_, message) => {
+                            return Err(io::Error::other(message));
+                        }
                         ServerWireMessage::Snapshot(snapshot) => {
                             sync_state_from_snapshot(&mut state, &snapshot);
                         }
@@ -747,18 +969,15 @@ fn run_tcp_client_loop(
             sync_state_from_snapshot(&mut state, authoritative);
         }
 
-        let frame_alpha = (now.duration_since(last_tick).as_secs_f64()
-            / CLIENT_TICK_DURATION.as_secs_f64())
-        .clamp(0.0, 1.0);
-        renderer.render(&state, frame_alpha)?;
-
-        next_frame_deadline += CLIENT_FRAME_DURATION;
-        let after_render = Instant::now();
-        if after_render < next_frame_deadline {
-            thread::sleep(next_frame_deadline - after_render);
-        } else if after_render.duration_since(next_frame_deadline) > CLIENT_FRAME_DURATION {
-            next_frame_deadline = after_render;
+        if now >= next_frame_deadline {
+            let frame_alpha = (now.duration_since(last_tick).as_secs_f64()
+                / CLIENT_TICK_DURATION.as_secs_f64())
+            .clamp(0.0, 1.0);
+            renderer.render(&state, frame_alpha)?;
+            next_frame_deadline = now + CLIENT_FRAME_DURATION;
         }
+        let wake_at = next_frame_deadline.min(last_tick + CLIENT_TICK_DURATION);
+        event::poll(wake_at.saturating_duration_since(Instant::now()))?;
     }
 
     Ok(())
@@ -794,6 +1013,13 @@ mod tests {
         snapshot.player.max_hunger = 20.0;
         snapshot.hotbar_index = 4;
         snapshot.selected_hotbar_item = Some(ItemType::Bow);
+        let mut source = GameState::network_view();
+        source.inventory.slots[4] = Some(crate::world::item::ItemStack {
+            item_type: ItemType::Bow,
+            count: 1,
+            durability: None,
+        });
+        snapshot.session = crate::engine::state::PlayerSession::capture(&source);
         snapshot.inventory_open = true;
         snapshot.death_screen_active = true;
 
@@ -842,6 +1068,7 @@ mod tests {
             chunks: vec![ChunkColumnSnapshot {
                 chunk_x: 0,
                 revision: 1,
+                biomes: vec![crate::world::BiomeType::Plains; CHUNK_WIDTH],
                 blocks,
             }],
         };
@@ -870,11 +1097,65 @@ mod tests {
             chunks: vec![ChunkColumnSnapshot {
                 chunk_x: 0,
                 revision: 1,
+                biomes: vec![crate::world::BiomeType::Plains; CHUNK_WIDTH],
                 blocks,
             }],
         };
 
         apply_chunk_delta_to_state(&mut state, &delta);
         assert_eq!(state.world.get_block(3, 10), BlockType::Air);
+    }
+    #[test]
+    fn replica_uses_server_biomes_and_prunes_dirty_container_chunks_without_saving() {
+        let mut state = GameState::network_view();
+        assert!(!state.is_showing_startup_splash());
+        assert_eq!(state.world.loaded_chunk_count(), 0);
+        let mut blocks = vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT];
+        blocks[10 * CHUNK_WIDTH + 3] = BlockType::Chest;
+        let delta = ChunkDeltaPacket {
+            protocol: NET_PROTOCOL_VERSION,
+            tick: 1,
+            dimension: SnapshotDimension::Overworld,
+            center_chunk_x: 0,
+            chunks: vec![ChunkColumnSnapshot {
+                chunk_x: 0,
+                revision: 1,
+                blocks,
+                biomes: vec![crate::world::BiomeType::Desert; CHUNK_WIDTH],
+            }],
+        };
+        apply_chunk_delta_to_state(&mut state, &delta);
+        assert_eq!(state.world.get_biome(3), crate::world::BiomeType::Desert);
+        state
+            .world
+            .ensure_chest_inventory(3, 10, 27)
+            .unwrap()
+            .add_item(ItemType::Diamond, 8);
+        assert!(state.world.try_save_all().is_err());
+        assert_eq!(state.world.trim_chunk_cache(&[640], 0).unwrap(), 1);
+        assert_eq!(state.world.loaded_chunk_count(), 0);
+    }
+    #[test]
+    fn full_snapshot_carries_inventory_counts_durability_and_live_entities() {
+        let mut source = GameState::network_view();
+        source.inventory.add_item(ItemType::Wood, 23);
+        source.inventory.slots[1] = Some(crate::world::item::ItemStack {
+            item_type: ItemType::Bow,
+            count: 1,
+            durability: Some(123),
+        });
+        source
+            .zombies
+            .push(crate::entities::zombie::Zombie::new(2.5, 10.0));
+        let snapshot = ServerSnapshot::from_state(5, &source);
+        let mut client = GameState::network_view();
+        sync_state_from_snapshot(&mut client, &snapshot);
+        assert_eq!(client.inventory, source.inventory);
+        assert_eq!(client.zombies, source.zombies);
+        assert_eq!(client.inventory.slots[0].as_ref().unwrap().count, 23);
+        assert_eq!(
+            client.inventory.slots[1].as_ref().unwrap().durability,
+            Some(123)
+        );
     }
 }

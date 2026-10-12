@@ -60,8 +60,10 @@ Set `TERMCRAFT_SAVE_DIR` to override this location.
 
 ## Notes
 
+- The development checkout includes experimental in-game AI game master chat, an MCP interface and generated worlds. See `docs/agents.md` in the source package for configuration and limits. Shared host-controlled authoring works with your existing LLM through `/connect`; active LLM players are optional. These additions are not in the published 0.1.0 release.
+
 - The primary supported mode right now is local single-player.
-- Client/server code exists, but it is still experimental and is not a featured public mode yet.
+- The development checkout includes experimental Overworld co-op, reconnect saves and an SSH join command. Native archive packaging and platform qualification are described in `docs/distribution.md`.
 - The crates.io package is intended as an installable game binary. The Rust module layout is not a stable public library API yet.
 
 ## Links

@@ -148,7 +148,7 @@ impl GameRulesPreset {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 enum MovementProfile {
     Classic,
     Smooth,
@@ -166,7 +166,7 @@ struct MovementTuning {
     air_drag: f64,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct FurnaceJob {
     input: ItemType,
     input_count: u32,
@@ -174,7 +174,7 @@ struct FurnaceJob {
     output_count: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LightningBolt {
     pub x: i32,
     pub y_top: i32,
@@ -327,7 +327,8 @@ const SETTINGS_MENU_ROW_DAYLIGHT_CYCLE: u8 = 3;
 const SETTINGS_MENU_ROW_WEATHER_CYCLE: u8 = 4;
 const SETTINGS_MENU_ROW_KEEP_INVENTORY: u8 = 5;
 const SETTINGS_MENU_ROW_CLOSE: u8 = 6;
-const PLAYER_PROGRESS_VERSION: u16 = 6;
+const PLAYER_PROGRESS_VERSION: u16 = 7;
+const PLAYER_PROGRESS_VERSION_V6: u16 = 6;
 const PLAYER_PROGRESS_VERSION_V5: u16 = 5;
 const PLAYER_PROGRESS_VERSION_V4: u16 = 4;
 const PLAYER_PROGRESS_VERSION_V3: u16 = 3;
@@ -381,6 +382,9 @@ const BOAT_WATER_DRAG: f64 = 0.82;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct PlayerProgressSaveData {
+    // Kept out of the legacy wire layout so versions 1–6 remain readable.
+    #[serde(skip)]
+    complete_session: Option<PlayerSession>,
     version: u16,
     player_x: f64,
     player_y: f64,
@@ -421,6 +425,13 @@ struct PlayerProgressSaveData {
     rule_do_daylight_cycle: bool,
     rule_do_weather_cycle: bool,
     rule_keep_inventory: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PlayerCheckpointV7 {
+    version: u16,
+    progress: PlayerProgressSaveData,
+    session: PlayerSession,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -608,6 +619,7 @@ struct PlayerProgressSaveDataV1 {
 impl From<PlayerProgressSaveDataV1> for PlayerProgressSaveData {
     fn from(v1: PlayerProgressSaveDataV1) -> Self {
         Self {
+            complete_session: None,
             version: PLAYER_PROGRESS_VERSION,
             player_x: v1.player_x,
             player_y: v1.player_y,
@@ -655,6 +667,7 @@ impl From<PlayerProgressSaveDataV1> for PlayerProgressSaveData {
 impl From<PlayerProgressSaveDataV5> for PlayerProgressSaveData {
     fn from(v5: PlayerProgressSaveDataV5) -> Self {
         Self {
+            complete_session: None,
             version: PLAYER_PROGRESS_VERSION,
             player_x: v5.player_x,
             player_y: v5.player_y,
@@ -702,6 +715,7 @@ impl From<PlayerProgressSaveDataV5> for PlayerProgressSaveData {
 impl From<PlayerProgressSaveDataV4> for PlayerProgressSaveData {
     fn from(v4: PlayerProgressSaveDataV4) -> Self {
         Self {
+            complete_session: None,
             version: PLAYER_PROGRESS_VERSION,
             player_x: v4.player_x,
             player_y: v4.player_y,
@@ -749,6 +763,7 @@ impl From<PlayerProgressSaveDataV4> for PlayerProgressSaveData {
 impl From<PlayerProgressSaveDataV3> for PlayerProgressSaveData {
     fn from(v3: PlayerProgressSaveDataV3) -> Self {
         Self {
+            complete_session: None,
             version: PLAYER_PROGRESS_VERSION,
             player_x: v3.player_x,
             player_y: v3.player_y,
@@ -802,6 +817,7 @@ impl From<PlayerProgressSaveDataV2> for PlayerProgressSaveData {
             _ => GameRulesPreset::Vanilla.rules(),
         };
         Self {
+            complete_session: None,
             version: PLAYER_PROGRESS_VERSION,
             player_x: v2.player_x,
             player_y: v2.player_y,
@@ -846,7 +862,17 @@ impl From<PlayerProgressSaveDataV2> for PlayerProgressSaveData {
     }
 }
 
+#[path = "actors.rs"]
+mod actors;
+pub use actors::{PlayerSession, SharedSettings};
+
 pub struct GameState {
+    active_peer: Option<u16>,
+    cooperative_players: std::collections::BTreeMap<u16, PlayerSession>,
+    pub chat: super::director::ChatView,
+    pub performance: super::metrics::PerformanceMetrics,
+    pub show_debug_overlay: bool,
+    pub save_error: std::cell::RefCell<Option<String>>,
     pub player: Player,
     pub remote_players: Vec<RemotePlayerState>,
     pub inventory: Inventory,
@@ -1296,6 +1322,12 @@ impl GameState {
     }
 
     fn progression_spawn_point(world: &mut World, center_x: i32) -> (i32, f64) {
+        if center_x == 0
+            && let Some((x, y)) = world.designed_spawn()
+            && Self::is_safe_spawn_column(world, x, y, true)
+        {
+            return (x, y as f64 - 0.1);
+        }
         world.load_chunks_for_spawn_search(center_x, 64);
         if let Some((x, y)) = Self::find_best_progression_spawn_in_radius(world, center_x, 56) {
             return (x, y as f64 - 0.1);
@@ -1390,8 +1422,35 @@ impl GameState {
 
     fn load_progression_data_from_path(path: impl AsRef<Path>) -> Option<PlayerProgressSaveData> {
         let encoded = std::fs::read(path.as_ref()).ok()?;
-        if let Ok(data) = bincode::deserialize::<PlayerProgressSaveData>(&encoded) {
-            if data.version == PLAYER_PROGRESS_VERSION {
+        if encoded.len() > 1024 * 1024 {
+            return None;
+        }
+        if encoded.get(..2)? == PLAYER_PROGRESS_VERSION.to_le_bytes() {
+            use bincode::Options;
+            let checkpoint: PlayerCheckpointV7 = bincode::DefaultOptions::new()
+                .with_fixint_encoding()
+                .with_limit(1024 * 1024)
+                .reject_trailing_bytes()
+                .deserialize(&encoded)
+                .ok()?;
+            let mut data = checkpoint.progress;
+            checkpoint.session.validate().ok()?;
+            if checkpoint.version != PLAYER_PROGRESS_VERSION
+                || data.version != PLAYER_PROGRESS_VERSION
+                || Self::decode_dimension(data.current_dimension_code).is_none()
+                || !data.time_of_day.is_finite()
+                || !data.weather_rain_intensity.is_finite()
+                || !data.weather_wind_intensity.is_finite()
+                || !data.weather_thunder_intensity.is_finite()
+            {
+                return None;
+            }
+            data.complete_session = Some(checkpoint.session);
+            return Some(data);
+        }
+        if let Ok(mut data) = bincode::deserialize::<PlayerProgressSaveData>(&encoded) {
+            if data.version == PLAYER_PROGRESS_VERSION_V6 {
+                data.version = PLAYER_PROGRESS_VERSION;
                 return Some(data);
             }
             return None;
@@ -1438,7 +1497,7 @@ impl GameState {
         {
             let mut file = File::create(&temp_path)?;
             file.write_all(payload)?;
-            file.flush()?;
+            file.sync_all()?;
         }
         if let Err(err) = std::fs::rename(&temp_path, path) {
             let _ = std::fs::remove_file(&temp_path);
@@ -1447,11 +1506,12 @@ impl GameState {
         Ok(())
     }
 
+    #[cfg(test)]
     fn save_progression_data_to_path(
         path: impl AsRef<Path>,
         data: &PlayerProgressSaveData,
     ) -> Option<()> {
-        let encoded = bincode::serialize(data).ok()?;
+        let encoded = Self::encode_progression(data).ok()?;
         Self::write_progression_payload_atomically(path.as_ref(), &encoded).ok()?;
         Some(())
     }
@@ -1466,6 +1526,7 @@ impl GameState {
 
     fn to_progression_save_data(&self) -> PlayerProgressSaveData {
         PlayerProgressSaveData {
+            complete_session: Some(PlayerSession::capture(self)),
             version: PLAYER_PROGRESS_VERSION,
             player_x: self.player.x,
             player_y: self.player.y,
@@ -1509,12 +1570,44 @@ impl GameState {
         }
     }
 
+    fn encode_progression(data: &PlayerProgressSaveData) -> bincode::Result<Vec<u8>> {
+        if let Some(session) = &data.complete_session {
+            bincode::serialize(&PlayerCheckpointV7 {
+                version: PLAYER_PROGRESS_VERSION,
+                progress: data.clone(),
+                session: session.clone(),
+            })
+        } else {
+            // Legacy fixtures; new runtime checkpoints always contain a full session.
+            bincode::serialize(data)
+        }
+    }
+
     pub fn save_progression(&self) {
-        if cfg!(test) {
+        if cfg!(test) || self.cooperative() {
             return;
         }
-        let data = self.to_progression_save_data();
-        let _ = Self::save_progression_data_to_path(Self::progression_path(), &data);
+        if let Err(error) = self.try_save_progression() {
+            self.save_error
+                .replace(Some(format!("Player save failed: {error}")));
+        }
+    }
+
+    pub fn try_save_progression(&self) -> std::io::Result<()> {
+        self.world.check_storage()?;
+        let encoded = Self::encode_progression(&self.to_progression_save_data())
+            .map_err(std::io::Error::other)?;
+        Self::write_progression_payload_atomically(
+            &self.world.save_root().join(PLAYER_PROGRESS_FILE),
+            &encoded,
+        )
+    }
+
+    pub(crate) fn write_recovery_directory(&self, root: &std::path::Path) -> std::io::Result<()> {
+        self.world.write_recovery_directory(root)?;
+        let encoded = Self::encode_progression(&self.to_progression_save_data())
+            .map_err(std::io::Error::other)?;
+        Self::write_progression_payload_atomically(&root.join(PLAYER_PROGRESS_FILE), &encoded)
     }
 
     pub fn autosave_world_step(&mut self, max_chunks: usize) -> bool {
@@ -1522,8 +1615,35 @@ impl GameState {
     }
 
     pub fn persist_world_and_progress(&mut self) {
-        self.world.save_all();
-        self.save_progression();
+        if let Err(error) = self.try_persist_world_and_progress() {
+            self.save_error
+                .replace(Some(format!("Save failed: {error}")));
+        }
+    }
+
+    pub fn try_persist_world_and_progress(&mut self) -> std::io::Result<()> {
+        self.world.try_save_all()?;
+        self.try_save_progression()?;
+        self.save_error.replace(None);
+        Ok(())
+    }
+
+    fn save_before_dimension_change(&mut self) -> bool {
+        let result = self.world.try_save_all().and_then(|()| {
+            if cfg!(test) {
+                Ok(())
+            } else {
+                self.try_save_progression()
+            }
+        });
+        match result {
+            Ok(()) => true,
+            Err(error) => {
+                self.save_error
+                    .replace(Some(format!("Travel cancelled; save failed: {error}")));
+                false
+            }
+        }
     }
 
     pub fn new() -> Self {
@@ -1532,13 +1652,48 @@ impl GameState {
             .as_ref()
             .and_then(|saved| Self::decode_dimension(saved.current_dimension_code))
             .unwrap_or(Dimension::Overworld);
+        Self::from_progress(progress, World::new_for_dimension(dimension))
+    }
+
+    pub(crate) fn network_view() -> Self {
+        let mut state = Self::from_progress(None, World::network_replica(Dimension::Overworld));
+        state.dismiss_startup_splash();
+        state
+    }
+
+    pub fn try_new() -> std::io::Result<Self> {
+        save_path::migrate_legacy_saves_once();
+        Self::open_in_directory(&save_path::save_dir())
+    }
+
+    pub fn open_in_directory(root: &Path) -> std::io::Result<Self> {
+        let path = root.join(PLAYER_PROGRESS_FILE);
+        let progress = Self::load_progression_data_from_path(&path);
+        if path.try_exists()? && progress.is_none() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "player save could not be decoded; the world was not reset",
+            ));
+        }
+        let dimension = progress
+            .as_ref()
+            .and_then(|saved| Self::decode_dimension(saved.current_dimension_code))
+            .unwrap_or(Dimension::Overworld);
+        let state = Self::from_progress(progress, World::open_in_directory(dimension, root)?);
+        state.world.check_storage()?;
+        Ok(state)
+    }
+
+    fn from_progress(progress: Option<PlayerProgressSaveData>, mut world: World) -> Self {
         let center_x = progress
             .as_ref()
             .map_or(0, |saved| saved.player_x.floor() as i32);
 
-        let mut world = World::new_for_dimension(dimension);
-        world.load_chunks_around(center_x);
-        let (spawn_x, spawn_y) = if progress.is_some() {
+        let dimension = world.dimension;
+        if !world.is_replica() {
+            world.load_chunks_around(center_x);
+        }
+        let (spawn_x, spawn_y) = if progress.is_some() || world.is_replica() {
             (center_x, 10.0)
         } else {
             let spawn = Self::progression_spawn_point(&mut world, center_x);
@@ -1550,6 +1705,12 @@ impl GameState {
             .map_or(spawn_x as f64 + 0.5, |saved| saved.player_x);
 
         let mut state = Self {
+            active_peer: None,
+            cooperative_players: Default::default(),
+            chat: super::director::ChatView::default(),
+            performance: super::metrics::PerformanceMetrics::default(),
+            show_debug_overlay: false,
+            save_error: std::cell::RefCell::new(None),
             player: Player::new(player_x, spawn_y),
             remote_players: Vec::new(),
             inventory: Inventory::new(PLAYER_INVENTORY_CAPACITY),
@@ -1725,6 +1886,12 @@ impl GameState {
             state.game_rules_preset = Self::decode_game_rules_preset(saved.game_rules_preset_code)
                 .unwrap_or_else(|| Self::infer_game_rules_preset(state.game_rules));
             state.sync_game_rules_preset_from_rules();
+
+            if let Some(mut session) = saved.complete_session {
+                session.release_inputs();
+                session.apply(&mut state);
+                state.sync_sneak_state();
+            }
 
             if state.current_dimension != Dimension::Overworld {
                 state.reset_weather_for_dimension();
@@ -3357,12 +3524,52 @@ impl GameState {
 
     pub fn apply_client_command(&mut self, command: ClientCommand) {
         match command {
+            ClientCommand::AimAt(_, _) => {}
+            ClientCommand::CraftRecipe(index) => self.attempt_craft(index as usize),
+            ClientCommand::Enchant(index) => self.attempt_enchant_option(index as usize),
+            ClientCommand::Anvil => self.attempt_anvil_combine(),
+            ClientCommand::Brew(index) => self.attempt_brew_option(index as usize),
+            ClientCommand::InventoryClick(slot, kind) => match kind {
+                0 => self.handle_inventory_click(slot as usize),
+                1 => self.handle_inventory_right_click(slot as usize),
+                2 => self.handle_inventory_shift_click(slot as usize),
+                _ => {}
+            },
+            ClientCommand::CraftGrid(max) => {
+                if self.inventory_open {
+                    if max {
+                        self.attempt_craft_from_grid_max();
+                    } else {
+                        self.attempt_craft_from_grid();
+                    }
+                }
+            }
+            ClientCommand::ClearCraftGrid => {
+                if self.inventory_open {
+                    self.clear_active_crafting_grid();
+                }
+            }
             ClientCommand::QueueJump => {
                 if !self.inventory_open && !self.settings_menu_open {
                     self.queue_jump();
                 }
             }
             ClientCommand::SetJumpHeld(held) => {
+                // Releasing a real held jump gives a short, deliberate hop. Keep
+                // swimming, ladder climbing, falling and duplicate releases intact.
+                if self.jump_held
+                    && !held
+                    && self.player.vy < -0.16
+                    && !self.is_player_on_ladder()
+                    && !self.entity_touches_fluid(
+                        self.player.x,
+                        self.player.y,
+                        PLAYER_HALF_WIDTH,
+                        PLAYER_HEIGHT,
+                    )
+                {
+                    self.player.vy = -0.16;
+                }
                 self.jump_held = held && !self.inventory_open && !self.settings_menu_open;
             }
             ClientCommand::CycleMovementProfile => self.cycle_movement_profile(),
@@ -3402,6 +3609,9 @@ impl GameState {
                 } else if self.sprint_direction == -1 {
                     self.stop_sprinting();
                 }
+                if was_active && !active && !self.moving_left && !self.moving_right {
+                    self.brake_released_movement();
+                }
             }
             ClientCommand::SetMoveRight(active) => {
                 if self.settings_menu_open {
@@ -3423,11 +3633,18 @@ impl GameState {
                 } else if self.sprint_direction == 1 {
                     self.stop_sprinting();
                 }
+                if was_active && !active && !self.moving_left && !self.moving_right {
+                    self.brake_released_movement();
+                }
             }
             ClientCommand::ClearDirectionalInput => {
+                let was_moving = self.moving_left || self.moving_right;
                 self.moving_left = false;
                 self.moving_right = false;
                 self.stop_sprinting();
+                if was_moving {
+                    self.brake_released_movement();
+                }
             }
             ClientCommand::ToggleInventory => {
                 self.close_settings_menu();
@@ -3570,31 +3787,38 @@ impl GameState {
         self.portal_cooldown = self.portal_cooldown.max(40);
     }
 
+    fn brake_released_movement(&mut self) {
+        self.player.vx *= if self.player.grounded { 0.18 } else { 0.28 };
+        if self.player.vx.abs() < 0.02 {
+            self.player.vx = 0.0;
+        }
+    }
+
     fn movement_tuning(&self) -> MovementTuning {
         match self.movement_profile {
             MovementProfile::Classic => MovementTuning {
-                walk_speed: 0.6,
-                sneak_speed: 0.2,
-                ground_accel: 0.72,
-                air_accel: 0.28,
+                walk_speed: 0.32,
+                sneak_speed: 0.12,
+                ground_accel: 0.85,
+                air_accel: 0.42,
                 ground_drag_active: 1.0,
                 ground_drag_idle: 0.76,
                 air_drag: 0.98,
             },
             MovementProfile::Smooth => MovementTuning {
-                walk_speed: 0.62,
-                sneak_speed: 0.22,
-                ground_accel: 0.48,
-                air_accel: 0.2,
+                walk_speed: 0.34,
+                sneak_speed: 0.13,
+                ground_accel: 0.66,
+                air_accel: 0.36,
                 ground_drag_active: 0.94,
                 ground_drag_idle: 0.78,
                 air_drag: 0.985,
             },
             MovementProfile::Agile => MovementTuning {
-                walk_speed: 0.68,
-                sneak_speed: 0.24,
-                ground_accel: 0.62,
-                air_accel: 0.24,
+                walk_speed: 0.40,
+                sneak_speed: 0.15,
+                ground_accel: 0.92,
+                air_accel: 0.55,
                 ground_drag_active: 0.95,
                 ground_drag_idle: 0.8,
                 air_drag: 0.988,
@@ -3630,6 +3854,9 @@ impl GameState {
         if !self.can_respawn_from_death_screen() {
             return;
         }
+        if !self.cooperative() && !self.save_before_dimension_change() {
+            return;
+        }
         self.clear_container_interaction_state();
         self.death_screen_active = false;
         self.death_screen_ticks = 0;
@@ -3638,13 +3865,13 @@ impl GameState {
         self.player.health = self.player.max_health;
         self.player.hunger = self.player.max_hunger;
 
-        self.world.save_all();
-        self.current_dimension = Dimension::Overworld;
-        self.world = World::new_for_dimension(Dimension::Overworld);
+        if !self.cooperative() {
+            self.current_dimension = Dimension::Overworld;
+            self.world = self.world.for_dimension(Dimension::Overworld);
+            self.reset_weather_for_dimension();
+            self.clear_dimension_entities();
+        }
         let (spawn_x, spawn_y) = self.resolve_overworld_spawn_location();
-
-        self.reset_weather_for_dimension();
-        self.clear_dimension_entities();
         self.player.x = spawn_x as f64 + 0.5;
         self.player.y = spawn_y;
         self.player.vx = 0.0;
@@ -3669,7 +3896,9 @@ impl GameState {
             self.armor_enchant_levels = [0; ARMOR_SLOT_COUNT];
             self.set_total_experience(0);
         }
-        self.save_progression();
+        if !self.cooperative() {
+            self.save_progression();
+        }
     }
 
     fn resolve_overworld_spawn_location(&mut self) -> (i32, f64) {
@@ -3883,6 +4112,9 @@ impl GameState {
                 return;
             }
             if let Some(target) = portal_use_target {
+                if self.cooperative() {
+                    return;
+                }
                 self.use_portal_target(target);
                 return;
             }
@@ -4251,6 +4483,16 @@ impl GameState {
                 }
             }
         }
+    }
+
+    pub(crate) fn move_inventory_slot_to_hotbar(&mut self, slot: usize) {
+        if slot >= self.inventory.slots.len() {
+            return;
+        }
+        let hotbar = self.hotbar_index as usize;
+        self.inventory.slots.swap(slot, hotbar);
+        self.inventory_enchant_levels.swap(slot, hotbar);
+        self.selected_inventory_slot = None;
     }
 
     pub fn handle_inventory_click(&mut self, slot_idx: usize) {
@@ -5276,7 +5518,13 @@ impl GameState {
         best
     }
 
-    fn entity_collides_with_world(&self, x: f64, y: f64, half_width: f64, height: f64) -> bool {
+    pub(super) fn entity_collides_with_world(
+        &self,
+        x: f64,
+        y: f64,
+        half_width: f64,
+        height: f64,
+    ) -> bool {
         let left = x - half_width;
         let right = x + half_width;
         let top = y - height;
@@ -5309,7 +5557,12 @@ impl GameState {
     }
 
     fn try_mount_boat(&mut self, boat_idx: usize) -> bool {
-        if boat_idx >= self.boats.len() {
+        if boat_idx >= self.boats.len()
+            || self
+                .cooperative_players
+                .values()
+                .any(|p| p.mounted_boat == Some(boat_idx))
+        {
             return false;
         }
         self.mounted_boat = Some(boat_idx);
@@ -5349,27 +5602,38 @@ impl GameState {
             return;
         }
         let boat = self.boats.swap_remove(boat_idx);
-        if let Some(mounted_idx) = self.mounted_boat {
-            if mounted_idx == boat_idx {
-                self.mounted_boat = None;
-            } else if mounted_idx == self.boats.len() {
-                self.mounted_boat = Some(boat_idx);
+        self.each_player(|s| {
+            if let Some(mounted_idx) = s.mounted_boat {
+                if mounted_idx == boat_idx {
+                    s.mounted_boat = None;
+                } else if mounted_idx == s.boats.len() {
+                    s.mounted_boat = Some(boat_idx);
+                }
             }
-        }
+        });
         self.item_entities
             .push(ItemEntity::new(boat.x, boat.y - 0.2, ItemType::Boat));
     }
 
     fn update_boats(&mut self) {
-        let input_dir = if self.inventory_open || self.moving_left == self.moving_right {
-            0.0
-        } else if self.moving_left {
-            -1.0
-        } else {
-            1.0
-        };
-
+        let active = self.active_peer;
         for idx in 0..self.boats.len() {
+            if self.cooperative() {
+                let rider = self.peer_ids().into_iter().find(|id| {
+                    self.peer_session(*id)
+                        .is_some_and(|p| p.mounted_boat == Some(idx))
+                });
+                if let Some(id) = rider {
+                    self.activate_peer(id);
+                }
+            }
+            let input_dir = if self.inventory_open || self.moving_left == self.moving_right {
+                0.0
+            } else if self.moving_left {
+                -1.0
+            } else {
+                1.0
+            };
             let mounted = self.mounted_boat == Some(idx);
             let (mut x, mut y, mut vx, mut vy, mut grounded, mut facing_right, mut wobble_timer) = {
                 let boat = &self.boats[idx];
@@ -5434,6 +5698,12 @@ impl GameState {
             boat.grounded = grounded;
             boat.facing_right = facing_right;
             boat.wobble_timer = wobble_timer;
+            if mounted {
+                self.sync_player_to_boat();
+            }
+        }
+        if let Some(id) = active {
+            self.activate_peer(id);
         }
 
         if self.mounted_boat.is_some() {
@@ -6517,6 +6787,16 @@ impl GameState {
             bx,
             by,
         ) && !self.can_place_block_under_rising_player(by)
+            || self.cooperative_players.values().any(|p| {
+                Self::entity_intersects_block(
+                    p.player.x,
+                    p.player.y,
+                    PLAYER_HALF_WIDTH,
+                    PLAYER_HEIGHT,
+                    bx,
+                    by,
+                )
+            })
     }
 
     fn is_player_on_ladder(&self) -> bool {
@@ -8379,6 +8659,10 @@ impl GameState {
         let dx = x - self.player.x;
         let dy = y - self.player.y;
         (dx * dx + dy * dy) < min_dist_sq
+            || self
+                .cooperative_players
+                .values()
+                .any(|p| (x - p.player.x).powi(2) + (y - p.player.y).powi(2) < min_dist_sq)
     }
 
     fn nearby_blaze_count(&self, x: f64, y: f64, radius_sq: f64) -> usize {
@@ -9183,19 +9467,21 @@ impl GameState {
         let lightning_damage = 5.0f32;
         let knockback = 0.55f64;
 
-        let player_dist = ((self.player.x - strike_cx).powi(2)
-            + ((self.player.y - 0.9) - strike_cy).powi(2))
-        .sqrt();
-        if player_dist < entity_radius {
-            self.apply_player_damage(lightning_damage);
-            if !self.has_fire_resistance() {
-                self.player.burning_timer = self.player.burning_timer.max(90);
+        self.each_player(|s| {
+            let player_dist = ((s.player.x - strike_cx).powi(2)
+                + ((s.player.y - 0.9) - strike_cy).powi(2))
+            .sqrt();
+            if player_dist < entity_radius {
+                s.apply_player_damage(lightning_damage);
+                if !s.has_fire_resistance() {
+                    s.player.burning_timer = s.player.burning_timer.max(90);
+                }
+                let nx = (s.player.x - strike_cx) / player_dist.max(0.001);
+                s.player.vx += nx * knockback;
+                s.player.vy -= 0.35;
+                s.player.grounded = false;
             }
-            let nx = (self.player.x - strike_cx) / player_dist.max(0.001);
-            self.player.vx += nx * knockback;
-            self.player.vy -= 0.35;
-            self.player.grounded = false;
-        }
+        });
 
         for zombie in &mut self.zombies {
             let dist =
@@ -9520,6 +9806,12 @@ impl GameState {
         (next, duration)
     }
 
+    pub(crate) fn director_weather(&mut self, weather: WeatherType) {
+        self.weather = weather;
+        self.weather_timer = 2400;
+        self.thunder_flash_timer = 0;
+    }
+
     fn update_weather(&mut self, rng: &mut impl Rng) {
         if self.current_dimension != Dimension::Overworld {
             self.weather = WeatherType::Clear;
@@ -9589,62 +9881,109 @@ impl GameState {
     }
 
     fn trim_far_overworld_mobs(&mut self) {
-        let px = self.player.x;
-        let py = self.player.y;
+        let positions: Vec<_> = std::iter::once((self.player.x, self.player.y))
+            .chain(
+                self.cooperative_players
+                    .values()
+                    .map(|a| (a.player().x, a.player().y)),
+            )
+            .collect();
         self.zombies.retain(|z| {
-            let dist_sq = (z.x - px).powi(2) + (z.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (z.x - px).powi(2) + (z.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_HOSTILE_DESPAWN_DIST_SQ
         });
         self.creepers.retain(|c| {
-            let dist_sq = (c.x - px).powi(2) + (c.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (c.x - px).powi(2) + (c.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_HOSTILE_DESPAWN_DIST_SQ
         });
         self.skeletons.retain(|s| {
-            let dist_sq = (s.x - px).powi(2) + (s.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (s.x - px).powi(2) + (s.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_HOSTILE_DESPAWN_DIST_SQ
         });
         self.spiders.retain(|s| {
-            let dist_sq = (s.x - px).powi(2) + (s.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (s.x - px).powi(2) + (s.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_HOSTILE_DESPAWN_DIST_SQ
         });
         self.silverfish.retain(|s| {
-            let dist_sq = (s.x - px).powi(2) + (s.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (s.x - px).powi(2) + (s.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_HOSTILE_DESPAWN_DIST_SQ
         });
         self.slimes.retain(|s| {
-            let dist_sq = (s.x - px).powi(2) + (s.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (s.x - px).powi(2) + (s.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_HOSTILE_DESPAWN_DIST_SQ
         });
         self.endermen.retain(|e| {
-            let dist_sq = (e.x - px).powi(2) + (e.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (e.x - px).powi(2) + (e.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_HOSTILE_DESPAWN_DIST_SQ
         });
         self.cows.retain(|c| {
-            let dist_sq = (c.x - px).powi(2) + (c.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (c.x - px).powi(2) + (c.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ
         });
         self.sheep.retain(|s| {
-            let dist_sq = (s.x - px).powi(2) + (s.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (s.x - px).powi(2) + (s.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ
         });
         self.pigs.retain(|p| {
-            let dist_sq = (p.x - px).powi(2) + (p.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (p.x - px).powi(2) + (p.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ
         });
         self.chickens.retain(|c| {
-            let dist_sq = (c.x - px).powi(2) + (c.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (c.x - px).powi(2) + (c.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ
         });
         self.wolves.retain(|w| {
-            let dist_sq = (w.x - px).powi(2) + (w.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (w.x - px).powi(2) + (w.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ
         });
         self.ocelots.retain(|o| {
-            let dist_sq = (o.x - px).powi(2) + (o.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (o.x - px).powi(2) + (o.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ
         });
         self.squids.retain(|s| {
-            let dist_sq = (s.x - px).powi(2) + (s.y - py).powi(2);
+            let dist_sq = positions
+                .iter()
+                .map(|(px, py)| (s.x - px).powi(2) + (s.y - py).powi(2))
+                .fold(f64::INFINITY, f64::min);
             dist_sq <= OVERWORLD_AQUATIC_DESPAWN_DIST_SQ
         });
     }
@@ -9766,9 +10105,11 @@ impl GameState {
         };
 
         self.clear_container_interaction_state();
-        self.world.save_all();
+        if !self.save_before_dimension_change() {
+            return;
+        }
         self.current_dimension = target_dimension;
-        self.world = World::new_for_dimension(target_dimension);
+        self.world = self.world.for_dimension(target_dimension);
         self.world.load_chunks_around(target_x);
         self.reset_weather_for_dimension();
 
@@ -9848,9 +10189,11 @@ impl GameState {
 
         let switched_dimension = self.current_dimension != Dimension::Overworld;
         if switched_dimension {
-            self.world.save_all();
+            if !self.save_before_dimension_change() {
+                return;
+            }
             self.current_dimension = Dimension::Overworld;
-            self.world = World::new_for_dimension(Dimension::Overworld);
+            self.world = self.world.for_dimension(Dimension::Overworld);
             self.reset_weather_for_dimension();
         }
 
@@ -10007,9 +10350,11 @@ impl GameState {
             Dimension::Nether => return,
         };
         self.clear_container_interaction_state();
-        self.world.save_all();
+        if !self.save_before_dimension_change() {
+            return;
+        }
         self.current_dimension = target_dimension;
-        self.world = World::new_for_dimension(target_dimension);
+        self.world = self.world.for_dimension(target_dimension);
         self.world.load_chunks_around(target_x);
         self.reset_weather_for_dimension();
 
@@ -10091,18 +10436,20 @@ impl GameState {
             let center_y = cy as f64 + 0.5;
             let radius = radius_blocks as f64 + 0.5;
 
-            if let Some((damage, kb_x, kb_y)) = Self::explosion_effect_at(
-                self.player.x,
-                self.player.y - 0.9,
-                center_x,
-                center_y,
-                radius,
-            ) {
-                self.apply_player_damage(damage);
-                self.player.vx += kb_x;
-                self.player.vy += kb_y;
-                self.player.grounded = false;
-            }
+            self.each_player(|s| {
+                if let Some((damage, kb_x, kb_y)) = Self::explosion_effect_at(
+                    s.player.x,
+                    s.player.y - 0.9,
+                    center_x,
+                    center_y,
+                    radius,
+                ) {
+                    s.apply_player_damage(damage);
+                    s.player.vx += kb_x;
+                    s.player.vy += kb_y;
+                    s.player.grounded = false;
+                }
+            });
             if let Some(dragon) = self.ender_dragon.as_mut()
                 && let Some((damage, kb_x, kb_y)) =
                     Self::explosion_effect_at(dragon.x, dragon.y - 1.4, center_x, center_y, radius)
@@ -10383,36 +10730,46 @@ impl GameState {
     }
 
     pub fn update(&mut self, mouse_target_x: i32, mouse_target_y: i32) {
+        if self.chat.open {
+            return;
+        }
         self.world_tick = self.world_tick.saturating_add(1);
-        self.update_furnace();
+        if !self.cooperative() {
+            self.update_furnace();
+        }
         self.update_end_victory_sequence();
-        if self.startup_splash_active {
-            self.startup_splash_ticks = self.startup_splash_ticks.saturating_add(1);
-            if self.startup_splash_ticks >= STARTUP_SPLASH_AUTO_DISMISS_TICKS {
-                self.dismiss_startup_splash();
+        if !self.cooperative() {
+            if self.startup_splash_active {
+                self.startup_splash_ticks = self.startup_splash_ticks.saturating_add(1);
+                if self.startup_splash_ticks >= STARTUP_SPLASH_AUTO_DISMISS_TICKS {
+                    self.dismiss_startup_splash();
+                }
+                return;
             }
-            return;
-        }
-        if self.credits_active {
-            self.update_completion_credits();
-            return;
-        }
-        if self.death_screen_active {
-            self.death_screen_ticks = self.death_screen_ticks.saturating_add(1);
-            self.player.age = self.player.age.saturating_add(1);
-            return;
-        }
-        if self.settings_menu_open {
-            return;
-        }
-        if self.respawn_grace_ticks > 0 {
-            self.respawn_grace_ticks -= 1;
-        }
-        if self.player_combat_hurt_cooldown > 0 {
-            self.player_combat_hurt_cooldown -= 1;
+            if self.credits_active {
+                self.update_completion_credits();
+                return;
+            }
+            if self.death_screen_active {
+                self.death_screen_ticks = self.death_screen_ticks.saturating_add(1);
+                self.player.age = self.player.age.saturating_add(1);
+                return;
+            }
+            if self.settings_menu_open {
+                return;
+            }
+            if self.respawn_grace_ticks > 0 {
+                self.respawn_grace_ticks -= 1;
+            }
+            if self.player_combat_hurt_cooldown > 0 {
+                self.player_combat_hurt_cooldown -= 1;
+            }
         }
         self.world
             .load_chunks_for_motion(self.player.x, self.player.vx);
+        if self.world.check_storage().is_err() {
+            return;
+        }
         self.close_chest_if_out_of_range();
         self.sanitize_enchant_levels();
         let mut rng = rand::thread_rng();
@@ -10803,14 +11160,2388 @@ impl GameState {
         self.update_dungeon_spawners(&mut rng);
         self.update_silverfish_spawners(&mut rng);
         self.update_blaze_spawners(&mut rng);
-        self.world.update(self.player.x as i32);
+        if self.cooperative() {
+            let positions = self
+                .peer_ids()
+                .into_iter()
+                .filter_map(|id| self.peer_session(id).map(|s| s.player().x.floor() as i32))
+                .collect::<Vec<_>>();
+            self.world.update_for_players(&positions);
+        } else {
+            self.world.update(self.player.x as i32);
+        }
         self.apply_world_explosion_impacts();
         self.collect_world_explosion_drops();
         self.update_end_boss_encounter();
-        if self.handle_portal_transition() {
+        if !self.cooperative() && self.handle_portal_transition() {
             return;
         }
 
+        if !self.cooperative() {
+            self.tick_player_survival(&mut rng);
+        }
+
+        if self.active_game_rules().do_daylight_cycle {
+            self.time_of_day += DAYLIGHT_CYCLE_STEP_PER_TICK;
+            if self.time_of_day >= 24000.0 {
+                self.time_of_day -= 24000.0;
+            }
+        }
+        self.update_weather(&mut rng);
+
+        for i in (0..self.lightning_bolts.len()).rev() {
+            if self.lightning_bolts[i].ttl > 0 {
+                self.lightning_bolts[i].ttl -= 1;
+            }
+            if self.lightning_bolts[i].ttl == 0 {
+                self.lightning_bolts.swap_remove(i);
+            }
+        }
+
+        if self.current_dimension == Dimension::Overworld
+            && self.weather == WeatherType::Thunderstorm
+            && rng.gen_bool(0.004)
+        {
+            let strike_x = self.player.x.floor() as i32 + rng.gen_range(-20..=20);
+            if self.precipitation_at(strike_x) != PrecipitationType::None
+                && let Some(surface_y) = self.find_lightning_surface(strike_x)
+                && self.is_exposed_to_sky(strike_x as f64 + 0.5, surface_y as f64 - 1.0)
+            {
+                self.apply_lightning_strike(strike_x, surface_y);
+            }
+        }
+        let is_day = self.time_of_day > 4000.0 && self.time_of_day < 20000.0;
+
+        if !self.cooperative() {
+            self.tick_player_actions(mouse_target_x, mouse_target_y);
+        }
+        let gravity = 0.08;
+        let max_fall_speed = 1.0;
+
+        let mut dead_zombies = Vec::new();
+        for i in 0..self.zombies.len() {
+            self.select_nearest_peer(self.zombies[i].x, self.zombies[i].y);
+            let prev_x = self.zombies[i].x;
+            if self.zombies[i].hit_timer > 0 {
+                self.zombies[i].hit_timer -= 1;
+            }
+            self.zombies[i].update_ai(self.player.x, self.player.y);
+            let rerouting = self.zombies[i].reroute_ticks > 0 && self.zombies[i].reroute_dir != 0;
+            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
+                self.zombies[i].reroute_ticks,
+                self.zombies[i].reroute_dir,
+                self.zombies[i].vx,
+                0.14,
+            );
+            self.zombies[i].reroute_ticks = reroute_ticks;
+            if rerouting {
+                self.zombies[i].vx = reroute_vx;
+                self.zombies[i].facing_right = reroute_vx >= 0.0;
+            }
+            self.zombies[i].age += 1;
+            let (z_burn, z_fire_damage) = self.apply_undead_fire_rules(
+                self.zombies[i].x,
+                self.zombies[i].y,
+                1.8,
+                self.zombies[i].age,
+                is_day,
+                self.zombies[i].burning_timer,
+            );
+            self.zombies[i].burning_timer = z_burn;
+            self.zombies[i].health -= z_fire_damage;
+            if self.zombies[i].health <= 0.0 {
+                dead_zombies.push(i);
+                continue;
+            }
+            let chase_jump = self.should_ground_mob_chase_jump(
+                self.zombies[i].x,
+                self.zombies[i].y,
+                self.zombies[i].vx,
+                self.zombies[i].grounded,
+                0.3,
+                1.8,
+            );
+            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
+                self.zombies[i].x,
+                self.zombies[i].y,
+                self.zombies[i].vx,
+                self.zombies[i].grounded,
+                0.3,
+                1.8,
+                self.zombies[i].stuck_ticks,
+                self.zombies[i].reroute_ticks,
+            );
+            if chase_jump || recovery_jump {
+                self.zombies[i].jump();
+            }
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+                self.zombies[i].x,
+                self.zombies[i].y,
+                self.zombies[i].vx,
+                self.zombies[i].vy,
+                self.zombies[i].grounded,
+                0.3,
+                1.8,
+                true,
+            );
+            self.zombies[i].x = nx;
+            self.zombies[i].y = ny;
+            self.zombies[i].vx = nvx;
+            self.zombies[i].vy = nvy;
+            self.zombies[i].grounded = ngr;
+            let prev_reroute_ticks = self.zombies[i].reroute_ticks;
+            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
+                self.player.x,
+                self.player.y,
+                prev_x,
+                nx,
+                ny,
+                hit_wall,
+                ngr,
+                self.zombies[i].stuck_ticks,
+                self.zombies[i].reroute_ticks,
+                self.zombies[i].reroute_dir,
+            );
+            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
+                self.zombies[i].x,
+                self.zombies[i].y,
+                1.8,
+                prev_reroute_ticks,
+                stuck_ticks,
+                reroute_ticks,
+                reroute_dir,
+            );
+            self.zombies[i].stuck_ticks = stuck_ticks;
+            self.zombies[i].reroute_ticks = reroute_ticks;
+            self.zombies[i].reroute_dir = reroute_dir;
+            if hit_wall {
+                self.zombies[i].jump();
+            }
+            self.zombies[i].vx *= 0.5;
+            if self.zombies[i].vx.abs() < 0.02 {
+                self.zombies[i].vx = 0.0;
+            }
+            let can_melee_hit = self.can_melee_contact_player(
+                self.zombies[i].x,
+                self.zombies[i].y - 0.9,
+                1.2,
+                1.05,
+            );
+            if can_melee_hit && self.zombies[i].attack_cooldown == 0 {
+                if self.apply_player_combat_damage(self.scaled_hostile_damage(0.5)) {
+                    self.apply_player_contact_knockback(self.zombies[i].x, 0.42, 0.28);
+                }
+                self.zombies[i].attack_cooldown = self.scaled_hostile_cooldown(20);
+            }
+        }
+
+        for idx in dead_zombies.into_iter().rev() {
+            let z = self.zombies.swap_remove(idx);
+            self.item_entities
+                .push(ItemEntity::new(z.x, z.y - 0.5, ItemType::RottenFlesh));
+            if rng.gen_bool(0.3) {
+                self.item_entities
+                    .push(ItemEntity::new(z.x, z.y - 0.5, ItemType::Stick));
+            }
+            if self.mob_has_player_kill_credit(z.last_player_damage_tick) {
+                self.spawn_experience_orbs(z.x, z.y - 0.5, 5, &mut rng);
+            }
+        }
+
+        let mut dead_pigmen = Vec::new();
+        for i in 0..self.pigmen.len() {
+            self.select_nearest_peer(self.pigmen[i].x, self.pigmen[i].y);
+            let prev_x = self.pigmen[i].x;
+            if self.pigmen[i].hit_timer > 0 {
+                self.pigmen[i].hit_timer -= 1;
+            }
+            self.pigmen[i].update_ai(self.player.x, self.player.y);
+            let rerouting = self.pigmen[i].reroute_ticks > 0 && self.pigmen[i].reroute_dir != 0;
+            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
+                self.pigmen[i].reroute_ticks,
+                self.pigmen[i].reroute_dir,
+                self.pigmen[i].vx,
+                0.15,
+            );
+            self.pigmen[i].reroute_ticks = reroute_ticks;
+            if rerouting {
+                self.pigmen[i].vx = reroute_vx;
+                self.pigmen[i].facing_right = reroute_vx >= 0.0;
+            }
+            self.pigmen[i].age += 1;
+            if self.pigmen[i].health <= 0.0 {
+                dead_pigmen.push(i);
+                continue;
+            }
+            let chase_jump = self.should_ground_mob_chase_jump(
+                self.pigmen[i].x,
+                self.pigmen[i].y,
+                self.pigmen[i].vx,
+                self.pigmen[i].grounded,
+                0.3,
+                1.8,
+            );
+            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
+                self.pigmen[i].x,
+                self.pigmen[i].y,
+                self.pigmen[i].vx,
+                self.pigmen[i].grounded,
+                0.3,
+                1.8,
+                self.pigmen[i].stuck_ticks,
+                self.pigmen[i].reroute_ticks,
+            );
+            if chase_jump || recovery_jump {
+                self.pigmen[i].jump();
+            }
+
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+                self.pigmen[i].x,
+                self.pigmen[i].y,
+                self.pigmen[i].vx,
+                self.pigmen[i].vy,
+                self.pigmen[i].grounded,
+                0.3,
+                1.8,
+                true,
+            );
+            self.pigmen[i].x = nx;
+            self.pigmen[i].y = ny;
+            self.pigmen[i].vx = nvx;
+            self.pigmen[i].vy = nvy;
+            self.pigmen[i].grounded = ngr;
+            let prev_reroute_ticks = self.pigmen[i].reroute_ticks;
+            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
+                self.player.x,
+                self.player.y,
+                prev_x,
+                nx,
+                ny,
+                hit_wall,
+                ngr,
+                self.pigmen[i].stuck_ticks,
+                self.pigmen[i].reroute_ticks,
+                self.pigmen[i].reroute_dir,
+            );
+            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
+                self.pigmen[i].x,
+                self.pigmen[i].y,
+                1.8,
+                prev_reroute_ticks,
+                stuck_ticks,
+                reroute_ticks,
+                reroute_dir,
+            );
+            self.pigmen[i].stuck_ticks = stuck_ticks;
+            self.pigmen[i].reroute_ticks = reroute_ticks;
+            self.pigmen[i].reroute_dir = reroute_dir;
+            if hit_wall {
+                self.pigmen[i].jump();
+            }
+            self.pigmen[i].vx *= 0.5;
+            if self.pigmen[i].vx.abs() < 0.02 {
+                self.pigmen[i].vx = 0.0;
+            }
+
+            if self.pigmen[i].is_aggressive() {
+                let can_melee_hit = self.can_melee_contact_player(
+                    self.pigmen[i].x,
+                    self.pigmen[i].y - 0.9,
+                    1.2,
+                    1.05,
+                );
+                if can_melee_hit && self.pigmen[i].attack_cooldown == 0 {
+                    if self.apply_player_combat_damage(self.scaled_hostile_damage(0.5)) {
+                        self.apply_player_contact_knockback(self.pigmen[i].x, 0.46, 0.3);
+                    }
+                    self.pigmen[i].attack_cooldown = self.scaled_hostile_cooldown(18);
+                }
+            }
+        }
+        for idx in dead_pigmen.into_iter().rev() {
+            let p = self.pigmen.swap_remove(idx);
+            self.item_entities
+                .push(ItemEntity::new(p.x, p.y - 0.5, ItemType::RottenFlesh));
+            if rng.gen_bool(0.2) {
+                self.item_entities
+                    .push(ItemEntity::new(p.x, p.y - 0.5, ItemType::GoldIngot));
+            }
+            if self.mob_has_player_kill_credit(p.last_player_damage_tick) {
+                self.spawn_experience_orbs(p.x, p.y - 0.5, 5, &mut rng);
+            }
+        }
+
+        let mut pending_world_explosions: Vec<(i32, i32, i32, f32, u8)> = Vec::new();
+        let mut dead_creepers = Vec::new();
+        for i in 0..self.creepers.len() {
+            self.select_nearest_peer(self.creepers[i].x, self.creepers[i].y);
+            let prev_x = self.creepers[i].x;
+            if self.creepers[i].hit_timer > 0 {
+                self.creepers[i].hit_timer -= 1;
+            }
+            if self.creepers[i].health <= 0.0 {
+                dead_creepers.push(i);
+                continue;
+            }
+            self.creepers[i].update_ai(self.player.x, self.player.y);
+            let rerouting = self.creepers[i].reroute_ticks > 0 && self.creepers[i].reroute_dir != 0;
+            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
+                self.creepers[i].reroute_ticks,
+                self.creepers[i].reroute_dir,
+                self.creepers[i].vx,
+                0.12,
+            );
+            self.creepers[i].reroute_ticks = reroute_ticks;
+            if rerouting {
+                self.creepers[i].vx = reroute_vx;
+                self.creepers[i].facing_right = reroute_vx >= 0.0;
+            }
+            self.creepers[i].age += 1;
+            let chase_jump = self.should_ground_mob_chase_jump(
+                self.creepers[i].x,
+                self.creepers[i].y,
+                self.creepers[i].vx,
+                self.creepers[i].grounded,
+                0.3,
+                1.8,
+            );
+            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
+                self.creepers[i].x,
+                self.creepers[i].y,
+                self.creepers[i].vx,
+                self.creepers[i].grounded,
+                0.3,
+                1.8,
+                self.creepers[i].stuck_ticks,
+                self.creepers[i].reroute_ticks,
+            );
+            if chase_jump || recovery_jump {
+                self.creepers[i].jump();
+            }
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+                self.creepers[i].x,
+                self.creepers[i].y,
+                self.creepers[i].vx,
+                self.creepers[i].vy,
+                self.creepers[i].grounded,
+                0.3,
+                1.8,
+                true,
+            );
+            self.creepers[i].x = nx;
+            self.creepers[i].y = ny;
+            self.creepers[i].vx = nvx;
+            self.creepers[i].vy = nvy;
+            self.creepers[i].grounded = ngr;
+            let prev_reroute_ticks = self.creepers[i].reroute_ticks;
+            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
+                self.player.x,
+                self.player.y,
+                prev_x,
+                nx,
+                ny,
+                hit_wall,
+                ngr,
+                self.creepers[i].stuck_ticks,
+                self.creepers[i].reroute_ticks,
+                self.creepers[i].reroute_dir,
+            );
+            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
+                self.creepers[i].x,
+                self.creepers[i].y,
+                1.8,
+                prev_reroute_ticks,
+                stuck_ticks,
+                reroute_ticks,
+                reroute_dir,
+            );
+            self.creepers[i].stuck_ticks = stuck_ticks;
+            self.creepers[i].reroute_ticks = reroute_ticks;
+            self.creepers[i].reroute_dir = reroute_dir;
+            if hit_wall {
+                self.creepers[i].jump();
+            }
+            self.creepers[i].vx *= 0.5;
+            if self.creepers[i].fuse_timer >= 30 {
+                let cx = self.creepers[i].x.floor() as i32;
+                let cy = self.creepers[i].y.floor() as i32;
+                let blast_radius = if self.creepers[i].charged { 5 } else { 3 };
+                let strength = if self.creepers[i].charged { 6.0 } else { 4.0 };
+                pending_world_explosions.push((cx, cy, blast_radius, strength, 8));
+                dead_creepers.push(i);
+            }
+        }
+        for idx in dead_creepers.into_iter().rev() {
+            let c = self.creepers.swap_remove(idx);
+            if c.health <= 0.0 {
+                self.item_entities
+                    .push(ItemEntity::new(c.x, c.y - 0.5, ItemType::Gunpowder));
+                if self.mob_has_player_kill_credit(c.last_player_damage_tick) {
+                    self.spawn_experience_orbs(c.x, c.y - 0.5, 5, &mut rng);
+                }
+            }
+        }
+
+        let mut dead_skeletons = Vec::new();
+        for i in 0..self.skeletons.len() {
+            self.select_nearest_peer(self.skeletons[i].x, self.skeletons[i].y);
+            let prev_x = self.skeletons[i].x;
+            if self.skeletons[i].hit_timer > 0 {
+                self.skeletons[i].hit_timer -= 1;
+            }
+            let skeleton_wants_shot = self.skeletons[i].update_ai(self.player.x, self.player.y);
+            let rerouting =
+                self.skeletons[i].reroute_ticks > 0 && self.skeletons[i].reroute_dir != 0;
+            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
+                self.skeletons[i].reroute_ticks,
+                self.skeletons[i].reroute_dir,
+                self.skeletons[i].vx,
+                0.18,
+            );
+            self.skeletons[i].reroute_ticks = reroute_ticks;
+            if rerouting {
+                self.skeletons[i].vx = reroute_vx;
+                self.skeletons[i].facing_right = reroute_vx >= 0.0;
+            }
+            let (sx, sy) = (self.skeletons[i].x, self.skeletons[i].y - 0.9);
+            if skeleton_wants_shot {
+                let has_los = self.has_line_of_sight(sx, sy, self.player.x, self.player.y - 0.9);
+                if has_los {
+                    let dx = self.player.x - sx;
+                    let dy = (self.player.y - 0.9) - sy;
+                    let dist = (dx * dx + dy * dy).sqrt();
+                    if dist > 0.001 {
+                        self.arrows.push(Arrow::new_hostile(
+                            sx,
+                            sy,
+                            (dx / dist) * 0.5,
+                            (dy / dist) * 0.5,
+                        ));
+                        self.skeletons[i].bow_cooldown = self.scaled_hostile_cooldown(60);
+                    }
+                } else {
+                    // Retry sooner when line-of-sight is blocked so skeletons reposition faster.
+                    self.skeletons[i].bow_cooldown = self.skeletons[i]
+                        .bow_cooldown
+                        .min(self.scaled_hostile_cooldown(14));
+                }
+            }
+            self.skeletons[i].age += 1;
+            let (s_burn, s_fire_damage) = self.apply_undead_fire_rules(
+                self.skeletons[i].x,
+                self.skeletons[i].y,
+                1.8,
+                self.skeletons[i].age,
+                is_day,
+                self.skeletons[i].burning_timer,
+            );
+            self.skeletons[i].burning_timer = s_burn;
+            self.skeletons[i].health -= s_fire_damage;
+            if self.skeletons[i].health <= 0.0 {
+                dead_skeletons.push(i);
+                continue;
+            }
+            let chase_jump = self.should_ground_mob_chase_jump(
+                self.skeletons[i].x,
+                self.skeletons[i].y,
+                self.skeletons[i].vx,
+                self.skeletons[i].grounded,
+                0.3,
+                1.8,
+            );
+            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
+                self.skeletons[i].x,
+                self.skeletons[i].y,
+                self.skeletons[i].vx,
+                self.skeletons[i].grounded,
+                0.3,
+                1.8,
+                self.skeletons[i].stuck_ticks,
+                self.skeletons[i].reroute_ticks,
+            );
+            if chase_jump || recovery_jump {
+                self.skeletons[i].jump();
+            }
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+                self.skeletons[i].x,
+                self.skeletons[i].y,
+                self.skeletons[i].vx,
+                self.skeletons[i].vy,
+                self.skeletons[i].grounded,
+                0.3,
+                1.8,
+                true,
+            );
+            self.skeletons[i].x = nx;
+            self.skeletons[i].y = ny;
+            self.skeletons[i].vx = nvx;
+            self.skeletons[i].vy = nvy;
+            self.skeletons[i].grounded = ngr;
+            let prev_reroute_ticks = self.skeletons[i].reroute_ticks;
+            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
+                self.player.x,
+                self.player.y,
+                prev_x,
+                nx,
+                ny,
+                hit_wall,
+                ngr,
+                self.skeletons[i].stuck_ticks,
+                self.skeletons[i].reroute_ticks,
+                self.skeletons[i].reroute_dir,
+            );
+            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
+                self.skeletons[i].x,
+                self.skeletons[i].y,
+                1.8,
+                prev_reroute_ticks,
+                stuck_ticks,
+                reroute_ticks,
+                reroute_dir,
+            );
+            self.skeletons[i].stuck_ticks = stuck_ticks;
+            self.skeletons[i].reroute_ticks = reroute_ticks;
+            self.skeletons[i].reroute_dir = reroute_dir;
+            if hit_wall {
+                self.skeletons[i].jump();
+            }
+            self.skeletons[i].vx *= 0.5;
+        }
+        for idx in dead_skeletons.into_iter().rev() {
+            let s = self.skeletons.swap_remove(idx);
+            self.item_entities
+                .push(ItemEntity::new(s.x, s.y - 0.5, ItemType::Bone));
+            if rng.gen_bool(0.5) {
+                self.item_entities
+                    .push(ItemEntity::new(s.x, s.y - 0.5, ItemType::Arrow));
+            }
+            if self.mob_has_player_kill_credit(s.last_player_damage_tick) {
+                self.spawn_experience_orbs(s.x, s.y - 0.5, 5, &mut rng);
+            }
+        }
+
+        let mut dead_spiders = Vec::new();
+        for i in 0..self.spiders.len() {
+            self.select_nearest_peer(self.spiders[i].x, self.spiders[i].y);
+            let prev_x = self.spiders[i].x;
+            if self.spiders[i].hit_timer > 0 {
+                self.spiders[i].hit_timer -= 1;
+            }
+            if self.spiders[i].health <= 0.0 {
+                dead_spiders.push(i);
+                continue;
+            }
+            self.spiders[i].update_ai(self.player.x, self.player.y, is_day);
+            let rerouting = self.spiders[i].reroute_ticks > 0 && self.spiders[i].reroute_dir != 0;
+            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
+                self.spiders[i].reroute_ticks,
+                self.spiders[i].reroute_dir,
+                self.spiders[i].vx,
+                0.2,
+            );
+            self.spiders[i].reroute_ticks = reroute_ticks;
+            if rerouting {
+                self.spiders[i].vx = reroute_vx;
+                self.spiders[i].facing_right = reroute_vx >= 0.0;
+            }
+            self.spiders[i].age += 1;
+            let chase_jump = self.should_ground_mob_chase_jump(
+                self.spiders[i].x,
+                self.spiders[i].y,
+                self.spiders[i].vx,
+                self.spiders[i].grounded,
+                0.6,
+                0.9,
+            );
+            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
+                self.spiders[i].x,
+                self.spiders[i].y,
+                self.spiders[i].vx,
+                self.spiders[i].grounded,
+                0.6,
+                0.9,
+                self.spiders[i].stuck_ticks,
+                self.spiders[i].reroute_ticks,
+            );
+            if chase_jump || recovery_jump {
+                self.spiders[i].jump();
+            }
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+                self.spiders[i].x,
+                self.spiders[i].y,
+                self.spiders[i].vx,
+                self.spiders[i].vy,
+                self.spiders[i].grounded,
+                0.6,
+                0.9,
+                true,
+            );
+            self.spiders[i].x = nx;
+            self.spiders[i].y = ny;
+            self.spiders[i].vx = nvx;
+            self.spiders[i].vy = nvy;
+            self.spiders[i].grounded = ngr;
+            let prev_reroute_ticks = self.spiders[i].reroute_ticks;
+            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
+                self.player.x,
+                self.player.y,
+                prev_x,
+                nx,
+                ny,
+                hit_wall,
+                ngr,
+                self.spiders[i].stuck_ticks,
+                self.spiders[i].reroute_ticks,
+                self.spiders[i].reroute_dir,
+            );
+            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
+                self.spiders[i].x,
+                self.spiders[i].y,
+                0.9,
+                prev_reroute_ticks,
+                stuck_ticks,
+                reroute_ticks,
+                reroute_dir,
+            );
+            self.spiders[i].stuck_ticks = stuck_ticks;
+            self.spiders[i].reroute_ticks = reroute_ticks;
+            self.spiders[i].reroute_dir = reroute_dir;
+            if hit_wall {
+                self.spiders[i].jump();
+            }
+            self.spiders[i].vx *= 0.5;
+            let can_melee_hit = self.can_melee_contact_player(
+                self.spiders[i].x,
+                self.spiders[i].y - 0.45,
+                1.2,
+                0.85,
+            );
+            if can_melee_hit && self.spiders[i].attack_cooldown == 0 {
+                if self.apply_player_combat_damage(self.scaled_hostile_damage(0.5)) {
+                    self.apply_player_contact_knockback(self.spiders[i].x, 0.34, 0.0);
+                }
+                self.spiders[i].attack_cooldown = self.scaled_hostile_cooldown(20);
+            }
+        }
+        for idx in dead_spiders.into_iter().rev() {
+            let s = self.spiders.swap_remove(idx);
+            self.item_entities
+                .push(ItemEntity::new(s.x, s.y - 0.5, ItemType::String));
+            if self.mob_has_player_kill_credit(s.last_player_damage_tick) {
+                self.spawn_experience_orbs(s.x, s.y - 0.5, 5, &mut rng);
+            }
+        }
+
+        let mut dead_silverfish = Vec::new();
+        for i in 0..self.silverfish.len() {
+            self.select_nearest_peer(self.silverfish[i].x, self.silverfish[i].y);
+            let prev_x = self.silverfish[i].x;
+            if self.silverfish[i].hit_timer > 0 {
+                self.silverfish[i].hit_timer -= 1;
+            }
+            if self.silverfish[i].health <= 0.0 {
+                dead_silverfish.push(i);
+                continue;
+            }
+            self.silverfish[i].update_ai(self.player.x, self.player.y);
+            let rerouting =
+                self.silverfish[i].reroute_ticks > 0 && self.silverfish[i].reroute_dir != 0;
+            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
+                self.silverfish[i].reroute_ticks,
+                self.silverfish[i].reroute_dir,
+                self.silverfish[i].vx,
+                0.12,
+            );
+            self.silverfish[i].reroute_ticks = reroute_ticks;
+            if rerouting {
+                self.silverfish[i].vx = reroute_vx;
+                self.silverfish[i].facing_right = reroute_vx >= 0.0;
+            }
+            self.silverfish[i].age += 1;
+            let chase_jump = self.should_ground_mob_chase_jump(
+                self.silverfish[i].x,
+                self.silverfish[i].y,
+                self.silverfish[i].vx,
+                self.silverfish[i].grounded,
+                0.24,
+                0.8,
+            );
+            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
+                self.silverfish[i].x,
+                self.silverfish[i].y,
+                self.silverfish[i].vx,
+                self.silverfish[i].grounded,
+                0.24,
+                0.8,
+                self.silverfish[i].stuck_ticks,
+                self.silverfish[i].reroute_ticks,
+            );
+            if chase_jump || recovery_jump {
+                self.silverfish[i].jump();
+            }
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+                self.silverfish[i].x,
+                self.silverfish[i].y,
+                self.silverfish[i].vx,
+                self.silverfish[i].vy,
+                self.silverfish[i].grounded,
+                0.24,
+                0.8,
+                true,
+            );
+            self.silverfish[i].x = nx;
+            self.silverfish[i].y = ny;
+            self.silverfish[i].vx = nvx;
+            self.silverfish[i].vy = nvy;
+            self.silverfish[i].grounded = ngr;
+            let prev_reroute_ticks = self.silverfish[i].reroute_ticks;
+            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
+                self.player.x,
+                self.player.y,
+                prev_x,
+                nx,
+                ny,
+                hit_wall,
+                ngr,
+                self.silverfish[i].stuck_ticks,
+                self.silverfish[i].reroute_ticks,
+                self.silverfish[i].reroute_dir,
+            );
+            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
+                self.silverfish[i].x,
+                self.silverfish[i].y,
+                0.8,
+                prev_reroute_ticks,
+                stuck_ticks,
+                reroute_ticks,
+                reroute_dir,
+            );
+            self.silverfish[i].stuck_ticks = stuck_ticks;
+            self.silverfish[i].reroute_ticks = reroute_ticks;
+            self.silverfish[i].reroute_dir = reroute_dir;
+            if hit_wall {
+                self.silverfish[i].jump();
+            }
+            self.silverfish[i].vx *= 0.58;
+            if self.silverfish[i].vx.abs() < 0.02 {
+                self.silverfish[i].vx = 0.0;
+            }
+
+            let can_melee_hit = self.can_melee_contact_player(
+                self.silverfish[i].x,
+                self.silverfish[i].y - 0.35,
+                1.0,
+                0.8,
+            );
+            if can_melee_hit && self.silverfish[i].attack_cooldown == 0 {
+                if self.apply_player_combat_damage(self.scaled_hostile_damage(0.35)) {
+                    self.apply_player_contact_knockback(self.silverfish[i].x, 0.22, 0.16);
+                }
+                self.silverfish[i].attack_cooldown = self.scaled_hostile_cooldown(18);
+            }
+        }
+        for idx in dead_silverfish.into_iter().rev() {
+            let s = self.silverfish.swap_remove(idx);
+            if self.mob_has_player_kill_credit(s.last_player_damage_tick) {
+                self.spawn_experience_orbs(s.x, s.y - 0.35, 5, &mut rng);
+            }
+        }
+
+        let mut dead_slimes = Vec::new();
+        for i in 0..self.slimes.len() {
+            self.select_nearest_peer(self.slimes[i].x, self.slimes[i].y);
+            let prev_x = self.slimes[i].x;
+            if self.slimes[i].hit_timer > 0 {
+                self.slimes[i].hit_timer -= 1;
+            }
+            if self.slimes[i].health <= 0.0 {
+                dead_slimes.push(i);
+                continue;
+            }
+            self.slimes[i].update_ai(self.player.x, self.player.y, is_day);
+            let rerouting = self.slimes[i].reroute_ticks > 0 && self.slimes[i].reroute_dir != 0;
+            let reroute_speed = self.slimes[i].move_speed() * 0.72;
+            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
+                self.slimes[i].reroute_ticks,
+                self.slimes[i].reroute_dir,
+                self.slimes[i].vx,
+                reroute_speed,
+            );
+            self.slimes[i].reroute_ticks = reroute_ticks;
+            if rerouting {
+                self.slimes[i].vx = reroute_vx;
+                self.slimes[i].facing_right = reroute_vx >= 0.0;
+            }
+
+            self.slimes[i].age += 1;
+            let half_width = self.slimes[i].half_width();
+            let height = self.slimes[i].height();
+            let chase_jump = self.should_ground_mob_chase_jump(
+                self.slimes[i].x,
+                self.slimes[i].y,
+                self.slimes[i].vx,
+                self.slimes[i].grounded,
+                half_width,
+                height,
+            );
+            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
+                self.slimes[i].x,
+                self.slimes[i].y,
+                self.slimes[i].vx,
+                self.slimes[i].grounded,
+                half_width,
+                height,
+                self.slimes[i].stuck_ticks,
+                self.slimes[i].reroute_ticks,
+            );
+            if chase_jump || recovery_jump {
+                self.slimes[i].jump();
+            }
+
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+                self.slimes[i].x,
+                self.slimes[i].y,
+                self.slimes[i].vx,
+                self.slimes[i].vy,
+                self.slimes[i].grounded,
+                half_width,
+                height,
+                true,
+            );
+            self.slimes[i].x = nx;
+            self.slimes[i].y = ny;
+            self.slimes[i].vx = nvx;
+            self.slimes[i].vy = nvy;
+            self.slimes[i].grounded = ngr;
+            let prev_reroute_ticks = self.slimes[i].reroute_ticks;
+            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
+                self.player.x,
+                self.player.y,
+                prev_x,
+                nx,
+                ny,
+                hit_wall,
+                ngr,
+                self.slimes[i].stuck_ticks,
+                self.slimes[i].reroute_ticks,
+                self.slimes[i].reroute_dir,
+            );
+            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
+                self.slimes[i].x,
+                self.slimes[i].y,
+                height,
+                prev_reroute_ticks,
+                stuck_ticks,
+                reroute_ticks,
+                reroute_dir,
+            );
+            self.slimes[i].stuck_ticks = stuck_ticks;
+            self.slimes[i].reroute_ticks = reroute_ticks;
+            self.slimes[i].reroute_dir = reroute_dir;
+            if hit_wall {
+                self.slimes[i].jump();
+            }
+            self.slimes[i].vx *= 0.6;
+            if self.slimes[i].vx.abs() < 0.015 {
+                self.slimes[i].vx = 0.0;
+            }
+
+            let center_y = self.slimes[i].y - height * 0.5;
+            let contact_range = half_width + 0.75;
+            let vertical_reach = (0.55 + height * 0.35).clamp(0.7, 1.45);
+            let can_melee_hit = self.can_melee_contact_player(
+                self.slimes[i].x,
+                center_y,
+                contact_range,
+                vertical_reach,
+            );
+            if can_melee_hit && self.slimes[i].attack_cooldown == 0 {
+                let damage = self.scaled_hostile_damage(self.slimes[i].contact_damage());
+                if damage > 0.0 && self.apply_player_combat_damage(damage) {
+                    self.apply_player_contact_knockback(
+                        self.slimes[i].x,
+                        0.18 + half_width * 0.2,
+                        0.16,
+                    );
+                }
+                self.slimes[i].attack_cooldown =
+                    self.scaled_hostile_cooldown(match self.slimes[i].size {
+                        4 => 16,
+                        2 => 22,
+                        _ => 28,
+                    });
+            }
+        }
+        let mut split_slimes = Vec::new();
+        for idx in dead_slimes.into_iter().rev() {
+            let s = self.slimes.swap_remove(idx);
+            if let Some(child_size) = s.split_size() {
+                let split_count = rng.gen_range(2..=4);
+                for n in 0..split_count {
+                    let center = (split_count - 1) as f64 * 0.5;
+                    let offset = (n as f64 - center) * (0.24 + child_size as f64 * 0.04);
+                    split_slimes.push((s.x + offset, s.y, child_size));
+                }
+            } else {
+                if rng.gen_bool(0.45) {
+                    self.item_entities
+                        .push(ItemEntity::new(s.x, s.y - 0.2, ItemType::Slimeball));
+                }
+                if rng.gen_bool(0.15) {
+                    self.item_entities
+                        .push(ItemEntity::new(s.x, s.y - 0.2, ItemType::Slimeball));
+                }
+            }
+            let xp_drop = match s.size {
+                4 => 6,
+                2 => 3,
+                _ => 1,
+            };
+            if self.mob_has_player_kill_credit(s.last_player_damage_tick) {
+                self.spawn_experience_orbs(s.x, s.y - 0.35, xp_drop, &mut rng);
+            }
+        }
+        for (x, y, size) in split_slimes {
+            let mut child = Slime::new(x, y, size);
+            child.vx = rng.gen_range(-0.12..0.12);
+            child.vy = -0.18;
+            child.grounded = false;
+            self.slimes.push(child);
+        }
+
+        let mut dead_ghasts = Vec::new();
+        for i in 0..self.ghasts.len() {
+            self.select_nearest_peer(self.ghasts[i].x, self.ghasts[i].y);
+            if self.ghasts[i].hit_timer > 0 {
+                self.ghasts[i].hit_timer -= 1;
+            }
+            let shoot = self.ghasts[i].update_ai(self.player.x, self.player.y);
+            self.ghasts[i].age += 1;
+            if self.ghasts[i].health <= 0.0 {
+                dead_ghasts.push(i);
+                continue;
+            }
+
+            let next_x = self.ghasts[i].x + self.ghasts[i].vx;
+            if self
+                .world
+                .get_block(next_x.floor() as i32, self.ghasts[i].y.floor() as i32)
+                .is_solid()
+            {
+                self.ghasts[i].vx = -self.ghasts[i].vx * 0.6;
+            } else {
+                self.ghasts[i].x = next_x;
+            }
+
+            let next_y = self.ghasts[i].y + self.ghasts[i].vy;
+            if self
+                .world
+                .get_block(self.ghasts[i].x.floor() as i32, next_y.floor() as i32)
+                .is_solid()
+            {
+                self.ghasts[i].vy = -self.ghasts[i].vy * 0.6;
+            } else {
+                self.ghasts[i].y = next_y;
+            }
+
+            if self.ghasts[i].y < 6.0 {
+                self.ghasts[i].y = 6.0;
+                self.ghasts[i].vy = self.ghasts[i].vy.abs() * 0.5;
+            } else if self.ghasts[i].y > 96.0 {
+                self.ghasts[i].y = 96.0;
+                self.ghasts[i].vy = -self.ghasts[i].vy.abs() * 0.5;
+            }
+
+            self.ghasts[i].vx *= 0.97;
+            self.ghasts[i].vy *= 0.97;
+
+            if shoot && self.fireballs.len() < GHAST_FIREBALL_SOFT_CAP {
+                let sx = self.ghasts[i].x;
+                let sy = self.ghasts[i].y - 1.0;
+                let dx = self.player.x - sx;
+                let dy = (self.player.y - 0.9) - sy;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist > 0.001 {
+                    self.fireballs.push(Fireball::new(
+                        sx,
+                        sy,
+                        (dx / dist) * 0.30,
+                        (dy / dist) * 0.30,
+                    ));
+                    self.ghasts[i].shoot_cooldown = self.scaled_hostile_cooldown(75);
+                }
+            }
+
+            let can_contact_hit =
+                self.can_melee_contact_player(self.ghasts[i].x, self.ghasts[i].y - 1.0, 1.4, 1.1);
+            if can_contact_hit && self.apply_player_combat_damage(self.scaled_hostile_damage(0.35))
+            {
+                self.apply_player_contact_knockback(self.ghasts[i].x, 0.4, 0.2);
+            }
+        }
+        for idx in dead_ghasts.into_iter().rev() {
+            let g = self.ghasts.swap_remove(idx);
+            self.item_entities
+                .push(ItemEntity::new(g.x, g.y - 0.5, ItemType::Gunpowder));
+            if rng.gen_bool(0.35) {
+                self.item_entities
+                    .push(ItemEntity::new(g.x, g.y - 0.5, ItemType::Gunpowder));
+            }
+            if rng.gen_bool(0.28) {
+                self.item_entities
+                    .push(ItemEntity::new(g.x, g.y - 0.5, ItemType::GhastTear));
+            }
+            if self.mob_has_player_kill_credit(g.last_player_damage_tick) {
+                self.spawn_experience_orbs(g.x, g.y - 0.5, 5, &mut rng);
+            }
+        }
+
+        let mut dead_blazes = Vec::new();
+        for i in 0..self.blazes.len() {
+            self.select_nearest_peer(self.blazes[i].x, self.blazes[i].y);
+            if self.blazes[i].hit_timer > 0 {
+                self.blazes[i].hit_timer -= 1;
+            }
+            let shoot = self.blazes[i].update_ai(self.player.x, self.player.y);
+            self.blazes[i].age += 1;
+            if self.blazes[i].health <= 0.0 {
+                dead_blazes.push(i);
+                continue;
+            }
+
+            let next_x = self.blazes[i].x + self.blazes[i].vx;
+            if self
+                .world
+                .get_block(next_x.floor() as i32, self.blazes[i].y.floor() as i32)
+                .is_solid()
+            {
+                self.blazes[i].vx = -self.blazes[i].vx * 0.55;
+            } else {
+                self.blazes[i].x = next_x;
+            }
+
+            let next_y = self.blazes[i].y + self.blazes[i].vy;
+            if self
+                .world
+                .get_block(self.blazes[i].x.floor() as i32, next_y.floor() as i32)
+                .is_solid()
+            {
+                self.blazes[i].vy = -self.blazes[i].vy * 0.55;
+            } else {
+                self.blazes[i].y = next_y;
+            }
+
+            if self.blazes[i].y < 8.0 {
+                self.blazes[i].y = 8.0;
+                self.blazes[i].vy = self.blazes[i].vy.abs() * 0.5;
+            } else if self.blazes[i].y > 100.0 {
+                self.blazes[i].y = 100.0;
+                self.blazes[i].vy = -self.blazes[i].vy.abs() * 0.5;
+            }
+
+            self.blazes[i].vx *= 0.97;
+            self.blazes[i].vy *= 0.97;
+
+            if shoot && self.fireballs.len() < BLAZE_FIREBALL_SOFT_CAP {
+                let sx = self.blazes[i].x;
+                let sy = self.blazes[i].y - 0.9;
+                let dx = self.player.x - sx;
+                let dy = (self.player.y - 0.9) - sy;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist > 0.001 {
+                    self.fireballs.push(Fireball::new(
+                        sx,
+                        sy,
+                        (dx / dist) * 0.34,
+                        (dy / dist) * 0.34,
+                    ));
+                    self.blazes[i].shoot_cooldown = self.scaled_hostile_cooldown(60);
+                }
+            }
+
+            let can_melee_hit =
+                self.can_melee_contact_player(self.blazes[i].x, self.blazes[i].y - 0.9, 1.25, 1.05);
+            if can_melee_hit && self.blazes[i].attack_cooldown == 0 {
+                if self.apply_player_combat_damage(self.scaled_hostile_damage(0.85)) {
+                    if !self.has_fire_resistance() {
+                        self.player.burning_timer = self.player.burning_timer.max(65);
+                    }
+                    self.apply_player_contact_knockback(self.blazes[i].x, 0.38, 0.2);
+                }
+                self.blazes[i].attack_cooldown = self.scaled_hostile_cooldown(28);
+            }
+        }
+        for idx in dead_blazes.into_iter().rev() {
+            let b = self.blazes.swap_remove(idx);
+            if rng.gen_bool(0.55) {
+                self.item_entities
+                    .push(ItemEntity::new(b.x, b.y - 0.5, ItemType::BlazeRod));
+            }
+            if self.mob_has_player_kill_credit(b.last_player_damage_tick) {
+                self.spawn_experience_orbs(b.x, b.y - 0.5, 10, &mut rng);
+            }
+        }
+
+        let mut dead_endermen = Vec::new();
+        for i in 0..self.endermen.len() {
+            self.select_nearest_peer(self.endermen[i].x, self.endermen[i].y);
+            let prev_x = self.endermen[i].x;
+            if self.endermen[i].hit_timer > 0 {
+                self.endermen[i].hit_timer -= 1;
+            }
+            let should_teleport = self.endermen[i].update_ai(
+                self.player.x,
+                self.player.y,
+                self.current_dimension == Dimension::End,
+            );
+            let rerouting = self.endermen[i].reroute_ticks > 0 && self.endermen[i].reroute_dir != 0;
+            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
+                self.endermen[i].reroute_ticks,
+                self.endermen[i].reroute_dir,
+                self.endermen[i].vx,
+                0.16,
+            );
+            self.endermen[i].reroute_ticks = reroute_ticks;
+            if rerouting {
+                self.endermen[i].vx = reroute_vx;
+                self.endermen[i].facing_right = reroute_vx >= 0.0;
+            }
+            self.endermen[i].age += 1;
+
+            let feet_y = self.endermen[i].y.floor() as i32;
+            let head_y = (self.endermen[i].y - 2.6).floor() as i32;
+            let ex = self.endermen[i].x.floor() as i32;
+            let in_water = matches!(self.world.get_block(ex, feet_y), BlockType::Water(_))
+                || matches!(self.world.get_block(ex, head_y), BlockType::Water(_));
+            if in_water {
+                if self.endermen[i].age.is_multiple_of(10) {
+                    self.endermen[i].health -= 1.0;
+                }
+                self.endermen[i].provoke();
+            }
+
+            if self.endermen[i].health <= 0.0 {
+                dead_endermen.push(i);
+                continue;
+            }
+            let chase_jump = self.should_ground_mob_chase_jump(
+                self.endermen[i].x,
+                self.endermen[i].y,
+                self.endermen[i].vx,
+                self.endermen[i].grounded,
+                0.3,
+                2.7,
+            );
+            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
+                self.endermen[i].x,
+                self.endermen[i].y,
+                self.endermen[i].vx,
+                self.endermen[i].grounded,
+                0.3,
+                2.7,
+                self.endermen[i].stuck_ticks,
+                self.endermen[i].reroute_ticks,
+            );
+            if chase_jump || recovery_jump {
+                self.endermen[i].jump();
+            }
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+                self.endermen[i].x,
+                self.endermen[i].y,
+                self.endermen[i].vx,
+                self.endermen[i].vy,
+                self.endermen[i].grounded,
+                0.3,
+                2.7,
+                true,
+            );
+            self.endermen[i].x = nx;
+            self.endermen[i].y = ny;
+            self.endermen[i].vx = nvx;
+            self.endermen[i].vy = nvy;
+            self.endermen[i].grounded = ngr;
+            let prev_reroute_ticks = self.endermen[i].reroute_ticks;
+            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
+                self.player.x,
+                self.player.y,
+                prev_x,
+                nx,
+                ny,
+                hit_wall,
+                ngr,
+                self.endermen[i].stuck_ticks,
+                self.endermen[i].reroute_ticks,
+                self.endermen[i].reroute_dir,
+            );
+            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
+                self.endermen[i].x,
+                self.endermen[i].y,
+                2.7,
+                prev_reroute_ticks,
+                stuck_ticks,
+                reroute_ticks,
+                reroute_dir,
+            );
+            self.endermen[i].stuck_ticks = stuck_ticks;
+            self.endermen[i].reroute_ticks = reroute_ticks;
+            self.endermen[i].reroute_dir = reroute_dir;
+            if hit_wall {
+                self.endermen[i].jump();
+            }
+            self.endermen[i].vx *= 0.6;
+
+            if should_teleport || in_water {
+                let anchor_x = if self.endermen[i].aggressive_timer > 0 {
+                    self.player.x.floor() as i32
+                } else {
+                    self.endermen[i].x.floor() as i32
+                };
+                let mut teleported = false;
+                for _ in 0..10 {
+                    let target_x = anchor_x + rng.gen_range(-14..=14);
+                    self.world.load_chunks_around(target_x);
+                    let maybe_y = if self.current_dimension == Dimension::End {
+                        self.find_end_spawn_surface_for_enderman(target_x)
+                    } else {
+                        self.find_spawn_surface_for_mob(target_x)
+                    };
+                    if let Some(target_y) = maybe_y {
+                        self.endermen[i].x = target_x as f64 + 0.5;
+                        self.endermen[i].y = target_y;
+                        self.endermen[i].vx = 0.0;
+                        self.endermen[i].vy = 0.0;
+                        self.endermen[i].grounded = false;
+                        self.endermen[i].teleport_cooldown = 90;
+                        teleported = true;
+                        break;
+                    }
+                }
+                if !teleported {
+                    self.endermen[i].teleport_cooldown = 25;
+                }
+            }
+
+            let can_melee_hit = self.can_melee_contact_player(
+                self.endermen[i].x,
+                self.endermen[i].y - 1.4,
+                1.35,
+                1.2,
+            );
+            if can_melee_hit && self.endermen[i].attack_cooldown == 0 {
+                if self.apply_player_combat_damage(self.scaled_hostile_damage(1.5)) {
+                    self.apply_player_contact_knockback(self.endermen[i].x, 0.55, 0.28);
+                }
+                self.endermen[i].attack_cooldown = self.scaled_hostile_cooldown(24);
+            }
+        }
+        for idx in dead_endermen.into_iter().rev() {
+            let e = self.endermen.swap_remove(idx);
+            if rng.gen_bool(0.55) {
+                self.item_entities
+                    .push(ItemEntity::new(e.x, e.y - 0.5, ItemType::EnderPearl));
+            }
+            if self.mob_has_player_kill_credit(e.last_player_damage_tick) {
+                self.spawn_experience_orbs(e.x, e.y - 0.5, 5, &mut rng);
+            }
+        }
+
+        for i in (0..self.fireballs.len()).rev() {
+            self.select_nearest_peer(self.fireballs[i].x, self.fireballs[i].y);
+            self.fireballs[i].update();
+            let (fx, fy, fvx, fvy, mut remove_now) = {
+                let fb = &self.fireballs[i];
+                (fb.x, fb.y, fb.vx, fb.vy, fb.dead)
+            };
+
+            let mut explode = false;
+            if self
+                .world
+                .get_block(fx.floor() as i32, fy.floor() as i32)
+                .is_solid()
+            {
+                remove_now = true;
+                explode = true;
+            }
+
+            let pdist =
+                ((fx - self.player.x).powi(2) + (fy - (self.player.y - 0.9)).powi(2)).sqrt();
+            if pdist < 0.95 {
+                if self.apply_player_combat_damage(self.scaled_hostile_damage(1.2)) {
+                    if !self.has_fire_resistance() {
+                        self.player.burning_timer = self.player.burning_timer.max(55);
+                    }
+                    self.player.vx += fvx * 1.4;
+                    self.player.vy += fvy * 1.1 - 0.2;
+                    self.player.grounded = false;
+                }
+                remove_now = true;
+                explode = true;
+            }
+
+            if explode {
+                let cx = fx.floor() as i32;
+                let cy = fy.floor() as i32;
+                pending_world_explosions.push((cx, cy, 1, 2.4, 8));
+            }
+
+            if remove_now {
+                self.fireballs.swap_remove(i);
+            }
+        }
+
+        if !pending_world_explosions.is_empty() {
+            for (cx, cy, radius, strength, chain_fuse) in pending_world_explosions {
+                self.world
+                    .trigger_explosion(cx, cy, radius, strength, chain_fuse);
+            }
+            self.apply_world_explosion_impacts();
+            self.collect_world_explosion_drops();
+        }
+
+        for i in (0..self.arrows.len()).rev() {
+            self.select_nearest_peer(self.arrows[i].x, self.arrows[i].y);
+            self.arrows[i].update();
+            let ax = self.arrows[i].x;
+            let ay = self.arrows[i].y;
+            let avx = self.arrows[i].vx;
+            let avy = self.arrows[i].vy;
+            let from_player = self.arrows[i].from_player;
+            let arrow_damage = self.arrows[i].damage;
+            if self
+                .world
+                .get_block(ax.floor() as i32, ay.floor() as i32)
+                .is_solid()
+            {
+                self.arrows.swap_remove(i);
+                continue;
+            }
+            if from_player {
+                if self.try_apply_player_arrow_hit(ax, ay, avx, avy, arrow_damage) {
+                    self.arrows.swap_remove(i);
+                    continue;
+                }
+            } else {
+                let pdist =
+                    ((ax - self.player.x).powi(2) + (ay - (self.player.y - 0.9)).powi(2)).sqrt();
+                if pdist < 0.8 {
+                    if self.apply_player_combat_damage(self.scaled_hostile_damage(arrow_damage)) {
+                        self.player.vx += avx * 0.5;
+                    }
+                    self.arrows.swap_remove(i);
+                    continue;
+                }
+            }
+            if self.arrows[i].dead {
+                self.arrows.swap_remove(i);
+            }
+        }
+
+        let mut dead_cows = Vec::new();
+        for i in 0..self.cows.len() {
+            self.select_nearest_peer(self.cows[i].x, self.cows[i].y);
+            if self.cows[i].hit_timer > 0 {
+                self.cows[i].hit_timer -= 1;
+            }
+            if self.cows[i].health <= 0.0 {
+                dead_cows.push(i);
+                continue;
+            }
+            self.cows[i].update_ai();
+            self.cows[i].age += 1;
+            let mut c_vy = self.cows[i].vy + gravity;
+            if c_vy > max_fall_speed {
+                c_vy = max_fall_speed;
+            }
+            self.cows[i].vy = c_vy;
+            let c_nx = self.cows[i].x + self.cows[i].vx;
+            let mut c_hw = false;
+            let c_cx = if self.cows[i].vx > 0.0 {
+                c_nx + 0.3
+            } else {
+                c_nx - 0.3
+            };
+            if self.is_colliding(c_cx, self.cows[i].y - 0.1, CollisionType::Horizontal)
+                || self.is_colliding(c_cx, self.cows[i].y - 1.5, CollisionType::Horizontal)
+            {
+                c_hw = true;
+            }
+            if !c_hw {
+                self.cows[i].x = c_nx;
+            } else {
+                self.cows[i].jump();
+            }
+            let c_ny = self.cows[i].y + self.cows[i].vy;
+            let c_py = self.cows[i].y;
+            if self.cows[i].vy > 0.0 {
+                if self.is_colliding(self.cows[i].x, c_ny, CollisionType::VerticalDown(c_py))
+                    || self.is_colliding(
+                        self.cows[i].x - 0.3,
+                        c_ny,
+                        CollisionType::VerticalDown(c_py),
+                    )
+                    || self.is_colliding(
+                        self.cows[i].x + 0.3,
+                        c_ny,
+                        CollisionType::VerticalDown(c_py),
+                    )
+                {
+                    self.cows[i].y = c_ny.floor();
+                    self.cows[i].vy = 0.0;
+                    self.cows[i].grounded = true;
+                } else {
+                    self.cows[i].y = c_ny;
+                    self.cows[i].grounded = false;
+                }
+            } else if self.cows[i].vy < 0.0 {
+                if self.is_colliding(self.cows[i].x, c_ny - 1.9, CollisionType::VerticalUp)
+                    || self.is_colliding(
+                        self.cows[i].x - 0.3,
+                        c_ny - 1.9,
+                        CollisionType::VerticalUp,
+                    )
+                    || self.is_colliding(
+                        self.cows[i].x + 0.3,
+                        c_ny - 1.9,
+                        CollisionType::VerticalUp,
+                    )
+                {
+                    self.cows[i].y = c_ny.ceil();
+                    self.cows[i].vy = 0.0;
+                } else {
+                    self.cows[i].y = c_ny;
+                    self.cows[i].grounded = false;
+                }
+            }
+            self.cows[i].vx *= 0.5;
+            if self.cows[i].vx.abs() < 0.02 {
+                self.cows[i].vx = 0.0;
+            }
+        }
+        let mut dead_sheep = Vec::new();
+        for i in 0..self.sheep.len() {
+            self.select_nearest_peer(self.sheep[i].x, self.sheep[i].y);
+            if self.sheep[i].hit_timer > 0 {
+                self.sheep[i].hit_timer -= 1;
+            }
+            if self.sheep[i].health <= 0.0 {
+                dead_sheep.push(i);
+                continue;
+            }
+            self.sheep[i].update_ai();
+            self.sheep[i].age += 1;
+            let mut s_vy = self.sheep[i].vy + gravity;
+            if s_vy > max_fall_speed {
+                s_vy = max_fall_speed;
+            }
+            self.sheep[i].vy = s_vy;
+            let s_nx = self.sheep[i].x + self.sheep[i].vx;
+            let mut s_hw = false;
+            let s_cx = if self.sheep[i].vx > 0.0 {
+                s_nx + 0.3
+            } else {
+                s_nx - 0.3
+            };
+            if self.is_colliding(s_cx, self.sheep[i].y - 0.1, CollisionType::Horizontal)
+                || self.is_colliding(s_cx, self.sheep[i].y - 1.5, CollisionType::Horizontal)
+            {
+                s_hw = true;
+            }
+            if !s_hw {
+                self.sheep[i].x = s_nx;
+            } else {
+                self.sheep[i].jump();
+            }
+            let s_ny = self.sheep[i].y + self.sheep[i].vy;
+            let s_py = self.sheep[i].y;
+            if self.sheep[i].vy > 0.0 {
+                if self.is_colliding(self.sheep[i].x, s_ny, CollisionType::VerticalDown(s_py))
+                    || self.is_colliding(
+                        self.sheep[i].x - 0.3,
+                        s_ny,
+                        CollisionType::VerticalDown(s_py),
+                    )
+                    || self.is_colliding(
+                        self.sheep[i].x + 0.3,
+                        s_ny,
+                        CollisionType::VerticalDown(s_py),
+                    )
+                {
+                    self.sheep[i].y = s_ny.floor();
+                    self.sheep[i].vy = 0.0;
+                    self.sheep[i].grounded = true;
+                } else {
+                    self.sheep[i].y = s_ny;
+                    self.sheep[i].grounded = false;
+                }
+            } else if self.sheep[i].vy < 0.0 {
+                if self.is_colliding(self.sheep[i].x, s_ny - 1.9, CollisionType::VerticalUp)
+                    || self.is_colliding(
+                        self.sheep[i].x - 0.3,
+                        s_ny - 1.9,
+                        CollisionType::VerticalUp,
+                    )
+                    || self.is_colliding(
+                        self.sheep[i].x + 0.3,
+                        s_ny - 1.9,
+                        CollisionType::VerticalUp,
+                    )
+                {
+                    self.sheep[i].y = s_ny.ceil();
+                    self.sheep[i].vy = 0.0;
+                } else {
+                    self.sheep[i].y = s_ny;
+                    self.sheep[i].grounded = false;
+                }
+            }
+            self.sheep[i].vx *= 0.5;
+            if self.sheep[i].vx.abs() < 0.02 {
+                self.sheep[i].vx = 0.0;
+            }
+        }
+        let mut dead_pigs = Vec::new();
+        for i in 0..self.pigs.len() {
+            self.select_nearest_peer(self.pigs[i].x, self.pigs[i].y);
+            if self.pigs[i].hit_timer > 0 {
+                self.pigs[i].hit_timer -= 1;
+            }
+            if self.pigs[i].health <= 0.0 {
+                dead_pigs.push(i);
+                continue;
+            }
+            self.pigs[i].update_ai();
+            self.pigs[i].age += 1;
+            let mut p_vy = self.pigs[i].vy + gravity;
+            if p_vy > max_fall_speed {
+                p_vy = max_fall_speed;
+            }
+            self.pigs[i].vy = p_vy;
+            let p_nx = self.pigs[i].x + self.pigs[i].vx;
+            let mut p_hw = false;
+            let p_cx = if self.pigs[i].vx > 0.0 {
+                p_nx + 0.3
+            } else {
+                p_nx - 0.3
+            };
+            if self.is_colliding(p_cx, self.pigs[i].y - 0.1, CollisionType::Horizontal)
+                || self.is_colliding(p_cx, self.pigs[i].y - 1.5, CollisionType::Horizontal)
+            {
+                p_hw = true;
+            }
+            if !p_hw {
+                self.pigs[i].x = p_nx;
+            } else {
+                self.pigs[i].jump();
+                self.pigs[i].facing_right = !self.pigs[i].facing_right;
+                self.pigs[i].vx = 0.0;
+            }
+            let p_ny = self.pigs[i].y + self.pigs[i].vy;
+            let p_py = self.pigs[i].y;
+            if self.pigs[i].vy > 0.0 {
+                if self.is_colliding(self.pigs[i].x, p_ny, CollisionType::VerticalDown(p_py))
+                    || self.is_colliding(
+                        self.pigs[i].x - 0.3,
+                        p_ny,
+                        CollisionType::VerticalDown(p_py),
+                    )
+                    || self.is_colliding(
+                        self.pigs[i].x + 0.3,
+                        p_ny,
+                        CollisionType::VerticalDown(p_py),
+                    )
+                {
+                    self.pigs[i].y = p_ny.floor();
+                    self.pigs[i].vy = 0.0;
+                    self.pigs[i].grounded = true;
+                } else {
+                    self.pigs[i].y = p_ny;
+                    self.pigs[i].grounded = false;
+                }
+            } else if self.pigs[i].vy < 0.0 {
+                if self.is_colliding(self.pigs[i].x, p_ny - 1.9, CollisionType::VerticalUp)
+                    || self.is_colliding(
+                        self.pigs[i].x - 0.3,
+                        p_ny - 1.9,
+                        CollisionType::VerticalUp,
+                    )
+                    || self.is_colliding(
+                        self.pigs[i].x + 0.3,
+                        p_ny - 1.9,
+                        CollisionType::VerticalUp,
+                    )
+                {
+                    self.pigs[i].y = p_ny.ceil();
+                    self.pigs[i].vy = 0.0;
+                } else {
+                    self.pigs[i].y = p_ny;
+                    self.pigs[i].grounded = false;
+                }
+            }
+            self.pigs[i].vx *= 0.5;
+            if self.pigs[i].vx.abs() < 0.02 {
+                self.pigs[i].vx = 0.0;
+            }
+        }
+        let mut dead_chickens = Vec::new();
+        for i in 0..self.chickens.len() {
+            self.select_nearest_peer(self.chickens[i].x, self.chickens[i].y);
+            if self.chickens[i].hit_timer > 0 {
+                self.chickens[i].hit_timer -= 1;
+            }
+            if self.chickens[i].health <= 0.0 {
+                dead_chickens.push(i);
+                continue;
+            }
+            self.chickens[i].update_ai();
+            self.chickens[i].age += 1;
+            if self.chickens[i].egg_lay_timer == 0 {
+                self.item_entities.push(ItemEntity::new(
+                    self.chickens[i].x,
+                    self.chickens[i].y - 0.3,
+                    ItemType::Egg,
+                ));
+                self.chickens[i].egg_lay_timer = rng.gen_range(6000..12000);
+            }
+            let mut c_vy = self.chickens[i].vy + gravity * 0.65;
+            if c_vy > max_fall_speed * 0.55 {
+                c_vy = max_fall_speed * 0.55;
+            }
+            self.chickens[i].vy = c_vy;
+            let c_nx = self.chickens[i].x + self.chickens[i].vx;
+            let mut c_hw = false;
+            let c_cx = if self.chickens[i].vx > 0.0 {
+                c_nx + 0.26
+            } else {
+                c_nx - 0.26
+            };
+            if self.is_colliding(c_cx, self.chickens[i].y - 0.1, CollisionType::Horizontal)
+                || self.is_colliding(c_cx, self.chickens[i].y - 1.1, CollisionType::Horizontal)
+            {
+                c_hw = true;
+            }
+            if !c_hw {
+                self.chickens[i].x = c_nx;
+            } else {
+                self.chickens[i].jump();
+                self.chickens[i].facing_right = !self.chickens[i].facing_right;
+                self.chickens[i].vx = 0.0;
+            }
+            let c_ny = self.chickens[i].y + self.chickens[i].vy;
+            let c_py = self.chickens[i].y;
+            if self.chickens[i].vy > 0.0 {
+                if self.is_colliding(self.chickens[i].x, c_ny, CollisionType::VerticalDown(c_py))
+                    || self.is_colliding(
+                        self.chickens[i].x - 0.24,
+                        c_ny,
+                        CollisionType::VerticalDown(c_py),
+                    )
+                    || self.is_colliding(
+                        self.chickens[i].x + 0.24,
+                        c_ny,
+                        CollisionType::VerticalDown(c_py),
+                    )
+                {
+                    self.chickens[i].y = c_ny.floor();
+                    self.chickens[i].vy = 0.0;
+                    self.chickens[i].grounded = true;
+                } else {
+                    self.chickens[i].y = c_ny;
+                    self.chickens[i].grounded = false;
+                }
+            } else if self.chickens[i].vy < 0.0 {
+                if self.is_colliding(self.chickens[i].x, c_ny - 1.3, CollisionType::VerticalUp)
+                    || self.is_colliding(
+                        self.chickens[i].x - 0.24,
+                        c_ny - 1.3,
+                        CollisionType::VerticalUp,
+                    )
+                    || self.is_colliding(
+                        self.chickens[i].x + 0.24,
+                        c_ny - 1.3,
+                        CollisionType::VerticalUp,
+                    )
+                {
+                    self.chickens[i].y = c_ny.ceil();
+                    self.chickens[i].vy = 0.0;
+                } else {
+                    self.chickens[i].y = c_ny;
+                    self.chickens[i].grounded = false;
+                }
+            }
+            self.chickens[i].vx *= 0.56;
+            if self.chickens[i].vx.abs() < 0.02 {
+                self.chickens[i].vx = 0.0;
+            }
+        }
+        let mut dead_squids = Vec::new();
+        for i in 0..self.squids.len() {
+            self.select_nearest_peer(self.squids[i].x, self.squids[i].y);
+            if self.squids[i].hit_timer > 0 {
+                self.squids[i].hit_timer -= 1;
+            }
+            if self.squids[i].health <= 0.0 {
+                dead_squids.push(i);
+                continue;
+            }
+
+            self.squids[i].age += 1;
+            let sx = self.squids[i].x.floor() as i32;
+            let center_y = (self.squids[i].y - 0.45).floor() as i32;
+            let feet_y = self.squids[i].y.floor() as i32;
+            let in_water = matches!(self.world.get_block(sx, center_y), BlockType::Water(_))
+                || matches!(self.world.get_block(sx, feet_y), BlockType::Water(_));
+            if !in_water && self.squids[i].age.is_multiple_of(20) {
+                self.squids[i].health -= 1.0;
+                if self.squids[i].health <= 0.0 {
+                    dead_squids.push(i);
+                    continue;
+                }
+            }
+
+            self.squids[i].update_ai(in_water);
+            let (nx, ny, mut nvx, mut nvy, ngr, hit_wall) = self.calculate_movement(
+                self.squids[i].x,
+                self.squids[i].y,
+                self.squids[i].vx,
+                self.squids[i].vy,
+                self.squids[i].grounded,
+                0.42,
+                0.9,
+                false,
+            );
+            if hit_wall {
+                nvx *= -0.3;
+                self.squids[i].swim_dir_x = -self.squids[i].swim_dir_x;
+            }
+            if in_water {
+                nvx *= 0.94;
+                nvy *= 0.9;
+                if nvy.abs() < 0.005 {
+                    nvy = 0.0;
+                }
+            } else {
+                nvx *= 0.78;
+            }
+            if nvx.abs() < 0.01 {
+                nvx = 0.0;
+            }
+
+            self.squids[i].x = nx;
+            self.squids[i].y = ny;
+            self.squids[i].vx = nvx;
+            self.squids[i].vy = nvy;
+            self.squids[i].grounded = ngr;
+        }
+
+        let mut dead_wolves = Vec::new();
+        for i in 0..self.wolves.len() {
+            self.select_nearest_peer(self.wolves[i].x, self.wolves[i].y);
+            if self.wolves[i].hit_timer > 0 {
+                self.wolves[i].hit_timer -= 1;
+            }
+            if self.wolves[i].health <= 0.0 {
+                dead_wolves.push(i);
+                continue;
+            }
+
+            let mut sheep_target = None;
+            let mut sheep_target_dist = f64::INFINITY;
+            for sheep in &self.sheep {
+                if sheep.health <= 0.0 {
+                    continue;
+                }
+                let dx = sheep.x - self.wolves[i].x;
+                let dy = sheep.y - self.wolves[i].y;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist < sheep_target_dist && dist <= 14.0 {
+                    sheep_target_dist = dist;
+                    sheep_target = Some((sheep.x, sheep.y));
+                }
+            }
+
+            self.wolves[i].update_ai(self.player.x, self.player.y, sheep_target);
+            self.wolves[i].age += 1;
+            let chase_jump = self.should_ground_mob_chase_jump(
+                self.wolves[i].x,
+                self.wolves[i].y,
+                self.wolves[i].vx,
+                self.wolves[i].grounded,
+                0.28,
+                1.2,
+            );
+            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
+                self.wolves[i].x,
+                self.wolves[i].y,
+                self.wolves[i].vx,
+                self.wolves[i].grounded,
+                0.28,
+                1.2,
+                0,
+                0,
+            );
+            if chase_jump || recovery_jump {
+                self.wolves[i].jump();
+            }
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+                self.wolves[i].x,
+                self.wolves[i].y,
+                self.wolves[i].vx,
+                self.wolves[i].vy,
+                self.wolves[i].grounded,
+                0.28,
+                1.2,
+                true,
+            );
+            self.wolves[i].x = nx;
+            self.wolves[i].y = ny;
+            self.wolves[i].vx = nvx;
+            self.wolves[i].vy = nvy;
+            self.wolves[i].grounded = ngr;
+            if hit_wall {
+                self.wolves[i].jump();
+            }
+            self.wolves[i].vx *= 0.56;
+            if self.wolves[i].vx.abs() < 0.02 {
+                self.wolves[i].vx = 0.0;
+            }
+
+            if self.wolves[i].is_aggressive() {
+                let can_melee_hit = self.can_melee_contact_player(
+                    self.wolves[i].x,
+                    self.wolves[i].y - 0.6,
+                    1.1,
+                    0.9,
+                );
+                if can_melee_hit && self.wolves[i].attack_cooldown == 0 {
+                    if self.apply_player_combat_damage(self.scaled_hostile_damage(0.45)) {
+                        self.apply_player_contact_knockback(self.wolves[i].x, 0.3, 0.22);
+                    }
+                    self.wolves[i].attack_cooldown = self.scaled_hostile_cooldown(20);
+                }
+            } else if self.wolves[i].attack_cooldown == 0 {
+                let mut target_sheep_idx = None;
+                let mut target_sheep_dist = f64::INFINITY;
+                for (sheep_idx, sheep) in self.sheep.iter().enumerate() {
+                    if sheep.health <= 0.0 {
+                        continue;
+                    }
+                    let dx = sheep.x - self.wolves[i].x;
+                    let dy = sheep.y - self.wolves[i].y;
+                    let dist = (dx * dx + dy * dy).sqrt();
+                    if dist < target_sheep_dist && dist < 1.0 {
+                        target_sheep_dist = dist;
+                        target_sheep_idx = Some(sheep_idx);
+                    }
+                }
+                if let Some(sheep_idx) = target_sheep_idx {
+                    self.sheep[sheep_idx].health -= 2.0;
+                    self.sheep[sheep_idx].hit_timer = self.sheep[sheep_idx].hit_timer.max(8);
+                    self.sheep[sheep_idx].vx += if self.sheep[sheep_idx].x > self.wolves[i].x {
+                        0.26
+                    } else {
+                        -0.26
+                    };
+                    self.sheep[sheep_idx].vy = -0.22;
+                    self.sheep[sheep_idx].grounded = false;
+                    self.wolves[i].attack_cooldown = 24;
+                }
+            }
+        }
+
+        let mut dead_ocelots = Vec::new();
+        for i in 0..self.ocelots.len() {
+            self.select_nearest_peer(self.ocelots[i].x, self.ocelots[i].y);
+            if self.ocelots[i].hit_timer > 0 {
+                self.ocelots[i].hit_timer -= 1;
+            }
+            if self.ocelots[i].health <= 0.0 {
+                dead_ocelots.push(i);
+                continue;
+            }
+
+            let mut chicken_target = None;
+            let mut chicken_target_dist = f64::INFINITY;
+            for chicken in &self.chickens {
+                if chicken.health <= 0.0 {
+                    continue;
+                }
+                let dx = chicken.x - self.ocelots[i].x;
+                let dy = chicken.y - self.ocelots[i].y;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist < chicken_target_dist && dist <= 13.0 {
+                    chicken_target_dist = dist;
+                    chicken_target = Some((chicken.x, chicken.y));
+                }
+            }
+
+            self.ocelots[i].update_ai(self.player.x, self.player.y, chicken_target);
+            self.ocelots[i].age += 1;
+            let chase_jump = self.should_ground_mob_chase_jump(
+                self.ocelots[i].x,
+                self.ocelots[i].y,
+                self.ocelots[i].vx,
+                self.ocelots[i].grounded,
+                0.24,
+                1.1,
+            );
+            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
+                self.ocelots[i].x,
+                self.ocelots[i].y,
+                self.ocelots[i].vx,
+                self.ocelots[i].grounded,
+                0.24,
+                1.1,
+                0,
+                0,
+            );
+            if chase_jump || recovery_jump {
+                self.ocelots[i].jump();
+            }
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+                self.ocelots[i].x,
+                self.ocelots[i].y,
+                self.ocelots[i].vx,
+                self.ocelots[i].vy,
+                self.ocelots[i].grounded,
+                0.24,
+                1.1,
+                true,
+            );
+            self.ocelots[i].x = nx;
+            self.ocelots[i].y = ny;
+            self.ocelots[i].vx = nvx;
+            self.ocelots[i].vy = nvy;
+            self.ocelots[i].grounded = ngr;
+            if hit_wall {
+                self.ocelots[i].jump();
+            }
+            self.ocelots[i].vx *= 0.58;
+            if self.ocelots[i].vx.abs() < 0.02 {
+                self.ocelots[i].vx = 0.0;
+            }
+
+            if self.ocelots[i].panic_timer == 0 && self.ocelots[i].attack_cooldown == 0 {
+                let mut target_chicken_idx = None;
+                let mut target_chicken_dist = f64::INFINITY;
+                for (chicken_idx, chicken) in self.chickens.iter().enumerate() {
+                    if chicken.health <= 0.0 {
+                        continue;
+                    }
+                    let dx = chicken.x - self.ocelots[i].x;
+                    let dy = chicken.y - self.ocelots[i].y;
+                    let dist = (dx * dx + dy * dy).sqrt();
+                    if dist < target_chicken_dist && dist < 0.95 {
+                        target_chicken_dist = dist;
+                        target_chicken_idx = Some(chicken_idx);
+                    }
+                }
+                if let Some(chicken_idx) = target_chicken_idx {
+                    self.chickens[chicken_idx].health -= 2.0;
+                    self.chickens[chicken_idx].hit_timer =
+                        self.chickens[chicken_idx].hit_timer.max(8);
+                    self.chickens[chicken_idx].vx +=
+                        if self.chickens[chicken_idx].x > self.ocelots[i].x {
+                            0.24
+                        } else {
+                            -0.24
+                        };
+                    self.chickens[chicken_idx].vy = -0.2;
+                    self.chickens[chicken_idx].grounded = false;
+                    self.ocelots[i].attack_cooldown = 20;
+                }
+            }
+        }
+
+        let villager_snapshot: Vec<(f64, i32, i32)> = self
+            .villagers
+            .iter()
+            .map(|v| (v.x, v.home_x, v.home_y))
+            .collect();
+        let mut dead_villagers = Vec::new();
+        for i in 0..self.villagers.len() {
+            self.select_nearest_peer(self.villagers[i].x, self.villagers[i].y);
+            if self.villagers[i].hit_timer > 0 {
+                self.villagers[i].hit_timer -= 1;
+            }
+            if self.villagers[i].health <= 0.0 {
+                dead_villagers.push(i);
+                continue;
+            }
+            let seek_shelter = self.should_villager_seek_shelter(
+                self.villagers[i].x,
+                self.villagers[i].y,
+                is_day_now,
+            );
+            let shelter_target = if seek_shelter {
+                self.find_villager_shelter_surface_near_home(
+                    self.villagers[i].home_x,
+                    self.villagers[i].home_y,
+                )
+            } else {
+                None
+            };
+            let sheltered_now =
+                !self.is_exposed_to_sky(self.villagers[i].x, self.villagers[i].y - 1.0);
+            let outdoor_target = if !seek_shelter && sheltered_now {
+                self.find_villager_outdoor_surface_near_home(
+                    self.villagers[i].home_x,
+                    self.villagers[i].home_y,
+                )
+            } else {
+                None
+            };
+            self.villagers[i].update_ai(!seek_shelter);
+            if let Some((target_x, _target_y)) = shelter_target {
+                let dx = target_x as f64 + 0.5 - self.villagers[i].x;
+                if sheltered_now && dx.abs() <= 0.75 {
+                    self.villagers[i].vx = 0.0;
+                    self.villagers[i].wander_timer = 0;
+                } else if dx.abs() > 0.45 {
+                    self.villagers[i].walk(dx.signum() * 0.15);
+                    self.villagers[i].wander_timer = 0;
+                } else {
+                    self.villagers[i].vx = 0.0;
+                }
+            } else if let Some((target_x, _target_y)) = outdoor_target {
+                let dx = target_x as f64 + 0.5 - self.villagers[i].x;
+                if dx.abs() > 0.45 {
+                    self.villagers[i].walk(dx.signum() * 0.13);
+                    self.villagers[i].wander_timer = 0;
+                } else {
+                    self.villagers[i].vx = 0.0;
+                }
+            } else if seek_shelter {
+                let home_target_x = self.villagers[i].home_x as f64 + 0.5;
+                let dx = home_target_x - self.villagers[i].x;
+                if dx.abs() > 0.55 {
+                    self.villagers[i].walk(dx.signum() * 0.14);
+                    self.villagers[i].wander_timer = 0;
+                } else {
+                    self.villagers[i].vx = 0.0;
+                    self.villagers[i].wander_timer = 0;
+                }
+            } else {
+                let home_x = self.villagers[i].home_x;
+                let home_y = self.villagers[i].home_y;
+                let home_target_x = home_x as f64 + 0.5;
+                let mut group_sum_x = 0.0;
+                let mut group_count = 0usize;
+                for (j, (other_x, other_home_x, other_home_y)) in
+                    villager_snapshot.iter().enumerate()
+                {
+                    if i == j {
+                        continue;
+                    }
+                    if (*other_home_x - home_x).abs() <= 10
+                        && (*other_home_y - home_y).abs() <= 6
+                        && (*other_x - self.villagers[i].x).abs() <= 18.0
+                    {
+                        group_sum_x += *other_x;
+                        group_count += 1;
+                    }
+                }
+                let group_target_x = if group_count > 0 {
+                    group_sum_x / group_count as f64
+                } else {
+                    home_target_x
+                };
+                let day_target_x = (home_target_x * 0.5 + group_target_x * 0.5)
+                    .clamp(home_target_x - 8.0, home_target_x + 8.0);
+                let dx = day_target_x - self.villagers[i].x;
+                let home_band_dx = (self.villagers[i].x - home_target_x).abs();
+                if home_band_dx > 10.0 || dx.abs() > 4.0 {
+                    self.villagers[i].walk(dx.signum() * 0.11);
+                    self.villagers[i].wander_timer = 0;
+                } else if dx.abs() > 1.4 && self.villagers[i].vx.abs() < 0.10 {
+                    self.villagers[i].walk(dx.signum() * 0.09);
+                }
+            }
+            let prefer_straight_path =
+                shelter_target.is_some() || outdoor_target.is_some() || seek_shelter;
+            self.villagers[i].age += 1;
+            let mut movement = self.calculate_movement(
+                self.villagers[i].x,
+                self.villagers[i].y,
+                self.villagers[i].vx,
+                self.villagers[i].vy,
+                self.villagers[i].grounded,
+                0.3,
+                1.8,
+                true,
+            );
+            if movement.5
+                && self.try_open_wood_door_for_entity(
+                    self.villagers[i].x,
+                    self.villagers[i].y,
+                    self.villagers[i].vx,
+                )
+            {
+                movement = self.calculate_movement(
+                    self.villagers[i].x,
+                    self.villagers[i].y,
+                    self.villagers[i].vx,
+                    self.villagers[i].vy,
+                    self.villagers[i].grounded,
+                    0.3,
+                    1.8,
+                    true,
+                );
+            }
+            self.villagers[i].x = movement.0;
+            self.villagers[i].y = movement.1;
+            self.villagers[i].vx = movement.2;
+            self.villagers[i].vy = movement.3;
+            self.villagers[i].grounded = movement.4;
+            self.refresh_villager_door_hold_for_entity(self.villagers[i].x, self.villagers[i].y);
+            self.try_close_wood_door_behind_entity(self.villagers[i].x, self.villagers[i].y);
+            if movement.5 {
+                self.villagers[i].jump();
+                if !prefer_straight_path {
+                    self.villagers[i].facing_right = !self.villagers[i].facing_right;
+                }
+            }
+            self.villagers[i].vx *= 0.52;
+            if self.villagers[i].vx.abs() < 0.02 {
+                self.villagers[i].vx = 0.0;
+            }
+        }
+        for idx in dead_villagers.into_iter().rev() {
+            self.villagers.swap_remove(idx);
+        }
+        self.tick_villager_door_hold_timers();
+
+        let mut resolved_item_indices: Vec<(usize, bool, Option<u16>)> = Vec::new();
+        for i in 0..self.item_entities.len() {
+            self.select_nearest_peer(self.item_entities[i].x, self.item_entities[i].y);
+            let (ix, iy, ivx, ivy) = {
+                let item = &self.item_entities[i];
+                (item.x, item.y, item.vx, item.vy)
+            };
+            self.item_entities[i].age = self.item_entities[i].age.saturating_add(1);
+            if self.item_entities[i].age > ITEM_ENTITY_DESPAWN_TICKS {
+                resolved_item_indices.push((i, false, self.active_peer));
+                continue;
+            }
+            let mut next_ivy = ivy + 0.05;
+            if next_ivy > 0.5 {
+                next_ivy = 0.5;
+            }
+            let dx = self.player.x - ix;
+            let dy = (self.player.y - 1.0) - iy;
+            let dist = (dx * dx + dy * dy).sqrt();
+            let (mut f_vx, mut f_vy) = (ivx, next_ivy);
+            if dist < 3.0 && dist > 0.001 {
+                f_vx += (dx / dist) * 0.15;
+                f_vy += (dy / dist) * 0.15;
+            }
+            if dist < 0.8 && !self.death_screen_active && self.player.health > 0.0 {
+                resolved_item_indices.push((i, true, self.active_peer));
+                continue;
+            }
+            let next_ix = ix + f_vx;
+            let next_iy = iy + f_vy;
+            if !self.is_colliding(next_ix, iy, CollisionType::Horizontal) {
+                self.item_entities[i].x = next_ix;
+            } else {
+                f_vx = 0.0;
+            }
+            if f_vy > 0.0 {
+                if self.is_colliding(
+                    self.item_entities[i].x,
+                    next_iy,
+                    CollisionType::VerticalDown(iy),
+                ) {
+                    self.item_entities[i].y = next_iy.floor();
+                    f_vy = 0.0;
+                    self.item_entities[i].grounded = true;
+                } else {
+                    self.item_entities[i].y = next_iy;
+                    self.item_entities[i].grounded = false;
+                }
+            } else {
+                self.item_entities[i].y = next_iy;
+            }
+            self.item_entities[i].vx = f_vx * 0.9;
+            self.item_entities[i].vy = f_vy;
+        }
+        for (index, picked_up, owner) in resolved_item_indices.into_iter().rev() {
+            if let Some(id) = owner {
+                self.activate_peer(id);
+            }
+            let item_ent = self.item_entities.swap_remove(index);
+            if picked_up {
+                let overflow = self.inventory.add_item(item_ent.item_type, 1);
+                if overflow > 0 {
+                    self.item_entities.push(item_ent);
+                }
+            }
+        }
+
+        let mut resolved_orb_indices = Vec::new();
+        for i in 0..self.experience_orbs.len() {
+            self.select_nearest_peer(self.experience_orbs[i].x, self.experience_orbs[i].y);
+            let (ox, oy, ovx, ovy) = {
+                let orb = &self.experience_orbs[i];
+                (orb.x, orb.y, orb.vx, orb.vy)
+            };
+            self.experience_orbs[i].age = self.experience_orbs[i].age.saturating_add(1);
+            if self.experience_orbs[i].age > 6000 {
+                resolved_orb_indices.push((i, false, self.active_peer));
+                continue;
+            }
+
+            let dx = self.player.x - ox;
+            let dy = (self.player.y - 1.0) - oy;
+            let dist = (dx * dx + dy * dy).sqrt();
+            if dist < 0.72 && !self.death_screen_active && self.player.health > 0.0 {
+                resolved_orb_indices.push((i, true, self.active_peer));
+                continue;
+            }
+
+            let mut next_vx = ovx;
+            let mut next_vy = (ovy + 0.03).min(0.4);
+            if dist < 6.0 && dist > 0.001 {
+                let pull = 0.05 + (1.0 - dist / 6.0).max(0.0) * 0.04;
+                next_vx += (dx / dist) * pull;
+                next_vy += (dy / dist) * pull;
+            }
+
+            let next_x = ox + next_vx;
+            if !self.is_colliding(next_x, oy, CollisionType::Horizontal) {
+                self.experience_orbs[i].x = next_x;
+            } else {
+                next_vx = 0.0;
+            }
+
+            let next_y = oy + next_vy;
+            if next_vy > 0.0 {
+                if self.is_colliding(
+                    self.experience_orbs[i].x,
+                    next_y,
+                    CollisionType::VerticalDown(oy),
+                ) {
+                    self.experience_orbs[i].y = next_y.floor();
+                    next_vy = -next_vy * 0.28;
+                    self.experience_orbs[i].grounded = true;
+                    if next_vy.abs() < 0.02 {
+                        next_vy = 0.0;
+                    }
+                } else {
+                    self.experience_orbs[i].y = next_y;
+                    self.experience_orbs[i].grounded = false;
+                }
+            } else {
+                self.experience_orbs[i].y = next_y;
+            }
+
+            self.experience_orbs[i].vx = next_vx * 0.9;
+            self.experience_orbs[i].vy = next_vy;
+        }
+        for (index, grant_xp, owner) in resolved_orb_indices.into_iter().rev() {
+            if let Some(id) = owner {
+                self.activate_peer(id);
+            }
+            let orb = self.experience_orbs.swap_remove(index);
+            if grant_xp {
+                self.add_experience(orb.value);
+            }
+        }
+
+        for idx in dead_cows.into_iter().rev() {
+            let cow = self.cows.swap_remove(idx);
+            for _ in 0..rng.gen_range(1..=3) {
+                self.item_entities
+                    .push(ItemEntity::new(cow.x, cow.y - 0.5, ItemType::RawBeef));
+            }
+            for _ in 0..rng.gen_range(0..=2) {
+                self.item_entities
+                    .push(ItemEntity::new(cow.x, cow.y - 0.5, ItemType::Leather));
+            }
+            if self.mob_has_player_kill_credit(cow.last_player_damage_tick) {
+                self.spawn_experience_orbs(cow.x, cow.y - 0.5, rng.gen_range(1..=3), &mut rng);
+            }
+        }
+        for idx in dead_sheep.into_iter().rev() {
+            let sheep = self.sheep.swap_remove(idx);
+            if !sheep.sheared {
+                self.item_entities
+                    .push(ItemEntity::new(sheep.x, sheep.y - 0.5, ItemType::Wool));
+            }
+            if self.mob_has_player_kill_credit(sheep.last_player_damage_tick) {
+                self.spawn_experience_orbs(sheep.x, sheep.y - 0.5, rng.gen_range(1..=3), &mut rng);
+            }
+        }
+        for idx in dead_pigs.into_iter().rev() {
+            let pig = self.pigs.swap_remove(idx);
+            self.item_entities
+                .push(ItemEntity::new(pig.x, pig.y - 0.5, ItemType::RawPorkchop));
+            if rng.gen_bool(0.35) {
+                self.item_entities
+                    .push(ItemEntity::new(pig.x, pig.y - 0.5, ItemType::RawPorkchop));
+            }
+            if self.mob_has_player_kill_credit(pig.last_player_damage_tick) {
+                self.spawn_experience_orbs(pig.x, pig.y - 0.5, rng.gen_range(1..=3), &mut rng);
+            }
+        }
+        for idx in dead_chickens.into_iter().rev() {
+            let chicken = self.chickens.swap_remove(idx);
+            self.item_entities.push(ItemEntity::new(
+                chicken.x,
+                chicken.y - 0.35,
+                ItemType::RawChicken,
+            ));
+            self.item_entities.push(ItemEntity::new(
+                chicken.x,
+                chicken.y - 0.35,
+                ItemType::Feather,
+            ));
+            if rng.gen_bool(0.45) {
+                self.item_entities.push(ItemEntity::new(
+                    chicken.x,
+                    chicken.y - 0.35,
+                    ItemType::Feather,
+                ));
+            }
+            if self.mob_has_player_kill_credit(chicken.last_player_damage_tick) {
+                self.spawn_experience_orbs(
+                    chicken.x,
+                    chicken.y - 0.35,
+                    rng.gen_range(1..=2),
+                    &mut rng,
+                );
+            }
+        }
+        for idx in dead_squids.into_iter().rev() {
+            let squid = self.squids.swap_remove(idx);
+            if self.mob_has_player_kill_credit(squid.last_player_damage_tick) {
+                self.spawn_experience_orbs(squid.x, squid.y - 0.35, rng.gen_range(1..=3), &mut rng);
+            }
+        }
+        for idx in dead_wolves.into_iter().rev() {
+            let wolf = self.wolves.swap_remove(idx);
+            if self.mob_has_player_kill_credit(wolf.last_player_damage_tick) {
+                self.spawn_experience_orbs(wolf.x, wolf.y - 0.35, rng.gen_range(1..=3), &mut rng);
+            }
+        }
+        for idx in dead_ocelots.into_iter().rev() {
+            let ocelot = self.ocelots.swap_remove(idx);
+            if self.mob_has_player_kill_credit(ocelot.last_player_damage_tick) {
+                self.spawn_experience_orbs(
+                    ocelot.x,
+                    ocelot.y - 0.35,
+                    rng.gen_range(1..=3),
+                    &mut rng,
+                );
+            }
+        }
+
+        self.trim_excess_loose_entities();
+
+        if self.player.health <= 0.0 && !self.death_screen_active {
+            self.start_death_screen();
+        }
+    }
+
+    fn tick_player_survival(&mut self, rng: &mut impl rand::Rng) {
         if self.eye_guidance_timer > 0 {
             if self.current_dimension == Dimension::Overworld {
                 let dx = STRONGHOLD_CENTER_X as f64 + 0.5 - self.player.x;
@@ -10839,19 +13570,13 @@ impl GameState {
         if self.potion_fire_resistance_timer > 0 {
             self.potion_fire_resistance_timer -= 1;
         }
-        self.update_fishing_state(&mut rng);
+        self.update_fishing_state(rng);
 
         let head_y = (self.player.y - 1.5).floor() as i32;
         let feet_y = self.player.y.floor() as i32;
         let p_x = self.player.x.floor() as i32;
         let head_block = self.world.get_block(p_x, head_y);
         let feet_block = self.world.get_block(p_x, feet_y);
-        let (water_submersion, lava_submersion) = self.entity_fluid_submersion(
-            self.player.x,
-            self.player.y,
-            PLAYER_HALF_WIDTH,
-            PLAYER_HEIGHT,
-        );
 
         if matches!(head_block, BlockType::Water(_)) {
             self.player.drowning_timer -= 1;
@@ -10892,38 +13617,33 @@ impl GameState {
         if self.player_touches_cactus() && self.player.age.is_multiple_of(10) {
             self.apply_player_damage(1.0);
         }
-
-        if self.active_game_rules().do_daylight_cycle {
-            self.time_of_day += DAYLIGHT_CYCLE_STEP_PER_TICK;
-            if self.time_of_day >= 24000.0 {
-                self.time_of_day -= 24000.0;
-            }
-        }
-        self.update_weather(&mut rng);
-
-        for i in (0..self.lightning_bolts.len()).rev() {
-            if self.lightning_bolts[i].ttl > 0 {
-                self.lightning_bolts[i].ttl -= 1;
-            }
-            if self.lightning_bolts[i].ttl == 0 {
-                self.lightning_bolts.swap_remove(i);
-            }
-        }
-
-        if self.current_dimension == Dimension::Overworld
-            && self.weather == WeatherType::Thunderstorm
-            && rng.gen_bool(0.004)
+    }
+    /// Reuses authoritative movement/collision rules without simulating the world,
+    /// mobs, random survival effects or player attacks on the client.
+    pub(crate) fn predict_motion_tick(&mut self) {
+        if self.is_showing_death_screen()
+            || self.is_showing_credits()
+            || self.mounted_boat.is_some()
         {
-            let strike_x = self.player.x.floor() as i32 + rng.gen_range(-20..=20);
-            if self.precipitation_at(strike_x) != PrecipitationType::None
-                && let Some(surface_y) = self.find_lightning_surface(strike_x)
-                && self.is_exposed_to_sky(strike_x as f64 + 0.5, surface_y as f64 - 1.0)
-            {
-                self.apply_lightning_strike(strike_x, surface_y);
-            }
+            return;
         }
-        let is_day = self.time_of_day > 4000.0 && self.time_of_day < 20000.0;
+        self.left_click_down = false;
+        self.tick_player_actions(100_000, 0);
+    }
 
+    pub(crate) fn copy_motion_preview_into(&self, preview: &mut Self) {
+        PlayerSession::capture(self).apply(preview);
+        preview.difficulty = self.difficulty;
+        preview.current_dimension = self.current_dimension;
+    }
+
+    fn tick_player_actions(&mut self, mouse_target_x: i32, mouse_target_y: i32) {
+        let (water_submersion, lava_submersion) = self.entity_fluid_submersion(
+            self.player.x,
+            self.player.y,
+            PLAYER_HALF_WIDTH,
+            PLAYER_HEIGHT,
+        );
         if self.difficulty == Difficulty::Peaceful {
             self.player.hunger = self.player.max_hunger;
             if self.player.health < self.player.max_health {
@@ -11017,7 +13737,7 @@ impl GameState {
                         } else if self.sprinting {
                             tuning.walk_speed * SPRINT_SPEED_MULTIPLIER * 0.8
                         } else {
-                            tuning.walk_speed * 0.7
+                            tuning.walk_speed * 0.6
                         };
                         if input_dir > 0.0 {
                             self.player.vx = self.player.vx.max(base_forward);
@@ -11031,6 +13751,15 @@ impl GameState {
                 } else {
                     self.jump_buffer_ticks -= 1;
                 }
+            }
+
+            if on_ladder && !consumed_jump_input {
+                if self.jump_held {
+                    self.player.vy = -0.28;
+                } else if self.player.sneaking {
+                    self.player.vy = -0.03;
+                }
+                self.player.fall_distance = 0.0;
             }
 
             if self.jump_held && !consumed_jump_input && !on_ladder && in_fluid_for_jump {
@@ -11051,6 +13780,11 @@ impl GameState {
                 };
                 if self.sprinting {
                     desired_speed *= SPRINT_SPEED_MULTIPLIER;
+                }
+                // Fluid drag already limits speed strongly. Keep enough forward
+                // authority to escape a bank while land movement becomes finer.
+                if !self.player.sneaking && (water_submersion > 0.0 || lava_submersion > 0.0) {
+                    desired_speed = desired_speed.max(0.6);
                 }
                 let fluid_speed_scale = if water_submersion >= SWIM_CONTROL_MIN_SUBMERSION {
                     0.62 - water_submersion * 0.08
@@ -11108,7 +13842,9 @@ impl GameState {
             self.stop_sprinting();
         }
 
-        self.update_boats();
+        if !self.cooperative() {
+            self.update_boats();
+        }
 
         if self.player.attack_timer > 0 {
             self.player.attack_timer -= 1;
@@ -11615,8 +14351,6 @@ impl GameState {
             self.player.mining_timer = 0.0;
         }
 
-        let gravity = 0.08;
-        let max_fall_speed = 1.0;
         let friction = if is_actively_moving {
             if self.player.grounded {
                 tuning.ground_drag_active
@@ -11642,6 +14376,31 @@ impl GameState {
                 PLAYER_HEIGHT,
             );
 
+            // Ledge protection also applies to residual velocity without directional input.
+            if self.player.sneaking
+                && self.player.grounded
+                && self.player.vy >= 0.0
+                && !was_in_fluid
+                && !on_ladder
+            {
+                let velocity = self.player.vx;
+                let steps = ((velocity.abs() / 0.025).ceil() as usize).clamp(1, 128);
+                let mut supported_velocity = 0.0;
+                for step in 1..=steps {
+                    let candidate = velocity * step as f64 / steps as f64;
+                    if !self.has_stable_ground_support(
+                        self.player.x + candidate,
+                        self.player.y,
+                        PLAYER_HALF_WIDTH,
+                        velocity,
+                    ) {
+                        break;
+                    }
+                    supported_velocity = candidate;
+                }
+                self.player.vx = supported_velocity;
+            }
+
             let (nx, ny, nvx, nvy, ngr, _) = self.calculate_movement(
                 self.player.x,
                 self.player.y,
@@ -11658,18 +14417,21 @@ impl GameState {
 
             if was_in_fluid || in_fluid_after_move {
                 self.player.fall_distance = 0.0;
-            } else if ny > old_y && !ngr {
-                self.player.fall_distance += (ny - old_y) as f32;
-            } else if ngr && !was_grounded {
-                if self.player.fall_distance > 3.0 {
-                    let damage = (self.player.fall_distance - 3.0).ceil();
-                    if damage > 0.0 {
-                        self.apply_player_damage(damage);
-                    }
+            } else {
+                if ny > old_y {
+                    self.player.fall_distance += (ny - old_y) as f32;
                 }
-                self.player.fall_distance = 0.0;
-            } else if nvy <= 0.0 {
-                self.player.fall_distance = 0.0;
+                if ngr && !was_grounded {
+                    if self.player.fall_distance > 3.0 {
+                        let damage = (self.player.fall_distance - 3.0).ceil();
+                        if damage > 0.0 {
+                            self.apply_player_damage(damage);
+                        }
+                    }
+                    self.player.fall_distance = 0.0;
+                } else if nvy <= 0.0 {
+                    self.player.fall_distance = 0.0;
+                }
             }
 
             self.player.x = nx;
@@ -11681,2300 +14443,6 @@ impl GameState {
             if self.player.vx.abs() < 0.02 {
                 self.player.vx = 0.0;
             }
-        }
-
-        let mut dead_zombies = Vec::new();
-        for i in 0..self.zombies.len() {
-            let prev_x = self.zombies[i].x;
-            if self.zombies[i].hit_timer > 0 {
-                self.zombies[i].hit_timer -= 1;
-            }
-            self.zombies[i].update_ai(self.player.x, self.player.y);
-            let rerouting = self.zombies[i].reroute_ticks > 0 && self.zombies[i].reroute_dir != 0;
-            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
-                self.zombies[i].reroute_ticks,
-                self.zombies[i].reroute_dir,
-                self.zombies[i].vx,
-                0.14,
-            );
-            self.zombies[i].reroute_ticks = reroute_ticks;
-            if rerouting {
-                self.zombies[i].vx = reroute_vx;
-                self.zombies[i].facing_right = reroute_vx >= 0.0;
-            }
-            self.zombies[i].age += 1;
-            let (z_burn, z_fire_damage) = self.apply_undead_fire_rules(
-                self.zombies[i].x,
-                self.zombies[i].y,
-                1.8,
-                self.zombies[i].age,
-                is_day,
-                self.zombies[i].burning_timer,
-            );
-            self.zombies[i].burning_timer = z_burn;
-            self.zombies[i].health -= z_fire_damage;
-            if self.zombies[i].health <= 0.0 {
-                dead_zombies.push(i);
-                continue;
-            }
-            let chase_jump = self.should_ground_mob_chase_jump(
-                self.zombies[i].x,
-                self.zombies[i].y,
-                self.zombies[i].vx,
-                self.zombies[i].grounded,
-                0.3,
-                1.8,
-            );
-            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
-                self.zombies[i].x,
-                self.zombies[i].y,
-                self.zombies[i].vx,
-                self.zombies[i].grounded,
-                0.3,
-                1.8,
-                self.zombies[i].stuck_ticks,
-                self.zombies[i].reroute_ticks,
-            );
-            if chase_jump || recovery_jump {
-                self.zombies[i].jump();
-            }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
-                self.zombies[i].x,
-                self.zombies[i].y,
-                self.zombies[i].vx,
-                self.zombies[i].vy,
-                self.zombies[i].grounded,
-                0.3,
-                1.8,
-                true,
-            );
-            self.zombies[i].x = nx;
-            self.zombies[i].y = ny;
-            self.zombies[i].vx = nvx;
-            self.zombies[i].vy = nvy;
-            self.zombies[i].grounded = ngr;
-            let prev_reroute_ticks = self.zombies[i].reroute_ticks;
-            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
-                self.player.x,
-                self.player.y,
-                prev_x,
-                nx,
-                ny,
-                hit_wall,
-                ngr,
-                self.zombies[i].stuck_ticks,
-                self.zombies[i].reroute_ticks,
-                self.zombies[i].reroute_dir,
-            );
-            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
-                self.zombies[i].x,
-                self.zombies[i].y,
-                1.8,
-                prev_reroute_ticks,
-                stuck_ticks,
-                reroute_ticks,
-                reroute_dir,
-            );
-            self.zombies[i].stuck_ticks = stuck_ticks;
-            self.zombies[i].reroute_ticks = reroute_ticks;
-            self.zombies[i].reroute_dir = reroute_dir;
-            if hit_wall {
-                self.zombies[i].jump();
-            }
-            self.zombies[i].vx *= 0.5;
-            if self.zombies[i].vx.abs() < 0.02 {
-                self.zombies[i].vx = 0.0;
-            }
-            let can_melee_hit = self.can_melee_contact_player(
-                self.zombies[i].x,
-                self.zombies[i].y - 0.9,
-                1.2,
-                1.05,
-            );
-            if can_melee_hit && self.zombies[i].attack_cooldown == 0 {
-                if self.apply_player_combat_damage(self.scaled_hostile_damage(0.5)) {
-                    self.apply_player_contact_knockback(self.zombies[i].x, 0.42, 0.28);
-                }
-                self.zombies[i].attack_cooldown = self.scaled_hostile_cooldown(20);
-            }
-        }
-
-        for idx in dead_zombies.into_iter().rev() {
-            let z = self.zombies.swap_remove(idx);
-            self.item_entities
-                .push(ItemEntity::new(z.x, z.y - 0.5, ItemType::RottenFlesh));
-            if rng.gen_bool(0.3) {
-                self.item_entities
-                    .push(ItemEntity::new(z.x, z.y - 0.5, ItemType::Stick));
-            }
-            if self.mob_has_player_kill_credit(z.last_player_damage_tick) {
-                self.spawn_experience_orbs(z.x, z.y - 0.5, 5, &mut rng);
-            }
-        }
-
-        let mut dead_pigmen = Vec::new();
-        for i in 0..self.pigmen.len() {
-            let prev_x = self.pigmen[i].x;
-            if self.pigmen[i].hit_timer > 0 {
-                self.pigmen[i].hit_timer -= 1;
-            }
-            self.pigmen[i].update_ai(self.player.x, self.player.y);
-            let rerouting = self.pigmen[i].reroute_ticks > 0 && self.pigmen[i].reroute_dir != 0;
-            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
-                self.pigmen[i].reroute_ticks,
-                self.pigmen[i].reroute_dir,
-                self.pigmen[i].vx,
-                0.15,
-            );
-            self.pigmen[i].reroute_ticks = reroute_ticks;
-            if rerouting {
-                self.pigmen[i].vx = reroute_vx;
-                self.pigmen[i].facing_right = reroute_vx >= 0.0;
-            }
-            self.pigmen[i].age += 1;
-            if self.pigmen[i].health <= 0.0 {
-                dead_pigmen.push(i);
-                continue;
-            }
-            let chase_jump = self.should_ground_mob_chase_jump(
-                self.pigmen[i].x,
-                self.pigmen[i].y,
-                self.pigmen[i].vx,
-                self.pigmen[i].grounded,
-                0.3,
-                1.8,
-            );
-            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
-                self.pigmen[i].x,
-                self.pigmen[i].y,
-                self.pigmen[i].vx,
-                self.pigmen[i].grounded,
-                0.3,
-                1.8,
-                self.pigmen[i].stuck_ticks,
-                self.pigmen[i].reroute_ticks,
-            );
-            if chase_jump || recovery_jump {
-                self.pigmen[i].jump();
-            }
-
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
-                self.pigmen[i].x,
-                self.pigmen[i].y,
-                self.pigmen[i].vx,
-                self.pigmen[i].vy,
-                self.pigmen[i].grounded,
-                0.3,
-                1.8,
-                true,
-            );
-            self.pigmen[i].x = nx;
-            self.pigmen[i].y = ny;
-            self.pigmen[i].vx = nvx;
-            self.pigmen[i].vy = nvy;
-            self.pigmen[i].grounded = ngr;
-            let prev_reroute_ticks = self.pigmen[i].reroute_ticks;
-            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
-                self.player.x,
-                self.player.y,
-                prev_x,
-                nx,
-                ny,
-                hit_wall,
-                ngr,
-                self.pigmen[i].stuck_ticks,
-                self.pigmen[i].reroute_ticks,
-                self.pigmen[i].reroute_dir,
-            );
-            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
-                self.pigmen[i].x,
-                self.pigmen[i].y,
-                1.8,
-                prev_reroute_ticks,
-                stuck_ticks,
-                reroute_ticks,
-                reroute_dir,
-            );
-            self.pigmen[i].stuck_ticks = stuck_ticks;
-            self.pigmen[i].reroute_ticks = reroute_ticks;
-            self.pigmen[i].reroute_dir = reroute_dir;
-            if hit_wall {
-                self.pigmen[i].jump();
-            }
-            self.pigmen[i].vx *= 0.5;
-            if self.pigmen[i].vx.abs() < 0.02 {
-                self.pigmen[i].vx = 0.0;
-            }
-
-            if self.pigmen[i].is_aggressive() {
-                let can_melee_hit = self.can_melee_contact_player(
-                    self.pigmen[i].x,
-                    self.pigmen[i].y - 0.9,
-                    1.2,
-                    1.05,
-                );
-                if can_melee_hit && self.pigmen[i].attack_cooldown == 0 {
-                    if self.apply_player_combat_damage(self.scaled_hostile_damage(0.5)) {
-                        self.apply_player_contact_knockback(self.pigmen[i].x, 0.46, 0.3);
-                    }
-                    self.pigmen[i].attack_cooldown = self.scaled_hostile_cooldown(18);
-                }
-            }
-        }
-        for idx in dead_pigmen.into_iter().rev() {
-            let p = self.pigmen.swap_remove(idx);
-            self.item_entities
-                .push(ItemEntity::new(p.x, p.y - 0.5, ItemType::RottenFlesh));
-            if rng.gen_bool(0.2) {
-                self.item_entities
-                    .push(ItemEntity::new(p.x, p.y - 0.5, ItemType::GoldIngot));
-            }
-            if self.mob_has_player_kill_credit(p.last_player_damage_tick) {
-                self.spawn_experience_orbs(p.x, p.y - 0.5, 5, &mut rng);
-            }
-        }
-
-        let mut pending_world_explosions: Vec<(i32, i32, i32, f32, u8)> = Vec::new();
-        let mut dead_creepers = Vec::new();
-        for i in 0..self.creepers.len() {
-            let prev_x = self.creepers[i].x;
-            if self.creepers[i].hit_timer > 0 {
-                self.creepers[i].hit_timer -= 1;
-            }
-            if self.creepers[i].health <= 0.0 {
-                dead_creepers.push(i);
-                continue;
-            }
-            self.creepers[i].update_ai(self.player.x, self.player.y);
-            let rerouting = self.creepers[i].reroute_ticks > 0 && self.creepers[i].reroute_dir != 0;
-            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
-                self.creepers[i].reroute_ticks,
-                self.creepers[i].reroute_dir,
-                self.creepers[i].vx,
-                0.12,
-            );
-            self.creepers[i].reroute_ticks = reroute_ticks;
-            if rerouting {
-                self.creepers[i].vx = reroute_vx;
-                self.creepers[i].facing_right = reroute_vx >= 0.0;
-            }
-            self.creepers[i].age += 1;
-            let chase_jump = self.should_ground_mob_chase_jump(
-                self.creepers[i].x,
-                self.creepers[i].y,
-                self.creepers[i].vx,
-                self.creepers[i].grounded,
-                0.3,
-                1.8,
-            );
-            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
-                self.creepers[i].x,
-                self.creepers[i].y,
-                self.creepers[i].vx,
-                self.creepers[i].grounded,
-                0.3,
-                1.8,
-                self.creepers[i].stuck_ticks,
-                self.creepers[i].reroute_ticks,
-            );
-            if chase_jump || recovery_jump {
-                self.creepers[i].jump();
-            }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
-                self.creepers[i].x,
-                self.creepers[i].y,
-                self.creepers[i].vx,
-                self.creepers[i].vy,
-                self.creepers[i].grounded,
-                0.3,
-                1.8,
-                true,
-            );
-            self.creepers[i].x = nx;
-            self.creepers[i].y = ny;
-            self.creepers[i].vx = nvx;
-            self.creepers[i].vy = nvy;
-            self.creepers[i].grounded = ngr;
-            let prev_reroute_ticks = self.creepers[i].reroute_ticks;
-            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
-                self.player.x,
-                self.player.y,
-                prev_x,
-                nx,
-                ny,
-                hit_wall,
-                ngr,
-                self.creepers[i].stuck_ticks,
-                self.creepers[i].reroute_ticks,
-                self.creepers[i].reroute_dir,
-            );
-            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
-                self.creepers[i].x,
-                self.creepers[i].y,
-                1.8,
-                prev_reroute_ticks,
-                stuck_ticks,
-                reroute_ticks,
-                reroute_dir,
-            );
-            self.creepers[i].stuck_ticks = stuck_ticks;
-            self.creepers[i].reroute_ticks = reroute_ticks;
-            self.creepers[i].reroute_dir = reroute_dir;
-            if hit_wall {
-                self.creepers[i].jump();
-            }
-            self.creepers[i].vx *= 0.5;
-            if self.creepers[i].fuse_timer >= 30 {
-                let cx = self.creepers[i].x.floor() as i32;
-                let cy = self.creepers[i].y.floor() as i32;
-                let blast_radius = if self.creepers[i].charged { 5 } else { 3 };
-                let strength = if self.creepers[i].charged { 6.0 } else { 4.0 };
-                pending_world_explosions.push((cx, cy, blast_radius, strength, 8));
-                dead_creepers.push(i);
-            }
-        }
-        for idx in dead_creepers.into_iter().rev() {
-            let c = self.creepers.swap_remove(idx);
-            if c.health <= 0.0 {
-                self.item_entities
-                    .push(ItemEntity::new(c.x, c.y - 0.5, ItemType::Gunpowder));
-                if self.mob_has_player_kill_credit(c.last_player_damage_tick) {
-                    self.spawn_experience_orbs(c.x, c.y - 0.5, 5, &mut rng);
-                }
-            }
-        }
-
-        let mut dead_skeletons = Vec::new();
-        for i in 0..self.skeletons.len() {
-            let prev_x = self.skeletons[i].x;
-            if self.skeletons[i].hit_timer > 0 {
-                self.skeletons[i].hit_timer -= 1;
-            }
-            let skeleton_wants_shot = self.skeletons[i].update_ai(self.player.x, self.player.y);
-            let rerouting =
-                self.skeletons[i].reroute_ticks > 0 && self.skeletons[i].reroute_dir != 0;
-            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
-                self.skeletons[i].reroute_ticks,
-                self.skeletons[i].reroute_dir,
-                self.skeletons[i].vx,
-                0.18,
-            );
-            self.skeletons[i].reroute_ticks = reroute_ticks;
-            if rerouting {
-                self.skeletons[i].vx = reroute_vx;
-                self.skeletons[i].facing_right = reroute_vx >= 0.0;
-            }
-            let (sx, sy) = (self.skeletons[i].x, self.skeletons[i].y - 0.9);
-            if skeleton_wants_shot {
-                let has_los = self.has_line_of_sight(sx, sy, self.player.x, self.player.y - 0.9);
-                if has_los {
-                    let dx = self.player.x - sx;
-                    let dy = (self.player.y - 0.9) - sy;
-                    let dist = (dx * dx + dy * dy).sqrt();
-                    if dist > 0.001 {
-                        self.arrows.push(Arrow::new_hostile(
-                            sx,
-                            sy,
-                            (dx / dist) * 0.5,
-                            (dy / dist) * 0.5,
-                        ));
-                        self.skeletons[i].bow_cooldown = self.scaled_hostile_cooldown(60);
-                    }
-                } else {
-                    // Retry sooner when line-of-sight is blocked so skeletons reposition faster.
-                    self.skeletons[i].bow_cooldown = self.skeletons[i]
-                        .bow_cooldown
-                        .min(self.scaled_hostile_cooldown(14));
-                }
-            }
-            self.skeletons[i].age += 1;
-            let (s_burn, s_fire_damage) = self.apply_undead_fire_rules(
-                self.skeletons[i].x,
-                self.skeletons[i].y,
-                1.8,
-                self.skeletons[i].age,
-                is_day,
-                self.skeletons[i].burning_timer,
-            );
-            self.skeletons[i].burning_timer = s_burn;
-            self.skeletons[i].health -= s_fire_damage;
-            if self.skeletons[i].health <= 0.0 {
-                dead_skeletons.push(i);
-                continue;
-            }
-            let chase_jump = self.should_ground_mob_chase_jump(
-                self.skeletons[i].x,
-                self.skeletons[i].y,
-                self.skeletons[i].vx,
-                self.skeletons[i].grounded,
-                0.3,
-                1.8,
-            );
-            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
-                self.skeletons[i].x,
-                self.skeletons[i].y,
-                self.skeletons[i].vx,
-                self.skeletons[i].grounded,
-                0.3,
-                1.8,
-                self.skeletons[i].stuck_ticks,
-                self.skeletons[i].reroute_ticks,
-            );
-            if chase_jump || recovery_jump {
-                self.skeletons[i].jump();
-            }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
-                self.skeletons[i].x,
-                self.skeletons[i].y,
-                self.skeletons[i].vx,
-                self.skeletons[i].vy,
-                self.skeletons[i].grounded,
-                0.3,
-                1.8,
-                true,
-            );
-            self.skeletons[i].x = nx;
-            self.skeletons[i].y = ny;
-            self.skeletons[i].vx = nvx;
-            self.skeletons[i].vy = nvy;
-            self.skeletons[i].grounded = ngr;
-            let prev_reroute_ticks = self.skeletons[i].reroute_ticks;
-            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
-                self.player.x,
-                self.player.y,
-                prev_x,
-                nx,
-                ny,
-                hit_wall,
-                ngr,
-                self.skeletons[i].stuck_ticks,
-                self.skeletons[i].reroute_ticks,
-                self.skeletons[i].reroute_dir,
-            );
-            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
-                self.skeletons[i].x,
-                self.skeletons[i].y,
-                1.8,
-                prev_reroute_ticks,
-                stuck_ticks,
-                reroute_ticks,
-                reroute_dir,
-            );
-            self.skeletons[i].stuck_ticks = stuck_ticks;
-            self.skeletons[i].reroute_ticks = reroute_ticks;
-            self.skeletons[i].reroute_dir = reroute_dir;
-            if hit_wall {
-                self.skeletons[i].jump();
-            }
-            self.skeletons[i].vx *= 0.5;
-        }
-        for idx in dead_skeletons.into_iter().rev() {
-            let s = self.skeletons.swap_remove(idx);
-            self.item_entities
-                .push(ItemEntity::new(s.x, s.y - 0.5, ItemType::Bone));
-            if rng.gen_bool(0.5) {
-                self.item_entities
-                    .push(ItemEntity::new(s.x, s.y - 0.5, ItemType::Arrow));
-            }
-            if self.mob_has_player_kill_credit(s.last_player_damage_tick) {
-                self.spawn_experience_orbs(s.x, s.y - 0.5, 5, &mut rng);
-            }
-        }
-
-        let mut dead_spiders = Vec::new();
-        for i in 0..self.spiders.len() {
-            let prev_x = self.spiders[i].x;
-            if self.spiders[i].hit_timer > 0 {
-                self.spiders[i].hit_timer -= 1;
-            }
-            if self.spiders[i].health <= 0.0 {
-                dead_spiders.push(i);
-                continue;
-            }
-            self.spiders[i].update_ai(self.player.x, self.player.y, is_day);
-            let rerouting = self.spiders[i].reroute_ticks > 0 && self.spiders[i].reroute_dir != 0;
-            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
-                self.spiders[i].reroute_ticks,
-                self.spiders[i].reroute_dir,
-                self.spiders[i].vx,
-                0.2,
-            );
-            self.spiders[i].reroute_ticks = reroute_ticks;
-            if rerouting {
-                self.spiders[i].vx = reroute_vx;
-                self.spiders[i].facing_right = reroute_vx >= 0.0;
-            }
-            self.spiders[i].age += 1;
-            let chase_jump = self.should_ground_mob_chase_jump(
-                self.spiders[i].x,
-                self.spiders[i].y,
-                self.spiders[i].vx,
-                self.spiders[i].grounded,
-                0.6,
-                0.9,
-            );
-            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
-                self.spiders[i].x,
-                self.spiders[i].y,
-                self.spiders[i].vx,
-                self.spiders[i].grounded,
-                0.6,
-                0.9,
-                self.spiders[i].stuck_ticks,
-                self.spiders[i].reroute_ticks,
-            );
-            if chase_jump || recovery_jump {
-                self.spiders[i].jump();
-            }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
-                self.spiders[i].x,
-                self.spiders[i].y,
-                self.spiders[i].vx,
-                self.spiders[i].vy,
-                self.spiders[i].grounded,
-                0.6,
-                0.9,
-                true,
-            );
-            self.spiders[i].x = nx;
-            self.spiders[i].y = ny;
-            self.spiders[i].vx = nvx;
-            self.spiders[i].vy = nvy;
-            self.spiders[i].grounded = ngr;
-            let prev_reroute_ticks = self.spiders[i].reroute_ticks;
-            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
-                self.player.x,
-                self.player.y,
-                prev_x,
-                nx,
-                ny,
-                hit_wall,
-                ngr,
-                self.spiders[i].stuck_ticks,
-                self.spiders[i].reroute_ticks,
-                self.spiders[i].reroute_dir,
-            );
-            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
-                self.spiders[i].x,
-                self.spiders[i].y,
-                0.9,
-                prev_reroute_ticks,
-                stuck_ticks,
-                reroute_ticks,
-                reroute_dir,
-            );
-            self.spiders[i].stuck_ticks = stuck_ticks;
-            self.spiders[i].reroute_ticks = reroute_ticks;
-            self.spiders[i].reroute_dir = reroute_dir;
-            if hit_wall {
-                self.spiders[i].jump();
-            }
-            self.spiders[i].vx *= 0.5;
-            let can_melee_hit = self.can_melee_contact_player(
-                self.spiders[i].x,
-                self.spiders[i].y - 0.45,
-                1.2,
-                0.85,
-            );
-            if can_melee_hit && self.spiders[i].attack_cooldown == 0 {
-                if self.apply_player_combat_damage(self.scaled_hostile_damage(0.5)) {
-                    self.apply_player_contact_knockback(self.spiders[i].x, 0.34, 0.0);
-                }
-                self.spiders[i].attack_cooldown = self.scaled_hostile_cooldown(20);
-            }
-        }
-        for idx in dead_spiders.into_iter().rev() {
-            let s = self.spiders.swap_remove(idx);
-            self.item_entities
-                .push(ItemEntity::new(s.x, s.y - 0.5, ItemType::String));
-            if self.mob_has_player_kill_credit(s.last_player_damage_tick) {
-                self.spawn_experience_orbs(s.x, s.y - 0.5, 5, &mut rng);
-            }
-        }
-
-        let mut dead_silverfish = Vec::new();
-        for i in 0..self.silverfish.len() {
-            let prev_x = self.silverfish[i].x;
-            if self.silverfish[i].hit_timer > 0 {
-                self.silverfish[i].hit_timer -= 1;
-            }
-            if self.silverfish[i].health <= 0.0 {
-                dead_silverfish.push(i);
-                continue;
-            }
-            self.silverfish[i].update_ai(self.player.x, self.player.y);
-            let rerouting =
-                self.silverfish[i].reroute_ticks > 0 && self.silverfish[i].reroute_dir != 0;
-            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
-                self.silverfish[i].reroute_ticks,
-                self.silverfish[i].reroute_dir,
-                self.silverfish[i].vx,
-                0.12,
-            );
-            self.silverfish[i].reroute_ticks = reroute_ticks;
-            if rerouting {
-                self.silverfish[i].vx = reroute_vx;
-                self.silverfish[i].facing_right = reroute_vx >= 0.0;
-            }
-            self.silverfish[i].age += 1;
-            let chase_jump = self.should_ground_mob_chase_jump(
-                self.silverfish[i].x,
-                self.silverfish[i].y,
-                self.silverfish[i].vx,
-                self.silverfish[i].grounded,
-                0.24,
-                0.8,
-            );
-            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
-                self.silverfish[i].x,
-                self.silverfish[i].y,
-                self.silverfish[i].vx,
-                self.silverfish[i].grounded,
-                0.24,
-                0.8,
-                self.silverfish[i].stuck_ticks,
-                self.silverfish[i].reroute_ticks,
-            );
-            if chase_jump || recovery_jump {
-                self.silverfish[i].jump();
-            }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
-                self.silverfish[i].x,
-                self.silverfish[i].y,
-                self.silverfish[i].vx,
-                self.silverfish[i].vy,
-                self.silverfish[i].grounded,
-                0.24,
-                0.8,
-                true,
-            );
-            self.silverfish[i].x = nx;
-            self.silverfish[i].y = ny;
-            self.silverfish[i].vx = nvx;
-            self.silverfish[i].vy = nvy;
-            self.silverfish[i].grounded = ngr;
-            let prev_reroute_ticks = self.silverfish[i].reroute_ticks;
-            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
-                self.player.x,
-                self.player.y,
-                prev_x,
-                nx,
-                ny,
-                hit_wall,
-                ngr,
-                self.silverfish[i].stuck_ticks,
-                self.silverfish[i].reroute_ticks,
-                self.silverfish[i].reroute_dir,
-            );
-            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
-                self.silverfish[i].x,
-                self.silverfish[i].y,
-                0.8,
-                prev_reroute_ticks,
-                stuck_ticks,
-                reroute_ticks,
-                reroute_dir,
-            );
-            self.silverfish[i].stuck_ticks = stuck_ticks;
-            self.silverfish[i].reroute_ticks = reroute_ticks;
-            self.silverfish[i].reroute_dir = reroute_dir;
-            if hit_wall {
-                self.silverfish[i].jump();
-            }
-            self.silverfish[i].vx *= 0.58;
-            if self.silverfish[i].vx.abs() < 0.02 {
-                self.silverfish[i].vx = 0.0;
-            }
-
-            let can_melee_hit = self.can_melee_contact_player(
-                self.silverfish[i].x,
-                self.silverfish[i].y - 0.35,
-                1.0,
-                0.8,
-            );
-            if can_melee_hit && self.silverfish[i].attack_cooldown == 0 {
-                if self.apply_player_combat_damage(self.scaled_hostile_damage(0.35)) {
-                    self.apply_player_contact_knockback(self.silverfish[i].x, 0.22, 0.16);
-                }
-                self.silverfish[i].attack_cooldown = self.scaled_hostile_cooldown(18);
-            }
-        }
-        for idx in dead_silverfish.into_iter().rev() {
-            let s = self.silverfish.swap_remove(idx);
-            if self.mob_has_player_kill_credit(s.last_player_damage_tick) {
-                self.spawn_experience_orbs(s.x, s.y - 0.35, 5, &mut rng);
-            }
-        }
-
-        let mut dead_slimes = Vec::new();
-        for i in 0..self.slimes.len() {
-            let prev_x = self.slimes[i].x;
-            if self.slimes[i].hit_timer > 0 {
-                self.slimes[i].hit_timer -= 1;
-            }
-            if self.slimes[i].health <= 0.0 {
-                dead_slimes.push(i);
-                continue;
-            }
-            self.slimes[i].update_ai(self.player.x, self.player.y, is_day);
-            let rerouting = self.slimes[i].reroute_ticks > 0 && self.slimes[i].reroute_dir != 0;
-            let reroute_speed = self.slimes[i].move_speed() * 0.72;
-            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
-                self.slimes[i].reroute_ticks,
-                self.slimes[i].reroute_dir,
-                self.slimes[i].vx,
-                reroute_speed,
-            );
-            self.slimes[i].reroute_ticks = reroute_ticks;
-            if rerouting {
-                self.slimes[i].vx = reroute_vx;
-                self.slimes[i].facing_right = reroute_vx >= 0.0;
-            }
-
-            self.slimes[i].age += 1;
-            let half_width = self.slimes[i].half_width();
-            let height = self.slimes[i].height();
-            let chase_jump = self.should_ground_mob_chase_jump(
-                self.slimes[i].x,
-                self.slimes[i].y,
-                self.slimes[i].vx,
-                self.slimes[i].grounded,
-                half_width,
-                height,
-            );
-            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
-                self.slimes[i].x,
-                self.slimes[i].y,
-                self.slimes[i].vx,
-                self.slimes[i].grounded,
-                half_width,
-                height,
-                self.slimes[i].stuck_ticks,
-                self.slimes[i].reroute_ticks,
-            );
-            if chase_jump || recovery_jump {
-                self.slimes[i].jump();
-            }
-
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
-                self.slimes[i].x,
-                self.slimes[i].y,
-                self.slimes[i].vx,
-                self.slimes[i].vy,
-                self.slimes[i].grounded,
-                half_width,
-                height,
-                true,
-            );
-            self.slimes[i].x = nx;
-            self.slimes[i].y = ny;
-            self.slimes[i].vx = nvx;
-            self.slimes[i].vy = nvy;
-            self.slimes[i].grounded = ngr;
-            let prev_reroute_ticks = self.slimes[i].reroute_ticks;
-            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
-                self.player.x,
-                self.player.y,
-                prev_x,
-                nx,
-                ny,
-                hit_wall,
-                ngr,
-                self.slimes[i].stuck_ticks,
-                self.slimes[i].reroute_ticks,
-                self.slimes[i].reroute_dir,
-            );
-            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
-                self.slimes[i].x,
-                self.slimes[i].y,
-                height,
-                prev_reroute_ticks,
-                stuck_ticks,
-                reroute_ticks,
-                reroute_dir,
-            );
-            self.slimes[i].stuck_ticks = stuck_ticks;
-            self.slimes[i].reroute_ticks = reroute_ticks;
-            self.slimes[i].reroute_dir = reroute_dir;
-            if hit_wall {
-                self.slimes[i].jump();
-            }
-            self.slimes[i].vx *= 0.6;
-            if self.slimes[i].vx.abs() < 0.015 {
-                self.slimes[i].vx = 0.0;
-            }
-
-            let center_y = self.slimes[i].y - height * 0.5;
-            let contact_range = half_width + 0.75;
-            let vertical_reach = (0.55 + height * 0.35).clamp(0.7, 1.45);
-            let can_melee_hit = self.can_melee_contact_player(
-                self.slimes[i].x,
-                center_y,
-                contact_range,
-                vertical_reach,
-            );
-            if can_melee_hit && self.slimes[i].attack_cooldown == 0 {
-                let damage = self.scaled_hostile_damage(self.slimes[i].contact_damage());
-                if damage > 0.0 && self.apply_player_combat_damage(damage) {
-                    self.apply_player_contact_knockback(
-                        self.slimes[i].x,
-                        0.18 + half_width * 0.2,
-                        0.16,
-                    );
-                }
-                self.slimes[i].attack_cooldown =
-                    self.scaled_hostile_cooldown(match self.slimes[i].size {
-                        4 => 16,
-                        2 => 22,
-                        _ => 28,
-                    });
-            }
-        }
-        let mut split_slimes = Vec::new();
-        for idx in dead_slimes.into_iter().rev() {
-            let s = self.slimes.swap_remove(idx);
-            if let Some(child_size) = s.split_size() {
-                let split_count = rng.gen_range(2..=4);
-                for n in 0..split_count {
-                    let center = (split_count - 1) as f64 * 0.5;
-                    let offset = (n as f64 - center) * (0.24 + child_size as f64 * 0.04);
-                    split_slimes.push((s.x + offset, s.y, child_size));
-                }
-            } else {
-                if rng.gen_bool(0.45) {
-                    self.item_entities
-                        .push(ItemEntity::new(s.x, s.y - 0.2, ItemType::Slimeball));
-                }
-                if rng.gen_bool(0.15) {
-                    self.item_entities
-                        .push(ItemEntity::new(s.x, s.y - 0.2, ItemType::Slimeball));
-                }
-            }
-            let xp_drop = match s.size {
-                4 => 6,
-                2 => 3,
-                _ => 1,
-            };
-            if self.mob_has_player_kill_credit(s.last_player_damage_tick) {
-                self.spawn_experience_orbs(s.x, s.y - 0.35, xp_drop, &mut rng);
-            }
-        }
-        for (x, y, size) in split_slimes {
-            let mut child = Slime::new(x, y, size);
-            child.vx = rng.gen_range(-0.12..0.12);
-            child.vy = -0.18;
-            child.grounded = false;
-            self.slimes.push(child);
-        }
-
-        let mut dead_ghasts = Vec::new();
-        for i in 0..self.ghasts.len() {
-            if self.ghasts[i].hit_timer > 0 {
-                self.ghasts[i].hit_timer -= 1;
-            }
-            let shoot = self.ghasts[i].update_ai(self.player.x, self.player.y);
-            self.ghasts[i].age += 1;
-            if self.ghasts[i].health <= 0.0 {
-                dead_ghasts.push(i);
-                continue;
-            }
-
-            let next_x = self.ghasts[i].x + self.ghasts[i].vx;
-            if self
-                .world
-                .get_block(next_x.floor() as i32, self.ghasts[i].y.floor() as i32)
-                .is_solid()
-            {
-                self.ghasts[i].vx = -self.ghasts[i].vx * 0.6;
-            } else {
-                self.ghasts[i].x = next_x;
-            }
-
-            let next_y = self.ghasts[i].y + self.ghasts[i].vy;
-            if self
-                .world
-                .get_block(self.ghasts[i].x.floor() as i32, next_y.floor() as i32)
-                .is_solid()
-            {
-                self.ghasts[i].vy = -self.ghasts[i].vy * 0.6;
-            } else {
-                self.ghasts[i].y = next_y;
-            }
-
-            if self.ghasts[i].y < 6.0 {
-                self.ghasts[i].y = 6.0;
-                self.ghasts[i].vy = self.ghasts[i].vy.abs() * 0.5;
-            } else if self.ghasts[i].y > 96.0 {
-                self.ghasts[i].y = 96.0;
-                self.ghasts[i].vy = -self.ghasts[i].vy.abs() * 0.5;
-            }
-
-            self.ghasts[i].vx *= 0.97;
-            self.ghasts[i].vy *= 0.97;
-
-            if shoot && self.fireballs.len() < GHAST_FIREBALL_SOFT_CAP {
-                let sx = self.ghasts[i].x;
-                let sy = self.ghasts[i].y - 1.0;
-                let dx = self.player.x - sx;
-                let dy = (self.player.y - 0.9) - sy;
-                let dist = (dx * dx + dy * dy).sqrt();
-                if dist > 0.001 {
-                    self.fireballs.push(Fireball::new(
-                        sx,
-                        sy,
-                        (dx / dist) * 0.30,
-                        (dy / dist) * 0.30,
-                    ));
-                    self.ghasts[i].shoot_cooldown = self.scaled_hostile_cooldown(75);
-                }
-            }
-
-            let can_contact_hit =
-                self.can_melee_contact_player(self.ghasts[i].x, self.ghasts[i].y - 1.0, 1.4, 1.1);
-            if can_contact_hit && self.apply_player_combat_damage(self.scaled_hostile_damage(0.35))
-            {
-                self.apply_player_contact_knockback(self.ghasts[i].x, 0.4, 0.2);
-            }
-        }
-        for idx in dead_ghasts.into_iter().rev() {
-            let g = self.ghasts.swap_remove(idx);
-            self.item_entities
-                .push(ItemEntity::new(g.x, g.y - 0.5, ItemType::Gunpowder));
-            if rng.gen_bool(0.35) {
-                self.item_entities
-                    .push(ItemEntity::new(g.x, g.y - 0.5, ItemType::Gunpowder));
-            }
-            if rng.gen_bool(0.28) {
-                self.item_entities
-                    .push(ItemEntity::new(g.x, g.y - 0.5, ItemType::GhastTear));
-            }
-            if self.mob_has_player_kill_credit(g.last_player_damage_tick) {
-                self.spawn_experience_orbs(g.x, g.y - 0.5, 5, &mut rng);
-            }
-        }
-
-        let mut dead_blazes = Vec::new();
-        for i in 0..self.blazes.len() {
-            if self.blazes[i].hit_timer > 0 {
-                self.blazes[i].hit_timer -= 1;
-            }
-            let shoot = self.blazes[i].update_ai(self.player.x, self.player.y);
-            self.blazes[i].age += 1;
-            if self.blazes[i].health <= 0.0 {
-                dead_blazes.push(i);
-                continue;
-            }
-
-            let next_x = self.blazes[i].x + self.blazes[i].vx;
-            if self
-                .world
-                .get_block(next_x.floor() as i32, self.blazes[i].y.floor() as i32)
-                .is_solid()
-            {
-                self.blazes[i].vx = -self.blazes[i].vx * 0.55;
-            } else {
-                self.blazes[i].x = next_x;
-            }
-
-            let next_y = self.blazes[i].y + self.blazes[i].vy;
-            if self
-                .world
-                .get_block(self.blazes[i].x.floor() as i32, next_y.floor() as i32)
-                .is_solid()
-            {
-                self.blazes[i].vy = -self.blazes[i].vy * 0.55;
-            } else {
-                self.blazes[i].y = next_y;
-            }
-
-            if self.blazes[i].y < 8.0 {
-                self.blazes[i].y = 8.0;
-                self.blazes[i].vy = self.blazes[i].vy.abs() * 0.5;
-            } else if self.blazes[i].y > 100.0 {
-                self.blazes[i].y = 100.0;
-                self.blazes[i].vy = -self.blazes[i].vy.abs() * 0.5;
-            }
-
-            self.blazes[i].vx *= 0.97;
-            self.blazes[i].vy *= 0.97;
-
-            if shoot && self.fireballs.len() < BLAZE_FIREBALL_SOFT_CAP {
-                let sx = self.blazes[i].x;
-                let sy = self.blazes[i].y - 0.9;
-                let dx = self.player.x - sx;
-                let dy = (self.player.y - 0.9) - sy;
-                let dist = (dx * dx + dy * dy).sqrt();
-                if dist > 0.001 {
-                    self.fireballs.push(Fireball::new(
-                        sx,
-                        sy,
-                        (dx / dist) * 0.34,
-                        (dy / dist) * 0.34,
-                    ));
-                    self.blazes[i].shoot_cooldown = self.scaled_hostile_cooldown(60);
-                }
-            }
-
-            let can_melee_hit =
-                self.can_melee_contact_player(self.blazes[i].x, self.blazes[i].y - 0.9, 1.25, 1.05);
-            if can_melee_hit && self.blazes[i].attack_cooldown == 0 {
-                if self.apply_player_combat_damage(self.scaled_hostile_damage(0.85)) {
-                    if !self.has_fire_resistance() {
-                        self.player.burning_timer = self.player.burning_timer.max(65);
-                    }
-                    self.apply_player_contact_knockback(self.blazes[i].x, 0.38, 0.2);
-                }
-                self.blazes[i].attack_cooldown = self.scaled_hostile_cooldown(28);
-            }
-        }
-        for idx in dead_blazes.into_iter().rev() {
-            let b = self.blazes.swap_remove(idx);
-            if rng.gen_bool(0.55) {
-                self.item_entities
-                    .push(ItemEntity::new(b.x, b.y - 0.5, ItemType::BlazeRod));
-            }
-            if self.mob_has_player_kill_credit(b.last_player_damage_tick) {
-                self.spawn_experience_orbs(b.x, b.y - 0.5, 10, &mut rng);
-            }
-        }
-
-        let mut dead_endermen = Vec::new();
-        for i in 0..self.endermen.len() {
-            let prev_x = self.endermen[i].x;
-            if self.endermen[i].hit_timer > 0 {
-                self.endermen[i].hit_timer -= 1;
-            }
-            let should_teleport = self.endermen[i].update_ai(
-                self.player.x,
-                self.player.y,
-                self.current_dimension == Dimension::End,
-            );
-            let rerouting = self.endermen[i].reroute_ticks > 0 && self.endermen[i].reroute_dir != 0;
-            let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
-                self.endermen[i].reroute_ticks,
-                self.endermen[i].reroute_dir,
-                self.endermen[i].vx,
-                0.16,
-            );
-            self.endermen[i].reroute_ticks = reroute_ticks;
-            if rerouting {
-                self.endermen[i].vx = reroute_vx;
-                self.endermen[i].facing_right = reroute_vx >= 0.0;
-            }
-            self.endermen[i].age += 1;
-
-            let feet_y = self.endermen[i].y.floor() as i32;
-            let head_y = (self.endermen[i].y - 2.6).floor() as i32;
-            let ex = self.endermen[i].x.floor() as i32;
-            let in_water = matches!(self.world.get_block(ex, feet_y), BlockType::Water(_))
-                || matches!(self.world.get_block(ex, head_y), BlockType::Water(_));
-            if in_water {
-                if self.endermen[i].age.is_multiple_of(10) {
-                    self.endermen[i].health -= 1.0;
-                }
-                self.endermen[i].provoke();
-            }
-
-            if self.endermen[i].health <= 0.0 {
-                dead_endermen.push(i);
-                continue;
-            }
-            let chase_jump = self.should_ground_mob_chase_jump(
-                self.endermen[i].x,
-                self.endermen[i].y,
-                self.endermen[i].vx,
-                self.endermen[i].grounded,
-                0.3,
-                2.7,
-            );
-            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
-                self.endermen[i].x,
-                self.endermen[i].y,
-                self.endermen[i].vx,
-                self.endermen[i].grounded,
-                0.3,
-                2.7,
-                self.endermen[i].stuck_ticks,
-                self.endermen[i].reroute_ticks,
-            );
-            if chase_jump || recovery_jump {
-                self.endermen[i].jump();
-            }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
-                self.endermen[i].x,
-                self.endermen[i].y,
-                self.endermen[i].vx,
-                self.endermen[i].vy,
-                self.endermen[i].grounded,
-                0.3,
-                2.7,
-                true,
-            );
-            self.endermen[i].x = nx;
-            self.endermen[i].y = ny;
-            self.endermen[i].vx = nvx;
-            self.endermen[i].vy = nvy;
-            self.endermen[i].grounded = ngr;
-            let prev_reroute_ticks = self.endermen[i].reroute_ticks;
-            let (stuck_ticks, mut reroute_ticks, mut reroute_dir) = Self::next_ground_reroute_state(
-                self.player.x,
-                self.player.y,
-                prev_x,
-                nx,
-                ny,
-                hit_wall,
-                ngr,
-                self.endermen[i].stuck_ticks,
-                self.endermen[i].reroute_ticks,
-                self.endermen[i].reroute_dir,
-            );
-            (reroute_ticks, reroute_dir) = self.refine_ground_reroute_with_path(
-                self.endermen[i].x,
-                self.endermen[i].y,
-                2.7,
-                prev_reroute_ticks,
-                stuck_ticks,
-                reroute_ticks,
-                reroute_dir,
-            );
-            self.endermen[i].stuck_ticks = stuck_ticks;
-            self.endermen[i].reroute_ticks = reroute_ticks;
-            self.endermen[i].reroute_dir = reroute_dir;
-            if hit_wall {
-                self.endermen[i].jump();
-            }
-            self.endermen[i].vx *= 0.6;
-
-            if should_teleport || in_water {
-                let anchor_x = if self.endermen[i].aggressive_timer > 0 {
-                    self.player.x.floor() as i32
-                } else {
-                    self.endermen[i].x.floor() as i32
-                };
-                let mut teleported = false;
-                for _ in 0..10 {
-                    let target_x = anchor_x + rng.gen_range(-14..=14);
-                    self.world.load_chunks_around(target_x);
-                    let maybe_y = if self.current_dimension == Dimension::End {
-                        self.find_end_spawn_surface_for_enderman(target_x)
-                    } else {
-                        self.find_spawn_surface_for_mob(target_x)
-                    };
-                    if let Some(target_y) = maybe_y {
-                        self.endermen[i].x = target_x as f64 + 0.5;
-                        self.endermen[i].y = target_y;
-                        self.endermen[i].vx = 0.0;
-                        self.endermen[i].vy = 0.0;
-                        self.endermen[i].grounded = false;
-                        self.endermen[i].teleport_cooldown = 90;
-                        teleported = true;
-                        break;
-                    }
-                }
-                if !teleported {
-                    self.endermen[i].teleport_cooldown = 25;
-                }
-            }
-
-            let can_melee_hit = self.can_melee_contact_player(
-                self.endermen[i].x,
-                self.endermen[i].y - 1.4,
-                1.35,
-                1.2,
-            );
-            if can_melee_hit && self.endermen[i].attack_cooldown == 0 {
-                if self.apply_player_combat_damage(self.scaled_hostile_damage(1.5)) {
-                    self.apply_player_contact_knockback(self.endermen[i].x, 0.55, 0.28);
-                }
-                self.endermen[i].attack_cooldown = self.scaled_hostile_cooldown(24);
-            }
-        }
-        for idx in dead_endermen.into_iter().rev() {
-            let e = self.endermen.swap_remove(idx);
-            if rng.gen_bool(0.55) {
-                self.item_entities
-                    .push(ItemEntity::new(e.x, e.y - 0.5, ItemType::EnderPearl));
-            }
-            if self.mob_has_player_kill_credit(e.last_player_damage_tick) {
-                self.spawn_experience_orbs(e.x, e.y - 0.5, 5, &mut rng);
-            }
-        }
-
-        for i in (0..self.fireballs.len()).rev() {
-            self.fireballs[i].update();
-            let (fx, fy, fvx, fvy, mut remove_now) = {
-                let fb = &self.fireballs[i];
-                (fb.x, fb.y, fb.vx, fb.vy, fb.dead)
-            };
-
-            let mut explode = false;
-            if self
-                .world
-                .get_block(fx.floor() as i32, fy.floor() as i32)
-                .is_solid()
-            {
-                remove_now = true;
-                explode = true;
-            }
-
-            let pdist =
-                ((fx - self.player.x).powi(2) + (fy - (self.player.y - 0.9)).powi(2)).sqrt();
-            if pdist < 0.95 {
-                if self.apply_player_combat_damage(self.scaled_hostile_damage(1.2)) {
-                    if !self.has_fire_resistance() {
-                        self.player.burning_timer = self.player.burning_timer.max(55);
-                    }
-                    self.player.vx += fvx * 1.4;
-                    self.player.vy += fvy * 1.1 - 0.2;
-                    self.player.grounded = false;
-                }
-                remove_now = true;
-                explode = true;
-            }
-
-            if explode {
-                let cx = fx.floor() as i32;
-                let cy = fy.floor() as i32;
-                pending_world_explosions.push((cx, cy, 1, 2.4, 8));
-            }
-
-            if remove_now {
-                self.fireballs.swap_remove(i);
-            }
-        }
-
-        if !pending_world_explosions.is_empty() {
-            for (cx, cy, radius, strength, chain_fuse) in pending_world_explosions {
-                self.world
-                    .trigger_explosion(cx, cy, radius, strength, chain_fuse);
-            }
-            self.apply_world_explosion_impacts();
-            self.collect_world_explosion_drops();
-        }
-
-        for i in (0..self.arrows.len()).rev() {
-            self.arrows[i].update();
-            let ax = self.arrows[i].x;
-            let ay = self.arrows[i].y;
-            let avx = self.arrows[i].vx;
-            let avy = self.arrows[i].vy;
-            let from_player = self.arrows[i].from_player;
-            let arrow_damage = self.arrows[i].damage;
-            if self
-                .world
-                .get_block(ax.floor() as i32, ay.floor() as i32)
-                .is_solid()
-            {
-                self.arrows.swap_remove(i);
-                continue;
-            }
-            if from_player {
-                if self.try_apply_player_arrow_hit(ax, ay, avx, avy, arrow_damage) {
-                    self.arrows.swap_remove(i);
-                    continue;
-                }
-            } else {
-                let pdist =
-                    ((ax - self.player.x).powi(2) + (ay - (self.player.y - 0.9)).powi(2)).sqrt();
-                if pdist < 0.8 {
-                    if self.apply_player_combat_damage(self.scaled_hostile_damage(arrow_damage)) {
-                        self.player.vx += avx * 0.5;
-                    }
-                    self.arrows.swap_remove(i);
-                    continue;
-                }
-            }
-            if self.arrows[i].dead {
-                self.arrows.swap_remove(i);
-            }
-        }
-
-        let mut dead_cows = Vec::new();
-        for i in 0..self.cows.len() {
-            if self.cows[i].hit_timer > 0 {
-                self.cows[i].hit_timer -= 1;
-            }
-            if self.cows[i].health <= 0.0 {
-                dead_cows.push(i);
-                continue;
-            }
-            self.cows[i].update_ai();
-            self.cows[i].age += 1;
-            let mut c_vy = self.cows[i].vy + gravity;
-            if c_vy > max_fall_speed {
-                c_vy = max_fall_speed;
-            }
-            self.cows[i].vy = c_vy;
-            let c_nx = self.cows[i].x + self.cows[i].vx;
-            let mut c_hw = false;
-            let c_cx = if self.cows[i].vx > 0.0 {
-                c_nx + 0.3
-            } else {
-                c_nx - 0.3
-            };
-            if self.is_colliding(c_cx, self.cows[i].y - 0.1, CollisionType::Horizontal)
-                || self.is_colliding(c_cx, self.cows[i].y - 1.5, CollisionType::Horizontal)
-            {
-                c_hw = true;
-            }
-            if !c_hw {
-                self.cows[i].x = c_nx;
-            } else {
-                self.cows[i].jump();
-            }
-            let c_ny = self.cows[i].y + self.cows[i].vy;
-            let c_py = self.cows[i].y;
-            if self.cows[i].vy > 0.0 {
-                if self.is_colliding(self.cows[i].x, c_ny, CollisionType::VerticalDown(c_py))
-                    || self.is_colliding(
-                        self.cows[i].x - 0.3,
-                        c_ny,
-                        CollisionType::VerticalDown(c_py),
-                    )
-                    || self.is_colliding(
-                        self.cows[i].x + 0.3,
-                        c_ny,
-                        CollisionType::VerticalDown(c_py),
-                    )
-                {
-                    self.cows[i].y = c_ny.floor();
-                    self.cows[i].vy = 0.0;
-                    self.cows[i].grounded = true;
-                } else {
-                    self.cows[i].y = c_ny;
-                    self.cows[i].grounded = false;
-                }
-            } else if self.cows[i].vy < 0.0 {
-                if self.is_colliding(self.cows[i].x, c_ny - 1.9, CollisionType::VerticalUp)
-                    || self.is_colliding(
-                        self.cows[i].x - 0.3,
-                        c_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                    || self.is_colliding(
-                        self.cows[i].x + 0.3,
-                        c_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                {
-                    self.cows[i].y = c_ny.ceil();
-                    self.cows[i].vy = 0.0;
-                } else {
-                    self.cows[i].y = c_ny;
-                    self.cows[i].grounded = false;
-                }
-            }
-            self.cows[i].vx *= 0.5;
-            if self.cows[i].vx.abs() < 0.02 {
-                self.cows[i].vx = 0.0;
-            }
-        }
-        let mut dead_sheep = Vec::new();
-        for i in 0..self.sheep.len() {
-            if self.sheep[i].hit_timer > 0 {
-                self.sheep[i].hit_timer -= 1;
-            }
-            if self.sheep[i].health <= 0.0 {
-                dead_sheep.push(i);
-                continue;
-            }
-            self.sheep[i].update_ai();
-            self.sheep[i].age += 1;
-            let mut s_vy = self.sheep[i].vy + gravity;
-            if s_vy > max_fall_speed {
-                s_vy = max_fall_speed;
-            }
-            self.sheep[i].vy = s_vy;
-            let s_nx = self.sheep[i].x + self.sheep[i].vx;
-            let mut s_hw = false;
-            let s_cx = if self.sheep[i].vx > 0.0 {
-                s_nx + 0.3
-            } else {
-                s_nx - 0.3
-            };
-            if self.is_colliding(s_cx, self.sheep[i].y - 0.1, CollisionType::Horizontal)
-                || self.is_colliding(s_cx, self.sheep[i].y - 1.5, CollisionType::Horizontal)
-            {
-                s_hw = true;
-            }
-            if !s_hw {
-                self.sheep[i].x = s_nx;
-            } else {
-                self.sheep[i].jump();
-            }
-            let s_ny = self.sheep[i].y + self.sheep[i].vy;
-            let s_py = self.sheep[i].y;
-            if self.sheep[i].vy > 0.0 {
-                if self.is_colliding(self.sheep[i].x, s_ny, CollisionType::VerticalDown(s_py))
-                    || self.is_colliding(
-                        self.sheep[i].x - 0.3,
-                        s_ny,
-                        CollisionType::VerticalDown(s_py),
-                    )
-                    || self.is_colliding(
-                        self.sheep[i].x + 0.3,
-                        s_ny,
-                        CollisionType::VerticalDown(s_py),
-                    )
-                {
-                    self.sheep[i].y = s_ny.floor();
-                    self.sheep[i].vy = 0.0;
-                    self.sheep[i].grounded = true;
-                } else {
-                    self.sheep[i].y = s_ny;
-                    self.sheep[i].grounded = false;
-                }
-            } else if self.sheep[i].vy < 0.0 {
-                if self.is_colliding(self.sheep[i].x, s_ny - 1.9, CollisionType::VerticalUp)
-                    || self.is_colliding(
-                        self.sheep[i].x - 0.3,
-                        s_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                    || self.is_colliding(
-                        self.sheep[i].x + 0.3,
-                        s_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                {
-                    self.sheep[i].y = s_ny.ceil();
-                    self.sheep[i].vy = 0.0;
-                } else {
-                    self.sheep[i].y = s_ny;
-                    self.sheep[i].grounded = false;
-                }
-            }
-            self.sheep[i].vx *= 0.5;
-            if self.sheep[i].vx.abs() < 0.02 {
-                self.sheep[i].vx = 0.0;
-            }
-        }
-        let mut dead_pigs = Vec::new();
-        for i in 0..self.pigs.len() {
-            if self.pigs[i].hit_timer > 0 {
-                self.pigs[i].hit_timer -= 1;
-            }
-            if self.pigs[i].health <= 0.0 {
-                dead_pigs.push(i);
-                continue;
-            }
-            self.pigs[i].update_ai();
-            self.pigs[i].age += 1;
-            let mut p_vy = self.pigs[i].vy + gravity;
-            if p_vy > max_fall_speed {
-                p_vy = max_fall_speed;
-            }
-            self.pigs[i].vy = p_vy;
-            let p_nx = self.pigs[i].x + self.pigs[i].vx;
-            let mut p_hw = false;
-            let p_cx = if self.pigs[i].vx > 0.0 {
-                p_nx + 0.3
-            } else {
-                p_nx - 0.3
-            };
-            if self.is_colliding(p_cx, self.pigs[i].y - 0.1, CollisionType::Horizontal)
-                || self.is_colliding(p_cx, self.pigs[i].y - 1.5, CollisionType::Horizontal)
-            {
-                p_hw = true;
-            }
-            if !p_hw {
-                self.pigs[i].x = p_nx;
-            } else {
-                self.pigs[i].jump();
-                self.pigs[i].facing_right = !self.pigs[i].facing_right;
-                self.pigs[i].vx = 0.0;
-            }
-            let p_ny = self.pigs[i].y + self.pigs[i].vy;
-            let p_py = self.pigs[i].y;
-            if self.pigs[i].vy > 0.0 {
-                if self.is_colliding(self.pigs[i].x, p_ny, CollisionType::VerticalDown(p_py))
-                    || self.is_colliding(
-                        self.pigs[i].x - 0.3,
-                        p_ny,
-                        CollisionType::VerticalDown(p_py),
-                    )
-                    || self.is_colliding(
-                        self.pigs[i].x + 0.3,
-                        p_ny,
-                        CollisionType::VerticalDown(p_py),
-                    )
-                {
-                    self.pigs[i].y = p_ny.floor();
-                    self.pigs[i].vy = 0.0;
-                    self.pigs[i].grounded = true;
-                } else {
-                    self.pigs[i].y = p_ny;
-                    self.pigs[i].grounded = false;
-                }
-            } else if self.pigs[i].vy < 0.0 {
-                if self.is_colliding(self.pigs[i].x, p_ny - 1.9, CollisionType::VerticalUp)
-                    || self.is_colliding(
-                        self.pigs[i].x - 0.3,
-                        p_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                    || self.is_colliding(
-                        self.pigs[i].x + 0.3,
-                        p_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                {
-                    self.pigs[i].y = p_ny.ceil();
-                    self.pigs[i].vy = 0.0;
-                } else {
-                    self.pigs[i].y = p_ny;
-                    self.pigs[i].grounded = false;
-                }
-            }
-            self.pigs[i].vx *= 0.5;
-            if self.pigs[i].vx.abs() < 0.02 {
-                self.pigs[i].vx = 0.0;
-            }
-        }
-        let mut dead_chickens = Vec::new();
-        for i in 0..self.chickens.len() {
-            if self.chickens[i].hit_timer > 0 {
-                self.chickens[i].hit_timer -= 1;
-            }
-            if self.chickens[i].health <= 0.0 {
-                dead_chickens.push(i);
-                continue;
-            }
-            self.chickens[i].update_ai();
-            self.chickens[i].age += 1;
-            if self.chickens[i].egg_lay_timer == 0 {
-                self.item_entities.push(ItemEntity::new(
-                    self.chickens[i].x,
-                    self.chickens[i].y - 0.3,
-                    ItemType::Egg,
-                ));
-                self.chickens[i].egg_lay_timer = rng.gen_range(6000..12000);
-            }
-            let mut c_vy = self.chickens[i].vy + gravity * 0.65;
-            if c_vy > max_fall_speed * 0.55 {
-                c_vy = max_fall_speed * 0.55;
-            }
-            self.chickens[i].vy = c_vy;
-            let c_nx = self.chickens[i].x + self.chickens[i].vx;
-            let mut c_hw = false;
-            let c_cx = if self.chickens[i].vx > 0.0 {
-                c_nx + 0.26
-            } else {
-                c_nx - 0.26
-            };
-            if self.is_colliding(c_cx, self.chickens[i].y - 0.1, CollisionType::Horizontal)
-                || self.is_colliding(c_cx, self.chickens[i].y - 1.1, CollisionType::Horizontal)
-            {
-                c_hw = true;
-            }
-            if !c_hw {
-                self.chickens[i].x = c_nx;
-            } else {
-                self.chickens[i].jump();
-                self.chickens[i].facing_right = !self.chickens[i].facing_right;
-                self.chickens[i].vx = 0.0;
-            }
-            let c_ny = self.chickens[i].y + self.chickens[i].vy;
-            let c_py = self.chickens[i].y;
-            if self.chickens[i].vy > 0.0 {
-                if self.is_colliding(self.chickens[i].x, c_ny, CollisionType::VerticalDown(c_py))
-                    || self.is_colliding(
-                        self.chickens[i].x - 0.24,
-                        c_ny,
-                        CollisionType::VerticalDown(c_py),
-                    )
-                    || self.is_colliding(
-                        self.chickens[i].x + 0.24,
-                        c_ny,
-                        CollisionType::VerticalDown(c_py),
-                    )
-                {
-                    self.chickens[i].y = c_ny.floor();
-                    self.chickens[i].vy = 0.0;
-                    self.chickens[i].grounded = true;
-                } else {
-                    self.chickens[i].y = c_ny;
-                    self.chickens[i].grounded = false;
-                }
-            } else if self.chickens[i].vy < 0.0 {
-                if self.is_colliding(self.chickens[i].x, c_ny - 1.3, CollisionType::VerticalUp)
-                    || self.is_colliding(
-                        self.chickens[i].x - 0.24,
-                        c_ny - 1.3,
-                        CollisionType::VerticalUp,
-                    )
-                    || self.is_colliding(
-                        self.chickens[i].x + 0.24,
-                        c_ny - 1.3,
-                        CollisionType::VerticalUp,
-                    )
-                {
-                    self.chickens[i].y = c_ny.ceil();
-                    self.chickens[i].vy = 0.0;
-                } else {
-                    self.chickens[i].y = c_ny;
-                    self.chickens[i].grounded = false;
-                }
-            }
-            self.chickens[i].vx *= 0.56;
-            if self.chickens[i].vx.abs() < 0.02 {
-                self.chickens[i].vx = 0.0;
-            }
-        }
-        let mut dead_squids = Vec::new();
-        for i in 0..self.squids.len() {
-            if self.squids[i].hit_timer > 0 {
-                self.squids[i].hit_timer -= 1;
-            }
-            if self.squids[i].health <= 0.0 {
-                dead_squids.push(i);
-                continue;
-            }
-
-            self.squids[i].age += 1;
-            let sx = self.squids[i].x.floor() as i32;
-            let center_y = (self.squids[i].y - 0.45).floor() as i32;
-            let feet_y = self.squids[i].y.floor() as i32;
-            let in_water = matches!(self.world.get_block(sx, center_y), BlockType::Water(_))
-                || matches!(self.world.get_block(sx, feet_y), BlockType::Water(_));
-            if !in_water && self.squids[i].age.is_multiple_of(20) {
-                self.squids[i].health -= 1.0;
-                if self.squids[i].health <= 0.0 {
-                    dead_squids.push(i);
-                    continue;
-                }
-            }
-
-            self.squids[i].update_ai(in_water);
-            let (nx, ny, mut nvx, mut nvy, ngr, hit_wall) = self.calculate_movement(
-                self.squids[i].x,
-                self.squids[i].y,
-                self.squids[i].vx,
-                self.squids[i].vy,
-                self.squids[i].grounded,
-                0.42,
-                0.9,
-                false,
-            );
-            if hit_wall {
-                nvx *= -0.3;
-                self.squids[i].swim_dir_x = -self.squids[i].swim_dir_x;
-            }
-            if in_water {
-                nvx *= 0.94;
-                nvy *= 0.9;
-                if nvy.abs() < 0.005 {
-                    nvy = 0.0;
-                }
-            } else {
-                nvx *= 0.78;
-            }
-            if nvx.abs() < 0.01 {
-                nvx = 0.0;
-            }
-
-            self.squids[i].x = nx;
-            self.squids[i].y = ny;
-            self.squids[i].vx = nvx;
-            self.squids[i].vy = nvy;
-            self.squids[i].grounded = ngr;
-        }
-
-        let mut dead_wolves = Vec::new();
-        for i in 0..self.wolves.len() {
-            if self.wolves[i].hit_timer > 0 {
-                self.wolves[i].hit_timer -= 1;
-            }
-            if self.wolves[i].health <= 0.0 {
-                dead_wolves.push(i);
-                continue;
-            }
-
-            let mut sheep_target = None;
-            let mut sheep_target_dist = f64::INFINITY;
-            for sheep in &self.sheep {
-                if sheep.health <= 0.0 {
-                    continue;
-                }
-                let dx = sheep.x - self.wolves[i].x;
-                let dy = sheep.y - self.wolves[i].y;
-                let dist = (dx * dx + dy * dy).sqrt();
-                if dist < sheep_target_dist && dist <= 14.0 {
-                    sheep_target_dist = dist;
-                    sheep_target = Some((sheep.x, sheep.y));
-                }
-            }
-
-            self.wolves[i].update_ai(self.player.x, self.player.y, sheep_target);
-            self.wolves[i].age += 1;
-            let chase_jump = self.should_ground_mob_chase_jump(
-                self.wolves[i].x,
-                self.wolves[i].y,
-                self.wolves[i].vx,
-                self.wolves[i].grounded,
-                0.28,
-                1.2,
-            );
-            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
-                self.wolves[i].x,
-                self.wolves[i].y,
-                self.wolves[i].vx,
-                self.wolves[i].grounded,
-                0.28,
-                1.2,
-                0,
-                0,
-            );
-            if chase_jump || recovery_jump {
-                self.wolves[i].jump();
-            }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
-                self.wolves[i].x,
-                self.wolves[i].y,
-                self.wolves[i].vx,
-                self.wolves[i].vy,
-                self.wolves[i].grounded,
-                0.28,
-                1.2,
-                true,
-            );
-            self.wolves[i].x = nx;
-            self.wolves[i].y = ny;
-            self.wolves[i].vx = nvx;
-            self.wolves[i].vy = nvy;
-            self.wolves[i].grounded = ngr;
-            if hit_wall {
-                self.wolves[i].jump();
-            }
-            self.wolves[i].vx *= 0.56;
-            if self.wolves[i].vx.abs() < 0.02 {
-                self.wolves[i].vx = 0.0;
-            }
-
-            if self.wolves[i].is_aggressive() {
-                let can_melee_hit = self.can_melee_contact_player(
-                    self.wolves[i].x,
-                    self.wolves[i].y - 0.6,
-                    1.1,
-                    0.9,
-                );
-                if can_melee_hit && self.wolves[i].attack_cooldown == 0 {
-                    if self.apply_player_combat_damage(self.scaled_hostile_damage(0.45)) {
-                        self.apply_player_contact_knockback(self.wolves[i].x, 0.3, 0.22);
-                    }
-                    self.wolves[i].attack_cooldown = self.scaled_hostile_cooldown(20);
-                }
-            } else if self.wolves[i].attack_cooldown == 0 {
-                let mut target_sheep_idx = None;
-                let mut target_sheep_dist = f64::INFINITY;
-                for (sheep_idx, sheep) in self.sheep.iter().enumerate() {
-                    if sheep.health <= 0.0 {
-                        continue;
-                    }
-                    let dx = sheep.x - self.wolves[i].x;
-                    let dy = sheep.y - self.wolves[i].y;
-                    let dist = (dx * dx + dy * dy).sqrt();
-                    if dist < target_sheep_dist && dist < 1.0 {
-                        target_sheep_dist = dist;
-                        target_sheep_idx = Some(sheep_idx);
-                    }
-                }
-                if let Some(sheep_idx) = target_sheep_idx {
-                    self.sheep[sheep_idx].health -= 2.0;
-                    self.sheep[sheep_idx].hit_timer = self.sheep[sheep_idx].hit_timer.max(8);
-                    self.sheep[sheep_idx].vx += if self.sheep[sheep_idx].x > self.wolves[i].x {
-                        0.26
-                    } else {
-                        -0.26
-                    };
-                    self.sheep[sheep_idx].vy = -0.22;
-                    self.sheep[sheep_idx].grounded = false;
-                    self.wolves[i].attack_cooldown = 24;
-                }
-            }
-        }
-
-        let mut dead_ocelots = Vec::new();
-        for i in 0..self.ocelots.len() {
-            if self.ocelots[i].hit_timer > 0 {
-                self.ocelots[i].hit_timer -= 1;
-            }
-            if self.ocelots[i].health <= 0.0 {
-                dead_ocelots.push(i);
-                continue;
-            }
-
-            let mut chicken_target = None;
-            let mut chicken_target_dist = f64::INFINITY;
-            for chicken in &self.chickens {
-                if chicken.health <= 0.0 {
-                    continue;
-                }
-                let dx = chicken.x - self.ocelots[i].x;
-                let dy = chicken.y - self.ocelots[i].y;
-                let dist = (dx * dx + dy * dy).sqrt();
-                if dist < chicken_target_dist && dist <= 13.0 {
-                    chicken_target_dist = dist;
-                    chicken_target = Some((chicken.x, chicken.y));
-                }
-            }
-
-            self.ocelots[i].update_ai(self.player.x, self.player.y, chicken_target);
-            self.ocelots[i].age += 1;
-            let chase_jump = self.should_ground_mob_chase_jump(
-                self.ocelots[i].x,
-                self.ocelots[i].y,
-                self.ocelots[i].vx,
-                self.ocelots[i].grounded,
-                0.24,
-                1.1,
-            );
-            let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
-                self.ocelots[i].x,
-                self.ocelots[i].y,
-                self.ocelots[i].vx,
-                self.ocelots[i].grounded,
-                0.24,
-                1.1,
-                0,
-                0,
-            );
-            if chase_jump || recovery_jump {
-                self.ocelots[i].jump();
-            }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
-                self.ocelots[i].x,
-                self.ocelots[i].y,
-                self.ocelots[i].vx,
-                self.ocelots[i].vy,
-                self.ocelots[i].grounded,
-                0.24,
-                1.1,
-                true,
-            );
-            self.ocelots[i].x = nx;
-            self.ocelots[i].y = ny;
-            self.ocelots[i].vx = nvx;
-            self.ocelots[i].vy = nvy;
-            self.ocelots[i].grounded = ngr;
-            if hit_wall {
-                self.ocelots[i].jump();
-            }
-            self.ocelots[i].vx *= 0.58;
-            if self.ocelots[i].vx.abs() < 0.02 {
-                self.ocelots[i].vx = 0.0;
-            }
-
-            if self.ocelots[i].panic_timer == 0 && self.ocelots[i].attack_cooldown == 0 {
-                let mut target_chicken_idx = None;
-                let mut target_chicken_dist = f64::INFINITY;
-                for (chicken_idx, chicken) in self.chickens.iter().enumerate() {
-                    if chicken.health <= 0.0 {
-                        continue;
-                    }
-                    let dx = chicken.x - self.ocelots[i].x;
-                    let dy = chicken.y - self.ocelots[i].y;
-                    let dist = (dx * dx + dy * dy).sqrt();
-                    if dist < target_chicken_dist && dist < 0.95 {
-                        target_chicken_dist = dist;
-                        target_chicken_idx = Some(chicken_idx);
-                    }
-                }
-                if let Some(chicken_idx) = target_chicken_idx {
-                    self.chickens[chicken_idx].health -= 2.0;
-                    self.chickens[chicken_idx].hit_timer =
-                        self.chickens[chicken_idx].hit_timer.max(8);
-                    self.chickens[chicken_idx].vx +=
-                        if self.chickens[chicken_idx].x > self.ocelots[i].x {
-                            0.24
-                        } else {
-                            -0.24
-                        };
-                    self.chickens[chicken_idx].vy = -0.2;
-                    self.chickens[chicken_idx].grounded = false;
-                    self.ocelots[i].attack_cooldown = 20;
-                }
-            }
-        }
-
-        let villager_snapshot: Vec<(f64, i32, i32)> = self
-            .villagers
-            .iter()
-            .map(|v| (v.x, v.home_x, v.home_y))
-            .collect();
-        let mut dead_villagers = Vec::new();
-        for i in 0..self.villagers.len() {
-            if self.villagers[i].hit_timer > 0 {
-                self.villagers[i].hit_timer -= 1;
-            }
-            if self.villagers[i].health <= 0.0 {
-                dead_villagers.push(i);
-                continue;
-            }
-            let seek_shelter = self.should_villager_seek_shelter(
-                self.villagers[i].x,
-                self.villagers[i].y,
-                is_day_now,
-            );
-            let shelter_target = if seek_shelter {
-                self.find_villager_shelter_surface_near_home(
-                    self.villagers[i].home_x,
-                    self.villagers[i].home_y,
-                )
-            } else {
-                None
-            };
-            let sheltered_now =
-                !self.is_exposed_to_sky(self.villagers[i].x, self.villagers[i].y - 1.0);
-            let outdoor_target = if !seek_shelter && sheltered_now {
-                self.find_villager_outdoor_surface_near_home(
-                    self.villagers[i].home_x,
-                    self.villagers[i].home_y,
-                )
-            } else {
-                None
-            };
-            self.villagers[i].update_ai(!seek_shelter);
-            if let Some((target_x, _target_y)) = shelter_target {
-                let dx = target_x as f64 + 0.5 - self.villagers[i].x;
-                if sheltered_now && dx.abs() <= 0.75 {
-                    self.villagers[i].vx = 0.0;
-                    self.villagers[i].wander_timer = 0;
-                } else if dx.abs() > 0.45 {
-                    self.villagers[i].walk(dx.signum() * 0.15);
-                    self.villagers[i].wander_timer = 0;
-                } else {
-                    self.villagers[i].vx = 0.0;
-                }
-            } else if let Some((target_x, _target_y)) = outdoor_target {
-                let dx = target_x as f64 + 0.5 - self.villagers[i].x;
-                if dx.abs() > 0.45 {
-                    self.villagers[i].walk(dx.signum() * 0.13);
-                    self.villagers[i].wander_timer = 0;
-                } else {
-                    self.villagers[i].vx = 0.0;
-                }
-            } else if seek_shelter {
-                let home_target_x = self.villagers[i].home_x as f64 + 0.5;
-                let dx = home_target_x - self.villagers[i].x;
-                if dx.abs() > 0.55 {
-                    self.villagers[i].walk(dx.signum() * 0.14);
-                    self.villagers[i].wander_timer = 0;
-                } else {
-                    self.villagers[i].vx = 0.0;
-                    self.villagers[i].wander_timer = 0;
-                }
-            } else {
-                let home_x = self.villagers[i].home_x;
-                let home_y = self.villagers[i].home_y;
-                let home_target_x = home_x as f64 + 0.5;
-                let mut group_sum_x = 0.0;
-                let mut group_count = 0usize;
-                for (j, (other_x, other_home_x, other_home_y)) in
-                    villager_snapshot.iter().enumerate()
-                {
-                    if i == j {
-                        continue;
-                    }
-                    if (*other_home_x - home_x).abs() <= 10
-                        && (*other_home_y - home_y).abs() <= 6
-                        && (*other_x - self.villagers[i].x).abs() <= 18.0
-                    {
-                        group_sum_x += *other_x;
-                        group_count += 1;
-                    }
-                }
-                let group_target_x = if group_count > 0 {
-                    group_sum_x / group_count as f64
-                } else {
-                    home_target_x
-                };
-                let day_target_x = (home_target_x * 0.5 + group_target_x * 0.5)
-                    .clamp(home_target_x - 8.0, home_target_x + 8.0);
-                let dx = day_target_x - self.villagers[i].x;
-                let home_band_dx = (self.villagers[i].x - home_target_x).abs();
-                if home_band_dx > 10.0 || dx.abs() > 4.0 {
-                    self.villagers[i].walk(dx.signum() * 0.11);
-                    self.villagers[i].wander_timer = 0;
-                } else if dx.abs() > 1.4 && self.villagers[i].vx.abs() < 0.10 {
-                    self.villagers[i].walk(dx.signum() * 0.09);
-                }
-            }
-            let prefer_straight_path =
-                shelter_target.is_some() || outdoor_target.is_some() || seek_shelter;
-            self.villagers[i].age += 1;
-            let mut movement = self.calculate_movement(
-                self.villagers[i].x,
-                self.villagers[i].y,
-                self.villagers[i].vx,
-                self.villagers[i].vy,
-                self.villagers[i].grounded,
-                0.3,
-                1.8,
-                true,
-            );
-            if movement.5
-                && self.try_open_wood_door_for_entity(
-                    self.villagers[i].x,
-                    self.villagers[i].y,
-                    self.villagers[i].vx,
-                )
-            {
-                movement = self.calculate_movement(
-                    self.villagers[i].x,
-                    self.villagers[i].y,
-                    self.villagers[i].vx,
-                    self.villagers[i].vy,
-                    self.villagers[i].grounded,
-                    0.3,
-                    1.8,
-                    true,
-                );
-            }
-            self.villagers[i].x = movement.0;
-            self.villagers[i].y = movement.1;
-            self.villagers[i].vx = movement.2;
-            self.villagers[i].vy = movement.3;
-            self.villagers[i].grounded = movement.4;
-            self.refresh_villager_door_hold_for_entity(self.villagers[i].x, self.villagers[i].y);
-            self.try_close_wood_door_behind_entity(self.villagers[i].x, self.villagers[i].y);
-            if movement.5 {
-                self.villagers[i].jump();
-                if !prefer_straight_path {
-                    self.villagers[i].facing_right = !self.villagers[i].facing_right;
-                }
-            }
-            self.villagers[i].vx *= 0.52;
-            if self.villagers[i].vx.abs() < 0.02 {
-                self.villagers[i].vx = 0.0;
-            }
-        }
-        for idx in dead_villagers.into_iter().rev() {
-            self.villagers.swap_remove(idx);
-        }
-        self.tick_villager_door_hold_timers();
-
-        let mut resolved_item_indices: Vec<(usize, bool)> = Vec::new();
-        for i in 0..self.item_entities.len() {
-            let (ix, iy, ivx, ivy) = {
-                let item = &self.item_entities[i];
-                (item.x, item.y, item.vx, item.vy)
-            };
-            self.item_entities[i].age = self.item_entities[i].age.saturating_add(1);
-            if self.item_entities[i].age > ITEM_ENTITY_DESPAWN_TICKS {
-                resolved_item_indices.push((i, false));
-                continue;
-            }
-            let mut next_ivy = ivy + 0.05;
-            if next_ivy > 0.5 {
-                next_ivy = 0.5;
-            }
-            let dx = self.player.x - ix;
-            let dy = (self.player.y - 1.0) - iy;
-            let dist = (dx * dx + dy * dy).sqrt();
-            let (mut f_vx, mut f_vy) = (ivx, next_ivy);
-            if dist < 3.0 && dist > 0.001 {
-                f_vx += (dx / dist) * 0.15;
-                f_vy += (dy / dist) * 0.15;
-            }
-            if dist < 0.8 {
-                resolved_item_indices.push((i, true));
-                continue;
-            }
-            let next_ix = ix + f_vx;
-            let next_iy = iy + f_vy;
-            if !self.is_colliding(next_ix, iy, CollisionType::Horizontal) {
-                self.item_entities[i].x = next_ix;
-            } else {
-                f_vx = 0.0;
-            }
-            if f_vy > 0.0 {
-                if self.is_colliding(
-                    self.item_entities[i].x,
-                    next_iy,
-                    CollisionType::VerticalDown(iy),
-                ) {
-                    self.item_entities[i].y = next_iy.floor();
-                    f_vy = 0.0;
-                    self.item_entities[i].grounded = true;
-                } else {
-                    self.item_entities[i].y = next_iy;
-                    self.item_entities[i].grounded = false;
-                }
-            } else {
-                self.item_entities[i].y = next_iy;
-            }
-            self.item_entities[i].vx = f_vx * 0.9;
-            self.item_entities[i].vy = f_vy;
-        }
-        for (index, picked_up) in resolved_item_indices.into_iter().rev() {
-            let item_ent = self.item_entities.swap_remove(index);
-            if picked_up {
-                let overflow = self.inventory.add_item(item_ent.item_type, 1);
-                if overflow > 0 {
-                    self.item_entities.push(item_ent);
-                }
-            }
-        }
-
-        let mut resolved_orb_indices = Vec::new();
-        for i in 0..self.experience_orbs.len() {
-            let (ox, oy, ovx, ovy) = {
-                let orb = &self.experience_orbs[i];
-                (orb.x, orb.y, orb.vx, orb.vy)
-            };
-            self.experience_orbs[i].age = self.experience_orbs[i].age.saturating_add(1);
-            if self.experience_orbs[i].age > 6000 {
-                resolved_orb_indices.push((i, false));
-                continue;
-            }
-
-            let dx = self.player.x - ox;
-            let dy = (self.player.y - 1.0) - oy;
-            let dist = (dx * dx + dy * dy).sqrt();
-            if dist < 0.72 {
-                resolved_orb_indices.push((i, true));
-                continue;
-            }
-
-            let mut next_vx = ovx;
-            let mut next_vy = (ovy + 0.03).min(0.4);
-            if dist < 6.0 && dist > 0.001 {
-                let pull = 0.05 + (1.0 - dist / 6.0).max(0.0) * 0.04;
-                next_vx += (dx / dist) * pull;
-                next_vy += (dy / dist) * pull;
-            }
-
-            let next_x = ox + next_vx;
-            if !self.is_colliding(next_x, oy, CollisionType::Horizontal) {
-                self.experience_orbs[i].x = next_x;
-            } else {
-                next_vx = 0.0;
-            }
-
-            let next_y = oy + next_vy;
-            if next_vy > 0.0 {
-                if self.is_colliding(
-                    self.experience_orbs[i].x,
-                    next_y,
-                    CollisionType::VerticalDown(oy),
-                ) {
-                    self.experience_orbs[i].y = next_y.floor();
-                    next_vy = -next_vy * 0.28;
-                    self.experience_orbs[i].grounded = true;
-                    if next_vy.abs() < 0.02 {
-                        next_vy = 0.0;
-                    }
-                } else {
-                    self.experience_orbs[i].y = next_y;
-                    self.experience_orbs[i].grounded = false;
-                }
-            } else {
-                self.experience_orbs[i].y = next_y;
-            }
-
-            self.experience_orbs[i].vx = next_vx * 0.9;
-            self.experience_orbs[i].vy = next_vy;
-        }
-        for (index, grant_xp) in resolved_orb_indices.into_iter().rev() {
-            let orb = self.experience_orbs.swap_remove(index);
-            if grant_xp {
-                self.add_experience(orb.value);
-            }
-        }
-
-        for idx in dead_cows.into_iter().rev() {
-            let cow = self.cows.swap_remove(idx);
-            for _ in 0..rng.gen_range(1..=3) {
-                self.item_entities
-                    .push(ItemEntity::new(cow.x, cow.y - 0.5, ItemType::RawBeef));
-            }
-            for _ in 0..rng.gen_range(0..=2) {
-                self.item_entities
-                    .push(ItemEntity::new(cow.x, cow.y - 0.5, ItemType::Leather));
-            }
-            if self.mob_has_player_kill_credit(cow.last_player_damage_tick) {
-                self.spawn_experience_orbs(cow.x, cow.y - 0.5, rng.gen_range(1..=3), &mut rng);
-            }
-        }
-        for idx in dead_sheep.into_iter().rev() {
-            let sheep = self.sheep.swap_remove(idx);
-            if !sheep.sheared {
-                self.item_entities
-                    .push(ItemEntity::new(sheep.x, sheep.y - 0.5, ItemType::Wool));
-            }
-            if self.mob_has_player_kill_credit(sheep.last_player_damage_tick) {
-                self.spawn_experience_orbs(sheep.x, sheep.y - 0.5, rng.gen_range(1..=3), &mut rng);
-            }
-        }
-        for idx in dead_pigs.into_iter().rev() {
-            let pig = self.pigs.swap_remove(idx);
-            self.item_entities
-                .push(ItemEntity::new(pig.x, pig.y - 0.5, ItemType::RawPorkchop));
-            if rng.gen_bool(0.35) {
-                self.item_entities
-                    .push(ItemEntity::new(pig.x, pig.y - 0.5, ItemType::RawPorkchop));
-            }
-            if self.mob_has_player_kill_credit(pig.last_player_damage_tick) {
-                self.spawn_experience_orbs(pig.x, pig.y - 0.5, rng.gen_range(1..=3), &mut rng);
-            }
-        }
-        for idx in dead_chickens.into_iter().rev() {
-            let chicken = self.chickens.swap_remove(idx);
-            self.item_entities.push(ItemEntity::new(
-                chicken.x,
-                chicken.y - 0.35,
-                ItemType::RawChicken,
-            ));
-            self.item_entities.push(ItemEntity::new(
-                chicken.x,
-                chicken.y - 0.35,
-                ItemType::Feather,
-            ));
-            if rng.gen_bool(0.45) {
-                self.item_entities.push(ItemEntity::new(
-                    chicken.x,
-                    chicken.y - 0.35,
-                    ItemType::Feather,
-                ));
-            }
-            if self.mob_has_player_kill_credit(chicken.last_player_damage_tick) {
-                self.spawn_experience_orbs(
-                    chicken.x,
-                    chicken.y - 0.35,
-                    rng.gen_range(1..=2),
-                    &mut rng,
-                );
-            }
-        }
-        for idx in dead_squids.into_iter().rev() {
-            let squid = self.squids.swap_remove(idx);
-            if self.mob_has_player_kill_credit(squid.last_player_damage_tick) {
-                self.spawn_experience_orbs(squid.x, squid.y - 0.35, rng.gen_range(1..=3), &mut rng);
-            }
-        }
-        for idx in dead_wolves.into_iter().rev() {
-            let wolf = self.wolves.swap_remove(idx);
-            if self.mob_has_player_kill_credit(wolf.last_player_damage_tick) {
-                self.spawn_experience_orbs(wolf.x, wolf.y - 0.35, rng.gen_range(1..=3), &mut rng);
-            }
-        }
-        for idx in dead_ocelots.into_iter().rev() {
-            let ocelot = self.ocelots.swap_remove(idx);
-            if self.mob_has_player_kill_credit(ocelot.last_player_damage_tick) {
-                self.spawn_experience_orbs(
-                    ocelot.x,
-                    ocelot.y - 0.35,
-                    rng.gen_range(1..=3),
-                    &mut rng,
-                );
-            }
-        }
-
-        self.trim_excess_loose_entities();
-
-        if self.player.health <= 0.0 {
-            self.start_death_screen();
         }
     }
 
@@ -14332,21 +14800,29 @@ impl GameState {
         } else {
             None
         };
-        let step_probe_x = check_x.and_then(|probe_x| {
-            if horizontal_collides(probe_x, y) {
-                return Some(probe_x);
-            }
-            if fluid_exit_step {
-                let lookahead_probe_x = probe_x + vx.signum() * SHORELINE_STEP_LOOKAHEAD;
-                if horizontal_collides(lookahead_probe_x, y) {
-                    return Some(lookahead_probe_x);
-                }
-            }
-            None
+        let edge_offset = if vx > 0.0 {
+            half_width - COLLISION_EPSILON
+        } else {
+            -half_width + COLLISION_EPSILON
+        };
+        let sweep_steps = ((vx.abs() / 0.25).ceil() as usize).clamp(1, 256);
+        let first_wall_probe = check_x.and_then(|_| {
+            (1..=sweep_steps)
+                .map(|step| x + vx * step as f64 / sweep_steps as f64 + edge_offset)
+                .find(|&probe| horizontal_collides(probe, y))
         });
-        if let Some(check_x) = check_x
-            && horizontal_collides(check_x, y)
-        {
+        let step_probe_x = first_wall_probe.or_else(|| {
+            check_x.and_then(|probe_x| {
+                if fluid_exit_step {
+                    let lookahead_probe_x = probe_x + vx.signum() * SHORELINE_STEP_LOOKAHEAD;
+                    if horizontal_collides(lookahead_probe_x, y) {
+                        return Some(lookahead_probe_x);
+                    }
+                }
+                None
+            })
+        });
+        if first_wall_probe.is_some() {
             hit_wall = true;
         }
 
@@ -14413,15 +14889,25 @@ impl GameState {
             }
         }
 
+        let destination_x = step_target_x.unwrap_or(next_x);
+        // Recheck the path at the raised height after auto-stepping, including
+        // any second obstacle beyond the first ledge.
+        if !hit_wall && first_wall_probe.is_some() {
+            let distance = destination_x - x;
+            let steps = ((distance.abs() / 0.25).ceil() as usize).clamp(1, 256);
+            hit_wall = (1..=steps).any(|step| {
+                horizontal_collides(x + distance * step as f64 / steps as f64 + edge_offset, y)
+            });
+        }
         if !hit_wall {
-            x = step_target_x.unwrap_or(next_x);
+            x = destination_x;
         } else if check_x.is_some() {
             let horizontal_edge_offset = if vx > 0.0 {
                 half_width - COLLISION_EPSILON
             } else {
                 -half_width + COLLISION_EPSILON
             };
-            let sweep_steps = ((vx.abs() / 0.04).ceil() as usize).clamp(1, 24);
+            let sweep_steps = ((vx.abs() / 0.04).ceil() as usize).clamp(1, 256);
             let mut furthest_x = x;
             for step in 1..=sweep_steps {
                 let t = step as f64 / sweep_steps as f64;
@@ -14444,25 +14930,34 @@ impl GameState {
                 .unwrap_or_else(|| y.floor());
             vy = 0.0;
             grounded = true;
-        } else if vy > 0.0 {
-            if self.is_colliding(x, next_y, CollisionType::VerticalDown(prev_y))
-                || self.is_colliding(x - side_probe, next_y, CollisionType::VerticalDown(prev_y))
-                || self.is_colliding(x + side_probe, next_y, CollisionType::VerticalDown(prev_y))
-            {
-                y = next_y.floor();
+        } else if vy != 0.0 {
+            let falling = vy > 0.0;
+            let steps = ((vy.abs() / 0.25).ceil() as usize).clamp(1, 256);
+            let collision_y = (1..=steps)
+                .map(|step| prev_y + vy * step as f64 / steps as f64)
+                .find(|&candidate_y| {
+                    let probe_y = if falling {
+                        candidate_y
+                    } else {
+                        candidate_y - height
+                    };
+                    let kind = if falling {
+                        CollisionType::VerticalDown(prev_y)
+                    } else {
+                        CollisionType::VerticalUp
+                    };
+                    [x, x - side_probe, x + side_probe]
+                        .into_iter()
+                        .any(|probe_x| self.is_colliding(probe_x, probe_y, kind))
+                });
+            if let Some(collision_y) = collision_y {
+                y = if falling {
+                    collision_y.floor()
+                } else {
+                    (collision_y - height).floor() + 1.0 + height + COLLISION_EPSILON
+                };
                 vy = 0.0;
-                grounded = true;
-            } else {
-                y = next_y;
-                grounded = false;
-            }
-        } else if vy < 0.0 {
-            if self.is_colliding(x, next_y - height, CollisionType::VerticalUp)
-                || self.is_colliding(x - side_probe, next_y - height, CollisionType::VerticalUp)
-                || self.is_colliding(x + side_probe, next_y - height, CollisionType::VerticalUp)
-            {
-                y = next_y.ceil();
-                vy = 0.0;
+                grounded = falling;
             } else {
                 y = next_y;
                 grounded = false;
@@ -14505,174 +15000,6 @@ impl GameState {
         }
 
         (x, y, vx, vy, grounded, hit_wall)
-    }
-
-    pub(crate) fn step_remote_player_body(
-        &self,
-        player: &mut Player,
-        moving_left: bool,
-        moving_right: bool,
-        jump_held: bool,
-        jump_buffer_ticks: &mut u8,
-        sneaking: bool,
-    ) {
-        player.sneaking = sneaking;
-
-        let tuning = self.movement_tuning();
-        let input_dir = if moving_left == moving_right {
-            0.0
-        } else if moving_left {
-            -1.0
-        } else {
-            1.0
-        };
-        let (water_submersion, lava_submersion) =
-            self.entity_fluid_submersion(player.x, player.y, PLAYER_HALF_WIDTH, PLAYER_HEIGHT);
-        let swim_physics_active = water_submersion >= SWIM_PHYSICS_MIN_SUBMERSION
-            || lava_submersion >= SWIM_PHYSICS_MIN_SUBMERSION;
-        let in_fluid_for_jump = water_submersion >= SWIM_CONTROL_MIN_SUBMERSION
-            || lava_submersion >= SWIM_CONTROL_MIN_SUBMERSION;
-        let on_ladder = self.is_entity_on_ladder(player.x, player.y, PLAYER_HEIGHT);
-
-        if on_ladder {
-            if player.vy > 0.12 {
-                player.vy = 0.12;
-            }
-            player.fall_distance = 0.0;
-        }
-
-        let mut consumed_jump_input = false;
-        if *jump_buffer_ticks > 0 {
-            let can_jump = on_ladder || in_fluid_for_jump || player.grounded;
-            if can_jump {
-                if on_ladder {
-                    player.vy = -0.28;
-                    player.grounded = false;
-                } else {
-                    player.jump(water_submersion, lava_submersion);
-                }
-                if input_dir != 0.0 && !on_ladder && !in_fluid_for_jump {
-                    let base_forward = if player.sneaking {
-                        tuning.sneak_speed * 0.72
-                    } else {
-                        tuning.walk_speed * 0.7
-                    };
-                    if input_dir > 0.0 {
-                        player.vx = player.vx.max(base_forward);
-                    } else {
-                        player.vx = player.vx.min(-base_forward);
-                    }
-                }
-                *jump_buffer_ticks = 0;
-                consumed_jump_input = true;
-            } else {
-                *jump_buffer_ticks -= 1;
-            }
-        }
-
-        if jump_held && !consumed_jump_input && !on_ladder && in_fluid_for_jump {
-            player.swim_up(water_submersion, lava_submersion);
-            player.fall_distance = 0.0;
-        }
-        if player.sneaking && !consumed_jump_input && !on_ladder && swim_physics_active {
-            player.swim_down(water_submersion, lava_submersion);
-            player.fall_distance = 0.0;
-        }
-
-        if input_dir != 0.0 {
-            let player_half_width = PLAYER_HALF_WIDTH;
-            let mut desired_speed = if player.sneaking {
-                tuning.sneak_speed
-            } else {
-                tuning.walk_speed
-            };
-            let fluid_speed_scale = if water_submersion >= SWIM_CONTROL_MIN_SUBMERSION {
-                0.62 - water_submersion * 0.08
-            } else if water_submersion > 0.0 {
-                0.8 - water_submersion * 0.08
-            } else if lava_submersion > 0.0 {
-                0.62 - lava_submersion * 0.22
-            } else {
-                1.0
-            };
-            desired_speed *= fluid_speed_scale * input_dir;
-            let next_x = player.x + desired_speed;
-            let edge_probe_x = next_x + input_dir * player_half_width;
-            let can_move = !player.sneaking
-                || self.is_colliding(
-                    edge_probe_x,
-                    player.y + 0.1,
-                    CollisionType::VerticalDown(player.y),
-                );
-            if can_move {
-                let accel = if player.grounded {
-                    tuning.ground_accel
-                } else {
-                    tuning.air_accel
-                };
-                let accel = if water_submersion >= SWIM_CONTROL_MIN_SUBMERSION {
-                    (accel * 0.64).clamp(0.12, 0.27)
-                } else if water_submersion > 0.0 {
-                    (accel * 0.72).clamp(0.12, 0.28)
-                } else if lava_submersion > 0.0 {
-                    (accel * 0.48).clamp(0.08, 0.16)
-                } else {
-                    accel
-                };
-                player.vx += (desired_speed - player.vx) * accel;
-            } else if player.grounded {
-                player.vx *= 0.45;
-            }
-            player.facing_right = input_dir > 0.0;
-        }
-
-        let friction = if input_dir != 0.0 {
-            if player.grounded {
-                tuning.ground_drag_active
-            } else {
-                tuning.air_drag
-            }
-        } else if player.grounded {
-            tuning.ground_drag_idle
-        } else {
-            tuning.air_drag
-        };
-
-        let old_y = player.y;
-        let was_grounded = player.grounded;
-        let was_in_fluid =
-            self.entity_touches_fluid(player.x, player.y, PLAYER_HALF_WIDTH, PLAYER_HEIGHT);
-        let (nx, ny, nvx, nvy, ngr, _) = self.calculate_movement_with_jump_held(
-            player.x,
-            player.y,
-            player.vx,
-            player.vy,
-            player.grounded,
-            PLAYER_HALF_WIDTH,
-            PLAYER_HEIGHT,
-            true,
-            jump_held,
-        );
-        let in_fluid_after_move =
-            self.entity_touches_fluid(nx, ny, PLAYER_HALF_WIDTH, PLAYER_HEIGHT);
-
-        if was_in_fluid || in_fluid_after_move {
-            player.fall_distance = 0.0;
-        } else if ny > old_y && !ngr {
-            player.fall_distance += (ny - old_y) as f32;
-        } else if (ngr && !was_grounded) || nvy <= 0.0 {
-            player.fall_distance = 0.0;
-        }
-
-        player.x = nx;
-        player.y = ny;
-        player.vx = nvx * friction;
-        player.vy = nvy;
-        player.grounded = ngr;
-        if player.vx.abs() < 0.02 {
-            player.vx = 0.0;
-        }
-        player.age = player.age.saturating_add(1);
     }
 
     fn is_colliding(&self, x: f64, y: f64, coll_type: CollisionType) -> bool {
@@ -14924,6 +15251,73 @@ mod tests {
         assert!(ngr);
         assert_eq!(ny, 10.0); // Snapped exactly to the floor
         assert_eq!(nvy, 0.0);
+    }
+
+    #[test]
+    fn swept_collision_stops_fast_motion_at_thin_walls_and_ceilings() {
+        let mut state = GameState::new();
+        state.world.load_chunks_around(0);
+        for x in -8..=8 {
+            for y in 2..=12 {
+                state.world.set_block(x, y, BlockType::Air);
+            }
+        }
+        for x in [-2, 2] {
+            state.world.set_block(x, 9, BlockType::Stone);
+            state.world.set_block(x, 8, BlockType::Stone);
+        }
+        for velocity in [-4.0, 4.0] {
+            let (x, _, vx, _, _, wall) =
+                state.calculate_movement(0.5, 10.0, velocity, 0.0, false, 0.3, 1.8, false);
+            assert!(wall, "fast motion {velocity} crossed a thin wall to {x}");
+            assert_eq!(vx, 0.0);
+            assert!((-0.71..=1.71).contains(&x));
+        }
+        state.world.set_block(0, 7, BlockType::Stone);
+        let (_, y, _, vy, grounded, _) =
+            state.calculate_movement(0.5, 10.0, 0.0, -4.0, false, 0.3, 1.8, false);
+        assert!(
+            y >= 9.8 - 0.002,
+            "fast upward motion crossed the ceiling to {y}"
+        );
+        assert_eq!(vy, 0.0);
+        assert!(!grounded, "a ceiling is not ground support");
+    }
+
+    #[test]
+    fn dimension_travel_keeps_current_world_when_its_save_fails() {
+        let root = std::env::temp_dir().join(format!(
+            "termcraft-travel-{}-{}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
+        let store = crate::worlds::WorldStore::new(root.clone());
+        let path = store
+            .create(
+                "test",
+                "travel fixture",
+                &crate::world::recipe::WorldRecipe::example(),
+            )
+            .unwrap();
+        let mut state = GameState::open_in_directory(&path).unwrap();
+        state.world.try_save_all().unwrap();
+        state.world.set_block(1, 30, BlockType::DiamondOre);
+        std::fs::create_dir(path.join("overworld_chunk_0.bin.tmp")).unwrap();
+        let position = (state.player.x, state.player.y);
+        state.transfer_nether_dimension();
+        assert_eq!(state.current_dimension, Dimension::Overworld);
+        assert_eq!((state.player.x, state.player.y), position);
+        assert_eq!(state.world.get_block(1, 30), BlockType::DiamondOre);
+        assert!(
+            state
+                .save_error
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .contains("Travel cancelled")
+        );
+        drop(state);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -16960,7 +17354,7 @@ mod tests {
 
         state.update(0, 0);
 
-        assert!(state.player.vx > 0.35);
+        assert!(state.player.vx > state.movement_tuning().walk_speed * 0.6);
         assert!(state.player.vx < state.movement_tuning().walk_speed * 0.8);
     }
 
@@ -22795,6 +23189,7 @@ mod tests {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         let data = PlayerProgressSaveData {
+            complete_session: None,
             version: PLAYER_PROGRESS_VERSION + 1,
             player_x: 0.5,
             player_y: 9.9,
@@ -22847,3 +23242,7 @@ mod tests {
         let _ = std::fs::remove_file(path);
     }
 }
+
+#[cfg(test)]
+#[path = "physics_tests.rs"]
+mod physics_tests;

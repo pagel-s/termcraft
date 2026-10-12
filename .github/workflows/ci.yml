@@ -36,5 +36,11 @@ jobs:
       - name: Test
         run: cargo +"$RUST_VERSION" test --locked --quiet
 
+      - name: Test local multiplayer over TCP
+        run: cargo +"$RUST_VERSION" test --locked --test multiplayer_tcp -- --ignored
+
+      - name: Test optional world provider adapters (offline)
+        run: python3 -m unittest discover -s scripts -p 'test_generate_world.py'
+
       - name: Verify package
         run: cargo +"$RUST_VERSION" publish --dry-run --locked

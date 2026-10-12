@@ -29,7 +29,20 @@ The intended progression is:
 | Place / interact | `Right Click` |
 | Use hovered block fallback | `F` |
 | Settings menu | `O` |
+| Performance diagnostics | `F3` |
+| AI game master chat (local / co-op host) | `T` |
 | Quit / close UI | `Q` or `Esc` |
+
+The unreleased development build keeps detailed counters behind `F3`. See
+[Performance and Foundation Checks](performance.md) for timing definitions and
+local measurements. Save warnings appear in the HUD; travel is cancelled if the
+source world cannot be saved.
+
+The experimental native chat accepts requests for battles, mobs, local ambience,
+weather and structures with a configured director. Typing pauses single-player;
+Enter submits and resumes play while the provider works. Esc closes chat and
+Ctrl+C cancels a pending request. See [AI game master setup](agents.md#in-game-ai-game-master)
+for the offline demo, model configuration, proactive controls and current limits.
 
 ## Settings And Rules
 
@@ -93,3 +106,28 @@ If you do not want these in the eventual public build, remove or gate them befor
 ## Saves
 
 The game autosaves during play and persists local progression under the per-user save directory. Set `TERMCRAFT_SAVE_DIR` to override it.
+
+## Movement and readability updates in the development build
+
+Releasing movement now applies the same brake in native play, server simulation
+and MCP actions. Duplicate releases do not erase later knockback. Holding jump
+climbs ladders continuously; holding sneak stays on the ladder. Sneak also stops
+residual sideways momentum at a supported ledge. Swept wall/ceiling collisions
+prevent high-speed tunnelling, and landing damage includes the final partial tick
+of a fall. These improve existing movement; fluids, boats and passive mobs still
+need broader hands-on qualification.
+
+The HUD uses a solid backdrop for health/food and key information. Sprint and
+target information have separate rows. A mining bar shows progress; target tint
+retains terrain color and out-of-reach targets say so. Co-op avatars display their
+player ID above their head. F3 keeps diagnostics available. Cloud drift and End
+sparkles update less often to reduce distracting repainting.
+
+## Art and movement review
+
+F4 switches between the close pixel-art view and the wide view. Use a color
+terminal at least 140×44 for the detailed view; 160×48 is a useful starting size.
+F3 reports keyboard release support. Try walking, abrupt reversal, tap/held jumps,
+low ceilings and wall landings before comparing the camera in both views.
+See [Movement and art review](feel-and-art.md) for current captures, the test route
+and remaining limitations.

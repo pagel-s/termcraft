@@ -1,0 +1,66 @@
+name: Native development artifacts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimum supported Rust
+        run: rustup toolchain install 1.88.0 --profile minimal --component clippy
+      - name: Verify
+        run: cargo +1.88.0 test --locked
+      - name: Real loopback co-op and live MCP
+        if: runner.os != 'Windows'
+        run: cargo +1.88.0 test --locked --test multiplayer_tcp -- --ignored
+      - name: Strict Clippy
+        run: cargo +1.88.0 clippy --all-targets --locked -- -D warnings
+      - name: Build native binary
+        run: cargo +1.88.0 build --release --locked --target ${{ matrix.target }}
+      - name: Install isolated SSH test dependency (Linux)
+        if: runner.os == 'Linux'
+        run: python -m pip install paramiko==5.0.0
+      - name: Real OpenSSH transport and rendered join (Linux)
+        if: runner.os == 'Linux'
+        run: python scripts/test_ssh_join.py --binary target/${{ matrix.target }}/release/termcraft --report ssh-qualification.json
+      - name: Package Unix
+        if: runner.os != 'Windows'
+        run: python scripts/package_release.py --binary target/${{ matrix.target }}/release/termcraft --target ${{ matrix.target }} --output dist
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        run: python scripts/package_release.py --binary target/${{ matrix.target }}/release/termcraft.exe --target ${{ matrix.target }} --output dist
+      - name: Extract and run archive without Rust in PATH
+        run: python scripts/test_native_archive.py --directory dist --report native-qualification.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: termcraft-dev-${{ matrix.target }}
+          path: dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-qualification-${{ matrix.target }}
+          path: native-qualification.json
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: ssh-qualification-${{ matrix.target }}
+          path: ssh-qualification.json

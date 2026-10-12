@@ -1,0 +1,109 @@
+# Next beta: development release notes
+
+**Draft for proposed `v0.2.0-beta.1`; this is not a qualified or published beta.**
+Local binaries still report `0.1.0` and archives are marked `dev`. The repository's
+`BETA_RELEASE_PLAN.md` and `RELEASE_CHECKLIST.md` track qualification.
+
+## Survive and build with friends over SSH
+
+Host a shared Overworld and join from your own terminal with
+`termcraft join user@host --player alice`. Players have independent inventories,
+crafting, workstations, combat and death/respawn; they share terrain, mobs, items
+and storage. Progress survives reconnect and orderly server restart. The launcher
+manages the SSH tunnel and stable reconnect identity and restores your terminal
+when the connection ends.
+
+Use an existing SSH account with forwarding permission and matching builds.
+Keep the game port on loopback; no public hosting/accounts are provisioned.
+See [co-op](multiplayer.md) and [joining](distribution.md).
+
+## Ask your game master to change the world
+
+Press **T** and ask for a battle, mobs, snow, weather/time or an accessible
+building. Your model plans a bounded change while play continues. The engine
+validates the whole plan, protects existing builds/players, and rejects stale or
+cancelled requests. Shared requests are host-controlled and visible to everyone.
+
+Connect an existing MCP-capable Codex/Claude client with `/connect` and
+`termcraft mcp config`; Termcraft needs no second API key. Keep that client task
+actively waiting: connecting does not wake an idle chat. An optional provider
+executable is also supported. `/cancel`, `/pause` and conditional structure
+`/undo` give you control; `/auto` opts into occasional events. Ordinary play
+needs no model. See [agents and generated worlds](agents.md).
+
+Plans use existing blocks/mobs: local biome ambience changes appearance and
+spawning, rather than reshaping terrain. Waves are finite; structures need flat
+empty natural ground and fit 16×12. No newly generated mechanics/quests/bosses.
+
+## Faster rendering and clearer play
+
+Lighting uses descending brightness buckets and cached attenuation; reusable
+ANSI encoding writes each frame once. In controlled local comparisons with
+identical visuals, 200×60 torch-cave renderer p95 falls from 1.811–1.940 ms to
+0.672–0.706 ms. This excludes terminal presentation and is not a visible-FPS or
+all-machines claim. [Measurements and methodology](performance.md).
+
+The HUD has a readable background, separate sprint/target rows, mining progress
+and reach feedback. Targets retain terrain colors, remote players have ID labels,
+and cloud/End sparkle animation is quieter. **F3** shows rolling timing/cache
+diagnostics. Exploration evicts distant saved chunks around all players; failed
+writes retain data in memory for retry.
+
+## Terminal pixel art and finer control
+
+The close view uses a shared pixel atlas for blocks and creatures across all
+dimensions. Larger terminals show 8×8 pixel blocks and proportioned humanoids;
+cutaway interiors, terrain edges and fresh hut roofs improve structure readability.
+Existing saved structures keep their geometry. **F4** switches close/wide views.
+
+The follow-up art audit gives species separate silhouettes, natural body scales,
+coordinated palettes and explicit equipment/damage/alert states. Continuous shared
+lighting, ground-contact shadows and opaque terrain occlusion ground creatures in
+the scene. Transparent torches/windows no longer retain old glyph fragments.
+See the [before/after audit](design/art-audit-2026-10-11/provenance.md).
+
+Classic walking is now 6.4 blocks/second, with sharper reversal and shorter jumps
+when a held jump is released early. Collision-resolved local presentation and a
+camera jump dead zone reduce visible stepping and unnecessary camera movement.
+**F3** reports keyboard release support; repeat-only terminals retain limitations.
+See the [captures and test route](feel-and-art.md). Human acceptance of final art
+and movement feel remains open.
+
+## More predictable movement and safer saves
+
+Release braking preserves later knockback, ladders support held climbing and
+sneak holding, sneaking protects ledges during residual movement, and fall damage
+includes the final landing tick. Swept collision covers fast walls/ceilings.
+Actual terminal/network input feel still needs playtesting.
+
+Native saves preserve the full player session, including crafting grids,
+enchantments, potion timers and furnace work. Corrupt/unreadable existing chunks,
+seeds and progression are rejected rather than silently regenerated. Failed
+writes remain dirty, unsafe dimension travel is cancelled, and fatal native-loop
+errors attempt a private **partial** recovery copy.
+
+**Back up saves before upgrading.** Progression v7 reads v1–6, then upgrades on
+save; older builds cannot reopen v7. Writes are atomic per file, not across a
+whole world. Mobs/loose items are session-only; recovery copies contain loaded
+chunks of the current dimension. [Save/recovery guide](world-format.md).
+
+## Let your LLM play or design a world
+
+MCP exposes 15 stepped world/player tools and six live director tools. Optional
+agents observe, move, mine, craft and build under normal rules, then save and
+leave for a human. Typed deterministic world recipes support validation/repair
+and named isolated saves. No model service or always-on agent is bundled.
+Simultaneous human/LLM player entry remains deferred.
+
+## Installation and current limits
+
+Native development archives include an executable, documentation, license,
+manifest and checksum; Rust is unnecessary at runtime. Linux extraction/launch
+are checked locally. Windows/macOS workflow outputs still need building and
+native qualification.
+
+Shared play supports eight connections, 64 saved identities and the Overworld.
+Protocol **10** requires matching builds. Classic survival through the dragon,
+sustained human co-op, remote SSH/WAN behavior, live model quality and all-platform
+terminals remain release gates. Automated results do not establish a completed
+human campaign or a viral release.

@@ -35,7 +35,33 @@ Experimental multiplayer path:
 - the server streams `ServerSnapshot` and chunk deltas
 - the protocol is version-tagged in `src/engine/net.rs`
 
-Current network protocol version in code: `5`
+Current network protocol version in code: `10`. `src/engine/actors.rs` separates
+full player sessions from the shared world. Each actor uses normal gameplay
+commands and physics; mobs and terrain advance once per server tick. Snapshots
+include full inventories, current chest contents, nearby runtime entities and
+biomes. Clients use an in-memory terrain replica instead of generating or loading
+local chunks. `src/engine/server_save.rs` persists multiplayer identities and
+player state; `src/engine/client_identity.rs` stores local reconnect profiles.
+See [Experimental Local Co-op](multiplayer.md) for setup, save semantics and limits.
+
+Experimental agent mode uses `src/engine/agent.rs` for game tools and
+`src/engine/mcp.rs` for stdio MCP. Declarative world recipes live in
+`src/world/recipe.rs`; `src/worlds.rs` owns named saves and writer leases.
+`src/generator.rs` runs bounded designer processes and feeds back validation
+errors. See [Agents and Generated Worlds](agents.md) for setup and limits.
+
+The native game master lives in `src/engine/director.rs`. Its worker runs the
+trusted provider executable off-thread. Only a typed, bounded action plan crosses
+back into the game loop; placement is preflighted against the current world before
+application. Pending work carries its world/dimension/origin, supports cancellation,
+and waits while chat or another modal UI is open. `ChatView` is presentation/input
+state; it does not call providers from rendering or simulation ticks.
+
+`src/world/environment.rs` persists biome ambience overrides without rewriting
+blocks. Director preferences, recent context and conditional structure undo live
+in a separate per-world sidecar. Native chat is currently Overworld/local only;
+the experimental network protocol does not carry these authoring requests.
+`src/engine/metrics.rs` provides bounded timing windows for F3 diagnostics.
 
 Public positioning recommendation:
 
@@ -60,8 +86,19 @@ Important traits of the renderer:
 
 - dimension-aware sky/background treatment
 - scene-aware entity contrast adjustments
-- terminal-friendly glyph palettes rather than pixel sprites
+- shared world-anchored material and creature pixel atlases in the close view,
+  with a wide glyph fallback for small or `NO_COLOR` terminals
 - view-relative world draw with UI overlays rendered afterward
+
+`src/renderer/materials.rs` defines the exhaustive block atlas and sky/effects;
+`src/renderer/sprites.rs` composes proportioned creature silhouettes, ground-contact
+shadows and terrain occlusion. `src/renderer/shading.rs` provides continuous shared
+presentation lighting with warm/ember/arcane local tints; gameplay lighting rules
+remain separate. The pixel view paints its background/material masks directly,
+so transparent pixels never inherit the old glyph-upscale layer.
+`src/renderer/motion.rs`
+interpolates resolved actor positions and previews local motion through isolated
+collision prediction. UI presentation must never mutate the authoritative game.
 
 The main renderer lives in `src/renderer/terminal.rs`.
 
@@ -75,6 +112,16 @@ The main renderer lives in `src/renderer/terminal.rs`.
 - progression saves are versioned bincode payloads
 
 See [World Format](world-format.md) for the current file layout.
+
+Use `GameState::try_new` or `open_in_directory` for checked world ownership.
+Chunk workers return missing/loaded/error outcomes; decode failures must never
+fall through to terrain generation. Native autosave uses the checked incremental
+save path. Infallible compatibility helpers remain for existing library callers.
+
+Player and mob movement now sweep collision probes along the movement path so
+fast motion cannot skip a one-block wall or ceiling. Existing step, fluid,
+ladder and ground-snap rules still apply. See [Performance and Foundation
+Checks](performance.md) for the cache policy, profiling example and limitations.
 
 ## Contribution Workflow
 
@@ -91,8 +138,14 @@ Useful operational files:
 
 - `README.md`: public-facing overview and quick start
 - `docs/`: detailed player and developer documentation
-- `scripts/release_smoke.sh`: local release smoke gate
-- `RELEASE_CHECKLIST.md`: release/tag checklist in the repo root
+- `scripts/release_smoke.sh`: strict Unix smoke gate, including disposable TCP/MCP
+  regressions; socket permission failures are reported as failures, not passes
+- `RELEASE_CHECKLIST.md`: repeatable qualification and publication handoff
+- `scripts/test_ssh_join.py`: optional real OpenSSH/Paramiko loopback regression;
+  temporary keys/config/saves, no host daemon or account changes
+- `scripts/test_native_archive.py`: standalone extraction/hash/runtime/PTY check
+  shared by the four-platform artifact workflow
+- `docs/beta-release-notes.md`: unpublished player-facing development draft
 - `.github/workflows/ci.yml`: formatting, checks, tests, and package dry-run
 - `.github/workflows/publish.yml`: tag-triggered crates.io publish workflow
 
@@ -117,3 +170,15 @@ See [Media Credits](media-credits.md) for soundtrack and asset attribution.
 ## Contact
 
 For contributor questions, release coordination, or bug reports, contact: `pagel.sebastian.1@gmail.com`
+
+Unit tests use per-process random temporary roots and per-test subdirectories;
+they ignore the user's `TERMCRAFT_SAVE_DIR`. The random process component avoids
+PID reuse across sandbox invocations. Process/TCP integration tests explicitly
+pass their own disposable save directories to production binaries. Never run a
+smoke server against real player saves.
+
+The ignored TCP suite includes an eight-player delayed-link/stalled-reader test.
+Use `TERMCRAFT_NETWORK_SOAK_SECONDS=120` and `TERMCRAFT_NETWORK_REPORT=/tmp/network.json`
+for a longer measured run; default duration is 12 seconds. A human hour and clean
+native-platform qualification remain separate. See the release checklist before
+changing version labels or publishing artifacts.

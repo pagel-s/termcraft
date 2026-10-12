@@ -16,6 +16,7 @@ const CHUNK_SAVE_MAGIC: &[u8; 4] = b"MCCF";
 const CHUNK_SAVE_CODEC_DEFLATE: u8 = 1;
 const CHUNK_SAVE_VERSION: u8 = 2;
 const CHUNK_SAVE_TMP_SUFFIX: &str = ".tmp";
+const MAX_CHUNK_SAVE_BYTES: u64 = 8 * 1024 * 1024;
 
 #[derive(Serialize, Deserialize)]
 struct ChestSaveData {
@@ -90,14 +91,17 @@ pub struct Chunk {
     pub dirty: bool,
     net_revision: u64,
     save_key: String,
+    save_root: PathBuf,
     activity_counts: ChunkActivityCounts,
 }
 
 impl Chunk {
+    #[cfg(test)]
     fn namespaced_chunk_path(save_key: &str, x: i32) -> PathBuf {
         save_path::save_file(&format!("{save_key}_chunk_{x}.bin"))
     }
 
+    #[cfg(test)]
     fn legacy_chunk_path(x: i32) -> PathBuf {
         save_path::save_file(&format!("chunk_{x}.bin"))
     }
@@ -116,7 +120,7 @@ impl Chunk {
         {
             let mut file = File::create(&temp_path)?;
             file.write_all(payload)?;
-            file.flush()?;
+            file.sync_all()?;
         }
         if let Err(err) = std::fs::rename(&temp_path, path) {
             let _ = std::fs::remove_file(&temp_path);
@@ -169,7 +173,14 @@ impl Chunk {
             }
             let mut decoder = DeflateDecoder::new(&buffer[(CHUNK_SAVE_MAGIC.len() + 1)..]);
             let mut decoded = Vec::new();
-            decoder.read_to_end(&mut decoded).ok()?;
+            decoder
+                .by_ref()
+                .take(MAX_CHUNK_SAVE_BYTES + 1)
+                .read_to_end(&mut decoded)
+                .ok()?;
+            if decoded.len() as u64 > MAX_CHUNK_SAVE_BYTES {
+                return None;
+            }
             if let Some(save_data) = Self::decode_save_data_payload(&decoded) {
                 return Some(save_data);
             }
@@ -206,8 +217,13 @@ impl Chunk {
             dirty: false,
             net_revision: 1,
             save_key: save_key.to_string(),
+            save_root: save_path::save_dir(),
             activity_counts: ChunkActivityCounts::default(),
         }
+    }
+
+    pub(crate) fn set_save_root(&mut self, root: &Path) {
+        self.save_root = root.to_path_buf();
     }
 
     fn rebuild_activity_counts(&mut self) {
@@ -332,11 +348,17 @@ impl Chunk {
     }
 
     pub fn save_to_disk(&mut self) {
+        let _ = self.try_save_to_disk();
+    }
+
+    pub fn try_save_to_disk(&mut self) -> std::io::Result<()> {
         if !self.dirty {
-            return;
+            return Ok(());
         }
 
-        let path = Self::namespaced_chunk_path(&self.save_key, self.x);
+        let path = self
+            .save_root
+            .join(format!("{}_chunk_{}.bin", self.save_key, self.x));
         let mut chests: Vec<ChestSaveData> = self
             .chests
             .iter()
@@ -359,58 +381,99 @@ impl Chunk {
             chests,
         };
 
-        if let Some(encoded) = Self::encode_save_data(&save_data)
-            && Self::write_payload_atomically(&path, &encoded).is_ok()
-        {
-            self.dirty = false;
-        }
+        let encoded = Self::encode_save_data(&save_data)
+            .ok_or_else(|| std::io::Error::other("could not encode chunk"))?;
+        Self::write_payload_atomically(&path, &encoded)?;
+        self.dirty = false;
+        Ok(())
+    }
+
+    pub(crate) fn write_recovery_copy(&self, root: &Path) -> std::io::Result<()> {
+        let mut copy = Self::new(self.x, &self.save_key);
+        copy.blocks = self.blocks.clone();
+        copy.chests = self.chests.clone();
+        copy.dirty = true;
+        copy.set_save_root(root);
+        copy.try_save_to_disk()
     }
 
     pub fn load_from_disk(x: i32, save_key: &str) -> Option<Self> {
-        let namespaced_path = Self::namespaced_chunk_path(save_key, x);
-        let legacy_path = Self::legacy_chunk_path(x);
-        let (path, loaded_from_legacy) = if namespaced_path.exists() {
-            (namespaced_path.clone(), false)
-        } else if save_key == "overworld" && legacy_path.exists() {
-            (legacy_path.clone(), true)
-        } else {
-            (namespaced_path.clone(), false)
-        };
-        if let Ok(mut file) = File::open(path) {
-            let mut buffer = Vec::new();
-            if file.read_to_end(&mut buffer).is_ok()
-                && let Some(save_data) = Self::decode_save_data(&buffer)
-            {
-                let ChunkSaveData { blocks, chests, .. } = save_data;
-                let mut activity_counts = ChunkActivityCounts::default();
-                for &block in &blocks {
-                    activity_counts.add_block(block);
+        Self::load_from_directory(x, save_key, &save_path::save_dir())
+    }
+
+    pub(crate) fn load_from_directory(x: i32, save_key: &str, root: &Path) -> Option<Self> {
+        Self::try_load_from_directory(x, save_key, root)
+            .ok()
+            .flatten()
+    }
+
+    /// Only an absent file means new terrain. Corruption and I/O errors must
+    /// reach the world owner so existing chunks cannot be regenerated over them.
+    pub(crate) fn try_load_from_directory(
+        x: i32,
+        save_key: &str,
+        root: &Path,
+    ) -> std::io::Result<Option<Self>> {
+        let namespaced_path = root.join(format!("{save_key}_chunk_{x}.bin"));
+        let legacy_path = root.join(format!("chunk_{x}.bin"));
+        let (path, file, loaded_from_legacy) = match File::open(&namespaced_path) {
+            Ok(file) => (namespaced_path.clone(), file, false),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                if save_key != "overworld" {
+                    return Ok(None);
                 }
-                let chest_map: HashMap<(usize, usize), Inventory> = chests
-                    .into_iter()
-                    .filter(|entry| {
-                        entry.local_x < CHUNK_WIDTH
-                            && entry.local_y < CHUNK_HEIGHT
-                            && blocks[entry.local_y * CHUNK_WIDTH + entry.local_x]
-                                == BlockType::Chest
-                    })
-                    .map(|entry| ((entry.local_x, entry.local_y), entry.inventory))
-                    .collect();
-                if loaded_from_legacy {
-                    Self::migrate_legacy_chunk_path(&legacy_path, &namespaced_path);
+                match File::open(&legacy_path) {
+                    Ok(file) => (legacy_path.clone(), file, true),
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+                    Err(error) => return Err(error),
                 }
-                return Some(Self {
-                    x,
-                    blocks,
-                    chests: chest_map,
-                    dirty: false,
-                    net_revision: 1,
-                    save_key: save_key.to_string(),
-                    activity_counts,
-                });
             }
+            Err(error) => return Err(error),
+        };
+        let mut buffer = Vec::new();
+        file.take(MAX_CHUNK_SAVE_BYTES + 1)
+            .read_to_end(&mut buffer)?;
+        let save_data = (buffer.len() as u64 <= MAX_CHUNK_SAVE_BYTES)
+            .then(|| Self::decode_save_data(&buffer))
+            .flatten()
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "cannot decode {}; existing terrain was preserved",
+                        path.display()
+                    ),
+                )
+            })?;
+        {
+            let ChunkSaveData { blocks, chests, .. } = save_data;
+            let mut activity_counts = ChunkActivityCounts::default();
+            for &block in &blocks {
+                activity_counts.add_block(block);
+            }
+            let chest_map: HashMap<(usize, usize), Inventory> = chests
+                .into_iter()
+                .filter(|entry| {
+                    entry.local_x < CHUNK_WIDTH
+                        && entry.local_y < CHUNK_HEIGHT
+                        && blocks[entry.local_y * CHUNK_WIDTH + entry.local_x] == BlockType::Chest
+                })
+                .map(|entry| ((entry.local_x, entry.local_y), entry.inventory))
+                .collect();
+            if loaded_from_legacy {
+                Self::migrate_legacy_chunk_path(&legacy_path, &namespaced_path);
+            }
+            Ok(Some(Self {
+                x,
+                blocks,
+                chests: chest_map,
+                dirty: false,
+                net_revision: 1,
+                save_key: save_key.to_string(),
+                save_root: root.to_path_buf(),
+                activity_counts,
+            }))
         }
-        None
     }
 }
 

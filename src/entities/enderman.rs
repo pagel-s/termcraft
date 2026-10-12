@@ -1,3 +1,4 @@
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Enderman {
     pub x: f64,
     pub y: f64,

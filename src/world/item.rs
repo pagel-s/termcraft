@@ -616,14 +616,14 @@ impl ItemType {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct ItemStack {
     pub item_type: ItemType,
     pub count: u32,
     pub durability: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Inventory {
     pub slots: Vec<Option<ItemStack>>,
     pub capacity: usize,

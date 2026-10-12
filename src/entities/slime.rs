@@ -1,3 +1,4 @@
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Slime {
     pub x: f64,
     pub y: f64,

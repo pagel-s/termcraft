@@ -1,4 +1,6 @@
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Skeleton {
+    pub director_event: u64,
     pub x: f64,
     pub y: f64,
     pub vx: f64,
@@ -19,6 +21,7 @@ pub struct Skeleton {
 impl Skeleton {
     pub fn new(x: f64, y: f64) -> Self {
         Self {
+            director_event: 0,
             x,
             y,
             vx: 0.0,

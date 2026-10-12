@@ -121,8 +121,10 @@ Developer/test shortcuts currently available:
 
 ## Notes
 
+- This checkout adds an unreleased experimental [AI game master, MCP interface and generated worlds](docs/agents.md): press T to request battles, mobs, ambience or structures through your existing LLM client (`/connect`) or a configured provider. Optional LLM play and world design use MCP; active LLM players are not required.
+
 - The primary supported mode right now is local single-player.
-- Client/server code exists, but it is still experimental and is not a featured public mode yet.
+- [Experimental local Overworld co-op](docs/multiplayer.md) now has independent inventories, shared gameplay and reconnect saves. Shared host-controlled game-master chat and `termcraft join user@host --player alice` are implemented. [Development archive packaging](docs/distribution.md) is ready; real SSH, other platforms and beta qualification remain open.
 - If mouse right-click is unreliable in your terminal, use `F` as the explicit interaction fallback.
 - The crates.io package is intended as an installable game binary. The Rust module layout is not a stable public library API yet.
 
