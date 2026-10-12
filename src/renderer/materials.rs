@@ -582,7 +582,7 @@ impl Renderer {
                 let block = state.world.get_block(bx, by);
                 let above = state.world.get_block(bx, by - 1);
                 let tile = Tile::for_block(block, state.current_dimension, above);
-                let backdrop = if block == BlockType::Air {
+                let backdrop = if !block.is_solid() {
                     Self::room_backdrop(state, bx, by)
                 } else {
                     None
@@ -600,6 +600,25 @@ impl Renderer {
                 // Texture variation is tied to world coordinates, never frame or camera.
                 let variation =
                     ((bx.wrapping_mul(31) ^ by.wrapping_mul(17)).rem_euclid(5) - 2) as f32 * 0.012;
+                let backdrop_pixel = |px: usize, py: usize| {
+                    let color = backdrop?;
+                    let wx = bx as f64 + (px as f64 + 0.5) / unit as f64;
+                    let wy = by as f64 + (py as f64 + 0.5) / unit as f64;
+                    let u = px as f32 / unit as f32;
+                    let v = py as f32 / unit as f32;
+                    let contact = f32::from(above.is_solid()) * (1.0 - v)
+                        + f32::from(below_solid) * v
+                        + f32::from(left_solid) * (1.0 - u)
+                        + f32::from(right_solid) * u;
+                    let seam = if py == unit as usize - 1 { 0.92 } else { 1.0 };
+                    Some(lighting.shade(
+                        Self::rgb(color),
+                        wx,
+                        wy,
+                        (0.88 - contact * 0.12) * seam,
+                        false,
+                    ))
+                };
                 for py in 0..unit as usize {
                     for px in 0..unit as usize {
                         let color = if let Some(tile) = &tile {
@@ -614,7 +633,12 @@ impl Renderer {
                                 b'+' => 1,
                                 b'-' => 2,
                                 b'a' => 3,
-                                _ => continue,
+                                _ => {
+                                    if let Some(color) = backdrop_pixel(px, py) {
+                                        self.put_pixel(sx + px as i32, sy + py as i32, color);
+                                    }
+                                    continue;
+                                }
                             };
                             let mut rgb = tile.colors[index];
                             if block.is_solid() && !matches!(block, BlockType::Glass) {
@@ -662,23 +686,7 @@ impl Renderer {
                                 )
                             }
                         } else {
-                            let color = backdrop.unwrap();
-                            let wx = bx as f64 + (px as f64 + 0.5) / unit as f64;
-                            let wy = by as f64 + (py as f64 + 0.5) / unit as f64;
-                            let u = px as f32 / unit as f32;
-                            let v = py as f32 / unit as f32;
-                            let contact = f32::from(above.is_solid()) * (1.0 - v)
-                                + f32::from(below_solid) * v
-                                + f32::from(left_solid) * (1.0 - u)
-                                + f32::from(right_solid) * u;
-                            let seam = if py == unit as usize - 1 { 0.92 } else { 1.0 };
-                            lighting.shade(
-                                Self::rgb(color),
-                                wx,
-                                wy,
-                                (0.88 - contact * 0.12) * seam,
-                                false,
-                            )
+                            backdrop_pixel(px, py).unwrap()
                         };
                         self.put_pixel(sx + px as i32, sy + py as i32, color);
                     }
@@ -712,50 +720,150 @@ impl Renderer {
 
     // A bounded, visual-only cutaway back wall. It has no collision or saved blocks.
     fn room_backdrop(state: &GameState, x: i32, y: i32) -> Option<Rgb> {
-        let roof = (1..=6).find(|dy| state.world.get_block(x, y - dy) != BlockType::Air)?;
-        // A recessed back wall distinguishes the End tower's open walking
-        // tunnel from its solid upper column. Mining/building still uses real blocks.
-        if state.current_dimension == crate::world::Dimension::End
-            && roof <= 3
-            && state.world.get_block(x, y - roof) == BlockType::Obsidian
-            && (1..=3).any(|dy| state.world.get_block(x, y + dy) == BlockType::Obsidian)
-        {
-            return Some((31, 27, 43));
-        }
-        if !matches!(
-            state.world.get_block(x, y - roof),
-            BlockType::Planks | BlockType::Wood | BlockType::BirchWood | BlockType::StoneBricks
-        ) {
-            return None;
-        }
-        let floor = (1..=6).find(|dy| state.world.get_block(x, y + dy) != BlockType::Air)?;
-        if roof + floor > 8 || !state.world.get_block(x, y + floor).is_solid() {
-            return None;
-        }
-        for direction in [-1, 1] {
-            if !(1..=10).any(|dx| {
-                matches!(
-                    state.world.get_block(x + dx * direction, y),
-                    BlockType::Wood
-                        | BlockType::BirchWood
-                        | BlockType::Planks
-                        | BlockType::Cobblestone
-                        | BlockType::StoneBricks
-                        | BlockType::Glass
-                        | BlockType::WoodDoor(_)
-                        | BlockType::IronDoor(_)
-                )
-            }) {
-                return None;
+        // End tunnels deliberately use their own short obsidian recess.
+        if state.current_dimension == crate::world::Dimension::End {
+            let roof = (1..=6).find(|dy| state.world.get_block(x, y - dy) != BlockType::Air)?;
+            if roof <= 3
+                && state.world.get_block(x, y - roof) == BlockType::Obsidian
+                && (1..=3).any(|dy| state.world.get_block(x, y + dy) == BlockType::Obsidian)
+            {
+                return Some((31, 27, 43));
             }
         }
-        Some((53, 43, 42))
+        let roof_material = |b| {
+            matches!(
+                b,
+                BlockType::Planks
+                    | BlockType::Wood
+                    | BlockType::BirchWood
+                    | BlockType::StoneBricks
+                    | BlockType::Cobblestone
+                    | BlockType::StoneSlab
+                    | BlockType::StoneStairs
+                    | BlockType::Glass
+            )
+        };
+        let wall_material =
+            |b| roof_material(b) || matches!(b, BlockType::WoodDoor(_) | BlockType::IronDoor(_));
+        // Props and glazing must not interrupt the structural roof/floor scan.
+        let roof = (1..=6).find(|dy| {
+            let b = state.world.get_block(x, y - dy);
+            b.is_solid() && b != BlockType::Glass
+        })?;
+        let ceiling = y - roof;
+        let material = state.world.get_block(x, ceiling);
+        if !roof_material(material) {
+            return None;
+        }
+        let floor = (1..=6).find(|dy| state.world.get_block(x, y + dy).is_solid())?;
+        let ground = y + floor;
+        if roof + floor > 8 {
+            return None;
+        }
+        // One complete envelope, rather than a different rectangle at each row.
+        let side = |direction| {
+            (1..=10).find(|dx| {
+                let bx = x + dx * direction;
+                (ceiling + 1..ground).all(|by| wall_material(state.world.get_block(bx, by)))
+                    && (x.min(bx)..=x.max(bx))
+                        .all(|rx| roof_material(state.world.get_block(rx, ceiling)))
+            })
+        };
+        side(-1)?;
+        side(1)?;
+        Some(
+            if matches!(
+                material,
+                BlockType::StoneBricks
+                    | BlockType::Cobblestone
+                    | BlockType::StoneSlab
+                    | BlockType::StoneStairs
+            ) {
+                (43, 48, 54)
+            } else {
+                (53, 43, 42)
+            },
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn enclosed_room() -> GameState {
+        let mut s = GameState::network_view();
+        s.world.apply_chunk_column_snapshot(
+            0,
+            &vec![
+                BlockType::Air;
+                crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+            ],
+        );
+        for x in 1..=9 {
+            s.world.set_block(x, 16, BlockType::Planks);
+            s.world.set_block(x, 20, BlockType::Stone);
+        }
+        for x in [1, 9] {
+            for y in 17..20 {
+                s.world.set_block(x, y, BlockType::Wood);
+            }
+        }
+        s
+    }
+    #[test]
+    fn enclosed_rooms_keep_backdrop_through_glazing_doors_and_props() {
+        let mut s = enclosed_room();
+        s.world.set_block(1, 18, BlockType::Glass);
+        for y in 18..20 {
+            s.world.set_block(9, y, BlockType::WoodDoor(true));
+        }
+        s.world.set_block(4, 19, BlockType::Torch);
+        s.world.set_block(4, 17, BlockType::Glass);
+        let wood = Renderer::room_backdrop(&s, 4, 18).unwrap();
+        assert_eq!(Renderer::room_backdrop(&s, 4, 19), Some(wood));
+        for x in 1..=9 {
+            s.world.set_block(x, 16, BlockType::StoneBricks);
+        }
+        let stone = Renderer::room_backdrop(&s, 4, 18).unwrap();
+        assert_ne!(stone, wood);
+        assert!(stone.2 > stone.0 && wood.0 > wood.2);
+    }
+    #[test]
+    fn incomplete_ruins_do_not_paint_disconnected_background_panels() {
+        let mut s = enclosed_room();
+        for x in [1, 9] {
+            for y in 18..20 {
+                s.world.set_block(x, y, BlockType::Air);
+            }
+        }
+        for x in [3, 7] {
+            s.world.set_block(x, 19, BlockType::StoneBricks);
+        }
+        for x in 2..9 {
+            for y in 17..20 {
+                if s.world.get_block(x, y) == BlockType::Air {
+                    assert_eq!(Renderer::room_backdrop(&s, x, y), None);
+                }
+            }
+        }
+    }
+    #[test]
+    fn detached_trees_cannot_close_an_open_shelter() {
+        let mut s = enclosed_room();
+        for x in 6..=9 {
+            s.world.set_block(x, 16, BlockType::Air);
+        }
+        assert_eq!(Renderer::room_backdrop(&s, 4, 18), None);
+    }
+    #[test]
+    fn end_tunnels_retain_their_obsidian_recess() {
+        let mut s = enclosed_room();
+        s.current_dimension = crate::world::Dimension::End;
+        s.world.set_block(4, 16, BlockType::Obsidian);
+        s.world.set_block(4, 20, BlockType::Obsidian);
+        assert_eq!(Renderer::room_backdrop(&s, 4, 18), Some((31, 27, 43)));
+    }
+
     #[test]
     fn floating_blocks_do_not_paint_opaque_columns_through_open_air() {
         let mut state = GameState::network_view();

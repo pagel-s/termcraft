@@ -73,7 +73,9 @@ Public positioning recommendation:
 
 `src/engine/combat.rs` centralizes body targeting, terrain line of sight, swept
 projectile ordering, damage dispatch and melee windup timing. Entity AI preserves
-hurt impulses and pauses steering during committed attacks. Protocol 12 carries
+hurt impulses and pauses steering during committed attacks. `src/engine/flight.rs`
+sweeps full flying bodies against true terrain boxes without gravity. Ground NPC
+movement explicitly owns its jump input; player input stays in the player path. Protocol 12 carries
 the new warning states and shared trial progress; matching builds are required.
 
 `src/engine/trial.rs` creates the opt-in Lantern Run recipe, tracks credited guard

@@ -1,3 +1,5 @@
+#[path = "flight.rs"]
+mod flight;
 #[path = "trial.rs"]
 mod trial;
 pub use trial::{Trial, TrialStage};
@@ -8466,7 +8468,9 @@ impl GameState {
                     break;
                 }
             }
-            if clear_volume {
+            if clear_volume
+                && !self.entity_collides_with_world(x as f64 + 0.5, y as f64 - 0.6, 0.875, 1.875)
+            {
                 return Some(y as f64 - 0.6);
             }
         }
@@ -8500,7 +8504,9 @@ impl GameState {
             {
                 continue;
             }
-            return Some(y as f64 - 0.6);
+            if !self.entity_collides_with_world(x as f64 + 0.5, y as f64 - 0.6, 0.5, 1.75) {
+                return Some(y as f64 - 0.6);
+            }
         }
         None
     }
@@ -11143,7 +11149,7 @@ impl GameState {
             {
                 self.zombies[i].jump();
             }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.zombies[i].x,
                 self.zombies[i].y,
                 self.zombies[i].vx,
@@ -11288,7 +11294,7 @@ impl GameState {
                 self.pigmen[i].jump();
             }
 
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.pigmen[i].x,
                 self.pigmen[i].y,
                 self.pigmen[i].vx,
@@ -11429,7 +11435,7 @@ impl GameState {
             if chase_jump || recovery_jump {
                 self.creepers[i].jump();
             }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.creepers[i].x,
                 self.creepers[i].y,
                 self.creepers[i].vx,
@@ -11576,7 +11582,7 @@ impl GameState {
             {
                 self.skeletons[i].jump();
             }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.skeletons[i].x,
                 self.skeletons[i].y,
                 self.skeletons[i].vx,
@@ -11684,7 +11690,7 @@ impl GameState {
             {
                 self.spiders[i].jump();
             }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.spiders[i].x,
                 self.spiders[i].y,
                 self.spiders[i].vx,
@@ -11823,7 +11829,7 @@ impl GameState {
             {
                 self.silverfish[i].jump();
             }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.silverfish[i].x,
                 self.silverfish[i].y,
                 self.silverfish[i].vx,
@@ -11968,7 +11974,7 @@ impl GameState {
                 self.slimes[i].jump();
             }
 
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.slimes[i].x,
                 self.slimes[i].y,
                 self.slimes[i].vx,
@@ -12109,27 +12115,16 @@ impl GameState {
                 continue;
             }
 
-            let next_x = self.ghasts[i].x + self.ghasts[i].vx;
-            if self
-                .world
-                .get_block(next_x.floor() as i32, self.ghasts[i].y.floor() as i32)
-                .is_solid()
-            {
-                self.ghasts[i].vx = -self.ghasts[i].vx * 0.6;
-            } else {
-                self.ghasts[i].x = next_x;
-            }
-
-            let next_y = self.ghasts[i].y + self.ghasts[i].vy;
-            if self
-                .world
-                .get_block(self.ghasts[i].x.floor() as i32, next_y.floor() as i32)
-                .is_solid()
-            {
-                self.ghasts[i].vy = -self.ghasts[i].vy * 0.6;
-            } else {
-                self.ghasts[i].y = next_y;
-            }
+            let (x, y, vx, vy) = self.move_flying_body(
+                (self.ghasts[i].x, self.ghasts[i].y),
+                (self.ghasts[i].vx, self.ghasts[i].vy),
+                (0.875, 1.875),
+                0.6,
+            );
+            self.ghasts[i].x = x;
+            self.ghasts[i].y = y;
+            self.ghasts[i].vx = vx;
+            self.ghasts[i].vy = vy;
 
             if self.ghasts[i].y < 6.0 {
                 self.ghasts[i].y = 6.0;
@@ -12196,27 +12191,16 @@ impl GameState {
                 continue;
             }
 
-            let next_x = self.blazes[i].x + self.blazes[i].vx;
-            if self
-                .world
-                .get_block(next_x.floor() as i32, self.blazes[i].y.floor() as i32)
-                .is_solid()
-            {
-                self.blazes[i].vx = -self.blazes[i].vx * 0.55;
-            } else {
-                self.blazes[i].x = next_x;
-            }
-
-            let next_y = self.blazes[i].y + self.blazes[i].vy;
-            if self
-                .world
-                .get_block(self.blazes[i].x.floor() as i32, next_y.floor() as i32)
-                .is_solid()
-            {
-                self.blazes[i].vy = -self.blazes[i].vy * 0.55;
-            } else {
-                self.blazes[i].y = next_y;
-            }
+            let (x, y, vx, vy) = self.move_flying_body(
+                (self.blazes[i].x, self.blazes[i].y),
+                (self.blazes[i].vx, self.blazes[i].vy),
+                (0.5, 1.75),
+                0.55,
+            );
+            self.blazes[i].x = x;
+            self.blazes[i].y = y;
+            self.blazes[i].vx = vx;
+            self.blazes[i].vy = vy;
 
             if self.blazes[i].y < 8.0 {
                 self.blazes[i].y = 8.0;
@@ -12341,7 +12325,7 @@ impl GameState {
             {
                 self.endermen[i].jump();
             }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.endermen[i].x,
                 self.endermen[i].y,
                 self.endermen[i].vx,
@@ -12588,7 +12572,7 @@ impl GameState {
             self.cows[i].vx = nvx;
             self.cows[i].vy = nvy;
             self.cows[i].grounded = grounded;
-            if hit_wall {
+            if hit_wall && self.cows[i].hit_timer == 0 {
                 self.cows[i].jump();
             }
             self.cows[i].vx *= 0.5;
@@ -12624,7 +12608,7 @@ impl GameState {
             self.sheep[i].vx = nvx;
             self.sheep[i].vy = nvy;
             self.sheep[i].grounded = grounded;
-            if hit_wall {
+            if hit_wall && self.sheep[i].hit_timer == 0 {
                 self.sheep[i].jump();
             }
             self.sheep[i].vx *= 0.5;
@@ -12660,7 +12644,7 @@ impl GameState {
             self.pigs[i].vx = nvx;
             self.pigs[i].vy = nvy;
             self.pigs[i].grounded = grounded;
-            if hit_wall {
+            if hit_wall && self.pigs[i].hit_timer == 0 {
                 self.pigs[i].jump();
             }
             self.pigs[i].vx *= 0.5;
@@ -12707,7 +12691,7 @@ impl GameState {
             self.chickens[i].vx = nvx;
             self.chickens[i].vy = nvy;
             self.chickens[i].grounded = grounded;
-            if hit_wall {
+            if hit_wall && self.chickens[i].hit_timer == 0 {
                 self.chickens[i].jump();
             }
             self.chickens[i].vx *= 0.56;
@@ -12741,7 +12725,7 @@ impl GameState {
             }
 
             self.squids[i].update_ai(in_water);
-            let (nx, ny, mut nvx, mut nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, mut nvx, mut nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.squids[i].x,
                 self.squids[i].y,
                 self.squids[i].vx,
@@ -12827,7 +12811,7 @@ impl GameState {
             {
                 self.wolves[i].jump();
             }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.wolves[i].x,
                 self.wolves[i].y,
                 self.wolves[i].vx,
@@ -12960,7 +12944,7 @@ impl GameState {
             if (chase_jump || recovery_jump) && self.ocelots[i].hit_timer == 0 {
                 self.ocelots[i].jump();
             }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.ocelots[i].x,
                 self.ocelots[i].y,
                 self.ocelots[i].vx,
@@ -13054,75 +13038,77 @@ impl GameState {
                 None
             };
             self.villagers[i].update_ai(!seek_shelter);
-            if let Some((target_x, _target_y)) = shelter_target {
-                let dx = target_x as f64 + 0.5 - self.villagers[i].x;
-                if sheltered_now && dx.abs() <= 0.75 {
-                    self.villagers[i].vx = 0.0;
-                    self.villagers[i].wander_timer = 0;
-                } else if dx.abs() > 0.45 {
-                    self.villagers[i].walk(dx.signum() * 0.15);
-                    self.villagers[i].wander_timer = 0;
-                } else {
-                    self.villagers[i].vx = 0.0;
-                }
-            } else if let Some((target_x, _target_y)) = outdoor_target {
-                let dx = target_x as f64 + 0.5 - self.villagers[i].x;
-                if dx.abs() > 0.45 {
-                    self.villagers[i].walk(dx.signum() * 0.13);
-                    self.villagers[i].wander_timer = 0;
-                } else {
-                    self.villagers[i].vx = 0.0;
-                }
-            } else if seek_shelter {
-                let home_target_x = self.villagers[i].home_x as f64 + 0.5;
-                let dx = home_target_x - self.villagers[i].x;
-                if dx.abs() > 0.55 {
-                    self.villagers[i].walk(dx.signum() * 0.14);
-                    self.villagers[i].wander_timer = 0;
-                } else {
-                    self.villagers[i].vx = 0.0;
-                    self.villagers[i].wander_timer = 0;
-                }
-            } else {
-                let home_x = self.villagers[i].home_x;
-                let home_y = self.villagers[i].home_y;
-                let home_target_x = home_x as f64 + 0.5;
-                let mut group_sum_x = 0.0;
-                let mut group_count = 0usize;
-                for (j, (other_x, other_home_x, other_home_y)) in
-                    villager_snapshot.iter().enumerate()
-                {
-                    if i == j {
-                        continue;
+            if self.villagers[i].hit_timer == 0 {
+                if let Some((target_x, _target_y)) = shelter_target {
+                    let dx = target_x as f64 + 0.5 - self.villagers[i].x;
+                    if sheltered_now && dx.abs() <= 0.75 {
+                        self.villagers[i].vx = 0.0;
+                        self.villagers[i].wander_timer = 0;
+                    } else if dx.abs() > 0.45 {
+                        self.villagers[i].walk(dx.signum() * 0.15);
+                        self.villagers[i].wander_timer = 0;
+                    } else {
+                        self.villagers[i].vx = 0.0;
                     }
-                    if (*other_home_x - home_x).abs() <= 10
-                        && (*other_home_y - home_y).abs() <= 6
-                        && (*other_x - self.villagers[i].x).abs() <= 18.0
+                } else if let Some((target_x, _target_y)) = outdoor_target {
+                    let dx = target_x as f64 + 0.5 - self.villagers[i].x;
+                    if dx.abs() > 0.45 {
+                        self.villagers[i].walk(dx.signum() * 0.13);
+                        self.villagers[i].wander_timer = 0;
+                    } else {
+                        self.villagers[i].vx = 0.0;
+                    }
+                } else if seek_shelter {
+                    let home_target_x = self.villagers[i].home_x as f64 + 0.5;
+                    let dx = home_target_x - self.villagers[i].x;
+                    if dx.abs() > 0.55 {
+                        self.villagers[i].walk(dx.signum() * 0.14);
+                        self.villagers[i].wander_timer = 0;
+                    } else {
+                        self.villagers[i].vx = 0.0;
+                        self.villagers[i].wander_timer = 0;
+                    }
+                } else {
+                    let home_x = self.villagers[i].home_x;
+                    let home_y = self.villagers[i].home_y;
+                    let home_target_x = home_x as f64 + 0.5;
+                    let mut group_sum_x = 0.0;
+                    let mut group_count = 0usize;
+                    for (j, (other_x, other_home_x, other_home_y)) in
+                        villager_snapshot.iter().enumerate()
                     {
-                        group_sum_x += *other_x;
-                        group_count += 1;
+                        if i == j {
+                            continue;
+                        }
+                        if (*other_home_x - home_x).abs() <= 10
+                            && (*other_home_y - home_y).abs() <= 6
+                            && (*other_x - self.villagers[i].x).abs() <= 18.0
+                        {
+                            group_sum_x += *other_x;
+                            group_count += 1;
+                        }
                     }
-                }
-                let group_target_x = if group_count > 0 {
-                    group_sum_x / group_count as f64
-                } else {
-                    home_target_x
-                };
-                let day_target_x = (home_target_x * 0.5 + group_target_x * 0.5)
-                    .clamp(home_target_x - 8.0, home_target_x + 8.0);
-                let dx = day_target_x - self.villagers[i].x;
-                let home_band_dx = (self.villagers[i].x - home_target_x).abs();
-                if home_band_dx > 10.0 || dx.abs() > 4.0 {
-                    self.villagers[i].walk(dx.signum() * 0.11);
-                    self.villagers[i].wander_timer = 0;
-                } else if dx.abs() > 1.4 && self.villagers[i].vx.abs() < 0.10 {
-                    self.villagers[i].walk(dx.signum() * 0.09);
+                    let group_target_x = if group_count > 0 {
+                        group_sum_x / group_count as f64
+                    } else {
+                        home_target_x
+                    };
+                    let day_target_x = (home_target_x * 0.5 + group_target_x * 0.5)
+                        .clamp(home_target_x - 8.0, home_target_x + 8.0);
+                    let dx = day_target_x - self.villagers[i].x;
+                    let home_band_dx = (self.villagers[i].x - home_target_x).abs();
+                    if home_band_dx > 10.0 || dx.abs() > 4.0 {
+                        self.villagers[i].walk(dx.signum() * 0.11);
+                        self.villagers[i].wander_timer = 0;
+                    } else if dx.abs() > 1.4 && self.villagers[i].vx.abs() < 0.10 {
+                        self.villagers[i].walk(dx.signum() * 0.09);
+                    }
                 }
             }
             let prefer_straight_path =
                 shelter_target.is_some() || outdoor_target.is_some() || seek_shelter;
             self.villagers[i].age += 1;
-            let mut movement = self.calculate_movement(
+            let mut movement = self.calculate_mob_movement(
                 self.villagers[i].x,
                 self.villagers[i].y,
                 self.villagers[i].vx,
@@ -13133,13 +13119,14 @@ impl GameState {
                 true,
             );
             if movement.5
+                && self.villagers[i].hit_timer == 0
                 && self.try_open_wood_door_for_entity(
                     self.villagers[i].x,
                     self.villagers[i].y,
                     self.villagers[i].vx,
                 )
             {
-                movement = self.calculate_movement(
+                movement = self.calculate_mob_movement(
                     self.villagers[i].x,
                     self.villagers[i].y,
                     self.villagers[i].vx,
@@ -13157,7 +13144,7 @@ impl GameState {
             self.villagers[i].grounded = movement.4;
             self.refresh_villager_door_hold_for_entity(self.villagers[i].x, self.villagers[i].y);
             self.try_close_wood_door_behind_entity(self.villagers[i].x, self.villagers[i].y);
-            if movement.5 {
+            if movement.5 && self.villagers[i].hit_timer == 0 {
                 self.villagers[i].jump();
                 if !prefer_straight_path {
                     self.villagers[i].facing_right = !self.villagers[i].facing_right;
@@ -14071,6 +14058,31 @@ impl GameState {
         // An actor remains supported until its entire foot leaves the surface.
         // Looking only at the leading edge caused a false airborne tick on stairs.
         supported.into_iter().any(|hit| hit)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn calculate_mob_movement(
+        &self,
+        x: f64,
+        y: f64,
+        vx: f64,
+        vy: f64,
+        grounded: bool,
+        half_width: f64,
+        height: f64,
+        do_auto_step: bool,
+    ) -> (f64, f64, f64, f64, bool, bool) {
+        self.calculate_movement_with_jump_held(
+            x,
+            y,
+            vx,
+            vy,
+            grounded,
+            half_width,
+            height,
+            do_auto_step,
+            false,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]

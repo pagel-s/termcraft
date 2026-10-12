@@ -120,6 +120,19 @@ save; older builds cannot reopen v7. Writes are atomic per file, not across a
 whole world. Mobs/loose items are session-only; recovery copies contain loaded
 chunks of the current dimension. [Save/recovery guide](world-format.md).
 
+## Consistent creature collision and room presentation
+
+Flying Ghasts/Blazes use full-body, gravity-free terrain sweeps, including shaped
+blocks and fast hit impulses; spawn clearance now checks their full footprint.
+Villagers preserve recoil during home/shelter steering, and NPC fluid movement
+no longer inherits a human's jump hold. Farm animals wait through hit recovery
+before voluntary wall jumps.
+
+Room cutaways require a continuous roof and complete side boundaries, removing
+patchy false walls from open ruins/shelters. Stone interiors use a masonry palette;
+transparent props preserve the backdrop. Small terminals retain a complete trial
+goal plus contextual climbing, looting and building controls. [Review](feel-and-art.md#further-physics-and-room-refinement).
+
 ## Let your LLM play or design a world
 
 MCP exposes 16 stepped world/player tools and six live director tools. Optional

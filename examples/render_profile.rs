@@ -48,6 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "daylight",
         "storm",
         "torch_cave",
+        "rooms",
         "dense_mobs",
         "dense_items",
         "nether",
@@ -77,6 +78,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if scene == "torch_cave" {
             for x in (-96..=96).step_by(8) {
                 state.world.set_block(x, 62, BlockType::Torch);
+            }
+        }
+        if scene == "rooms" {
+            for left in (-96..=84).step_by(12) {
+                for x in left..=left + 10 {
+                    state.world.set_block(x, 59, BlockType::Planks);
+                }
+                for x in [left, left + 10] {
+                    for y in 60..64 {
+                        state.world.set_block(x, y, BlockType::Wood);
+                    }
+                }
+                state.world.set_block(left, 61, BlockType::Glass);
+                for y in 62..64 {
+                    state
+                        .world
+                        .set_block(left + 10, y, BlockType::WoodDoor(true));
+                }
+                state.world.set_block(left + 5, 63, BlockType::Torch);
             }
         }
         if scene == "nether" {
@@ -109,7 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             WeatherType::Clear
         };
         state.weather_rain_intensity = if scene == "storm" { 1.0 } else { 0.0 };
-        state.player.x = 0.5;
+        state.player.x = if scene == "rooms" { 4.5 } else { 0.5 };
         state.player.y = 64.0;
         state.player.vx = 0.0;
         state.player.vy = 0.0;

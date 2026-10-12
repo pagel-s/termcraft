@@ -3793,11 +3793,14 @@ impl Renderer {
         }
 
         if let Some(trial) = &state.trial {
-            let goal: String = trial
-                .objective()
-                .chars()
-                .take((hud_x - 2).max(0) as usize)
-                .collect();
+            let available = (hud_x - 2).max(0) as usize;
+            let full = trial.objective();
+            let goal = if full.chars().count() <= available {
+                full
+            } else {
+                trial.compact_objective()
+            };
+            let goal: String = goal.chars().take(available).collect();
             self.put_str(
                 1,
                 2,
@@ -3805,6 +3808,19 @@ impl Renderer {
                 Self::rgb((241, 212, 137)),
                 Color::AnsiValue(234),
             );
+            if state.chat.status.is_empty()
+                && !state.inventory_open
+                && let Some(hint) = state.trial_controls_hint()
+            {
+                let hint: String = hint.chars().take(available).collect();
+                self.put_str(
+                    1,
+                    3,
+                    &hint,
+                    Self::rgb((172, 185, 195)),
+                    Color::AnsiValue(234),
+                );
+            }
         }
 
         if state.inventory_open {
@@ -5671,6 +5687,36 @@ impl Renderer {
 mod tests {
     use super::*;
     use std::collections::HashSet;
+
+    #[test]
+    fn compact_trial_hud_keeps_goal_and_contextual_controls_visible() {
+        let mut s = GameState::network_view();
+        s.dismiss_startup_splash();
+        s.trial = Some(
+            serde_json::from_value(serde_json::json!({
+                "version": 1, "stage": "build", "kills": 3
+            }))
+            .unwrap(),
+        );
+        s.player.x = 55.5;
+        s.player.y = 64.0;
+        let mut r = Renderer::with_size(80, 24);
+        r.render_to(&s, 0.0, &mut Vec::new()).unwrap();
+        let text: String = r.back_buffer.iter().map(|c| c.ch).collect();
+        assert!(text.contains("Bridge gap + light signal"));
+        assert!(text.contains("Select planks · R-click beside deck"));
+        s.world.apply_chunk_column_snapshot(
+            55 / crate::world::chunk::CHUNK_WIDTH as i32,
+            &vec![
+                BlockType::Air;
+                crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+            ],
+        );
+        s.world.set_block(55, 63, BlockType::Ladder);
+        r.render_to(&s, 0.0, &mut Vec::new()).unwrap();
+        let text: String = r.back_buffer.iter().map(|c| c.ch).collect();
+        assert!(text.contains("Hold W/Space to climb the ladder"));
+    }
 
     #[test]
     fn camera_keeps_normal_jumps_steady_and_follow_is_frame_rate_independent() {

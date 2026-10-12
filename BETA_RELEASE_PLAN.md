@@ -107,6 +107,28 @@ saves before testing because older executables cannot read the new format.
 
 ## Measured results and validation
 
+### Further creature physics and room review, 12 October
+
+A second independent review found center-point flying collision, undersized spawn
+clearance, villager home steering cancelling recoil, and NPC fluid movement using
+the selected player's jump hold. Full-body gravity-free flight sweeps, full-footprint
+spawn rejection, hurt steering/jump gates and explicit NPC input address these.
+Regressions cover both flight directions, fast side/head impacts, slab air, tree
+platforms, whole AI ticks, low-ceiling spawn pockets and daytime/nighttime recoil.
+
+A full architectural envelope replaces row-by-row cutaway guesses. Open ruins and
+shelters retain sky; complete huts retain warm wooden or muted masonry back walls.
+Transparent props preserve the backdrop. Compact trial goals and contextual controls
+remain readable at 80 columns. Updated captures compare the same seeded village
+and trial terrain, with focused flying-body impact fixtures.
+
+[Review](docs/design/room-physics-2026-10-12/provenance.md) and
+[qualification identity](docs/assets/room-physics-2026-10-12.json) retain the final
+source/binary, **622 unit tests**, normal-rule CLI completion, transport/input checks
+and a new enclosed-room renderer profile. Network fields and progression formats
+are unchanged at protocol 12 / progression v7. Human enjoyment, real WAN feel,
+clean Windows/macOS and full survival/fluid/boat qualification remain open.
+
 ### Lantern Run and combat review, 12 October
 
 The next candidate implements a complete opt-in route with camp, terrain steps,

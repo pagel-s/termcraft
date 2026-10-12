@@ -1,0 +1,16 @@
+{
+  "blaze": {
+    "ceiling_bottom": 28,
+    "height": 1.75,
+    "x": -2.5,
+    "y": 29.75001
+  },
+  "ghast": {
+    "half_width": 0.875,
+    "wall_left": 4,
+    "x": 3.12499,
+    "y": 32.0
+  },
+  "real_engine_ticks": 1,
+  "staged_fixture": true
+}

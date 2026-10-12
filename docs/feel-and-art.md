@@ -89,6 +89,31 @@ recording of that short route is more useful for the next feel pass than an FPS
 number alone. Boats, water/lava, ladders, knockback and dimension changes need a
 separate longer check.
 
+## Further physics and room refinement
+
+Ghasts and Blazes now move their full bodies against terrain instead of checking
+only the feet-center block. Gravity-free sweeps stop heads at ceilings and sides
+at walls, including fast recoil, slab/stair shapes and the shared tree-platform
+policy. Spawn checks reject pockets that do not fit their heads and sides.
+Villagers keep knockback while home/shelter steering waits for recovery; farm
+animals no longer voluntarily jump during recoil. NPC fluid motion uses NPC input
+instead of inheriting the currently selected player's held jump.
+
+Cutaway walls now require a continuous architectural roof and complete side walls.
+Open ruins and shelters retain a consistent sky background; nearby trees and short
+cover columns no longer create disconnected brown panels. Enclosed wooden huts
+keep warm back walls, stone rooms use muted gray, and transparent props retain
+the wall behind their empty pixels. The End tunnel recess stays separate.
+
+At small terminal sizes, Lantern Run displays a complete compact objective and
+one contextual controls hint for climbing, chest transfer, bridging or lighting
+the signal. The game-master status keeps priority over that hint.
+
+[Review captures and reproduction](design/room-physics-2026-10-12/index.html)
+include the same seeded village before/after, focused flight impacts, and updated
+trial poses at compact and large sizes. These are staged software renderer
+fixtures; ordinary-rule CLI completion and terminal-input checks are separate.
+
 ## 12 October: shape, catalog and world review
 
 [Open the complete review gallery](design/2d-refinement-2026-10-12/index.html),

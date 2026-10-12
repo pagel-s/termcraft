@@ -403,3 +403,146 @@ fn legacy_v6_upgrades_and_invalid_full_session_preserves_original_file() {
     assert!(GameState::open_in_directory(state.world.save_root()).is_err());
     assert_eq!(std::fs::read(&path).unwrap(), encoded);
 }
+
+#[test]
+fn flying_bodies_sweep_side_edges_and_fast_motion_in_both_directions() {
+    for dimensions in [(0.875, 1.875), (0.5, 1.75)] {
+        for direction in [-1.0, 1.0] {
+            let mut s = scene();
+            let wall = if direction > 0.0 { 3 } else { -3 };
+            for y in 7..11 {
+                s.world.set_block(wall, y, BlockType::Stone);
+            }
+            let (x, y, vx, vy) =
+                s.move_flying_body((0.5, 10.0), (8.0 * direction, 0.0), dimensions, 0.6);
+            assert!(!s.entity_collides_with_world(x, y, dimensions.0, dimensions.1));
+            assert!(vx * direction < 0.0, "side impact did not reflect");
+            assert_eq!(y, 10.0, "flying must not acquire gravity");
+            assert_eq!(vy, 0.0);
+            let boundary = if direction > 0.0 {
+                3.0 - dimensions.0
+            } else {
+                -2.0 + dimensions.0
+            };
+            assert!((x - boundary).abs() < 0.0001);
+        }
+    }
+}
+
+#[test]
+fn flying_heads_stop_at_ceilings_and_slab_air_stays_passable() {
+    let mut s = scene();
+    s.world.set_block(0, 7, BlockType::Stone);
+    for dimensions in [(0.875, 1.875), (0.5, 1.75)] {
+        let (_, y, _, vy) = s.move_flying_body((0.5, 10.0), (0.0, -3.0), dimensions, 0.6);
+        assert!(y - dimensions.1 >= 8.0 && y - dimensions.1 < 8.0001);
+        assert!(vy > 0.0);
+    }
+    s.world.set_block(1, 10, BlockType::StoneSlab);
+    let (x, _, vx, _) = s.move_flying_body((0.0, 10.25), (3.0, 0.0), (0.5, 1.75), 0.6);
+    assert_eq!((x, vx), (3.0, 3.0));
+    let (x, _, vx, _) = s.move_flying_body((0.0, 10.75), (3.0, 0.0), (0.5, 1.75), 0.6);
+    assert!(x < 0.501 && vx < 0.0);
+    s.world.set_block(1, 10, BlockType::Wood);
+    s.world.set_block(1, 8, BlockType::Leaves);
+    let (x, _, vx, _) = s.move_flying_body((0.0, 10.75), (3.0, 0.0), (0.5, 1.75), 0.6);
+    assert_eq!(
+        (x, vx),
+        (3.0, 3.0),
+        "natural tree trunks use the shared pass-through policy"
+    );
+}
+
+#[test]
+fn complete_flying_ai_tick_respects_head_only_terrain() {
+    let mut s = scene();
+    s.dismiss_startup_splash();
+    s.game_rules.do_mob_spawning = false;
+    s.player.x = -7.0;
+    s.world.set_block(2, 7, BlockType::Stone);
+    let mut ghast = Ghast::new(2.5, 10.0);
+    ghast.hit_timer = 8;
+    ghast.vy = -2.0;
+    let mut blaze = Blaze::new(-2.5, 10.0);
+    blaze.hit_timer = 8;
+    blaze.vy = -2.0;
+    s.world.set_block(-3, 7, BlockType::Stone);
+    s.ghasts.push(ghast);
+    s.blazes.push(blaze);
+    s.update(0, 0);
+    assert!(s.ghasts[0].y - 1.875 >= 8.0);
+    assert!(s.blazes[0].y - 1.75 >= 8.0);
+}
+
+#[test]
+fn flying_spawns_reject_pockets_that_only_fit_the_center() {
+    let mut s = scene();
+    for x in -2..=2 {
+        for y in 0..100 {
+            s.world.set_block(x, y, BlockType::Stone);
+        }
+    }
+    for x in -1..=1 {
+        for y in 18..=21 {
+            s.world.set_block(x, y, BlockType::Air);
+        }
+    }
+    assert_eq!(s.find_nether_air_spawn_for_ghast(0), None);
+    for x in -1..=1 {
+        s.world.set_block(x, 17, BlockType::Air);
+    }
+    assert!(s.find_nether_air_spawn_for_ghast(0).is_some());
+    for x in -1..=1 {
+        for y in 17..20 {
+            s.world.set_block(x, y, BlockType::Stone);
+        }
+    }
+    assert_eq!(s.find_nether_air_spawn_for_blaze(0), None);
+    for x in -1..=1 {
+        for y in 18..20 {
+            s.world.set_block(x, y, BlockType::Air);
+        }
+    }
+    assert!(s.find_nether_air_spawn_for_blaze(0).is_some());
+}
+
+#[test]
+fn villager_home_and_shelter_steering_wait_for_hit_recovery() {
+    for time in [6000.0, 23000.0] {
+        let mut s = scene();
+        s.dismiss_startup_splash();
+        s.game_rules.do_mob_spawning = false;
+        s.game_rules.do_daylight_cycle = false;
+        s.time_of_day = time;
+        for x in -8..=8 {
+            s.world.set_block(x, 20, BlockType::Stone);
+        }
+        s.world.set_block(-6, 17, BlockType::Planks);
+        let mut v = Villager::new(4.5, 20.0, -6, 20);
+        v.grounded = true;
+        v.hit_timer = 8;
+        v.vx = 0.4;
+        s.villagers.push(v);
+        s.update(0, 0);
+        assert!(
+            s.villagers[0].x > 4.75 && s.villagers[0].vx > 0.0,
+            "home steering erased recoil at {time}"
+        );
+    }
+}
+
+#[test]
+fn npc_fluid_motion_is_independent_of_player_jump_hold() {
+    let mut s = scene();
+    for x in -2..=2 {
+        for y in 17..=21 {
+            s.world.set_block(x, y, BlockType::Water(0));
+        }
+    }
+    s.world.set_block(1, 19, BlockType::Stone);
+    s.jump_held = false;
+    let released = s.calculate_mob_movement(0.5, 20.0, 0.3, -0.05, false, 0.3, 1.8, true);
+    s.jump_held = true;
+    let held = s.calculate_mob_movement(0.5, 20.0, 0.3, -0.05, false, 0.3, 1.8, true);
+    assert_eq!(released, held);
+}

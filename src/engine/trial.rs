@@ -38,6 +38,14 @@ impl Trial {
             }
         }
     }
+    pub fn compact_objective(&self) -> String {
+        match self.stage {
+            TrialStage::Approach => "LANTERN RUN · Reach the ruins →".into(),
+            TrialStage::Encounter => format!("LANTERN RUN · Guards {}/3", self.kills),
+            TrialStage::Build => "LANTERN RUN · Bridge gap + light signal →".into(),
+            TrialStage::Complete => "LANTERN RUN COMPLETE · Signal restored!".into(),
+        }
+    }
     fn load(root: &Path) -> io::Result<Option<Self>> {
         let file = match File::open(root.join(FILE)) {
             Ok(f) => f,
@@ -61,6 +69,21 @@ impl Trial {
     }
 }
 impl GameState {
+    pub fn trial_controls_hint(&self) -> Option<&'static str> {
+        let trial = self.trial.as_ref()?;
+        if self.is_player_on_ladder() {
+            return Some("Hold W/Space to climb the ladder");
+        }
+        Some(match trial.stage {
+            TrialStage::Approach => "A/D: move · Space: jump · 1-9: select",
+            TrialStage::Encounter => "L-click hit · dodge ! · mine/build cover",
+            TrialStage::Build if self.player.x < 49.0 => "R-click chest · Shift+L-click transfer",
+            TrialStage::Build if self.player.x < 61.5 => "Select planks · R-click beside deck",
+            TrialStage::Build => "Select torch · R-click top of stone signal",
+            TrialStage::Complete => "Keep exploring/building · Q: save and exit",
+        })
+    }
+
     pub fn create_lantern_trial(store: &WorldStore, id: &str) -> io::Result<()> {
         let mut recipe = WorldRecipe::example();
         recipe.name = "Lantern Run".into();
