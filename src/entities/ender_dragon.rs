@@ -22,6 +22,23 @@ pub struct EnderDragon {
 }
 
 impl EnderDragon {
+    /// Body, neck and head ellipses in the side-on eight-pixels-per-block art.
+    /// Decorative wings/tail do not give the boss invisible extra attack reach.
+    pub fn hit_regions(&self) -> [[f64; 4]; 3] {
+        let facing = if self.facing_right { 1.0 } else { -1.0 };
+        [
+            [self.x + facing * 0.75, self.y - 1.5, 1.3, 0.7],
+            [self.x + facing * 2.0, self.y - 1.9, 0.7, 0.65],
+            [self.x + facing * 3.0, self.y - 2.1, 0.9, 0.6],
+        ]
+    }
+
+    pub fn hit_test(&self, x: f64, y: f64) -> bool {
+        self.hit_regions()
+            .iter()
+            .any(|r| ((x - r[0]) / r[2]).powi(2) + ((y - r[1]) / r[3]).powi(2) <= 1.0)
+    }
+
     pub fn new(x: f64, y: f64) -> Self {
         Self {
             x,

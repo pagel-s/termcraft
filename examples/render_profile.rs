@@ -2,9 +2,10 @@
 use std::io::{self, Write};
 use std::time::Instant;
 use termcraft::engine::state::{GameState, WeatherType};
-use termcraft::entities::zombie::Zombie;
 use termcraft::entities::{end_crystal::EndCrystal, ender_dragon::EnderDragon};
+use termcraft::entities::{item_entity::ItemEntity, zombie::Zombie};
 use termcraft::renderer::Renderer;
+use termcraft::world::item::ItemType;
 use termcraft::world::{Dimension, World, block::BlockType, recipe::WorldRecipe};
 use termcraft::worlds::WorldStore;
 
@@ -48,6 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "storm",
         "torch_cave",
         "dense_mobs",
+        "dense_items",
         "nether",
         "end",
         "end_dragon",
@@ -86,6 +88,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             for x in -24..24 {
                 state.zombies.push(Zombie::new(x as f64, 64.0));
             }
+        }
+        if scene == "dense_items" {
+            state.item_entities = ItemType::ALL
+                .iter()
+                .enumerate()
+                .map(|(i, &item)| {
+                    ItemEntity::new((i % 45) as f64 - 22.0, 63.0 - (i / 45) as f64 * 2.0, item)
+                })
+                .collect();
         }
         state.time_of_day = if scene == "torch_cave" {
             22000.0

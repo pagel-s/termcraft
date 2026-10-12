@@ -35,9 +35,17 @@ impl Tile {
                     ["++++", "aaaa", "a..a", ".-.."]
                 }
             }
-            Dirt | Farmland(_) => {
+            Dirt => {
                 colors = [(111, 80, 56), (125, 91, 63), (97, 68, 51), (116, 84, 58)];
                 ["....", ".-..", "..+.", "-..-"]
+            }
+            Farmland(hydration) => {
+                colors = if hydration > 0 {
+                    [(80, 57, 43), (101, 73, 51), (53, 40, 34), (87, 62, 46)]
+                } else {
+                    [(119, 86, 56), (143, 105, 67), (87, 62, 45), (126, 91, 59)]
+                };
+                ["+-+-", ".-.-", "....", "..-."]
             }
             Stone | Bedrock => {
                 colors = [
@@ -267,15 +275,44 @@ impl Tile {
                     (true, false) => ["a ..", "a++.", "a--.", "a --"],
                 }
             }
-            Crops(stage) | NetherWart(stage) => {
-                if stage >= 4 {
-                    [" a a", "a.a.", " a.a", "...."]
-                } else {
-                    ["    ", "    ", " a a", "...."]
+            Crops(stage) => {
+                colors = [
+                    (73, 128, 57),
+                    (127, 176, 72),
+                    (49, 96, 47),
+                    if stage >= 7 {
+                        (224, 188, 81)
+                    } else {
+                        (99, 157, 59)
+                    },
+                ];
+                match stage {
+                    0 => ["    ", "    ", "    ", " + +"],
+                    1..=3 => ["    ", "    ", " + +", "+.+."],
+                    4..=6 => ["    ", " + +", "+.+.", " . ."],
+                    _ => [" a a", "a.a.", " . .", " . ."],
+                }
+            }
+            NetherWart(stage) => {
+                colors = [(143, 54, 65), (196, 76, 81), (86, 39, 50), (219, 105, 103)];
+                match stage {
+                    0 => ["    ", "    ", "    ", " + +"],
+                    1..=2 => ["    ", "    ", " ++ ", "+..+"],
+                    _ => ["    ", " ++ ", "+aa+", ".--."],
                 }
             }
             SilverfishSpawner | BlazeSpawner | ZombieSpawner | SkeletonSpawner => {
-                colors[3] = (224, 163, 85);
+                colors = [
+                    (70, 77, 83),
+                    (117, 130, 135),
+                    (37, 43, 51),
+                    match block {
+                        SilverfishSpawner => (155, 161, 170),
+                        BlazeSpawner => (244, 168, 74),
+                        ZombieSpawner => (95, 159, 86),
+                        _ => (213, 210, 187),
+                    },
+                ];
                 ["++++", "+a-+", "+-a+", "++++"]
             }
         };
@@ -391,23 +428,27 @@ impl Renderer {
         let mut horizons = std::mem::take(&mut self.pixel_horizons);
         horizons.clear();
         for bx in left..=right {
-            let occluder = (0..crate::world::chunk::CHUNK_HEIGHT as i32)
-                .find(|&by| Self::sky_backdrop_occluder(state.world.get_block(bx, by)))
-                .unwrap_or(crate::world::chunk::CHUNK_HEIGHT as i32);
             let ground = (0..crate::world::chunk::CHUNK_HEIGHT as i32)
                 .find(|&by| {
-                    matches!(
-                        state.world.get_block(bx, by),
-                        BlockType::Grass
-                            | BlockType::Dirt
-                            | BlockType::Sand
-                            | BlockType::Snow
-                            | BlockType::Stone
-                            | BlockType::Water(_)
-                    )
+                    // Isolated props and floating blocks cannot turn all the air
+                    // below them into underground. Find an actual terrain layer.
+                    (0..3).all(|dy| {
+                        matches!(
+                            state.world.get_block(bx, by + dy),
+                            BlockType::Grass
+                                | BlockType::Dirt
+                                | BlockType::Sand
+                                | BlockType::Snow
+                                | BlockType::Stone
+                                | BlockType::Water(_)
+                                | BlockType::Gravel
+                                | BlockType::Farmland(_)
+                                | BlockType::Ice
+                        )
+                    })
                 })
-                .unwrap_or(occluder);
-            horizons.push((occluder, ground));
+                .unwrap_or(crate::world::chunk::CHUNK_HEIGHT as i32);
+            horizons.push(ground);
         }
         let day = Self::day_mix(state.time_of_day);
         let twilight = Self::twilight_mix(state.time_of_day);
@@ -418,9 +459,9 @@ impl Renderer {
             for sx in 0..i32::from(self.width) {
                 let world_x = (sx + vx - cx) as f64 / unit as f64;
                 let bx = world_x.floor() as i32;
-                let (occluder, ground) = horizons[(bx - left) as usize];
+                let ground = horizons[(bx - left) as usize];
                 let rgb = match state.current_dimension {
-                    Dimension::Overworld if world_y < occluder as f64 => {
+                    Dimension::Overworld if world_y < ground as f64 => {
                         let height = sy as f32 / rows as f32;
                         let zenith = Self::lerp_rgb((12, 20, 43), (74, 113, 160), day);
                         let horizon = Self::lerp_rgb((36, 41, 65), (174, 196, 195), day);
@@ -715,6 +756,73 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn floating_blocks_do_not_paint_opaque_columns_through_open_air() {
+        let mut state = GameState::network_view();
+        state.world.apply_chunk_column_snapshot(
+            0,
+            &vec![
+                BlockType::Air;
+                crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+            ],
+        );
+        for x in 0..16 {
+            for y in 20..24 {
+                state.world.set_block(x, y, BlockType::Stone);
+            }
+        }
+        state.player.x = 4.5;
+        state.player.y = 20.0;
+        state.player.grounded = true;
+        state.time_of_day = 12000.0;
+        let sample = |s: &GameState| {
+            let mut renderer = Renderer::with_size(160, 48);
+            renderer.render_to(s, 0.0, &mut Vec::new()).unwrap();
+            let (vx, vy, cx, cy, scale) = renderer.world_view.unwrap();
+            let x = (2.5 * (scale * 2) as f64) as i32 - vx + cx;
+            let y = (18.5 * scale as f64) as i32 - vy + cy;
+            {
+                let cell = renderer.back_buffer[y as usize * 160 + x as usize];
+                (cell.ch, cell.fg, cell.bg)
+            }
+        };
+        let open_air = sample(&state);
+        for block in [BlockType::Stone, BlockType::Obsidian, BlockType::Chest] {
+            state.world.set_block(2, 17, block);
+            assert_eq!(
+                sample(&state),
+                open_air,
+                "false background column below {block:?}"
+            );
+        }
+    }
+    #[test]
+    fn crop_growth_hydration_and_spawner_species_have_visible_distinctions() {
+        let tile =
+            |b| Tile::for_block(b, crate::world::Dimension::Overworld, BlockType::Air).unwrap();
+        for (a, b) in [
+            (BlockType::Crops(0), BlockType::Crops(3)),
+            (BlockType::Crops(3), BlockType::Crops(7)),
+            (BlockType::NetherWart(0), BlockType::NetherWart(1)),
+            (BlockType::NetherWart(1), BlockType::NetherWart(3)),
+        ] {
+            assert_ne!(tile(a).pixels, tile(b).pixels);
+        }
+        assert_ne!(
+            tile(BlockType::Farmland(0)).colors,
+            tile(BlockType::Farmland(7)).colors
+        );
+        let colors: std::collections::HashSet<_> = [
+            BlockType::SilverfishSpawner,
+            BlockType::BlazeSpawner,
+            BlockType::ZombieSpawner,
+            BlockType::SkeletonSpawner,
+        ]
+        .map(|b| tile(b).colors)
+        .into_iter()
+        .collect();
+        assert_eq!(colors.len(), 4);
+    }
     #[test]
     fn every_atlas_row_has_four_pixels_and_distinct_materials_remain_distinct() {
         let mut patterns = std::collections::HashSet::new();

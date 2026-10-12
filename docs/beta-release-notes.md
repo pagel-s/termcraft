@@ -65,7 +65,16 @@ See the [before/after audit](design/art-audit-2026-10-11/provenance.md).
 The Ender Dragon gains a larger horned silhouette, articulated wing poses, visible
 ribs, curved tail and clearer eyes. Its health/phase banner preserves the armor
 HUD; targeting moves clear of the airborne boss. This refines presentation while
-retaining the existing encounter mechanics.
+retaining the existing encounter AI. Head/neck/torso hits now follow the figure;
+decorative wings and tail do not add attack geometry. Fresh End towers use
+proportioned columns and accessible base tunnels, with a wider boss view.
+
+All 135 item types now share pixel icons between inventory, crafting, hotbar and
+world drops. Crop growth, hydrated soil, spawners and redstone states are easier
+to distinguish. Slabs/stairs share half-block geometry across movement, shadows,
+occlusion and terrain hit checks. Half-block steps are walkable in both directions;
+full-block climbs require jumping. New village roofs retain continuous support
+above their half-height eaves. [Full catalog and world review](design/2d-refinement-2026-10-12/index.html).
 
 Classic walking is now 6.4 blocks/second, with sharper reversal and shorter jumps
 when a held jump is released early. Collision-resolved local presentation and a

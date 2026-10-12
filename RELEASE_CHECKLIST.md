@@ -1,6 +1,6 @@
 # Beta qualification and release handoff
 
-Updated 11 October 2026. Candidate: `0.2.0-beta.1`; current development
+Updated 12 October 2026. Candidate: `0.2.0-beta.1`; current development
 manifest/executable: `0.1.0`. Nothing here authorizes publication or public hosting.
 See [BETA_RELEASE_PLAN.md](BETA_RELEASE_PLAN.md) for results and limitations and
 [development release notes](docs/beta-release-notes.md) for player-facing changes.
@@ -59,7 +59,8 @@ failures. Test copies of saves: older builds cannot open progression v7.
   creatures, terrain, structures and HUD in real play. Review the
   [entity/proportion/shadow audit](docs/design/art-audit-2026-10-11/provenance.md),
   including small-view identities and night/cave lighting, plus the
-  [dragon refinement](docs/design/dragon-refinement-2026-10-12/provenance.md).
+  [dragon refinement](docs/design/dragon-refinement-2026-10-12/provenance.md) and
+  [complete block/item/physics review](docs/design/2d-refinement-2026-10-12/provenance.md).
 - [ ] **Gameplay quality:** play a coherent five-minute encounter with readable
   attacks, useful rewards and a building/traversal payoff. Automated foundation
   tests do not establish that this target is met.
@@ -98,6 +99,7 @@ failures. Test copies of saves: older builds cannot open progression v7.
 4. Review Debian PR #4 and AUR guidance against the final version/executable.
 5. Finalize the draft release notes. Retain protocol 11 matching-build and
    progression v7 backup/migration notices and remaining gameplay limits.
-6. Obtain separate authorization before pushing, tagging, publishing crates or
-   releases, dispatching GitHub workflows, announcing or provisioning hosting.
-   None has been performed in this workspace.
+6. Regular pushes to `beta/terminal-reborn` are user-authorized and have been
+   performed, with Sebastian Pagel as sole author/committer. Obtain separate
+   authorization for tagging, publishing crates/releases, manually dispatching
+   workflows, announcing or provisioning hosting. Those actions remain unperformed.

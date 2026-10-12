@@ -73,7 +73,7 @@ pub struct Renderer {
     frame_seconds: f64,
     last_frame_at: Option<std::time::Instant>,
     vertical_pixel_offset: i32,
-    pixel_horizons: Vec<(i32, i32)>,
+    pixel_horizons: Vec<i32>,
 }
 
 impl Renderer {
@@ -5692,6 +5692,22 @@ mod tests {
         state.player.last_mine_x = 2;
         state.player.last_mine_y = 63;
         state.player.mining_timer = 0.45;
+        // Reach/mining feedback must not depend on a random cave wall or a
+        // spawn that left chunk zero unloaded.
+        state.world.load_chunks_for_spawn_search(0, 8);
+        for x in -8..=8 {
+            for y in 55..70 {
+                state.world.set_block(
+                    x,
+                    y,
+                    if y >= 64 {
+                        BlockType::Stone
+                    } else {
+                        BlockType::Air
+                    },
+                );
+            }
+        }
         state.world.set_block(2, 63, BlockType::Stone);
         state
             .remote_players

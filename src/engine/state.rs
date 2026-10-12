@@ -2855,7 +2855,7 @@ impl GameState {
         let dx = px - (bx as f64 + 0.5);
         let dy = py - (by as f64 + 0.5);
         let dist = (dx * dx + dy * dy).sqrt();
-        if dist > 4.8 || !self.has_line_of_sight(px, py, bx as f64 + 0.5, by as f64 + 0.5) {
+        if dist > 4.8 || !self.can_see_block(px, py, bx, by) {
             self.clear_container_interaction_state();
         }
     }
@@ -3975,7 +3975,7 @@ impl GameState {
         let has_use_los = if let Some(target) = portal_use_target {
             self.has_portal_use_line_of_sight(px, py, bx, by, target)
         } else {
-            self.has_line_of_sight(px, py, bx as f64 + 0.5, by as f64 + 0.5)
+            self.can_see_block(px, py, bx, by)
         };
         if !has_use_los {
             self.player.mining_timer = 0.0;
@@ -6120,15 +6120,16 @@ impl GameState {
                 self.end_crystals[i].hit_timer = 10;
                 return true;
             }
-            if let Some(dragon) = self.ender_dragon.as_mut() {
-                let dist = ((dragon.x - ax).powi(2) + ((dragon.y - 1.4) - ay).powi(2)).sqrt();
-                if dist < 1.8 {
-                    dragon.health -= damage * 0.8;
-                    dragon.hit_timer = dragon.hit_timer.max(8);
-                    dragon.vx += knockback_x * 0.35;
-                    dragon.vy = (dragon.vy + knockback_y * 0.2).clamp(-0.35, 0.35);
-                    return true;
-                }
+            if let Some(dragon) = self
+                .ender_dragon
+                .as_mut()
+                .filter(|dragon| dragon.hit_test(ax, ay))
+            {
+                dragon.health -= damage * 0.8;
+                dragon.hit_timer = dragon.hit_timer.max(8);
+                dragon.vx += knockback_x * 0.35;
+                dragon.vy = (dragon.vy + knockback_y * 0.2).clamp(-0.35, 0.35);
+                return true;
             }
         }
 
@@ -6876,23 +6877,112 @@ impl GameState {
         self.has_line_of_sight(origin_x, origin_y, target_x, target_y)
     }
 
+    fn can_see_block(&self, x: f64, y: f64, bx: i32, by: i32) -> bool {
+        // A reachable face/corner is sufficient; aiming only at the center can
+        // bury the ray behind an adjoining frame block.
+        self.has_line_of_sight(x, y, bx as f64 + 0.5, by as f64 + 0.5)
+            || self.has_line_of_sight(
+                x,
+                y,
+                x.clamp(bx as f64, bx as f64 + 1.0),
+                y.clamp(by as f64, by as f64 + 1.0),
+            )
+    }
+
     fn has_line_of_sight(&self, x0: f64, y0: f64, x1: f64, y1: f64) -> bool {
-        let dx = x1 - x0;
-        let dy = y1 - y0;
-        let dist = (dx * dx + dy * dy).sqrt();
-        let steps = (dist * 2.0).ceil() as i32;
-        for i in 1..steps {
-            let t = i as f64 / steps as f64;
-            let cx = (x0 + dx * t).floor() as i32;
-            let cy = (y0 + dy * t).floor() as i32;
-            if cx == x1.floor() as i32 && cy == y1.floor() as i32 {
-                continue;
+        self.terrain_segment_hit(x0, y0, x1, y1, true).is_none()
+    }
+
+    /// Exact grid traversal + segment/shape intersection, shared by rays and
+    /// projectiles. Sampling endpoints could miss a half stair at high speed.
+    fn terrain_segment_hit(
+        &self,
+        x0: f64,
+        y0: f64,
+        x1: f64,
+        y1: f64,
+        sight: bool,
+    ) -> Option<(f64, f64)> {
+        let (dx, dy) = (x1 - x0, y1 - y0);
+        let start = (x0.floor() as i32, y0.floor() as i32);
+        let end = (x1.floor() as i32, y1.floor() as i32);
+        let (mut bx, mut by) = start;
+        let (sx, sy) = (dx.signum() as i32, dy.signum() as i32);
+        let (tx, ty) = (
+            if dx == 0.0 {
+                f64::INFINITY
+            } else {
+                1.0 / dx.abs()
+            },
+            if dy == 0.0 {
+                f64::INFINITY
+            } else {
+                1.0 / dy.abs()
+            },
+        );
+        let mut next_x = if dx == 0.0 {
+            f64::INFINITY
+        } else {
+            (if sx > 0 {
+                bx as f64 + 1.0 - x0
+            } else {
+                x0 - bx as f64
+            }) / dx.abs()
+        };
+        let mut next_y = if dy == 0.0 {
+            f64::INFINITY
+        } else {
+            (if sy > 0 {
+                by as f64 + 1.0 - y0
+            } else {
+                y0 - by as f64
+            }) / dy.abs()
+        };
+        for _ in 0..=start.0.abs_diff(end.0) + start.1.abs_diff(end.1) + 1 {
+            if !sight || (bx, by) != end {
+                let mut first = f64::INFINITY;
+                for bounds in self.collision_bounds_at(bx, by) {
+                    let (mut enter, mut exit) = (0.0_f64, 1.0_f64);
+                    for (origin, delta, low, high) in [
+                        (x0, dx, bounds[0], bounds[2]),
+                        (y0, dy, bounds[1], bounds[3]),
+                    ] {
+                        if delta == 0.0 {
+                            if origin < low || origin >= high {
+                                exit = -1.0;
+                                break;
+                            }
+                        } else {
+                            let (a, b) = ((low - origin) / delta, (high - origin) / delta);
+                            enter = enter.max(a.min(b));
+                            exit = exit.min(a.max(b));
+                        }
+                    }
+                    if enter < exit && exit >= 0.0 && enter <= 1.0 {
+                        first = first.min(enter);
+                    }
+                }
+                if first.is_finite() {
+                    return Some((x0 + dx * first, y0 + dy * first));
+                }
             }
-            if self.world.get_block(cx, cy).is_solid() {
-                return false;
+            if (bx, by) == end {
+                break;
+            }
+            if next_x < next_y {
+                bx += sx;
+                next_x += tx;
+            } else if next_y < next_x {
+                by += sy;
+                next_y += ty;
+            } else {
+                bx += sx;
+                by += sy;
+                next_x += tx;
+                next_y += ty;
             }
         }
-        true
+        None
     }
 
     fn should_ground_mob_chase_jump(
@@ -9377,10 +9467,12 @@ impl GameState {
                 dragon.health = (dragon.health + END_CRYSTAL_HEAL_AMOUNT).min(dragon.max_health);
             }
 
-            let player_dist = ((self.player.x - dragon.x).powi(2)
-                + ((self.player.y - 1.0) - (dragon.y - 1.0)).powi(2))
-            .sqrt();
-            if player_dist < 2.6 && dragon.attack_cooldown == 0 {
+            let touches_player = dragon.hit_regions().iter().any(|r| {
+                ((self.player.x - r[0]) / (r[2] + PLAYER_HALF_WIDTH)).powi(2)
+                    + ((self.player.y - 0.9 - r[1]) / (r[3] + 0.9)).powi(2)
+                    <= 1.0
+            });
+            if touches_player && dragon.attack_cooldown == 0 {
                 if !self.death_screen_active && self.respawn_grace_ticks == 0 {
                     self.player.health -= dragon_contact_damage;
                 }
@@ -12444,18 +12536,16 @@ impl GameState {
 
         for i in (0..self.fireballs.len()).rev() {
             self.select_nearest_peer(self.fireballs[i].x, self.fireballs[i].y);
+            let previous = (self.fireballs[i].x, self.fireballs[i].y);
             self.fireballs[i].update();
-            let (fx, fy, fvx, fvy, mut remove_now) = {
+            let (mut fx, mut fy, fvx, fvy, mut remove_now) = {
                 let fb = &self.fireballs[i];
                 (fb.x, fb.y, fb.vx, fb.vy, fb.dead)
             };
 
             let mut explode = false;
-            if self
-                .world
-                .get_block(fx.floor() as i32, fy.floor() as i32)
-                .is_solid()
-            {
+            if let Some(contact) = self.terrain_segment_hit(previous.0, previous.1, fx, fy, false) {
+                (fx, fy) = contact;
                 remove_now = true;
                 explode = true;
             }
@@ -12497,6 +12587,7 @@ impl GameState {
 
         for i in (0..self.arrows.len()).rev() {
             self.select_nearest_peer(self.arrows[i].x, self.arrows[i].y);
+            let previous = (self.arrows[i].x, self.arrows[i].y);
             self.arrows[i].update();
             let ax = self.arrows[i].x;
             let ay = self.arrows[i].y;
@@ -12505,9 +12596,8 @@ impl GameState {
             let from_player = self.arrows[i].from_player;
             let arrow_damage = self.arrows[i].damage;
             if self
-                .world
-                .get_block(ax.floor() as i32, ay.floor() as i32)
-                .is_solid()
+                .terrain_segment_hit(previous.0, previous.1, ax, ay, false)
+                .is_some()
             {
                 self.arrows.swap_remove(i);
                 continue;
@@ -13166,7 +13256,9 @@ impl GameState {
                     next_iy,
                     CollisionType::VerticalDown(iy),
                 ) {
-                    self.item_entities[i].y = next_iy.floor();
+                    self.item_entities[i].y = self
+                        .collision_bounds_at_point(self.item_entities[i].x, next_iy)
+                        .map_or(next_iy.floor(), |b| b[1]);
                     f_vy = 0.0;
                     self.item_entities[i].grounded = true;
                 } else {
@@ -13235,7 +13327,9 @@ impl GameState {
                     next_y,
                     CollisionType::VerticalDown(oy),
                 ) {
-                    self.experience_orbs[i].y = next_y.floor();
+                    self.experience_orbs[i].y = self
+                        .collision_bounds_at_point(self.experience_orbs[i].x, next_y)
+                        .map_or(next_y.floor(), |b| b[1]);
                     next_vy = -next_vy * 0.28;
                     self.experience_orbs[i].grounded = true;
                     if next_vy.abs() < 0.02 {
@@ -13710,28 +13804,22 @@ impl GameState {
                     self.end_crystals[i].health -= damage * 2.0;
                     self.end_crystals[i].hit_timer = 10;
                     hit_entity = true;
-                } else if let Some((dragon_x, dragon_y)) =
-                    self.ender_dragon.as_ref().map(|d| (d.x, d.y))
+                } else if self
+                    .ender_dragon
+                    .as_ref()
+                    .is_some_and(|d| d.hit_test(mx, my))
+                    && self.can_melee_entity(mx, my, 4.4)
+                    && let Some(dragon) = self.ender_dragon.as_mut()
                 {
-                    let dist = ((dragon_x - mx).powi(2) + ((dragon_y - 1.4) - my).powi(2)).sqrt();
-                    let player_dist = ((dragon_x - self.player.x).powi(2)
-                        + ((dragon_y - 1.4) - (self.player.y - 1.0)).powi(2))
-                    .sqrt();
-                    if dist < 3.4
-                        && player_dist < 5.2
-                        && self.can_melee_entity(dragon_x, dragon_y - 1.4, 5.2)
-                        && let Some(dragon) = self.ender_dragon.as_mut()
-                    {
-                        dragon.health -= damage;
-                        dragon.hit_timer = 10;
-                        dragon.vx += if self.player.x < dragon.x {
-                            0.24
-                        } else {
-                            -0.24
-                        };
-                        dragon.vy = (dragon.vy - 0.12).clamp(-0.35, 0.35);
-                        hit_entity = true;
-                    }
+                    dragon.health -= damage;
+                    dragon.hit_timer = 10;
+                    dragon.vx += if self.player.x < dragon.x {
+                        0.24
+                    } else {
+                        -0.24
+                    };
+                    dragon.vy = (dragon.vy - 0.12).clamp(-0.35, 0.35);
+                    hit_entity = true;
                 }
             }
 

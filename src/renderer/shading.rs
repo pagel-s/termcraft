@@ -9,6 +9,7 @@ pub(super) struct SceneLighting {
     ember: Vec<u8>,
     arcane: Vec<u8>,
     daylight: f32,
+    ambient: f32,
 }
 
 impl SceneLighting {
@@ -20,6 +21,13 @@ impl SceneLighting {
             warm: vec![0; levels.len()],
             ember: vec![0; levels.len()],
             arcane: vec![0; levels.len()],
+            // The End has no sun, but its open arena still needs a readable
+            // cool fill. This is presentation only; mob/spawn light is unchanged.
+            ambient: if state.current_dimension == Dimension::End {
+                0.50
+            } else {
+                0.0
+            },
             daylight: match state.current_dimension {
                 Dimension::Overworld => 0.32 + Renderer::day_mix(state.time_of_day) * 0.68,
                 Dimension::Nether => 0.75,
@@ -90,7 +98,7 @@ impl SceneLighting {
         let arcane = self.sample(&self.arcane, x, y);
         let emitted = warm.max(ember).max(arcane);
         let scalar = self.sample(&self.levels, x, y);
-        let level = (scalar * self.daylight).max(emitted) / 15.0;
+        let level = ((scalar * self.daylight).max(emitted) / 15.0).max(self.ambient);
         let exposure = (0.18 + 0.82 * level.clamp(0.0, 1.0).powf(1.12)) * occlusion;
         let mut lit = Renderer::scale_rgb(rgb, exposure);
         // Cool ambient shadows and restrained local color, shared by terrain and actors.
@@ -126,12 +134,25 @@ mod tests {
             ember: vec![0; 4],
             arcane: vec![0; 4],
             daylight: 1.0,
+            ambient: 0.0,
         };
         let a = l.sample(&l.levels, -0.001, 0.0);
         let b = l.sample(&l.levels, 0.001, 0.0);
         assert!((a - b).abs() < 0.04);
         assert_eq!(l.sample(&l.levels, -100.0, 100.0), 0.0);
         assert_eq!(l.sample(&l.levels, 100.0, -100.0), 15.0);
+    }
+    #[test]
+    fn end_fill_keeps_dark_materials_readable_without_brightening_overworld_caves() {
+        let mut state = GameState::network_view();
+        let dark = Renderer::rgb((76, 65, 94));
+        let cave = SceneLighting::new(&state, &[0; 9], (0, 0, 3, 3));
+        state.current_dimension = Dimension::End;
+        let end = SceneLighting::new(&state, &[0; 9], (0, 0, 3, 3));
+        let a = Renderer::color_rgb(cave.shade(dark, 1.5, 1.5, 1.0, false)).unwrap();
+        let b = Renderer::color_rgb(end.shade(dark, 1.5, 1.5, 1.0, false)).unwrap();
+        assert!(b.0 >= 40 && b.2 >= 50);
+        assert!(a.0 < 20 && b.0 > a.0 * 2);
     }
     #[test]
     fn local_light_is_warm_and_occluded_while_emission_keeps_its_color() {

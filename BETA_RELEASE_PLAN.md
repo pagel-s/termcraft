@@ -122,15 +122,23 @@ and world drops. Material items use the placed-block palette. The reproducible
 catalog covers 97 block/state samples, all items and both pixel-view resolutions;
 `examples/material_review.rs` and `examples/translation_review.rs` isolate saves.
 Inactive redstone torches, buttons, piston directions and filled End frames now
-have distinct visual states. Local stable checks pass **593 unit tests**, strict
+have distinct visual states. Local stable and Rust 1.88 checks pass **599 unit tests**, strict
 all-target Clippy and three real TCP regressions. Protocol **11** requires matching
 client/server builds. The contested-pickup TCP fixture now separates players before
 mining and waits for pickup rather than the initial spawn coordinate.
 
+Four review rounds also correct crop growth/hydration, spawner identities, false
+background columns below floating props, ridge support above half-height eaves,
+dropped-item landing surfaces and exact terrain intersections for fast projectiles.
+The dragon has head/neck/torso hit regions matching its figure, and the End receives
+a readable ambient fill. [Complete searchable review](docs/design/2d-refinement-2026-10-12/index.html)
+contains 86 full frames, all catalog samples and a physics-driven traversal clip.
+
 This remains a review candidate. Human control/art acceptance, real WAN latency,
 full fluid/boat qualification, larger village design and bespoke combat animations
-remain open. The complete review captures and final qualification follow this source
-checkpoint; earlier reports retain their original binary identities.
+remain open. Exact qualifying identities and scope are in
+`docs/assets/2d-refinement-2026-10-12.json`; earlier reports retain their original
+binary identities. The first checkpoint `27d7e54` passed GitHub CI.
 
 
 ### Ender Dragon candidate, 12 October

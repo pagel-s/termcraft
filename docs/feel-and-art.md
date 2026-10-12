@@ -45,6 +45,31 @@ recording of that short route is more useful for the next feel pass than an FPS
 number alone. Boats, water/lava, ladders, knockback and dimension changes need a
 separate longer check.
 
+## 12 October: shape, catalog and world review
+
+[Open the complete review gallery](design/2d-refinement-2026-10-12/index.html),
+including 135 item types, 97 block/state samples, three-size entity lineups and
+actual seeded End geometry. [Review rounds and reproduction](design/2d-refinement-2026-10-12/provenance.md)
+record the findings and limits.
+
+Slabs and stairs use their visible half-block geometry for movement, occlusion,
+contact shadows, ray checks and dropped-item landing. Walk up/down half-block
+steps; jump to climb a full block. Small presentation corrections settle across
+ticks and releasing between ticks no longer rewinds the displayed position.
+Farm animals share the swept solver with body sizes matching their figures.
+
+Fresh End towers have five-block columns, seven-block crowns, 11–16-block heights
+and uninterrupted three-block walking tunnels. The boss view shows more of the
+arena. Head/neck/torso hits follow the dragon figure; decorative wings/tail remain
+outside attack geometry. New village ridge pieces have full support beneath them,
+while eaves retain half-height slabs. Existing saved structures are preserved.
+
+Crop stages, hydrated soil, spawner species and redstone states are distinguished.
+Inventory, crafting, hotbar and every world drop share one item atlas. The End has
+cool ambient fill; Overworld cave darkness and gameplay light rules are unchanged.
+For testing, restart native/co-op sessions with this executable, use a fresh world
+for generated architecture, and repeat the five-minute route above.
+
 ## Earlier input and prediction pass
 
 `src/engine/game_loop.rs` and `src/engine/network_client.rs` now wake through event
@@ -106,7 +131,8 @@ while wings flap; swooping changes the flap rate. A separate boss health/phase
 banner preserves armor information, and targeting moves above the hotbar during
 the fight, clearing the previous overlap with its face near the right edge.
 [Before/after, wing loop and all pose sizes](design/dragon-refinement-2026-10-12/provenance.md)
-come from the real renderer. AI, combat geometry and physics are unchanged.
+come from the real renderer. That earlier pass retained AI, combat geometry and
+physics; the 12 October shape pass above updates torso/head hit regions.
 Banking/dive/attack poses, tail articulation and human boss-fight acceptance remain
 open. Exact checks and build identity: `docs/assets/dragon-refinement-2026-10-12.json`.
 
@@ -152,5 +178,5 @@ The remaining quality plan is in `BETA_RELEASE_PLAN.md`. A coherent encounter /
 reward / building slice and human approval of visual consistency and game feel
 remain open. Actual remote SSH/WAN correction feel, clean Windows/macOS terminals,
 boats, fluids and full survival progression still need qualification.
-Stairs/slabs retain their existing full-tile collision; richer stepping and new
-fluid/boat physics are separate work from this material and motion refinement.
+The earlier material pass retained full-tile stair/slab collision. The 12 October
+shape pass above replaces it; new fluid/boat physics still need separate work.

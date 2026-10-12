@@ -37,7 +37,22 @@ pub(super) fn color(item: ItemType, token: u8) -> Option<Color> {
             }],
         ));
     }
-    let body = Renderer::color_rgb(Renderer::inventory_item_color(item)).unwrap_or((180, 190, 200));
+    use ItemType::*;
+    let body = match item {
+        Bucket => (46, 52, 62),
+        Coal | Gunpowder | Flint => (68, 72, 83),
+        CookedBeef | CookedPorkchop | CookedMutton => (153, 97, 63),
+        CookedChicken | CookedFish => (195, 151, 93),
+        RawFish => (99, 165, 169),
+        RottenFlesh => (118, 117, 68),
+        RawIron => (174, 133, 103),
+        RawGold => (220, 177, 72),
+        AwkwardPotion => (163, 126, 188),
+        WaterBucket | WaterBottle | PotionRegeneration => (77, 145, 196),
+        LavaBucket | PotionFireResistance => (237, 139, 56),
+        PotionHealing => (206, 90, 117),
+        _ => Renderer::color_rgb(Renderer::inventory_item_color(item)).unwrap_or((180, 190, 200)),
+    };
     Some(Renderer::rgb(match token {
         b't' => (139, 99, 61),
         b'g' => (207, 216, 217),

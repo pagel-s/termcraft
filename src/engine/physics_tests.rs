@@ -14,6 +14,64 @@ fn scene() -> GameState {
 }
 
 #[test]
+fn rays_and_fast_projectiles_respect_empty_and_solid_halves() {
+    let mut s = scene();
+    s.world.set_block(1, 19, BlockType::StoneSlab);
+    assert!(
+        s.terrain_segment_hit(0.2, 19.25, 3.8, 19.25, false)
+            .is_none()
+    );
+    let impact = s
+        .terrain_segment_hit(0.2, 19.75, 3.8, 19.75, false)
+        .unwrap();
+    assert!((impact.0 - 1.0).abs() < 0.00001);
+    assert!(s.has_line_of_sight(0.2, 19.25, 3.8, 19.25));
+    s.world.set_block(1, 19, BlockType::StoneStairs);
+    let impact = s
+        .terrain_segment_hit(0.2, 19.25, 3.8, 19.25, false)
+        .unwrap();
+    assert!((impact.0 - 1.5).abs() < 0.00001);
+    assert!(!s.has_line_of_sight(0.2, 19.25, 3.8, 19.25));
+    assert!(
+        s.terrain_segment_hit(1.45, 18.9, 1.05, 19.4, false)
+            .is_none()
+    );
+}
+
+#[test]
+fn dropped_items_settle_on_the_visible_slab_top() {
+    let mut s = scene();
+    s.game_rules.do_mob_spawning = false;
+    s.player.x = -6.0;
+    s.world.set_block(3, 19, BlockType::StoneSlab);
+    let mut item = ItemEntity::new(3.2, 18.8, ItemType::Diamond);
+    item.vx = 0.0;
+    item.vy = 0.1;
+    s.item_entities.push(item);
+    for _ in 0..15 {
+        s.update(0, 0);
+    }
+    assert_eq!(s.item_entities.len(), 1);
+    assert_eq!(s.item_entities[0].y, 19.5);
+    assert!(s.item_entities[0].grounded);
+}
+
+#[test]
+fn visible_dragon_head_takes_hits_on_both_facings_and_wing_air_does_not() {
+    let mut s = scene();
+    s.current_dimension = Dimension::End;
+    for right in [false, true] {
+        let mut dragon = EnderDragon::new(0.5, 18.0);
+        dragon.facing_right = right;
+        let head_x = if right { 3.5 } else { -2.5 };
+        s.ender_dragon = Some(dragon);
+        assert!(s.try_apply_player_arrow_hit(head_x, 15.9, 0.3, 0.0, 5.0));
+        assert_eq!(s.ender_dragon.as_ref().unwrap().health, 196.0);
+        assert!(!s.try_apply_player_arrow_hit(0.5, 13.5, 0.3, 0.0, 5.0));
+    }
+}
+
+#[test]
 fn slabs_and_stairs_match_visible_surfaces_in_both_directions() {
     let mut s = scene();
     for x in -16..=16 {

@@ -183,9 +183,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         for (i, &block) in batch.iter().enumerate() {
-            let x = [-8, -5, -2, 2, 5, 8][i % 6];
+            let x = [-9, -6, -3, 0, 3, 6][i % 6];
             let y = 28 + (i / 6) as i32 * 3;
+            let support = match block {
+                Cactus | DeadBush | SugarCane => Some(Sand),
+                Crops(_) => Some(Farmland(7)),
+                NetherWart(_) => Some(SoulSand),
+                RedFlower | YellowFlower | TallGrass | Sapling | BirchSapling => Some(Grass),
+                _ => None,
+            };
+            if let Some(support) = support {
+                state.world.set_block(x, y + 1, support);
+                if block == SugarCane {
+                    state.world.set_block(x + 1, y + 1, Water(0));
+                }
+            }
             state.world.set_block(x, y, block);
+            assert_eq!(state.world.get_block(x, y), block, "missing catalog sample");
             records.push(
                 serde_json::json!({"page":page,"index":i,"name":format!("{block:?}"),"x":x,"y":y}),
             );

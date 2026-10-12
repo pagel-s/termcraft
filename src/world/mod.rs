@@ -4015,7 +4015,14 @@ impl World {
 
         if roof_y > 1 {
             for lx in left.saturating_sub(1)..=(right + 1).min(CHUNK_WIDTH - 1) {
-                chunk.set_block(lx, (roof_y - 1) as usize, roof_edge_block);
+                // Half-height eaves belong outside the upper roof footprint.
+                // Full interior support prevents a visible air slit under its ridge.
+                let support = if biome != BiomeType::Desert && lx > left && lx < right {
+                    roof_cap_block
+                } else {
+                    roof_edge_block
+                };
+                chunk.set_block(lx, (roof_y - 1) as usize, support);
             }
         }
 
@@ -9362,6 +9369,21 @@ mod tests {
                     .chest_inventory(chest_x, chest_y)
                     .expect("village chest inventory should be initialized");
                 assert!(chest_inv.has_item(crate::world::item::ItemType::Bread, 1));
+                // Solid ridge pieces must not float a half-block above a slab.
+                for x in 0..CHUNK_WIDTH {
+                    for y in chest_y.saturating_sub(7)..chest_y.saturating_sub(4) {
+                        let roof = chunk.get_block(x, y);
+                        let below = chunk.get_block(x, y + 1);
+                        if matches!(roof, BlockType::Planks | BlockType::Cobblestone)
+                            && below.is_solid()
+                        {
+                            assert!(
+                                below.collision_boxes().iter().any(|b| b[1] == 0.0),
+                                "floating ridge at {x},{y}"
+                            );
+                        }
+                    }
+                }
                 found_hut = true;
                 break;
             }
