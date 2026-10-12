@@ -745,45 +745,57 @@ impl Renderer {
         };
         let wall_material =
             |b| roof_material(b) || matches!(b, BlockType::WoodDoor(_) | BlockType::IronDoor(_));
-        // Props and glazing must not interrupt the structural roof/floor scan.
-        let roof = (1..=6).find(|dy| {
-            let b = state.world.get_block(x, y - dy);
-            b.is_solid() && b != BlockType::Glass
-        })?;
-        let ceiling = y - roof;
-        let material = state.world.get_block(x, ceiling);
-        if !roof_material(material) {
-            return None;
-        }
-        let floor = (1..=6).find(|dy| state.world.get_block(x, y + dy).is_solid())?;
-        let ground = y + floor;
-        if roof + floor > 8 {
-            return None;
-        }
-        // One complete envelope, rather than a different rectangle at each row.
-        let side = |direction| {
-            (1..=10).find(|dx| {
-                let bx = x + dx * direction;
-                (ceiling + 1..ground).all(|by| wall_material(state.world.get_block(bx, by)))
-                    && (x.min(bx)..=x.max(bx))
-                        .all(|rx| roof_material(state.world.get_block(rx, ceiling)))
-            })
+        let furnishing = |b| {
+            matches!(
+                b,
+                BlockType::Chest
+                    | BlockType::CraftingTable
+                    | BlockType::Furnace
+                    | BlockType::Bed
+                    | BlockType::Anvil
+                    | BlockType::EnchantingTable
+                    | BlockType::BrewingStand
+            )
         };
-        side(-1)?;
-        side(1)?;
-        Some(
-            if matches!(
-                material,
-                BlockType::StoneBricks
-                    | BlockType::Cobblestone
-                    | BlockType::StoneSlab
-                    | BlockType::StoneStairs
-            ) {
-                (43, 48, 54)
-            } else {
-                (53, 43, 42)
-            },
-        )
+        let floor = (1..=6).find(|dy| {
+            let b = state.world.get_block(x, y + dy);
+            b.is_solid() && !furnishing(b)
+        })?;
+        let ground = y + floor;
+        // A partial loft is not the room's ceiling. Try each structural candidate
+        // until a complete enclosing roof is found; furnishings never define it.
+        for roof in 1..=6 {
+            let ceiling = y - roof;
+            let material = state.world.get_block(x, ceiling);
+            if material == BlockType::Glass || !roof_material(material) || roof + floor > 8 {
+                continue;
+            }
+            let side = |direction| {
+                (1..=16).any(|dx| {
+                    let bx = x + dx * direction;
+                    (ceiling + 1..ground).all(|by| wall_material(state.world.get_block(bx, by)))
+                        && (x.min(bx)..=x.max(bx))
+                            .all(|rx| roof_material(state.world.get_block(rx, ceiling)))
+                })
+            };
+            if !side(-1) || !side(1) {
+                continue;
+            }
+            return Some(
+                if matches!(
+                    material,
+                    BlockType::StoneBricks
+                        | BlockType::Cobblestone
+                        | BlockType::StoneSlab
+                        | BlockType::StoneStairs
+                ) {
+                    (103, 112, 116)
+                } else {
+                    (132, 119, 98)
+                },
+            );
+        }
+        None
     }
 }
 
@@ -809,6 +821,17 @@ mod tests {
             }
         }
         s
+    }
+    #[test]
+    fn partial_lofts_do_not_cut_sky_holes_in_room_backgrounds() {
+        let mut s = enclosed_room();
+        for x in 5..9 {
+            s.world.set_block(x, 18, BlockType::Planks);
+        }
+        s.world.set_block(6, 17, BlockType::Chest);
+        let main = Renderer::room_backdrop(&s, 3, 19).unwrap();
+        assert_eq!(Renderer::room_backdrop(&s, 6, 19), Some(main));
+        assert!(Renderer::room_backdrop(&s, 6, 17).is_some());
     }
     #[test]
     fn enclosed_rooms_keep_backdrop_through_glazing_doors_and_props() {

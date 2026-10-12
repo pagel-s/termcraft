@@ -206,3 +206,28 @@ Use `TERMCRAFT_NETWORK_SOAK_SECONDS=120` and `TERMCRAFT_NETWORK_REPORT=/tmp/netw
 for a longer measured run; default duration is 12 seconds. A human hour and clean
 native-platform qualification remain separate. See the release checklist before
 changing version labels or publishing artifacts.
+
+## Generated village review
+
+`examples/village_review.rs` uses fixed seed files and ordinary Overworld generation
+in a disposable save, captures common sizes/night/desert, then prints a native review
+save path. It stages player/villager poses for screenshots; it does not change the
+terrain fixture. `examples/pixel_review.rs` uses the same pure site diagnostics
+rather than assuming chest/door heights. `World::village_sites_near` describes fresh
+generation only, not the contents of already saved chunks or recipe worlds.
+
+```sh
+cargo build --release --locked --bins --examples
+env -u NO_COLOR target/release/examples/village_review /tmp/village-ansi
+python3 scripts/capture_terminal_art.py /tmp/village-ansi /tmp/village-png
+python3 scripts/test_village_walk.py --binary target/release/termcraft --fixture /tmp/village-ansi/village.json --report /tmp/village-native.json
+env -u NO_COLOR target/release/examples/village_profile
+env -u NO_COLOR target/release/examples/render_profile
+```
+
+The native test copies that disposable review save, presses a held movement key,
+opens all six building doors through mouse events, and observes live position over
+a read-only director connection. It never edits player/world state. Pillow is needed
+for software captures. The village profile stages six villagers and measures 1,000
+real engine ticks after warmup. Renderer profiles include a generated village scene;
+these CPU timings exclude terminal emulator and WAN latency.

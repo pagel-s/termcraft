@@ -8106,11 +8106,17 @@ impl GameState {
         let mut has_chest = false;
         let mut has_station = false;
         let mut has_glass = false;
-        for wx in (door_x - 4)..=(door_x + 4) {
-            for wy in (base_y - 3)..=(base_y + 2) {
+        for wx in (door_x - 15)..=(door_x + 15) {
+            // Furniture in a neighboring building does not turn a market gate into a home.
+            if !(door_x.min(wx)..=door_x.max(wx))
+                .all(|x| !self.is_exposed_to_sky(x as f64 + 0.5, base_y as f64 - 1.0))
+            {
+                continue;
+            }
+            for wy in (base_y - 5)..=(base_y + 2) {
                 match self.world.get_block(wx, wy) {
                     BlockType::Chest => has_chest = true,
-                    BlockType::CraftingTable => has_station = true,
+                    BlockType::CraftingTable | BlockType::Bed => has_station = true,
                     BlockType::Glass => has_glass = true,
                     _ => {}
                 }
@@ -8137,10 +8143,14 @@ impl GameState {
                 if !self.is_village_hut_anchor(wx, base_y) {
                     continue;
                 }
-                if anchors
-                    .iter()
-                    .any(|&(ax, ay)| (wx - ax).abs() <= 6 && (base_y - ay).abs() <= 4)
-                {
+                if anchors.iter().any(|&(ax, ay)| {
+                    (wx - ax).abs() <= 6 && (base_y - ay).abs() <= 4
+                        || (wx - ax).abs() <= 16
+                            && base_y == ay
+                            && (ax..=wx).all(|x| {
+                                !self.is_exposed_to_sky(x as f64 + 0.5, base_y as f64 - 1.0)
+                            })
+                }) {
                     continue;
                 }
                 anchors.push((wx, base_y));
@@ -13029,7 +13039,7 @@ impl GameState {
             };
             let sheltered_now =
                 !self.is_exposed_to_sky(self.villagers[i].x, self.villagers[i].y - 1.0);
-            let outdoor_target = if !seek_shelter && sheltered_now {
+            let outdoor_target = if !seek_shelter {
                 self.find_villager_outdoor_surface_near_home(
                     self.villagers[i].home_x,
                     self.villagers[i].home_y,
@@ -13050,7 +13060,8 @@ impl GameState {
                     } else {
                         self.villagers[i].vx = 0.0;
                     }
-                } else if let Some((target_x, _target_y)) = outdoor_target {
+                } else if let Some((target_x, _target_y)) = outdoor_target.filter(|_| sheltered_now)
+                {
                     let dx = target_x as f64 + 0.5 - self.villagers[i].x;
                     if dx.abs() > 0.45 {
                         self.villagers[i].walk(dx.signum() * 0.13);
@@ -13071,7 +13082,8 @@ impl GameState {
                 } else {
                     let home_x = self.villagers[i].home_x;
                     let home_y = self.villagers[i].home_y;
-                    let home_target_x = home_x as f64 + 0.5;
+                    let home_target_x =
+                        outdoor_target.map_or(home_x as f64 + 0.5, |(x, _)| x as f64 + 0.5);
                     let mut group_sum_x = 0.0;
                     let mut group_count = 0usize;
                     for (j, (other_x, other_home_x, other_home_y)) in
@@ -20565,6 +20577,9 @@ mod tests {
         state.world.set_block(-2, 7, BlockType::Glass);
         state.world.set_block(4, 7, BlockType::Glass);
 
+        for roof_x in -2..=4 {
+            state.world.set_block(roof_x, 6, BlockType::Planks);
+        }
         let anchors = state.collect_village_hut_anchors(0);
         assert!(!anchors.is_empty());
         assert!(anchors.contains(&(1, 9)));
@@ -20759,6 +20774,14 @@ mod tests {
         }
         state.villagers.push(Villager::new(-8.5, 9.9, 1, 9));
         state.villagers.push(Villager::new(10.5, 9.9, 1, 9));
+        // Give both villagers a stable outward wandering intention so that
+        // convergence measures the group bias, rather than a random AI roll.
+        for (i, villager) in state.villagers.iter_mut().enumerate() {
+            villager.wander_timer = u16::MAX;
+            villager.facing_right = i == 1;
+        }
+        state.game_rules.do_weather_cycle = false;
+        state.weather = WeatherType::Clear;
         state.time_of_day = 6500.0;
 
         let start_spread = (state.villagers[0].x - state.villagers[1].x).abs();
@@ -20836,6 +20859,9 @@ mod tests {
         }
 
         for door_x in [-12, -4] {
+            for roof_x in (door_x - 2)..=(door_x + 3) {
+                state.world.set_block(roof_x, 6, BlockType::Planks);
+            }
             state.world.set_block(door_x, 9, BlockType::WoodDoor(true));
             state.world.set_block(door_x, 8, BlockType::WoodDoor(true));
             state.world.set_block(door_x - 2, 9, BlockType::Chest);

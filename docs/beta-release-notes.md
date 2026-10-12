@@ -76,6 +76,14 @@ occlusion and terrain hit checks. Half-block steps are walkable in both directio
 full-block climbs require jumping. New village roofs retain continuous support
 above their half-height eaves. [Full catalog and world review](design/2d-refinement-2026-10-12/index.html).
 
+Fresh ordinary Overworld generation now builds a connected cottage, workshop and
+farmhouse with reachable loft storage, beds, a covered market gate, graded road and
+irrigated garden. Distinct roofs/materials, framed windows and real loft lighting
+replace the cramped single-hut layout. Partial lofts preserve cutaway back walls;
+villagers pair opposite doors into homes and seek outdoor entry space by day.
+Existing saved chunks retain their geometry. See the
+[village comparison and route](design/village-refinement-2026-10-12/provenance.md).
+
 Classic walking is now 6.4 blocks/second, with sharper reversal and shorter jumps
 when a held jump is released early. Collision-resolved local presentation and a
 camera jump dead zone reduce visible stepping and unnecessary camera movement.

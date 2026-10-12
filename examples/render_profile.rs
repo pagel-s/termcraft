@@ -49,6 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "storm",
         "torch_cave",
         "rooms",
+        "village",
         "dense_mobs",
         "dense_items",
         "nether",
@@ -136,6 +137,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if scene == "end_dragon" {
             state.ender_dragon = Some(EnderDragon::new(0.5, 62.0));
             state.end_crystals = vec![EndCrystal::new(-7.5, 60.0)];
+        }
+        if scene == "village" {
+            let village_root = root.join("village-native");
+            std::fs::create_dir_all(&village_root)?;
+            std::fs::write(
+                village_root.join("overworld_world_seed.bin"),
+                bincode::serialize(&[1337u32, 7331, 9917, 4444])?,
+            )?;
+            state.world = World::open_in_directory(Dimension::Overworld, &village_root)?;
+            let site = state
+                .world
+                .village_sites_near(0, 10000)
+                .into_iter()
+                .filter(|v| v.center_x < 0)
+                .min_by_key(|v| v.center_x.abs())
+                .ok_or("village profile site missing")?;
+            state.world.load_chunks_for_spawn_search(site.center_x, 100);
+            let (left, _, _) = site.buildings()[0];
+            state.player.x = (left + 6) as f64 + 0.5;
+            state.player.y = site.ground_y as f64;
+            state.villagers = site
+                .buildings()
+                .iter()
+                .map(|(x, _, _)| {
+                    termcraft::entities::villager::Villager::new(
+                        (*x + 7) as f64 + 0.5,
+                        site.ground_y as f64,
+                        *x,
+                        site.ground_y - 1,
+                    )
+                })
+                .collect();
         }
         for (width, height) in [(120, 40), (200, 60)] {
             let mut renderer = Renderer::with_size(width, height);

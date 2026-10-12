@@ -28,6 +28,44 @@ cannot distinguish a short tap from a held key waiting for its first repeat.
 This pass does not claim that limitation is solved. Simulation stays at 20 ticks
 per second; the 60 fps render budget does not change survival/gameplay timers.
 
+## Connected villages: the latest refinement
+
+Fresh ordinary Overworld chunks now contain three distinct buildings around a
+covered market gate and irrigated garden. Furniture sits in reachable lofts above
+clear walking corridors. Cottage and farmhouse beds, storage, a workshop furnace,
+crafting station, two-block doors and framed windows use normal game interactions.
+Torches light both the walking lane and loft storage. Detailed-view framing leaves
+more space above the player for roofs; enclosed-room backdrops continue behind
+partial lofts. Villagers recognize three homes rather than six doors or the market,
+seek shelter at night, and move toward outdoor entry space by day.
+
+[Compare the old hut and new settlement](design/village-refinement-2026-10-12/provenance.md).
+The overview is a deliberately wide virtual viewport; ordinary-size captures include
+80×24 glyph fallback, 120×40 and 160×48 pixel views, plus nighttime and desert masonry.
+The covered market reads as a gatehouse, and desert architecture still has limited
+biome-specific color and detail. This is a reviewed candidate for playtesting.
+
+Existing saved chunks keep old villages. For immediate inspection, generate the
+separate seeded review save below; its printed path starts outside a village.
+Spawning and daylight are disabled for the focused route. None of your usual saves
+are opened. This requires a development checkout and Rust; the local executable
+can then play that prepared save without Cargo.
+
+```sh
+cargo build --release --locked --bins --examples
+env -u NO_COLOR target/release/examples/village_review /tmp/village-captures
+TERMCRAFT_SAVE_DIR=<printed-review-save-path> target/release/termcraft
+```
+
+Walk through all buildings in both directions, right-clicking the doors. Climb each
+ladder with Space, move onto the loft beside the furniture, and open the chest and
+furnace. Compare faces, windows, floors and roofs at 120×40 and 160×48, then F4 and
+80×24. Enable `doDaylightCycle` in O settings to reach night, then use a bed and check
+the saved respawn. Enable `doMobSpawning` to observe villagers. Inspect crop hydration and
+return after saving/quitting to confirm edits and emptied chests persist. Villager
+AI is covered separately by full engine tests; the focused native route disables
+spawning. Ordinary worlds do not guarantee a village close to spawn.
+
 ## Lantern Run: play the complete loop
 
 ```sh
@@ -213,8 +251,8 @@ The larger view adds terrain edges and world-anchored texture variation; ores,
 doors, glass, furniture, crops, redstone and portals have pixel patterns. A bounded
 visual back wall gives enclosed rooms a cutaway interior without adding collision
 or saved blocks. Fresh village huts gain stepped roofs, eaves and chimneys. Existing
-saved structures are preserved. This improves huts; it does not generate larger
-multi-building towns or add villagers' schedules.
+saved structures are preserved. That earlier pass improved huts; the connected village redesign above supersedes
+its generation. It did not add new villager schedules.
 
 The creature atlas now also covers Nether/End mobs, spiders, silverfish, slimes,
 squids, boats, projectiles and drops. Humanoids have more detailed faces/clothes,

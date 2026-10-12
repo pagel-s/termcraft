@@ -1274,7 +1274,11 @@ impl Renderer {
         let view_char_y = physical_view_y.div_euclid(scale);
         let screen_center_x = physical_size.0 as i32 / 2 / scale;
         let screen_center_y = if scale > 1 {
-            (physical_size.1 as i32 - 4) * 3 / 4 / scale
+            if boss_view {
+                (physical_size.1 as i32 - 4) * 3 / 4 / scale
+            } else {
+                ((physical_size.1 as i32 - 4) * 3 / 4 + scale - 1) / scale
+            }
         } else {
             self.height as i32 * 2 / 3
         };
@@ -5689,6 +5693,19 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
+    fn detailed_view_keeps_an_eight_block_roof_below_the_header() {
+        let mut s = GameState::network_view();
+        s.dismiss_startup_splash();
+        s.player.y = 31.0;
+        let mut r = Renderer::with_size(160, 48);
+        r.render_to(&s, 0.0, &mut Vec::new()).unwrap();
+        let (_, view_y, _, center_y, scale) = r.world_view.unwrap();
+        let roof = (23 * scale) - view_y + center_y;
+        let feet = (31 * scale) - view_y + center_y;
+        assert!(roof >= 2, "roof hidden by header");
+        assert!(feet < 43, "floor hidden by hotbar");
+    }
+    #[test]
     fn compact_trial_hud_keeps_goal_and_contextual_controls_visible() {
         let mut s = GameState::network_view();
         s.dismiss_startup_splash();
@@ -5780,7 +5797,7 @@ mod tests {
         state.player.x = 0.5;
         state.player.y = 64.0;
         state.mouse_x = 68;
-        state.mouse_y = 24;
+        state.mouse_y = 26; // Block 63 in the roof-friendly detailed viewport.
         state.player.last_mine_x = 2;
         state.player.last_mine_y = 63;
         state.player.mining_timer = 0.45;

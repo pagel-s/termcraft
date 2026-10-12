@@ -19,9 +19,9 @@ acceptance gate for the art or game feel.
    `docs/design/visual-directions/index.html` shows the previous renderer, an
    atmospheric ASCII concept, and a playable terminal pixel-art prototype in the
    same fixture. The user selected terminal pixel art. A shared material/creature
-   atlas, detailed view, room cutaways and fresh hut roofs are implemented locally.
+   atlas, detailed view, room cutaways and multi-building settlements are implemented locally.
    Review consistency across characters, terrain, structures and HUD in real play;
-   larger villages, bespoke animations and stronger combat feedback remain open.
+   village variety, bespoke animations and human combat/feel acceptance remain open.
 2. **Make control response consistent.** This pass corrects enhanced held-key
    expiry, enables focus-loss events, wakes for input, renders up to 60 fps, fixes
    initial co-op arrow presses and displays the player at the actual jump height.
@@ -106,6 +106,31 @@ matching builds. New native saves use progression version **7**; back up older
 saves before testing because older executables cannot read the new format.
 
 ## Measured results and validation
+
+
+### Connected village redesign, 12 October
+
+Fresh ordinary Overworld chunks now generate connected settlements with a cottage,
+stone-roofed workshop, pale farmhouse, covered market gate, shared square and
+irrigated garden. Clear street-level corridors replace furniture obstacles; reachable
+lofts hold storage, beds and workstations. Real two-block side doors, framed windows,
+restrained roofs and graded half-block road ends use the existing collision rules.
+Saved chunks retain their existing buildings. Generation is deterministic across
+chunk boundaries and negative coordinates; it does not retrofit existing saves or
+recipe worlds. Mixed old/new generation boundaries can contain partial settlements.
+
+Room backdrops now handle partial lofts, and detailed viewport framing gives roofs
+more vertical space. Real torches illuminate the walking lane and loft storage.
+Home recognition pairs opposite doors and excludes the market; daytime villagers
+bias toward the outside of their entry instead of oscillating around a covered door.
+
+Two read-only review rounds covered layout, actual day/night captures and gameplay.
+[Village review and reproduction](docs/design/village-refinement-2026-10-12/provenance.md)
+record generated geometry, normal-input walking/climbing/storage/bed checks,
+hydration and save persistence. The current [qualification](docs/assets/village-refinement-2026-10-12.json)
+keeps build identity separate from prior reports. This completes the first connected
+settlement pass. Greater architectural/biome variety, human art/feel acceptance,
+full survival, fluids/boats and real WAN qualification remain open.
 
 ### Further creature physics and room review, 12 October
 

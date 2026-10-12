@@ -546,3 +546,178 @@ fn npc_fluid_motion_is_independent_of_player_jump_hold() {
     let held = s.calculate_mob_movement(0.5, 20.0, 0.3, -0.05, false, 0.3, 1.8, true);
     assert_eq!(released, held);
 }
+
+fn generated_village_scene() -> (
+    GameState,
+    crate::world::village::VillageSite,
+    std::path::PathBuf,
+) {
+    let root = std::env::temp_dir().join(format!("tc-village-engine-{}", rand::random::<u64>()));
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(
+        root.join("overworld_world_seed.bin"),
+        bincode::serialize(&[1337u32, 7331, 9917, 4444]).unwrap(),
+    )
+    .unwrap();
+    let mut s = GameState::open_in_directory(&root).unwrap();
+    s.dismiss_startup_splash();
+    s.game_rules.do_mob_spawning = false;
+    s.game_rules.do_daylight_cycle = false;
+    s.game_rules.do_weather_cycle = false;
+    let site = s
+        .world
+        .village_sites_near(0, 10000)
+        .into_iter()
+        .filter(|v| v.center_x < 0)
+        .min_by_key(|v| v.center_x.abs())
+        .unwrap();
+    s.world.load_chunks_for_spawn_search(site.center_x, 100);
+    s.villagers.clear();
+    s.player = Player::new((site.center_x - 46) as f64 + 0.5, site.ground_y as f64);
+    s.player.grounded = true;
+    (s, site, root)
+}
+#[test]
+fn generated_village_is_walkable_both_ways_using_normal_door_commands() {
+    let (mut s, site, root) = generated_village_scene();
+    let g = site.ground_y;
+    for direction in [1.0, -1.0] {
+        s.player = Player::new((site.center_x as f64) - direction * 46.0 + 0.5, g as f64);
+        s.player.grounded = true;
+        s.apply_client_command(ClientCommand::SetMoveRight(direction > 0.0));
+        s.apply_client_command(ClientCommand::SetMoveLeft(direction < 0.0));
+        let mut crossed = false;
+        for _ in 0..420 {
+            for (left, right, _) in site.buildings() {
+                for door in [left, right] {
+                    let dx = door as f64 + 0.5 - s.player.x;
+                    if dx * direction > 0.0
+                        && dx.abs() < 2.4
+                        && s.world.get_block(door, g - 1) == BlockType::WoodDoor(false)
+                    {
+                        s.apply_client_command(ClientCommand::UseAt(door, g - 1));
+                        assert_eq!(s.world.get_block(door, g - 2), BlockType::WoodDoor(true));
+                    }
+                }
+            }
+            s.update(0, 0);
+            assert!(
+                (s.player.y - g as f64).abs() < 0.01,
+                "unexpected fall/step at {},{}",
+                s.player.x,
+                s.player.y
+            );
+            if (s.player.x - site.center_x as f64) * direction >= 46.0 {
+                crossed = true;
+                break;
+            }
+        }
+        assert!(crossed, "settlement corridor blocked at {}", s.player.x);
+        s.apply_client_command(ClientCommand::ClearDirectionalInput);
+    }
+    drop(s);
+    std::fs::remove_dir_all(root).unwrap();
+}
+#[test]
+fn generated_village_has_three_homes_and_villagers_use_real_entries() {
+    let (mut s, site, root) = generated_village_scene();
+    let g = site.ground_y;
+    let anchors = s.collect_village_hut_anchors(site.center_x);
+    assert_eq!(
+        anchors.len(),
+        3,
+        "opposite doors or market gates became duplicate homes: {anchors:?}"
+    );
+    let (left, _, _) = site.buildings()[0];
+    s.player.x = (site.center_x + 46) as f64;
+    s.time_of_day = 23000.0;
+    let mut v = Villager::new((left - 3) as f64 + 0.5, g as f64, left, g - 1);
+    v.grounded = true;
+    s.villagers.push(v);
+    for _ in 0..100 {
+        s.update(0, 0);
+    }
+    assert!(s.villagers[0].x > left as f64);
+    assert!(!s.is_exposed_to_sky(s.villagers[0].x, s.villagers[0].y - 1.0));
+    s.time_of_day = 6000.0;
+    let mut exited = false;
+    for _ in 0..140 {
+        s.update(0, 0);
+        exited |= s.is_exposed_to_sky(s.villagers[0].x, s.villagers[0].y - 1.0);
+    }
+    assert!(exited, "villager never returned outdoors in daylight");
+    drop(s);
+    std::fs::remove_dir_all(root).unwrap();
+}
+#[test]
+fn generated_loft_storage_and_beds_are_reachable_after_normal_climbing() {
+    use crate::world::village::BuildingRole;
+    let (mut s, site, root) = generated_village_scene();
+    let g = site.ground_y;
+    for (left, right, role) in site.buildings() {
+        let at = |offset| {
+            if role == BuildingRole::Cottage {
+                left + offset
+            } else {
+                right - offset
+            }
+        };
+        s.player = Player::new(at(4) as f64 + 0.5, g as f64);
+        s.player.grounded = true;
+        s.apply_client_command(ClientCommand::SetJumpHeld(true));
+        s.apply_client_command(ClientCommand::QueueJump);
+        for _ in 0..25 {
+            s.update(0, 0);
+            if s.player.y <= (g - 4) as f64 {
+                break;
+            }
+        }
+        let target = at(2) as f64 + 0.5;
+        for _ in 0..36 {
+            let dx = target - s.player.x;
+            if dx.abs() < 0.35 {
+                break;
+            }
+            s.apply_client_command(ClientCommand::SetMoveLeft(dx < 0.0));
+            s.apply_client_command(ClientCommand::SetMoveRight(dx > 0.0));
+            if s.player.grounded {
+                s.apply_client_command(ClientCommand::QueueJump);
+            }
+            s.update(0, 0);
+        }
+        s.apply_client_command(ClientCommand::ClearDirectionalInput);
+        s.apply_client_command(ClientCommand::SetJumpHeld(false));
+        for _ in 0..4 {
+            s.update(0, 0);
+        }
+        assert!(
+            (s.player.x - target).abs() < 0.6 && s.player.y < (g - 3) as f64,
+            "could not reach loft furniture: {},{}",
+            s.player.x,
+            s.player.y
+        );
+        s.apply_client_command(ClientCommand::UseAt(at(1), g - 4));
+        assert!(s.at_chest, "loft chest was out of reach");
+        s.apply_client_command(ClientCommand::ToggleInventory);
+        if role == BuildingRole::Workshop {
+            s.apply_client_command(ClientCommand::UseAt(at(3), g - 4));
+            assert!(s.at_furnace);
+            s.apply_client_command(ClientCommand::ToggleInventory);
+        } else {
+            s.time_of_day = 23000.0;
+            s.apply_client_command(ClientCommand::UseAt(at(2), g - 4));
+            assert_eq!(s.spawn_point, Some((at(2), g - 4)));
+            s.apply_client_command(ClientCommand::TravelToSpawn);
+            assert!(!s.entity_collides_with_world(
+                s.player.x,
+                s.player.y,
+                PLAYER_HALF_WIDTH,
+                PLAYER_HEIGHT
+            ));
+            assert!((s.player.x - (at(2) as f64 + 0.5)).abs() < 12.0);
+        }
+        s.apply_client_command(ClientCommand::SetSneakHeld(false));
+    }
+    drop(s);
+    std::fs::remove_dir_all(root).unwrap();
+}

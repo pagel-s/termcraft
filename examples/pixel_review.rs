@@ -8,7 +8,7 @@ use termcraft::{
         ghast::Ghast, villager::Villager, zombie_pigman::ZombiePigman,
     },
     renderer::Renderer,
-    world::{Dimension, World, block::BlockType, chunk::CHUNK_WIDTH},
+    world::{Dimension, World, block::BlockType},
 };
 
 fn capture(state: &GameState, output: &Path, name: &str) -> std::io::Result<()> {
@@ -61,37 +61,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = GameState::open_in_directory(&root)?;
     state.dismiss_startup_splash();
     state.time_of_day = 8500.0;
-    let mut village = None;
-    for chunk in -220i32..=220 {
-        if chunk.rem_euclid(11) != 5 {
-            continue;
-        }
-        state
-            .world
-            .load_chunks_for_spawn_search(chunk * CHUNK_WIDTH as i32, CHUNK_WIDTH as i32);
-        for x in chunk * CHUNK_WIDTH as i32..(chunk + 1) * CHUNK_WIDTH as i32 {
-            for y in 1..100 {
-                if state.world.get_block(x, y) == BlockType::Chest
-                    && (-10..=10)
-                        .any(|dx| state.world.get_block(x + dx, y) == BlockType::WoodDoor(false))
-                {
-                    village = Some((x, y));
-                    break;
-                }
-            }
-            if village.is_some() {
-                break;
-            }
-        }
-        if village.is_some() {
-            break;
-        }
-    }
-    let (x, y) = village.ok_or("seed fixture produced no village")?;
-    state.player.x = x as f64 - 1.5;
-    state.player.y = y as f64;
+    let site = state
+        .world
+        .village_sites_near(0, 10000)
+        .into_iter()
+        .min_by_key(|site| site.center_x.abs())
+        .ok_or("seed fixture produced no village")?;
+    state.world.load_chunks_for_spawn_search(site.center_x, 100);
+    let (left, _, _) = site.buildings()[0];
+    state.player.x = (left + 5) as f64 + 0.5;
+    state.player.y = site.ground_y as f64;
     state.player.grounded = true;
-    state.villagers = vec![Villager::new(x as f64 + 0.5, y as f64, x, y)];
+    state.villagers = vec![Villager::new(
+        (left + 8) as f64 + 0.5,
+        site.ground_y as f64,
+        left,
+        site.ground_y - 1,
+    )];
     capture(&state, &output, "village")?;
 
     stage(&mut state, Dimension::Nether, BlockType::Netherrack)?;
