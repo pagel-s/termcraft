@@ -83,6 +83,25 @@ camera jump dead zone reduce visible stepping and unnecessary camera movement.
 See the [captures and test route](feel-and-art.md). Human acceptance of final art
 and movement feel remains open.
 
+## A focused encounter and building payoff
+
+`termcraft trial` creates or resumes **Lantern Run**, a separate world with a
+camp, traversal course, three ruin guards, supply chest and a bridge/signal goal.
+It needs no LLM and works with the usual named-world co-op hosting. Fresh shared
+identities receive one starter kit; progress and emptied chest slots survive save
+and reopen. This is an authored gameplay slice for judging the candidate's feel.
+
+Melee enemies warn before striking and commit their facing; skeletons visibly
+prepare and lock aim before firing. Hits interrupt attacks and preserve knockback
+through AI recovery. Melee selects the nearest pointed-at body across species;
+arrows sweep their full path and hit actors before later walls. Player hurt,
+weapon swings and airborne legs now have distinct visual states. Idle targeting
+panels no longer cover the scene. Chest-only inventory edits are saved correctly.
+
+[Try the route and review the captures](feel-and-art.md#lantern-run-play-the-complete-loop).
+Automated CLI completion establishes that the loop is playable under normal rules;
+it does not establish human enjoyment or a polished full survival campaign.
+
 ## More predictable movement and safer saves
 
 Release braking preserves later knockback, ladders support held climbing and
@@ -103,7 +122,7 @@ chunks of the current dimension. [Save/recovery guide](world-format.md).
 
 ## Let your LLM play or design a world
 
-MCP exposes 15 stepped world/player tools and six live director tools. Optional
+MCP exposes 16 stepped world/player tools and six live director tools. Optional
 agents observe, move, mine, craft and build under normal rules, then save and
 leave for a human. Typed deterministic world recipes support validation/repair
 and named isolated saves. No model service or always-on agent is bundled.
@@ -117,7 +136,7 @@ are checked locally. Windows/macOS workflow outputs still need building and
 native qualification.
 
 Shared play supports eight connections, 64 saved identities and the Overworld.
-Protocol **11** requires matching builds. Classic survival through the dragon,
+Protocol **12** requires matching builds. Classic survival through the dragon,
 sustained human co-op, remote SSH/WAN behavior, live model quality and all-platform
 terminals remain release gates. Automated results do not establish a completed
 human campaign or a viral release.

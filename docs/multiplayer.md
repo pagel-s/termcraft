@@ -100,7 +100,7 @@ and retained data is retried. Corrupt records are rejected without replacement.
 Runtime mobs, loose items and active encounters are session-only, as in local
 play; they are not restored by restarting the server.
 
-Protocol **9** requires matching builds. Frames are capped at 256 KiB and nearby
+Protocol **12** requires matching builds. Frames are capped at 256 KiB and nearby
 entity snapshots at 512 entities within 128 columns. Terrain streaming covers
 seven chunk columns around each player. Snapshots are sent at 20 Hz. A two-minute
 eight-player delayed-link/stalled-reader fixture now passes; WAN bandwidth and

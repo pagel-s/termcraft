@@ -1,5 +1,5 @@
 //! Terminal-native pixel figures. Each cell holds two vertical color pixels.
-use super::{Color, RenderCell, Renderer};
+use super::{Color, GameState, RenderCell, Renderer};
 #[path = "dragon.rs"]
 mod dragon;
 
@@ -79,6 +79,9 @@ pub(super) struct ActorSprite {
     world_position: Option<(f64, f64)>,
     dimensions: Option<(usize, usize)>,
     airborne: bool,
+    vertical_velocity: f64,
+    swing: Option<f64>,
+    warning: u8,
     held_item: Option<super::ItemType>,
     stride: usize,
     hit: bool,
@@ -117,6 +120,9 @@ impl ActorSprite {
             world_position: None,
             dimensions: None,
             airborne: false,
+            vertical_velocity: 0.0,
+            swing: None,
+            warning: 0,
             held_item: None,
             stride: 0,
             hit: false,
@@ -175,6 +181,19 @@ impl ActorSprite {
     }
     pub(super) fn with_variant(mut self, variant: bool) -> Self {
         self.variant = variant;
+        self
+    }
+
+    pub(super) fn with_motion(mut self, vy: f64) -> Self {
+        self.vertical_velocity = vy;
+        self
+    }
+    pub(super) fn with_swing(mut self, phase: Option<f64>) -> Self {
+        self.swing = phase;
+        self
+    }
+    pub(super) fn with_warning(mut self, ticks: u8) -> Self {
+        self.warning = ticks;
         self
     }
 
@@ -633,6 +652,9 @@ impl Renderer {
             self.draw_actor_sprite(actor, scale, lighting.as_ref(), state);
         }
         self.actor_sprites = actors;
+        if scale == 1 {
+            self.render_classic_warnings(state);
+        }
     }
 
     fn blend_pixel(&self, x: i32, y: i32, color: Color, amount: f32) -> Color {
@@ -733,13 +755,17 @@ impl Renderer {
         state: &super::GameState,
     ) {
         if scale == 1 {
-            let head = match actor.kind {
-                SpriteKind::Player | SpriteKind::Villager => "◕",
-                SpriteKind::Zombie => "☠",
-                SpriteKind::Skeleton => "ö",
-                SpriteKind::Creeper => "▣",
-                SpriteKind::Enderman => "••",
-                _ => "ö",
+            let head = if actor.hit {
+                "×"
+            } else {
+                match actor.kind {
+                    SpriteKind::Player | SpriteKind::Villager => "◕",
+                    SpriteKind::Zombie => "☠",
+                    SpriteKind::Skeleton => "ö",
+                    SpriteKind::Creeper => "▣",
+                    SpriteKind::Enderman => "••",
+                    _ => "ö",
+                }
             };
             self.put_entity_str(actor.x, actor.y - 1, head, actor.colors[0]);
             self.put_entity_str(
@@ -816,6 +842,29 @@ impl Renderer {
                     }
                 }
                 if actor.humanoid_kind()
+                    && actor.airborne
+                    && !actor.crouched
+                    && py >= pixel_height.saturating_sub(3)
+                {
+                    let rising = actor.vertical_velocity < -0.03;
+                    let left = if width <= 3 { 0 } else { width / 2 - 2 };
+                    let right = (width / 2 + 1).min(width - 1);
+                    token = if rising {
+                        if py + 3 == pixel_height && (col == left || col == right) {
+                            b'l'
+                        } else if py + 2 == pixel_height
+                            && (col == (left + 1).min(width - 1) || col == right)
+                        {
+                            b'b'
+                        } else {
+                            b' '
+                        }
+                    } else if col == left || col == right {
+                        if py + 1 == pixel_height { b'b' } else { b'l' }
+                    } else {
+                        b' '
+                    };
+                } else if actor.humanoid_kind()
                     && actor.moving
                     && !actor.crouched
                     && source_y >= source_height - 4
@@ -892,27 +941,111 @@ impl Renderer {
                 Color::AnsiValue(234),
             );
         }
-        if actor.action {
-            let hand_x = if actor.facing_right {
-                x + width as i32
+        if let Some(phase) = actor.swing {
+            let direction = if actor.facing_right { 1.0 } else { -1.0 };
+            let hand = (x + width as i32 / 2, y_pixel + pixel_height as i32 / 2);
+            let angle = if phase < 0.25 {
+                -1.7 + phase * 2.4
+            } else if phase < 0.65 {
+                -1.1 + (phase - 0.25) * 5.5
             } else {
-                x - 1
+                1.1 - (phase - 0.65) * 2.0
             };
-            let direction = if actor.facing_right { 1 } else { -1 };
-            let tool_color = actor
+            let length = (scale as f64 * 2.8).max(3.0);
+            let color = actor
                 .held_item
-                .map_or(Color::Yellow, Self::inventory_item_color);
-            self.put_pixel(hand_x, y_pixel + pixel_height as i32 / 2, tool_color);
-            self.put_pixel(
-                hand_x + direction,
-                y_pixel + pixel_height as i32 / 2 + if actor.phase { -1 } else { 1 },
-                tool_color,
+                .map_or(Color::White, Self::inventory_item_color);
+            for step in 0..=length as i32 {
+                let px = hand.0 + (direction * angle.cos() * step as f64).round() as i32;
+                let py = hand.1 + (angle.sin() * step as f64).round() as i32;
+                let c = if step == 0 {
+                    Self::rgb(Self::player_skin_rgb())
+                } else {
+                    color
+                };
+                self.put_visible_effect(px, py, c, state);
+            }
+            if (0.25..0.65).contains(&phase) {
+                for offset in [-0.22, 0.0, 0.22] {
+                    self.put_visible_effect(
+                        hand.0
+                            + (direction * (angle + offset).cos() * (length + 1.0)).round() as i32,
+                        hand.1 + ((angle + offset).sin() * (length + 1.0)).round() as i32,
+                        Self::rgb((229, 229, 207)),
+                        state,
+                    );
+                }
+            }
+        } else if actor.action {
+            let direction = if actor.facing_right { 1 } else { -1 };
+            let hand = x + width as i32 / 2;
+            for dx in 1..=3 {
+                self.put_visible_effect(
+                    hand + direction * dx,
+                    y_pixel + pixel_height as i32 / 2 - dx,
+                    Color::Yellow,
+                    state,
+                );
+            }
+        }
+        if actor.warning > 0 {
+            let center = x + width as i32 / 2;
+            let amber = Self::rgb((255, 202, 100));
+            for dy in 0..3 {
+                self.put_visible_effect(center, y_pixel - 5 + dy, amber, state);
+            }
+            self.put_visible_effect(center, y_pixel - 1, amber, state);
+        }
+    }
+    fn render_classic_warnings(&mut self, state: &GameState) {
+        let (vx, vy, cx, cy, _) = self.world_view.unwrap();
+        let mut positions = Vec::new();
+        macro_rules! warning {
+            ($field:ident,$height:expr) => {
+                for e in &state.$field {
+                    if e.attack_windup > 0 {
+                        positions.push((e.x, e.y - $height));
+                    }
+                }
+            };
+        }
+        warning!(zombies, 1.75);
+        warning!(pigmen, 1.75);
+        warning!(spiders, 0.75);
+        warning!(silverfish, 0.5);
+        warning!(slimes, 1.0);
+        warning!(endermen, 2.75);
+        warning!(blazes, 1.75);
+        warning!(wolves, 0.875);
+        for e in &state.skeletons {
+            if e.bow_windup > 0 {
+                positions.push((e.x, e.y - 1.75));
+            }
+        }
+        for (x, y) in positions {
+            self.put_str(
+                (x * 2.0).round() as i32 - vx + cx,
+                y.floor() as i32 - vy + cy - 1,
+                "!",
+                Color::Yellow,
+                Color::Reset,
             );
-            self.put_pixel(
-                hand_x + direction * 2,
-                y_pixel + pixel_height as i32 / 2 + if actor.phase { -2 } else { 2 },
-                Color::White,
-            );
+        }
+    }
+    fn put_visible_effect(&mut self, x: i32, y: i32, color: Color, state: &GameState) {
+        let (vx, vy, cx, cy, scale) = self.world_view.unwrap();
+        let wx = (x + vx - cx) as f64 / (2 * scale) as f64;
+        let wy = (y + vy * 2 + self.vertical_pixel_offset - cy * 2) as f64 / (2 * scale) as f64;
+        let block = state.world.get_block(wx.floor() as i32, wy.floor() as i32);
+        if block == super::BlockType::Glass
+            || !block.collision_boxes().iter().any(|b| {
+                wx.rem_euclid(1.0) >= b[0]
+                    && wx.rem_euclid(1.0) < b[2]
+                    && wy.rem_euclid(1.0) >= b[1]
+                    && wy.rem_euclid(1.0) < b[3]
+            })
+        {
+            self.put_pixel(x, y, color);
         }
     }
 
@@ -963,6 +1096,69 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn compact_airborne_pose_keeps_both_boots() {
+        let mut state = crate::engine::state::GameState::network_view();
+        state.world.apply_chunk_column_snapshot(
+            0,
+            &vec![
+                super::super::BlockType::Air;
+                crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+            ],
+        );
+        let light = super::super::shading::SceneLighting::new(&state, &[15; 1024], (0, 0, 32, 32));
+        for vy in [-0.3, 0.3] {
+            let mut r = Renderer::with_size(120, 40);
+            r.world_view = Some((0, 0, 0, 0, 2));
+            let actor = ActorSprite::humanoid(
+                0,
+                0,
+                SpriteKind::Player,
+                true,
+                0.0,
+                0,
+                [Color::White; 3],
+                false,
+                false,
+            )
+            .with_subcell(5.0, 10.0, 2)
+            .with_pose(true)
+            .with_motion(vy);
+            r.draw_actor_sprite(&actor, 2, Some(&light), &state);
+            let y = if vy < 0.0 { 38 } else { 39 };
+            let visible = (19..22)
+                .filter(|&x| {
+                    let (c1, c2) = Renderer::cell_pixels(r.back_buffer[(y / 2) * 120 + x]);
+                    (if y % 2 == 0 { c1 } else { c2 }) != Color::Reset
+                })
+                .count();
+            assert!(
+                visible >= 2,
+                "compact airborne boots disappeared at vy={vy}"
+            );
+        }
+    }
+    #[test]
+    fn classic_warnings_are_present_before_damage() {
+        let mut state = crate::engine::state::GameState::network_view();
+        state.dismiss_startup_splash();
+        state.player.x = 0.5;
+        state.player.y = 20.0;
+        state.world.apply_chunk_column_snapshot(
+            0,
+            &vec![
+                super::super::BlockType::Air;
+                crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+            ],
+        );
+        let mut z = crate::entities::zombie::Zombie::new(2.5, 20.0);
+        z.attack_windup = 8;
+        state.zombies.push(z);
+        let mut r = Renderer::with_size(80, 24);
+        r.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        assert!(r.back_buffer.iter().any(|c| c.ch == '!'));
+        assert_eq!(state.player.health, 20.0);
+    }
     #[test]
     fn every_creature_has_a_rectangular_pixel_silhouette() {
         use SpriteKind::*;
@@ -1170,7 +1366,10 @@ mod tests {
                         };
                         assert!(row(1).contains("Ender Dragon"));
                         assert!(row(3).contains("Armor"));
-                        assert!(row(h as usize - 10).contains("Target"));
+                        assert!(
+                            !row(h as usize - 10).contains("Too Far"),
+                            "idle pointer must not cover boss airspace"
+                        );
                     }
                 }
             }

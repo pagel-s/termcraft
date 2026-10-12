@@ -38,7 +38,7 @@ def main():
         }
         if path.is_file() and (path.suffix in {".md", ".json", ".html", ".png"} or review_clip):
             files[path.relative_to(root).as_posix()] = path.read_bytes()
-    for script in ("demo_director.py", "generate_world.py"):
+    for script in ("demo_director.py", "generate_world.py", "test_lantern_trial.py"):
         files[f"scripts/{script}"] = (root / "scripts" / script).read_bytes()
     launch = ".\\termcraft.exe" if binary_name.endswith(".exe") else "./termcraft"
     files["START_HERE.txt"] = (
@@ -46,6 +46,7 @@ def main():
         "No Rust installation required. Extract all files, open a terminal here,\n"
         f"and run {launch}.\n\n"
         "Local play: termcraft\n"
+        "Focused combat/building route: termcraft trial\n"
         "Host trusted local co-op: termcraft server\n"
         "Join locally: termcraft client --player alice\n"
         "Join through an existing SSH account: termcraft join user@host --player alice\n"

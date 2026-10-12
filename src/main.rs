@@ -14,7 +14,7 @@ fn main() -> io::Result<()> {
     match args.first().map(String::as_str) {
         Some("--help" | "-h" | "help") => {
             println!(
-                "termcraft {}\n\nPlay:\n  termcraft\n  termcraft server [ADDRESS]\n  termcraft client [ADDRESS] [--player PROFILE]\n  termcraft join USER@HOST [--player PROFILE] [--ssh-port PORT] [--game-port PORT]\n\nGenerated worlds (experimental):\n  termcraft world schema\n  termcraft world list\n  termcraft world create ID RECIPE.json [ORIGINAL_PROMPT]\n  termcraft world generate ID \"PROMPT\" [--generator PROGRAM]\n  termcraft world play ID\n  termcraft world serve ID [ADDRESS]\n\nIn-game game master (experimental, local Overworld):\n  T opens chat; Enter sends; /help lists commands.\n  Use /connect for your existing LLM client, or configure TERMCRAFT_DIRECTOR.\n  Co-op: the first connected player controls shared requests.\n  termcraft director schema\n\nLLM tools:\n  termcraft mcp                  Stdio MCP server for Claude/Codex\n  termcraft mcp config [--format json|toml]   Print client configuration\n\nEach generated world has independent saves. MCP worlds use stepped simulation.\nGeneration requires an explicitly configured runner (TERMCRAFT_WORLD_GENERATOR\nor --generator). Up to three design attempts; configured API runners may incur costs.\nUse world_schema and validate_world in your agent before create_world.",
+                "termcraft {}\n\nPlay:\n  termcraft\n  termcraft trial [ID]           Lantern Run: traverse, fight, rebuild\n  termcraft trial create ID      Create the trial without launching\n  termcraft server [ADDRESS]\n  termcraft client [ADDRESS] [--player PROFILE]\n  termcraft join USER@HOST [--player PROFILE] [--ssh-port PORT] [--game-port PORT]\n\nGenerated worlds (experimental):\n  termcraft world schema\n  termcraft world list\n  termcraft world create ID RECIPE.json [ORIGINAL_PROMPT]\n  termcraft world generate ID \"PROMPT\" [--generator PROGRAM]\n  termcraft world play ID\n  termcraft world serve ID [ADDRESS]\n\nIn-game game master (experimental, local Overworld):\n  T opens chat; Enter sends; /help lists commands.\n  Use /connect for your existing LLM client, or configure TERMCRAFT_DIRECTOR.\n  Co-op: the first connected player controls shared requests.\n  termcraft director schema\n\nLLM tools:\n  termcraft mcp                  Stdio MCP server for Claude/Codex\n  termcraft mcp config [--format json|toml]   Print client configuration\n\nEach generated world has independent saves. MCP worlds use stepped simulation.\nGeneration requires an explicitly configured runner (TERMCRAFT_WORLD_GENERATOR\nor --generator). Up to three design attempts; configured API runners may incur costs.\nUse world_schema and validate_world in your agent before create_world.",
                 env!("CARGO_PKG_VERSION")
             );
             Ok(())
@@ -81,6 +81,30 @@ fn main() -> io::Result<()> {
                 }
             };
             print_mcp_config(format)
+        }
+        Some("trial") => {
+            let create_only = args.get(1).is_some_and(|s| s == "create");
+            let id = args
+                .get(if create_only { 2 } else { 1 })
+                .map(String::as_str)
+                .unwrap_or("lantern-run");
+            if args.len() > if create_only { 3 } else { 2 } {
+                return Err(io::Error::other(
+                    "use: termcraft trial [ID] | trial create ID",
+                ));
+            }
+            let store = WorldStore::default();
+            if create_only || store.open(id).is_err() {
+                GameState::create_lantern_trial(&store, id)?;
+            }
+            let root = store.open(id).map_err(io::Error::other)?;
+            if create_only {
+                println!("Created Lantern Run. Play: termcraft world play {id}");
+                Ok(())
+            } else {
+                let _lease = WorldLease::acquire(&root).map_err(io::Error::other)?;
+                play(GameState::open_in_directory(&root)?)
+            }
         }
         Some("world") => world_command(&args[1..]),
         Some("director") if args.len() == 2 && args[1] == "schema" => {

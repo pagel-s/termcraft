@@ -29,6 +29,10 @@ impl Ghast {
     }
 
     pub fn update_ai(&mut self, player_x: f64, player_y: f64) -> bool {
+        if self.hit_timer > 0 {
+            return false;
+        }
+
         let dx = player_x - self.x;
         let dy = (player_y - 2.5) - self.y;
         let dist = (dx * dx + dy * dy).sqrt();

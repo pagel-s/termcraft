@@ -102,6 +102,7 @@ fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerSnapshot) {
     let _ = snapshot.settings.apply(state);
     snapshot.session.apply(state);
     snapshot.entities.apply(state);
+    state.trial = snapshot.trial.clone();
     state.thunder_flash_timer = snapshot.thunder_flash;
     state.weather_rain_intensity = snapshot.rain_intensity;
     state.weather_wind_intensity = snapshot.wind_intensity;

@@ -211,6 +211,28 @@ impl AgentTools {
                 state.interact_block(target.x, target.y, false);
                 self.observe(8)
             }
+            "inventory_click" => {
+                #[derive(Deserialize)]
+                #[serde(deny_unknown_fields)]
+                struct Click {
+                    slot: u16,
+                    #[serde(default)]
+                    kind: u8,
+                }
+                let args: Click = decode(arguments)?;
+                let state = self.state()?;
+                require_alive(state)?;
+                if !state.inventory_open || args.kind > 2 {
+                    return Err(
+                        "open inventory/container first; kind 0=swap, 1=split, 2=quick move".into(),
+                    );
+                }
+                if args.slot as usize >= state.active_ui_slot_count() {
+                    return Err("UI slot out of range".into());
+                }
+                state.apply_client_command(ClientCommand::InventoryClick(args.slot, args.kind));
+                self.observe(8)
+            }
             "select_slot" => {
                 #[derive(Deserialize)]
                 #[serde(deny_unknown_fields)]
@@ -362,7 +384,7 @@ impl AgentTools {
             ($collection:expr, $kind:literal) => {
                 for entity in &$collection {
                     if (entity.x-s.player.x).abs() <= radius as f64 && (entity.y-s.player.y).abs() <= radius as f64 {
-                        entities.push(json!({"kind":$kind,"x":entity.x,"y":entity.y}));
+                        entities.push(json!({"kind":$kind,"x":entity.x,"y":entity.y,"health":entity.health}));
                     }
                 }
             };
@@ -396,6 +418,7 @@ impl AgentTools {
             .collect();
         Ok(json!({
             "world":session.id,"dimension":format!("{:?}",s.world.dimension),
+            "objective":s.trial.as_ref().map(|t|t.objective()),"trial":s.trial,
             "clock":"stepped: simulation advances only during act calls, 20 ticks per simulated second",
             "player":{"x":s.player.x,"y":s.player.y,"health":s.player.health,"hunger":s.player.hunger,
                 "grounded":s.player.grounded,"experience":s.player.experience_level},
@@ -404,7 +427,8 @@ impl AgentTools {
                 "furnace":s.at_furnace,"furnace_status":s.furnace_status_line(),"chest":s.at_chest,"dead":s.is_showing_death_screen(),
                 "respawn_wait_ticks":s.death_respawn_ticks_remaining(),"credits":s.is_showing_credits()},
             "view":{"origin_x":x-radius,"origin_y":top,"rows":rows},
-            "entities":entities,"drops":drops
+            "entities":entities,"drops":drops,
+            "container":s.open_container_slots()
         }))
     }
 
@@ -429,6 +453,9 @@ impl AgentTools {
             Direction::Stay => {}
         }
         state.apply_client_command(ClientCommand::SetJumpHeld(action.jump));
+        if action.jump {
+            state.apply_client_command(ClientCommand::QueueJump);
+        }
         state.apply_client_command(ClientCommand::SetPrimaryAction(action.primary));
         let target = action.target.unwrap_or(Target {
             x: state.player.x.floor() as i32,
@@ -523,6 +550,13 @@ pub fn tool_catalog() -> Vec<Value> {
     }
     let target = json!({"type":"object","additionalProperties":false,"properties":{"x":{"type":"integer"},"y":{"type":"integer"}},"required":["x","y"]});
     vec![
+        tool(
+            "inventory_click",
+            "Interact with an open inventory/container under normal rules. UI slots: chest slots first, then player inventory. kind 0=swap, 1=split, 2=quick move.",
+            json!({"slot":{"type":"integer","minimum":0,"maximum":128},"kind":{"type":"integer","minimum":0,"maximum":2}}),
+            &["slot"],
+            false,
+        ),
         tool(
             "director_connect",
             "Attach to a running native game whose human enabled /connect. Omitting world_id uses the classic world. Does not acquire its save lease.",
@@ -682,6 +716,39 @@ mod tests {
     use super::*;
     use crate::world::{block::BlockType, item::ItemType};
 
+    #[test]
+    fn agent_jump_queues_takeoff_under_normal_rules() {
+        let root = std::env::temp_dir().join(format!("tc-agent-jump-{}", rand::random::<u64>()));
+        let store = WorldStore::new(root.clone());
+        store
+            .create("jump", "jump test", &WorldRecipe::example())
+            .unwrap();
+        let mut tools = AgentTools::new(store);
+        tools.call("enter_world", json!({"id":"jump"})).unwrap();
+        let s = &mut tools.session.as_mut().unwrap().state;
+        s.world.load_chunks_for_spawn_search(0, 8);
+        for x in -4..=4 {
+            for y in 0..24 {
+                s.world.set_block(
+                    x,
+                    y,
+                    if y >= 20 {
+                        crate::world::block::BlockType::Stone
+                    } else {
+                        crate::world::block::BlockType::Air
+                    },
+                );
+            }
+        }
+        s.player.x = 0.5;
+        s.player.y = 20.0;
+        s.player.grounded = true;
+        let observed = tools.call("act", json!({"ticks":1,"jump":true})).unwrap();
+        assert!(observed["player"]["y"].as_f64().unwrap() < 20.0);
+        tools.call("leave_world", json!({})).unwrap();
+        drop(tools);
+        std::fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn tool_save_failures_are_reported_and_dead_players_cannot_interact() {
         let root = std::env::temp_dir().join(format!(

@@ -1959,6 +1959,18 @@ impl Renderer {
                     .map(|s| s.item_type),
             )
             .with_pose(!state.player.grounded)
+            .with_motion(state.player.vy)
+            .with_hit(state.player_hurt_ticks() > 5)
+            .with_swing(if state.player.attack_timer > 0 {
+                Some(
+                    0.3 + 0.7 * (10.0 - state.player.attack_timer.min(10) as f64 + frame_alpha)
+                        / 10.0,
+                )
+            } else if state.player.mining_timer > 0.0 {
+                Some((state.player.age as f64 + frame_alpha).rem_euclid(8.0) / 8.0)
+            } else {
+                None
+            })
             .with_helmet(
                 state
                     .armor_slot_item(0)
@@ -2019,7 +2031,8 @@ impl Renderer {
                         z_fg,
                     )
                     .with_subcell(actor_x, actor_y, scale)
-                    .with_hit(zombie.hit_timer > 0),
+                    .with_hit(zombie.hit_timer > 0)
+                    .with_warning(zombie.attack_windup),
                 );
             }
         }
@@ -2077,7 +2090,8 @@ impl Renderer {
                         p_fg,
                     )
                     .with_subcell(actor_x, actor_y, scale)
-                    .with_hit(pigman.hit_timer > 0),
+                    .with_hit(pigman.hit_timer > 0)
+                    .with_warning(pigman.attack_windup),
                 );
             }
         }
@@ -2195,6 +2209,7 @@ impl Renderer {
                         )
                         .with_subcell(actor_x, actor_y, scale)
                         .with_hit(blaze.hit_timer > 0)
+                        .with_warning(blaze.attack_windup)
                         .with_alert(blaze.shoot_cooldown < 10),
                     );
                 } else {
@@ -2258,7 +2273,8 @@ impl Renderer {
                         e_fg,
                     )
                     .with_subcell(actor_x, actor_y, scale)
-                    .with_hit(enderman.hit_timer > 0),
+                    .with_hit(enderman.hit_timer > 0)
+                    .with_warning(enderman.attack_windup),
                 );
             }
         }
@@ -2372,7 +2388,10 @@ impl Renderer {
                         fg,
                     )
                     .with_subcell(actor_x, actor_y, scale)
-                    .with_hit(skeleton.hit_timer > 0),
+                    .with_hit(skeleton.hit_timer > 0)
+                    .with_warning(skeleton.bow_windup)
+                    .with_item(Some(ItemType::Bow))
+                    .with_swing((skeleton.bow_windup > 0).then_some(0.05)),
                 );
             }
         }
@@ -2420,7 +2439,8 @@ impl Renderer {
                             fg,
                         )
                         .with_subcell(actor_x, actor_y, scale)
-                        .with_hit(spider.hit_timer > 0),
+                        .with_hit(spider.hit_timer > 0)
+                        .with_warning(spider.attack_windup),
                     );
                 } else {
                     self.put_entity_str(sx - 1, sy, "/v\\\\", fg);
@@ -2471,7 +2491,8 @@ impl Renderer {
                             fg,
                         )
                         .with_subcell(actor_x, actor_y, scale)
-                        .with_hit(silverfish.hit_timer > 0),
+                        .with_hit(silverfish.hit_timer > 0)
+                        .with_warning(silverfish.attack_windup),
                     );
                 } else {
                     let body = if (silverfish.age / 3).is_multiple_of(2) {
@@ -2535,6 +2556,7 @@ impl Renderer {
                         )
                         .with_subcell(actor_x, actor_y, scale)
                         .with_hit(slime.hit_timer > 0)
+                        .with_warning(slime.attack_windup)
                         .with_dimensions(
                             (slime.half_width() * 4.0 * scale as f64).ceil() as usize,
                             (slime.height() * scale as f64).ceil() as usize,
@@ -2999,6 +3021,7 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(wolf.hit_timer > 0)
+                    .with_warning(wolf.attack_windup)
                     .with_alert(wolf.aggressive_timer > 0),
                 );
             }
@@ -3519,10 +3542,14 @@ impl Renderer {
 
         let hud_x = self.width as i32 - 22;
         let boss_active = state.current_dimension == Dimension::End && state.ender_dragon.is_some();
+        let focused = state.focused_entity(hover_bx, hover_by);
+        let show_target = focused.is_some()
+            || (dist <= 4.5 && state.world.get_block(hover_bx, hover_by) != BlockType::Air)
+            || state.player.mining_timer > 0.0;
         for x in 0..self.width as i32 {
             self.put_world_char(x, 0, ' ', Color::White, Color::AnsiValue(234));
         }
-        for y in 1..=if boss_active { 5 } else { 11 } {
+        for y in 1..=if boss_active || !show_target { 5 } else { 11 } {
             for x in (hud_x - 1).max(0)..self.width as i32 {
                 self.put_world_char(x, y, ' ', Color::White, Color::AnsiValue(234));
             }
@@ -3765,10 +3792,27 @@ impl Renderer {
             self.put_str(1, 3, &text, Color::Cyan, Color::Reset);
         }
 
+        if let Some(trial) = &state.trial {
+            let goal: String = trial
+                .objective()
+                .chars()
+                .take((hud_x - 2).max(0) as usize)
+                .collect();
+            self.put_str(
+                1,
+                2,
+                &goal,
+                Self::rgb((241, 212, 137)),
+                Color::AnsiValue(234),
+            );
+        }
+
         if state.inventory_open {
             self.draw_inventory_overlay(state);
-        } else {
-            let t_str = if dist <= 4.5 {
+        } else if show_target {
+            let t_str = if let Some((name, _)) = focused {
+                name
+            } else if dist <= 4.5 {
                 match state.world.get_block(hover_bx, hover_by) {
                     BlockType::Air => "Air",
                     BlockType::Dirt => "Dirt",
@@ -3986,7 +4030,9 @@ impl Renderer {
                 } else {
                     0.0
                 };
-            let feedback = if progress > 0.0 {
+            let feedback = if let Some((_, health)) = focused {
+                format!("{health:.0} HP | L-click hit")
+            } else if progress > 0.0 {
                 let filled = (progress * 8.0).floor() as usize;
                 format!(
                     "Mine [{}{}] {:>3}%",
@@ -5159,7 +5205,7 @@ impl Renderer {
                 box_x + 2,
                 box_y + 20,
                 "L-click swap. Shift+L quick-move. R-click split/place 1.",
-                Color::DarkGrey,
+                Self::rgb((172, 185, 195)),
                 bg,
             );
             self.draw_selected_inventory_detail(state, box_x + 2, box_y + 22, 56, bg);
@@ -5354,7 +5400,7 @@ impl Renderer {
                 box_x + 2,
                 box_y + 20,
                 "Shift+L on smeltable item/coal to quick-start furnace job.",
-                Color::DarkGrey,
+                Self::rgb((172, 185, 195)),
                 bg,
             );
         } else {
@@ -5430,14 +5476,14 @@ impl Renderer {
                 } else {
                     "L-click swap. L/R-drag spread 1. Shift+L output crafts max."
                 },
-                Color::DarkGrey,
+                Self::rgb((172, 185, 195)),
                 bg,
             );
             self.put_str(
                 box_x + 2,
                 box_y + 21,
                 "Enter craft 1, Shift+Enter max, Del clears grid.",
-                Color::DarkGrey,
+                Self::rgb((172, 185, 195)),
                 bg,
             );
         }

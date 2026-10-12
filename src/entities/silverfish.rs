@@ -12,6 +12,7 @@ pub struct Silverfish {
     pub hit_timer: u8,
     pub last_player_damage_tick: u64,
     pub attack_cooldown: u8,
+    pub attack_windup: u8,
     pub stuck_ticks: u8,
     pub reroute_ticks: u8,
     pub reroute_dir: i8,
@@ -32,6 +33,7 @@ impl Silverfish {
             hit_timer: 0,
             last_player_damage_tick: 0,
             attack_cooldown: 0,
+            attack_windup: 0,
             stuck_ticks: 0,
             reroute_ticks: 0,
             reroute_dir: 0,
@@ -47,6 +49,16 @@ impl Silverfish {
     }
 
     pub fn update_ai(&mut self, player_x: f64, player_y: f64) {
+        if self.hit_timer > 0 || self.attack_windup > 0 {
+            self.attack_cooldown = self.attack_cooldown.saturating_sub(1);
+            if self.hit_timer > 0 {
+                self.attack_windup = 0;
+            } else {
+                self.vx = 0.0;
+            }
+            return;
+        }
+
         if self.jump_cooldown > 0 {
             self.jump_cooldown -= 1;
         }

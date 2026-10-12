@@ -1,3 +1,8 @@
+#[path = "trial.rs"]
+mod trial;
+pub use trial::{Trial, TrialStage};
+#[path = "combat.rs"]
+mod combat;
 use super::command::ClientCommand;
 use crate::entities::arrow::Arrow;
 use crate::entities::blaze::Blaze;
@@ -880,6 +885,7 @@ pub struct GameState {
     crafting_grid: [Option<ItemStack>; CRAFT_GRID_UI_SLOTS],
     inventory_enchant_levels: [u8; PLAYER_INVENTORY_CAPACITY],
     armor_enchant_levels: [u8; ARMOR_SLOT_COUNT],
+    pub trial: Option<Trial>,
     pub zombies: Vec<Zombie>,
     pub creepers: Vec<Creeper>,
     pub skeletons: Vec<Skeleton>,
@@ -1600,14 +1606,16 @@ impl GameState {
         Self::write_progression_payload_atomically(
             &self.world.save_root().join(PLAYER_PROGRESS_FILE),
             &encoded,
-        )
+        )?;
+        self.save_trial()
     }
 
     pub(crate) fn write_recovery_directory(&self, root: &std::path::Path) -> std::io::Result<()> {
         self.world.write_recovery_directory(root)?;
         let encoded = Self::encode_progression(&self.to_progression_save_data())
             .map_err(std::io::Error::other)?;
-        Self::write_progression_payload_atomically(&root.join(PLAYER_PROGRESS_FILE), &encoded)
+        Self::write_progression_payload_atomically(&root.join(PLAYER_PROGRESS_FILE), &encoded)?;
+        self.save_trial_in(root)
     }
 
     pub fn autosave_world_step(&mut self, max_chunks: usize) -> bool {
@@ -1679,8 +1687,9 @@ impl GameState {
             .as_ref()
             .and_then(|saved| Self::decode_dimension(saved.current_dimension_code))
             .unwrap_or(Dimension::Overworld);
-        let state = Self::from_progress(progress, World::open_in_directory(dimension, root)?);
+        let mut state = Self::from_progress(progress, World::open_in_directory(dimension, root)?);
         state.world.check_storage()?;
+        state.load_trial()?;
         Ok(state)
     }
 
@@ -1718,6 +1727,7 @@ impl GameState {
             crafting_grid: std::array::from_fn(|_| None),
             inventory_enchant_levels: [0; PLAYER_INVENTORY_CAPACITY],
             armor_enchant_levels: [0; ARMOR_SLOT_COUNT],
+            trial: None,
             zombies: Vec::new(),
             creepers: Vec::new(),
             skeletons: Vec::new(),
@@ -2267,6 +2277,10 @@ impl GameState {
         if armor_points > 0.0 {
             self.apply_armor_wear_from_hit();
         }
+    }
+
+    pub fn player_hurt_ticks(&self) -> u8 {
+        self.player_combat_hurt_cooldown
     }
 
     fn apply_player_combat_damage(&mut self, amount: f32) -> bool {
@@ -2888,7 +2902,12 @@ impl GameState {
         ui_slot < PLAYER_INVENTORY_CAPACITY
     }
 
-    fn active_ui_slot_count(&self) -> usize {
+    pub(crate) fn open_container_slots(&self) -> Option<&[Option<ItemStack>]> {
+        self.open_chest_pos
+            .and_then(|(x, y)| self.world.chest_inventory(x, y))
+            .map(|c| c.slots.as_slice())
+    }
+    pub(crate) fn active_ui_slot_count(&self) -> usize {
         if self.at_chest {
             CHEST_INVENTORY_CAPACITY + PLAYER_INVENTORY_CAPACITY
         } else if self.has_personal_armor_ui() {
@@ -6097,260 +6116,16 @@ impl GameState {
         self.player.mining_timer = 0.0;
     }
 
+    #[cfg(test)]
     fn try_apply_player_arrow_hit(
         &mut self,
         ax: f64,
         ay: f64,
-        arrow_vx: f64,
-        arrow_vy: f64,
+        _vx: f64,
+        _vy: f64,
         damage: f32,
     ) -> bool {
-        let knockback_x = arrow_vx.clamp(-0.6, 0.6);
-        let knockback_y = (arrow_vy - 0.15).clamp(-0.45, 0.2);
-
-        if self.current_dimension == Dimension::End {
-            if let Some(i) = self
-                .end_crystals
-                .iter()
-                .enumerate()
-                .find(|(_, c)| ((c.x - ax).powi(2) + (c.y - ay).powi(2)).sqrt() < 0.95)
-                .map(|(i, _)| i)
-            {
-                self.end_crystals[i].health -= damage * 2.0;
-                self.end_crystals[i].hit_timer = 10;
-                return true;
-            }
-            if let Some(dragon) = self
-                .ender_dragon
-                .as_mut()
-                .filter(|dragon| dragon.hit_test(ax, ay))
-            {
-                dragon.health -= damage * 0.8;
-                dragon.hit_timer = dragon.hit_timer.max(8);
-                dragon.vx += knockback_x * 0.35;
-                dragon.vy = (dragon.vy + knockback_y * 0.2).clamp(-0.35, 0.35);
-                return true;
-            }
-        }
-
-        for zombie in &mut self.zombies {
-            if ((zombie.x - ax).powi(2) + ((zombie.y - 0.9) - ay).powi(2)).sqrt() < 0.72 {
-                zombie.health -= damage;
-                zombie.hit_timer = zombie.hit_timer.max(10);
-                zombie.last_player_damage_tick = self.world_tick;
-                zombie.vx += knockback_x;
-                zombie.vy += knockback_y;
-                zombie.grounded = false;
-                return true;
-            }
-        }
-        for creeper in &mut self.creepers {
-            if ((creeper.x - ax).powi(2) + ((creeper.y - 0.9) - ay).powi(2)).sqrt() < 0.72 {
-                creeper.health -= damage;
-                creeper.hit_timer = creeper.hit_timer.max(10);
-                creeper.last_player_damage_tick = self.world_tick;
-                creeper.vx += knockback_x;
-                creeper.vy += knockback_y;
-                creeper.grounded = false;
-                return true;
-            }
-        }
-        for skeleton in &mut self.skeletons {
-            if ((skeleton.x - ax).powi(2) + ((skeleton.y - 0.9) - ay).powi(2)).sqrt() < 0.72 {
-                skeleton.health -= damage;
-                skeleton.hit_timer = skeleton.hit_timer.max(10);
-                skeleton.last_player_damage_tick = self.world_tick;
-                skeleton.vx += knockback_x;
-                skeleton.vy += knockback_y;
-                skeleton.grounded = false;
-                return true;
-            }
-        }
-        for spider in &mut self.spiders {
-            if ((spider.x - ax).powi(2) + ((spider.y - 0.45) - ay).powi(2)).sqrt() < 0.88 {
-                spider.health -= damage;
-                spider.hit_timer = spider.hit_timer.max(10);
-                spider.last_player_damage_tick = self.world_tick;
-                spider.vx += knockback_x;
-                spider.vy += knockback_y * 0.85;
-                spider.grounded = false;
-                return true;
-            }
-        }
-        for silverfish in &mut self.silverfish {
-            if ((silverfish.x - ax).powi(2) + ((silverfish.y - 0.35) - ay).powi(2)).sqrt() < 0.62 {
-                silverfish.health -= damage;
-                silverfish.hit_timer = silverfish.hit_timer.max(10);
-                silverfish.last_player_damage_tick = self.world_tick;
-                silverfish.vx += knockback_x * 0.8;
-                silverfish.vy += knockback_y * 0.8;
-                silverfish.grounded = false;
-                return true;
-            }
-        }
-        for slime in &mut self.slimes {
-            let center_y = slime.y - slime.height() * 0.5;
-            let hit_radius = match slime.size {
-                4 => 1.0,
-                2 => 0.8,
-                _ => 0.58,
-            };
-            if ((slime.x - ax).powi(2) + (center_y - ay).powi(2)).sqrt() < hit_radius {
-                slime.health -= damage;
-                slime.hit_timer = slime.hit_timer.max(10);
-                slime.last_player_damage_tick = self.world_tick;
-                slime.vx += knockback_x * 0.75;
-                slime.vy += knockback_y * 0.75;
-                slime.grounded = false;
-                return true;
-            }
-        }
-        for pigman in &mut self.pigmen {
-            if ((pigman.x - ax).powi(2) + ((pigman.y - 0.9) - ay).powi(2)).sqrt() < 0.72 {
-                pigman.health -= damage;
-                pigman.hit_timer = pigman.hit_timer.max(10);
-                pigman.last_player_damage_tick = self.world_tick;
-                pigman.vx += knockback_x;
-                pigman.vy += knockback_y;
-                pigman.grounded = false;
-                pigman.provoke();
-                return true;
-            }
-        }
-        for ghast in &mut self.ghasts {
-            if ((ghast.x - ax).powi(2) + ((ghast.y - 1.0) - ay).powi(2)).sqrt() < 1.15 {
-                ghast.health -= damage;
-                ghast.hit_timer = ghast.hit_timer.max(10);
-                ghast.last_player_damage_tick = self.world_tick;
-                ghast.vx += knockback_x * 0.55;
-                ghast.vy += knockback_y * 0.55;
-                return true;
-            }
-        }
-        for blaze in &mut self.blazes {
-            if ((blaze.x - ax).powi(2) + ((blaze.y - 0.9) - ay).powi(2)).sqrt() < 0.78 {
-                blaze.health -= damage;
-                blaze.hit_timer = blaze.hit_timer.max(10);
-                blaze.last_player_damage_tick = self.world_tick;
-                blaze.vx += knockback_x * 0.65;
-                blaze.vy += knockback_y * 0.65;
-                return true;
-            }
-        }
-        for enderman in &mut self.endermen {
-            if ((enderman.x - ax).powi(2) + ((enderman.y - 1.5) - ay).powi(2)).sqrt() < 0.9 {
-                enderman.health -= damage;
-                enderman.hit_timer = enderman.hit_timer.max(10);
-                enderman.last_player_damage_tick = self.world_tick;
-                enderman.vx += knockback_x;
-                enderman.vy += knockback_y;
-                enderman.grounded = false;
-                enderman.provoke();
-                return true;
-            }
-        }
-        for cow in &mut self.cows {
-            if ((cow.x - ax).powi(2) + ((cow.y - 0.9) - ay).powi(2)).sqrt() < 0.72 {
-                cow.health -= damage;
-                cow.hit_timer = cow.hit_timer.max(10);
-                cow.last_player_damage_tick = self.world_tick;
-                cow.vx += knockback_x;
-                cow.vy += knockback_y;
-                cow.grounded = false;
-                return true;
-            }
-        }
-        for sheep in &mut self.sheep {
-            if ((sheep.x - ax).powi(2) + ((sheep.y - 0.9) - ay).powi(2)).sqrt() < 0.72 {
-                sheep.health -= damage;
-                sheep.hit_timer = sheep.hit_timer.max(10);
-                sheep.last_player_damage_tick = self.world_tick;
-                sheep.vx += knockback_x;
-                sheep.vy += knockback_y;
-                sheep.grounded = false;
-                return true;
-            }
-        }
-        for pig in &mut self.pigs {
-            if ((pig.x - ax).powi(2) + ((pig.y - 0.9) - ay).powi(2)).sqrt() < 0.72 {
-                pig.health -= damage;
-                pig.hit_timer = pig.hit_timer.max(10);
-                pig.last_player_damage_tick = self.world_tick;
-                pig.vx += knockback_x;
-                pig.vy += knockback_y;
-                pig.grounded = false;
-                return true;
-            }
-        }
-        for chicken in &mut self.chickens {
-            if ((chicken.x - ax).powi(2) + ((chicken.y - 0.6) - ay).powi(2)).sqrt() < 0.6 {
-                chicken.health -= damage;
-                chicken.hit_timer = chicken.hit_timer.max(10);
-                chicken.last_player_damage_tick = self.world_tick;
-                chicken.vx += knockback_x * 0.8;
-                chicken.vy += knockback_y * 0.75;
-                chicken.grounded = false;
-                return true;
-            }
-        }
-        if let Some(i) = self
-            .wolves
-            .iter()
-            .enumerate()
-            .find(|(_, wolf)| ((wolf.x - ax).powi(2) + ((wolf.y - 0.6) - ay).powi(2)).sqrt() < 0.7)
-            .map(|(i, _)| i)
-        {
-            let hit_x = self.wolves[i].x;
-            let hit_y = self.wolves[i].y;
-            self.wolves[i].health -= damage;
-            self.wolves[i].hit_timer = self.wolves[i].hit_timer.max(10);
-            self.wolves[i].last_player_damage_tick = self.world_tick;
-            self.wolves[i].vx += knockback_x * 0.9;
-            self.wolves[i].vy += knockback_y * 0.8;
-            self.wolves[i].grounded = false;
-            self.provoke_wolves_near(hit_x, hit_y, 12.0);
-            return true;
-        }
-        if let Some(i) = self
-            .ocelots
-            .iter()
-            .enumerate()
-            .find(|(_, o)| ((o.x - ax).powi(2) + ((o.y - 0.6) - ay).powi(2)).sqrt() < 0.66)
-            .map(|(i, _)| i)
-        {
-            self.ocelots[i].health -= damage;
-            self.ocelots[i].hit_timer = self.ocelots[i].hit_timer.max(10);
-            self.ocelots[i].last_player_damage_tick = self.world_tick;
-            self.ocelots[i].vx += knockback_x * 0.9;
-            self.ocelots[i].vy += knockback_y * 0.8;
-            self.ocelots[i].grounded = false;
-            self.spook_ocelots_near(self.ocelots[i].x, self.ocelots[i].y, 12.0, self.player.x);
-            return true;
-        }
-        for squid in &mut self.squids {
-            if ((squid.x - ax).powi(2) + ((squid.y - 0.45) - ay).powi(2)).sqrt() < 0.75 {
-                squid.health -= damage;
-                squid.hit_timer = squid.hit_timer.max(10);
-                squid.last_player_damage_tick = self.world_tick;
-                squid.vx += knockback_x * 0.85;
-                squid.vy += knockback_y * 0.85;
-                squid.grounded = false;
-                return true;
-            }
-        }
-        for villager in &mut self.villagers {
-            if ((villager.x - ax).powi(2) + ((villager.y - 0.9) - ay).powi(2)).sqrt() < 0.72 {
-                villager.health -= damage;
-                villager.hit_timer = villager.hit_timer.max(10);
-                villager.last_player_damage_tick = self.world_tick;
-                villager.vx += knockback_x;
-                villager.vy += knockback_y;
-                villager.grounded = false;
-                return true;
-            }
-        }
-
-        false
+        self.hit_player_arrow_segment((ax, ay), (ax, ay), damage, f64::INFINITY)
     }
 
     fn provoke_wolves_near(&mut self, center_x: f64, center_y: f64, radius: f64) {
@@ -6874,7 +6649,8 @@ impl GameState {
         if (dx * dx + dy * dy) > max_distance * max_distance {
             return false;
         }
-        self.has_line_of_sight(origin_x, origin_y, target_x, target_y)
+        self.terrain_segment_hit(origin_x, origin_y, target_x, target_y, false)
+            .is_none()
     }
 
     fn can_see_block(&self, x: f64, y: f64, bx: i32, by: i32) -> bool {
@@ -10826,6 +10602,7 @@ impl GameState {
             return;
         }
         self.world_tick = self.world_tick.saturating_add(1);
+        self.update_trial();
         if !self.cooperative() {
             self.update_furnace();
         }
@@ -11323,7 +11100,7 @@ impl GameState {
                 0.14,
             );
             self.zombies[i].reroute_ticks = reroute_ticks;
-            if rerouting {
+            if rerouting && self.zombies[i].hit_timer == 0 && self.zombies[i].attack_windup == 0 {
                 self.zombies[i].vx = reroute_vx;
                 self.zombies[i].facing_right = reroute_vx >= 0.0;
             }
@@ -11360,7 +11137,10 @@ impl GameState {
                 self.zombies[i].stuck_ticks,
                 self.zombies[i].reroute_ticks,
             );
-            if chase_jump || recovery_jump {
+            if (chase_jump || recovery_jump)
+                && self.zombies[i].hit_timer == 0
+                && self.zombies[i].attack_windup == 0
+            {
                 self.zombies[i].jump();
             }
             let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
@@ -11403,12 +11183,15 @@ impl GameState {
             self.zombies[i].stuck_ticks = stuck_ticks;
             self.zombies[i].reroute_ticks = reroute_ticks;
             self.zombies[i].reroute_dir = reroute_dir;
-            if hit_wall {
+            if hit_wall && self.zombies[i].hit_timer == 0 && self.zombies[i].attack_windup == 0 {
                 self.zombies[i].jump();
             }
             self.zombies[i].vx *= 0.5;
             if self.zombies[i].vx.abs() < 0.02 {
                 self.zombies[i].vx = 0.0;
+            }
+            if self.zombies[i].attack_windup == 0 && self.zombies[i].attack_cooldown == 0 {
+                self.zombies[i].facing_right = self.player.x >= self.zombies[i].x;
             }
             let can_melee_hit = self.can_melee_contact_player(
                 self.zombies[i].x,
@@ -11416,8 +11199,25 @@ impl GameState {
                 1.2,
                 1.05,
             );
-            if can_melee_hit && self.zombies[i].attack_cooldown == 0 {
-                if self.apply_player_combat_damage(self.scaled_hostile_damage(0.5)) {
+            let can_melee_hit = can_melee_hit
+                && (self.player.x - self.zombies[i].x)
+                    * (if self.zombies[i].facing_right {
+                        1.0
+                    } else {
+                        -1.0
+                    })
+                    >= -0.15;
+            let (cooldown, hurt) = (
+                self.zombies[i].attack_cooldown,
+                self.zombies[i].hit_timer > 0,
+            );
+            if combat::melee_strike_ready(
+                &mut self.zombies[i].attack_windup,
+                cooldown,
+                can_melee_hit,
+                hurt,
+            ) {
+                if self.apply_player_combat_damage(self.scaled_hostile_damage(2.0)) {
                     self.apply_player_contact_knockback(self.zombies[i].x, 0.42, 0.28);
                 }
                 self.zombies[i].attack_cooldown = self.scaled_hostile_cooldown(20);
@@ -11426,6 +11226,7 @@ impl GameState {
 
         for idx in dead_zombies.into_iter().rev() {
             let z = self.zombies.swap_remove(idx);
+            self.credit_trial_kill(z.director_event, z.last_player_damage_tick);
             self.item_entities
                 .push(ItemEntity::new(z.x, z.y - 0.5, ItemType::RottenFlesh));
             if rng.gen_bool(0.3) {
@@ -11453,7 +11254,7 @@ impl GameState {
                 0.15,
             );
             self.pigmen[i].reroute_ticks = reroute_ticks;
-            if rerouting {
+            if rerouting && self.pigmen[i].hit_timer == 0 && self.pigmen[i].attack_windup == 0 {
                 self.pigmen[i].vx = reroute_vx;
                 self.pigmen[i].facing_right = reroute_vx >= 0.0;
             }
@@ -11480,7 +11281,10 @@ impl GameState {
                 self.pigmen[i].stuck_ticks,
                 self.pigmen[i].reroute_ticks,
             );
-            if chase_jump || recovery_jump {
+            if (chase_jump || recovery_jump)
+                && self.pigmen[i].hit_timer == 0
+                && self.pigmen[i].attack_windup == 0
+            {
                 self.pigmen[i].jump();
             }
 
@@ -11524,7 +11328,7 @@ impl GameState {
             self.pigmen[i].stuck_ticks = stuck_ticks;
             self.pigmen[i].reroute_ticks = reroute_ticks;
             self.pigmen[i].reroute_dir = reroute_dir;
-            if hit_wall {
+            if hit_wall && self.pigmen[i].hit_timer == 0 && self.pigmen[i].attack_windup == 0 {
                 self.pigmen[i].jump();
             }
             self.pigmen[i].vx *= 0.5;
@@ -11533,13 +11337,31 @@ impl GameState {
             }
 
             if self.pigmen[i].is_aggressive() {
+                if self.pigmen[i].attack_windup == 0 && self.pigmen[i].attack_cooldown == 0 {
+                    self.pigmen[i].facing_right = self.player.x >= self.pigmen[i].x;
+                }
                 let can_melee_hit = self.can_melee_contact_player(
                     self.pigmen[i].x,
                     self.pigmen[i].y - 0.9,
                     1.2,
                     1.05,
                 );
-                if can_melee_hit && self.pigmen[i].attack_cooldown == 0 {
+                let can_melee_hit = can_melee_hit
+                    && (self.player.x - self.pigmen[i].x)
+                        * (if self.pigmen[i].facing_right {
+                            1.0
+                        } else {
+                            -1.0
+                        })
+                        >= -0.15;
+                let (cooldown, hurt) =
+                    (self.pigmen[i].attack_cooldown, self.pigmen[i].hit_timer > 0);
+                if combat::melee_strike_ready(
+                    &mut self.pigmen[i].attack_windup,
+                    cooldown,
+                    can_melee_hit,
+                    hurt,
+                ) {
                     if self.apply_player_combat_damage(self.scaled_hostile_damage(0.5)) {
                         self.apply_player_contact_knockback(self.pigmen[i].x, 0.46, 0.3);
                     }
@@ -11581,7 +11403,7 @@ impl GameState {
                 0.12,
             );
             self.creepers[i].reroute_ticks = reroute_ticks;
-            if rerouting {
+            if rerouting && self.creepers[i].hit_timer == 0 {
                 self.creepers[i].vx = reroute_vx;
                 self.creepers[i].facing_right = reroute_vx >= 0.0;
             }
@@ -11688,7 +11510,7 @@ impl GameState {
                 0.18,
             );
             self.skeletons[i].reroute_ticks = reroute_ticks;
-            if rerouting {
+            if rerouting && self.skeletons[i].hit_timer == 0 && self.skeletons[i].bow_windup == 0 {
                 self.skeletons[i].vx = reroute_vx;
                 self.skeletons[i].facing_right = reroute_vx >= 0.0;
             }
@@ -11696,8 +11518,8 @@ impl GameState {
             if skeleton_wants_shot {
                 let has_los = self.has_line_of_sight(sx, sy, self.player.x, self.player.y - 0.9);
                 if has_los {
-                    let dx = self.player.x - sx;
-                    let dy = (self.player.y - 0.9) - sy;
+                    let dx = self.skeletons[i].aim_x - sx;
+                    let dy = self.skeletons[i].aim_y - sy;
                     let dist = (dx * dx + dy * dy).sqrt();
                     if dist > 0.001 {
                         self.arrows.push(Arrow::new_hostile(
@@ -11748,7 +11570,10 @@ impl GameState {
                 self.skeletons[i].stuck_ticks,
                 self.skeletons[i].reroute_ticks,
             );
-            if chase_jump || recovery_jump {
+            if (chase_jump || recovery_jump)
+                && self.skeletons[i].hit_timer == 0
+                && self.skeletons[i].bow_windup == 0
+            {
                 self.skeletons[i].jump();
             }
             let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
@@ -11791,13 +11616,14 @@ impl GameState {
             self.skeletons[i].stuck_ticks = stuck_ticks;
             self.skeletons[i].reroute_ticks = reroute_ticks;
             self.skeletons[i].reroute_dir = reroute_dir;
-            if hit_wall {
+            if hit_wall && self.skeletons[i].hit_timer == 0 && self.skeletons[i].bow_windup == 0 {
                 self.skeletons[i].jump();
             }
             self.skeletons[i].vx *= 0.5;
         }
         for idx in dead_skeletons.into_iter().rev() {
             let s = self.skeletons.swap_remove(idx);
+            self.credit_trial_kill(s.director_event, s.last_player_damage_tick);
             self.item_entities
                 .push(ItemEntity::new(s.x, s.y - 0.5, ItemType::Bone));
             if rng.gen_bool(0.5) {
@@ -11829,7 +11655,7 @@ impl GameState {
                 0.2,
             );
             self.spiders[i].reroute_ticks = reroute_ticks;
-            if rerouting {
+            if rerouting && self.spiders[i].hit_timer == 0 && self.spiders[i].attack_windup == 0 {
                 self.spiders[i].vx = reroute_vx;
                 self.spiders[i].facing_right = reroute_vx >= 0.0;
             }
@@ -11852,7 +11678,10 @@ impl GameState {
                 self.spiders[i].stuck_ticks,
                 self.spiders[i].reroute_ticks,
             );
-            if chase_jump || recovery_jump {
+            if (chase_jump || recovery_jump)
+                && self.spiders[i].hit_timer == 0
+                && self.spiders[i].attack_windup == 0
+            {
                 self.spiders[i].jump();
             }
             let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
@@ -11895,17 +11724,37 @@ impl GameState {
             self.spiders[i].stuck_ticks = stuck_ticks;
             self.spiders[i].reroute_ticks = reroute_ticks;
             self.spiders[i].reroute_dir = reroute_dir;
-            if hit_wall {
+            if hit_wall && self.spiders[i].hit_timer == 0 && self.spiders[i].attack_windup == 0 {
                 self.spiders[i].jump();
             }
             self.spiders[i].vx *= 0.5;
+            if self.spiders[i].attack_windup == 0 && self.spiders[i].attack_cooldown == 0 {
+                self.spiders[i].facing_right = self.player.x >= self.spiders[i].x;
+            }
             let can_melee_hit = self.can_melee_contact_player(
                 self.spiders[i].x,
                 self.spiders[i].y - 0.45,
                 1.2,
                 0.85,
             );
-            if can_melee_hit && self.spiders[i].attack_cooldown == 0 {
+            let can_melee_hit = can_melee_hit
+                && (self.player.x - self.spiders[i].x)
+                    * (if self.spiders[i].facing_right {
+                        1.0
+                    } else {
+                        -1.0
+                    })
+                    >= -0.15;
+            let (cooldown, hurt) = (
+                self.spiders[i].attack_cooldown,
+                self.spiders[i].hit_timer > 0,
+            );
+            if combat::melee_strike_ready(
+                &mut self.spiders[i].attack_windup,
+                cooldown,
+                can_melee_hit,
+                hurt,
+            ) {
                 if self.apply_player_combat_damage(self.scaled_hostile_damage(0.5)) {
                     self.apply_player_contact_knockback(self.spiders[i].x, 0.34, 0.0);
                 }
@@ -11942,7 +11791,10 @@ impl GameState {
                 0.12,
             );
             self.silverfish[i].reroute_ticks = reroute_ticks;
-            if rerouting {
+            if rerouting
+                && self.silverfish[i].hit_timer == 0
+                && self.silverfish[i].attack_windup == 0
+            {
                 self.silverfish[i].vx = reroute_vx;
                 self.silverfish[i].facing_right = reroute_vx >= 0.0;
             }
@@ -11965,7 +11817,10 @@ impl GameState {
                 self.silverfish[i].stuck_ticks,
                 self.silverfish[i].reroute_ticks,
             );
-            if chase_jump || recovery_jump {
+            if (chase_jump || recovery_jump)
+                && self.silverfish[i].hit_timer == 0
+                && self.silverfish[i].attack_windup == 0
+            {
                 self.silverfish[i].jump();
             }
             let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
@@ -12008,7 +11863,10 @@ impl GameState {
             self.silverfish[i].stuck_ticks = stuck_ticks;
             self.silverfish[i].reroute_ticks = reroute_ticks;
             self.silverfish[i].reroute_dir = reroute_dir;
-            if hit_wall {
+            if hit_wall
+                && self.silverfish[i].hit_timer == 0
+                && self.silverfish[i].attack_windup == 0
+            {
                 self.silverfish[i].jump();
             }
             self.silverfish[i].vx *= 0.58;
@@ -12016,13 +11874,33 @@ impl GameState {
                 self.silverfish[i].vx = 0.0;
             }
 
+            if self.silverfish[i].attack_windup == 0 && self.silverfish[i].attack_cooldown == 0 {
+                self.silverfish[i].facing_right = self.player.x >= self.silverfish[i].x;
+            }
             let can_melee_hit = self.can_melee_contact_player(
                 self.silverfish[i].x,
                 self.silverfish[i].y - 0.35,
                 1.0,
                 0.8,
             );
-            if can_melee_hit && self.silverfish[i].attack_cooldown == 0 {
+            let can_melee_hit = can_melee_hit
+                && (self.player.x - self.silverfish[i].x)
+                    * (if self.silverfish[i].facing_right {
+                        1.0
+                    } else {
+                        -1.0
+                    })
+                    >= -0.15;
+            let (cooldown, hurt) = (
+                self.silverfish[i].attack_cooldown,
+                self.silverfish[i].hit_timer > 0,
+            );
+            if combat::melee_strike_ready(
+                &mut self.silverfish[i].attack_windup,
+                cooldown,
+                can_melee_hit,
+                hurt,
+            ) {
                 if self.apply_player_combat_damage(self.scaled_hostile_damage(0.35)) {
                     self.apply_player_contact_knockback(self.silverfish[i].x, 0.22, 0.16);
                 }
@@ -12057,7 +11935,7 @@ impl GameState {
                 reroute_speed,
             );
             self.slimes[i].reroute_ticks = reroute_ticks;
-            if rerouting {
+            if rerouting && self.slimes[i].hit_timer == 0 && self.slimes[i].attack_windup == 0 {
                 self.slimes[i].vx = reroute_vx;
                 self.slimes[i].facing_right = reroute_vx >= 0.0;
             }
@@ -12083,7 +11961,10 @@ impl GameState {
                 self.slimes[i].stuck_ticks,
                 self.slimes[i].reroute_ticks,
             );
-            if chase_jump || recovery_jump {
+            if (chase_jump || recovery_jump)
+                && self.slimes[i].hit_timer == 0
+                && self.slimes[i].attack_windup == 0
+            {
                 self.slimes[i].jump();
             }
 
@@ -12127,7 +12008,7 @@ impl GameState {
             self.slimes[i].stuck_ticks = stuck_ticks;
             self.slimes[i].reroute_ticks = reroute_ticks;
             self.slimes[i].reroute_dir = reroute_dir;
-            if hit_wall {
+            if hit_wall && self.slimes[i].hit_timer == 0 && self.slimes[i].attack_windup == 0 {
                 self.slimes[i].jump();
             }
             self.slimes[i].vx *= 0.6;
@@ -12138,13 +12019,30 @@ impl GameState {
             let center_y = self.slimes[i].y - height * 0.5;
             let contact_range = half_width + 0.75;
             let vertical_reach = (0.55 + height * 0.35).clamp(0.7, 1.45);
+            if self.slimes[i].attack_windup == 0 && self.slimes[i].attack_cooldown == 0 {
+                self.slimes[i].facing_right = self.player.x >= self.slimes[i].x;
+            }
             let can_melee_hit = self.can_melee_contact_player(
                 self.slimes[i].x,
                 center_y,
                 contact_range,
                 vertical_reach,
             );
-            if can_melee_hit && self.slimes[i].attack_cooldown == 0 {
+            let can_melee_hit = can_melee_hit
+                && (self.player.x - self.slimes[i].x)
+                    * (if self.slimes[i].facing_right {
+                        1.0
+                    } else {
+                        -1.0
+                    })
+                    >= -0.15;
+            let (cooldown, hurt) = (self.slimes[i].attack_cooldown, self.slimes[i].hit_timer > 0);
+            if combat::melee_strike_ready(
+                &mut self.slimes[i].attack_windup,
+                cooldown,
+                can_melee_hit,
+                hurt,
+            ) {
                 let damage = self.scaled_hostile_damage(self.slimes[i].contact_damage());
                 if damage > 0.0 && self.apply_player_combat_damage(damage) {
                     self.apply_player_contact_knockback(
@@ -12350,7 +12248,13 @@ impl GameState {
 
             let can_melee_hit =
                 self.can_melee_contact_player(self.blazes[i].x, self.blazes[i].y - 0.9, 1.25, 1.05);
-            if can_melee_hit && self.blazes[i].attack_cooldown == 0 {
+            let (cooldown, hurt) = (self.blazes[i].attack_cooldown, self.blazes[i].hit_timer > 0);
+            if combat::melee_strike_ready(
+                &mut self.blazes[i].attack_windup,
+                cooldown,
+                can_melee_hit,
+                hurt,
+            ) {
                 if self.apply_player_combat_damage(self.scaled_hostile_damage(0.85)) {
                     if !self.has_fire_resistance() {
                         self.player.burning_timer = self.player.burning_timer.max(65);
@@ -12391,7 +12295,7 @@ impl GameState {
                 0.16,
             );
             self.endermen[i].reroute_ticks = reroute_ticks;
-            if rerouting {
+            if rerouting && self.endermen[i].hit_timer == 0 && self.endermen[i].attack_windup == 0 {
                 self.endermen[i].vx = reroute_vx;
                 self.endermen[i].facing_right = reroute_vx >= 0.0;
             }
@@ -12431,7 +12335,10 @@ impl GameState {
                 self.endermen[i].stuck_ticks,
                 self.endermen[i].reroute_ticks,
             );
-            if chase_jump || recovery_jump {
+            if (chase_jump || recovery_jump)
+                && self.endermen[i].hit_timer == 0
+                && self.endermen[i].attack_windup == 0
+            {
                 self.endermen[i].jump();
             }
             let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
@@ -12474,7 +12381,7 @@ impl GameState {
             self.endermen[i].stuck_ticks = stuck_ticks;
             self.endermen[i].reroute_ticks = reroute_ticks;
             self.endermen[i].reroute_dir = reroute_dir;
-            if hit_wall {
+            if hit_wall && self.endermen[i].hit_timer == 0 && self.endermen[i].attack_windup == 0 {
                 self.endermen[i].jump();
             }
             self.endermen[i].vx *= 0.6;
@@ -12510,13 +12417,33 @@ impl GameState {
                 }
             }
 
+            if self.endermen[i].attack_windup == 0 && self.endermen[i].attack_cooldown == 0 {
+                self.endermen[i].facing_right = self.player.x >= self.endermen[i].x;
+            }
             let can_melee_hit = self.can_melee_contact_player(
                 self.endermen[i].x,
                 self.endermen[i].y - 1.4,
                 1.35,
                 1.2,
             );
-            if can_melee_hit && self.endermen[i].attack_cooldown == 0 {
+            let can_melee_hit = can_melee_hit
+                && (self.player.x - self.endermen[i].x)
+                    * (if self.endermen[i].facing_right {
+                        1.0
+                    } else {
+                        -1.0
+                    })
+                    >= -0.15;
+            let (cooldown, hurt) = (
+                self.endermen[i].attack_cooldown,
+                self.endermen[i].hit_timer > 0,
+            );
+            if combat::melee_strike_ready(
+                &mut self.endermen[i].attack_windup,
+                cooldown,
+                can_melee_hit,
+                hurt,
+            ) {
                 if self.apply_player_combat_damage(self.scaled_hostile_damage(1.5)) {
                     self.apply_player_contact_knockback(self.endermen[i].x, 0.55, 0.28);
                 }
@@ -12592,31 +12519,41 @@ impl GameState {
             let ax = self.arrows[i].x;
             let ay = self.arrows[i].y;
             let avx = self.arrows[i].vx;
-            let avy = self.arrows[i].vy;
             let from_player = self.arrows[i].from_player;
             let arrow_damage = self.arrows[i].damage;
-            if self
-                .terrain_segment_hit(previous.0, previous.1, ax, ay, false)
-                .is_some()
-            {
-                self.arrows.swap_remove(i);
-                continue;
-            }
-            if from_player {
-                if self.try_apply_player_arrow_hit(ax, ay, avx, avy, arrow_damage) {
-                    self.arrows.swap_remove(i);
-                    continue;
+            let terrain = self.terrain_segment_hit(previous.0, previous.1, ax, ay, false);
+            let length2 = (ax - previous.0).powi(2) + (ay - previous.1).powi(2);
+            let terrain_t = terrain.map_or(f64::INFINITY, |(x, y)| {
+                if length2 > 0.0 {
+                    ((x - previous.0) * (ax - previous.0) + (y - previous.1) * (ay - previous.1))
+                        / length2
+                } else {
+                    0.0
                 }
+            });
+            let hit = if from_player {
+                self.hit_player_arrow_segment(previous, (ax, ay), arrow_damage, terrain_t)
             } else {
-                let pdist =
-                    ((ax - self.player.x).powi(2) + (ay - (self.player.y - 0.9)).powi(2)).sqrt();
-                if pdist < 0.8 {
+                let bounds = [
+                    self.player.x - PLAYER_HALF_WIDTH,
+                    self.player.y - PLAYER_HEIGHT,
+                    self.player.x + PLAYER_HALF_WIDTH,
+                    self.player.y,
+                ];
+                if combat::segment_box_hit(previous, (ax, ay), bounds)
+                    .is_some_and(|t| t < terrain_t)
+                {
                     if self.apply_player_combat_damage(self.scaled_hostile_damage(arrow_damage)) {
                         self.player.vx += avx * 0.5;
                     }
-                    self.arrows.swap_remove(i);
-                    continue;
+                    true
+                } else {
+                    false
                 }
+            };
+            if hit || terrain.is_some() {
+                self.arrows.swap_remove(i);
+                continue;
             }
             if self.arrows[i].dead {
                 self.arrows.swap_remove(i);
@@ -12871,20 +12808,23 @@ impl GameState {
                 self.wolves[i].y,
                 self.wolves[i].vx,
                 self.wolves[i].grounded,
-                0.28,
-                1.2,
+                0.6,
+                0.875,
             );
             let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
                 self.wolves[i].x,
                 self.wolves[i].y,
                 self.wolves[i].vx,
                 self.wolves[i].grounded,
-                0.28,
-                1.2,
+                0.6,
+                0.875,
                 0,
                 0,
             );
-            if chase_jump || recovery_jump {
+            if (chase_jump || recovery_jump)
+                && self.wolves[i].hit_timer == 0
+                && self.wolves[i].attack_windup == 0
+            {
                 self.wolves[i].jump();
             }
             let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
@@ -12893,8 +12833,8 @@ impl GameState {
                 self.wolves[i].vx,
                 self.wolves[i].vy,
                 self.wolves[i].grounded,
-                0.28,
-                1.2,
+                0.6,
+                0.875,
                 true,
             );
             self.wolves[i].x = nx;
@@ -12902,7 +12842,7 @@ impl GameState {
             self.wolves[i].vx = nvx;
             self.wolves[i].vy = nvy;
             self.wolves[i].grounded = ngr;
-            if hit_wall {
+            if hit_wall && self.wolves[i].hit_timer == 0 && self.wolves[i].attack_windup == 0 {
                 self.wolves[i].jump();
             }
             self.wolves[i].vx *= 0.56;
@@ -12911,13 +12851,31 @@ impl GameState {
             }
 
             if self.wolves[i].is_aggressive() {
+                if self.wolves[i].attack_windup == 0 && self.wolves[i].attack_cooldown == 0 {
+                    self.wolves[i].facing_right = self.player.x >= self.wolves[i].x;
+                }
                 let can_melee_hit = self.can_melee_contact_player(
                     self.wolves[i].x,
                     self.wolves[i].y - 0.6,
                     1.1,
                     0.9,
                 );
-                if can_melee_hit && self.wolves[i].attack_cooldown == 0 {
+                let can_melee_hit = can_melee_hit
+                    && (self.player.x - self.wolves[i].x)
+                        * (if self.wolves[i].facing_right {
+                            1.0
+                        } else {
+                            -1.0
+                        })
+                        >= -0.15;
+                let (cooldown, hurt) =
+                    (self.wolves[i].attack_cooldown, self.wolves[i].hit_timer > 0);
+                if combat::melee_strike_ready(
+                    &mut self.wolves[i].attack_windup,
+                    cooldown,
+                    can_melee_hit,
+                    hurt,
+                ) {
                     if self.apply_player_combat_damage(self.scaled_hostile_damage(0.45)) {
                         self.apply_player_contact_knockback(self.wolves[i].x, 0.3, 0.22);
                     }
@@ -12986,20 +12944,20 @@ impl GameState {
                 self.ocelots[i].y,
                 self.ocelots[i].vx,
                 self.ocelots[i].grounded,
-                0.24,
-                1.1,
+                0.6,
+                0.75,
             );
             let recovery_jump = self.should_ground_mob_vertical_recovery_jump(
                 self.ocelots[i].x,
                 self.ocelots[i].y,
                 self.ocelots[i].vx,
                 self.ocelots[i].grounded,
-                0.24,
-                1.1,
+                0.6,
+                0.75,
                 0,
                 0,
             );
-            if chase_jump || recovery_jump {
+            if (chase_jump || recovery_jump) && self.ocelots[i].hit_timer == 0 {
                 self.ocelots[i].jump();
             }
             let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_movement(
@@ -13008,8 +12966,8 @@ impl GameState {
                 self.ocelots[i].vx,
                 self.ocelots[i].vy,
                 self.ocelots[i].grounded,
-                0.24,
-                1.1,
+                0.6,
+                0.75,
                 true,
             );
             self.ocelots[i].x = nx;
@@ -13017,7 +12975,7 @@ impl GameState {
             self.ocelots[i].vx = nvx;
             self.ocelots[i].vy = nvy;
             self.ocelots[i].grounded = ngr;
-            if hit_wall {
+            if hit_wall && self.ocelots[i].hit_timer == 0 {
                 self.ocelots[i].jump();
             }
             self.ocelots[i].vx *= 0.58;
@@ -13783,480 +13741,8 @@ impl GameState {
             && self.player.attack_timer == 0
             && !bow_uses_primary
         {
-            let mx = mouse_target_x as f64 + 0.5;
-            let my = mouse_target_y as f64 + 0.5;
-
-            let held_item = self.current_hotbar_item_type();
-            let damage = self.effective_held_damage(held_item);
-
-            let mut closest_dist = 2.0;
-            if self.current_dimension == Dimension::End {
-                if let Some(i) = self
-                    .end_crystals
-                    .iter()
-                    .enumerate()
-                    .find(|(_, c)| {
-                        ((c.x - mx).powi(2) + (c.y - my).powi(2)).sqrt() < 1.4
-                            && self.can_melee_entity(c.x, c.y, 4.4)
-                    })
-                    .map(|(i, _)| i)
-                {
-                    self.end_crystals[i].health -= damage * 2.0;
-                    self.end_crystals[i].hit_timer = 10;
-                    hit_entity = true;
-                } else if self
-                    .ender_dragon
-                    .as_ref()
-                    .is_some_and(|d| d.hit_test(mx, my))
-                    && self.can_melee_entity(mx, my, 4.4)
-                    && let Some(dragon) = self.ender_dragon.as_mut()
-                {
-                    dragon.health -= damage;
-                    dragon.hit_timer = 10;
-                    dragon.vx += if self.player.x < dragon.x {
-                        0.24
-                    } else {
-                        -0.24
-                    };
-                    dragon.vy = (dragon.vy - 0.12).clamp(-0.35, 0.35);
-                    hit_entity = true;
-                }
-            }
-
-            if !hit_entity {
-                let mut target_zombie = None;
-                for (i, z) in self.zombies.iter().enumerate() {
-                    let dist = ((z.x - mx).powi(2) + ((z.y - 0.9) - my).powi(2)).sqrt();
-                    if dist < closest_dist && self.can_melee_entity(z.x, z.y - 0.9, 4.0) {
-                        closest_dist = dist;
-                        target_zombie = Some(i);
-                    }
-                }
-                if let Some(i) = target_zombie {
-                    self.zombies[i].health -= damage;
-                    self.zombies[i].hit_timer = 10;
-                    self.zombies[i].last_player_damage_tick = self.world_tick;
-                    self.zombies[i].vy = -0.3;
-                    self.zombies[i].vx = if self.player.x < self.zombies[i].x {
-                        0.4
-                    } else {
-                        -0.4
-                    };
-                    hit_entity = true;
-                } else if let Some(i) = self
-                    .pigmen
-                    .iter()
-                    .enumerate()
-                    .find(|(_, p)| {
-                        ((p.x - mx).powi(2) + ((p.y - 0.9) - my).powi(2)).sqrt() < closest_dist
-                            && self.can_melee_entity(p.x, p.y - 0.9, 4.0)
-                    })
-                    .map(|(i, _)| i)
-                {
-                    let hit_x = self.pigmen[i].x;
-                    let hit_y = self.pigmen[i].y;
-                    self.pigmen[i].health -= damage;
-                    self.pigmen[i].hit_timer = 10;
-                    self.pigmen[i].last_player_damage_tick = self.world_tick;
-                    self.pigmen[i].vy = -0.3;
-                    self.pigmen[i].vx = if self.player.x < self.pigmen[i].x {
-                        0.4
-                    } else {
-                        -0.4
-                    };
-                    for pigman in &mut self.pigmen {
-                        let dist = ((pigman.x - hit_x).powi(2) + (pigman.y - hit_y).powi(2)).sqrt();
-                        if dist < 12.0 {
-                            pigman.provoke();
-                        }
-                    }
-                    hit_entity = true;
-                } else if let Some(i) = self
-                    .ghasts
-                    .iter()
-                    .enumerate()
-                    .find(|(_, g)| {
-                        ((g.x - mx).powi(2) + ((g.y - 1.0) - my).powi(2)).sqrt() < 2.8
-                            && self.can_melee_entity(g.x, g.y - 1.0, 4.5)
-                    })
-                    .map(|(i, _)| i)
-                {
-                    self.ghasts[i].health -= damage;
-                    self.ghasts[i].hit_timer = 10;
-                    self.ghasts[i].last_player_damage_tick = self.world_tick;
-                    self.ghasts[i].vx += if self.player.x < self.ghasts[i].x {
-                        0.35
-                    } else {
-                        -0.35
-                    };
-                    self.ghasts[i].vy = (self.ghasts[i].vy - 0.15).clamp(-0.35, 0.35);
-                    hit_entity = true;
-                } else if let Some(i) = self
-                    .blazes
-                    .iter()
-                    .enumerate()
-                    .find(|(_, b)| {
-                        ((b.x - mx).powi(2) + ((b.y - 0.9) - my).powi(2)).sqrt() < 2.0
-                            && self.can_melee_entity(b.x, b.y - 0.9, 4.0)
-                    })
-                    .map(|(i, _)| i)
-                {
-                    self.blazes[i].health -= damage;
-                    self.blazes[i].hit_timer = 10;
-                    self.blazes[i].last_player_damage_tick = self.world_tick;
-                    self.blazes[i].vx += if self.player.x < self.blazes[i].x {
-                        0.32
-                    } else {
-                        -0.32
-                    };
-                    self.blazes[i].vy = (self.blazes[i].vy - 0.18).clamp(-0.4, 0.4);
-                    hit_entity = true;
-                } else if let Some(i) = self
-                    .endermen
-                    .iter()
-                    .enumerate()
-                    .find(|(_, e)| {
-                        ((e.x - mx).powi(2) + ((e.y - 1.5) - my).powi(2)).sqrt() < 2.2
-                            && self.can_melee_entity(e.x, e.y - 1.5, 4.2)
-                    })
-                    .map(|(i, _)| i)
-                {
-                    self.endermen[i].health -= damage;
-                    self.endermen[i].hit_timer = 10;
-                    self.endermen[i].last_player_damage_tick = self.world_tick;
-                    self.endermen[i].provoke();
-                    self.endermen[i].teleport_cooldown = self.endermen[i].teleport_cooldown.min(8);
-                    self.endermen[i].vy = -0.35;
-                    self.endermen[i].vx = if self.player.x < self.endermen[i].x {
-                        0.45
-                    } else {
-                        -0.45
-                    };
-                    hit_entity = true;
-                } else if let Some(i) = self
-                    .creepers
-                    .iter()
-                    .enumerate()
-                    .find(|(_, c)| {
-                        ((c.x - mx).powi(2) + ((c.y - 0.9) - my).powi(2)).sqrt() < closest_dist
-                            && self.can_melee_entity(c.x, c.y - 0.9, 4.0)
-                    })
-                    .map(|(i, _)| i)
-                {
-                    self.creepers[i].health -= damage;
-                    self.creepers[i].hit_timer = 10;
-                    self.creepers[i].last_player_damage_tick = self.world_tick;
-                    self.creepers[i].vy = -0.3;
-                    self.creepers[i].vx = if self.player.x < self.creepers[i].x {
-                        0.4
-                    } else {
-                        -0.4
-                    };
-                    hit_entity = true;
-                } else if let Some(i) = self
-                    .skeletons
-                    .iter()
-                    .enumerate()
-                    .find(|(_, s)| {
-                        ((s.x - mx).powi(2) + ((s.y - 0.9) - my).powi(2)).sqrt() < closest_dist
-                            && self.can_melee_entity(s.x, s.y - 0.9, 4.0)
-                    })
-                    .map(|(i, _)| i)
-                {
-                    self.skeletons[i].health -= damage;
-                    self.skeletons[i].hit_timer = 10;
-                    self.skeletons[i].last_player_damage_tick = self.world_tick;
-                    self.skeletons[i].vy = -0.3;
-                    self.skeletons[i].vx = if self.player.x < self.skeletons[i].x {
-                        0.4
-                    } else {
-                        -0.4
-                    };
-                    hit_entity = true;
-                } else if let Some(i) = self
-                    .spiders
-                    .iter()
-                    .enumerate()
-                    .find(|(_, s)| {
-                        ((s.x - mx).powi(2) + ((s.y - 0.9) - my).powi(2)).sqrt() < closest_dist
-                            && self.can_melee_entity(s.x, s.y - 0.9, 4.0)
-                    })
-                    .map(|(i, _)| i)
-                {
-                    self.spiders[i].health -= damage;
-                    self.spiders[i].hit_timer = 10;
-                    self.spiders[i].last_player_damage_tick = self.world_tick;
-                    self.spiders[i].vy = -0.3;
-                    self.spiders[i].vx = if self.player.x < self.spiders[i].x {
-                        0.4
-                    } else {
-                        -0.4
-                    };
-                    hit_entity = true;
-                } else if let Some(i) = self
-                    .silverfish
-                    .iter()
-                    .enumerate()
-                    .find(|(_, s)| {
-                        ((s.x - mx).powi(2) + ((s.y - 0.35) - my).powi(2)).sqrt() < 1.5
-                            && self.can_melee_entity(s.x, s.y - 0.35, 3.8)
-                    })
-                    .map(|(i, _)| i)
-                {
-                    self.silverfish[i].health -= damage;
-                    self.silverfish[i].hit_timer = 10;
-                    self.silverfish[i].last_player_damage_tick = self.world_tick;
-                    self.silverfish[i].vy = -0.22;
-                    self.silverfish[i].vx = if self.player.x < self.silverfish[i].x {
-                        0.35
-                    } else {
-                        -0.35
-                    };
-                    hit_entity = true;
-                } else if let Some(i) = self
-                    .slimes
-                    .iter()
-                    .enumerate()
-                    .find(|(_, s)| {
-                        let center_y = s.y - s.height() * 0.5;
-                        let hit_radius = match s.size {
-                            4 => 1.5,
-                            2 => 1.15,
-                            _ => 0.82,
-                        };
-                        ((s.x - mx).powi(2) + (center_y - my).powi(2)).sqrt() < hit_radius
-                            && self.can_melee_entity(s.x, center_y, 4.0)
-                    })
-                    .map(|(i, _)| i)
-                {
-                    let kb = match self.slimes[i].size {
-                        4 => 0.44,
-                        2 => 0.38,
-                        _ => 0.32,
-                    };
-                    self.slimes[i].health -= damage;
-                    self.slimes[i].hit_timer = 10;
-                    self.slimes[i].last_player_damage_tick = self.world_tick;
-                    self.slimes[i].vy = -0.2;
-                    self.slimes[i].vx = if self.player.x < self.slimes[i].x {
-                        kb
-                    } else {
-                        -kb
-                    };
-                    hit_entity = true;
-                } else {
-                    let mut target_cow = None;
-                    for (i, c) in self.cows.iter().enumerate() {
-                        let dist = ((c.x - mx).powi(2) + ((c.y - 0.9) - my).powi(2)).sqrt();
-                        if dist < closest_dist && self.can_melee_entity(c.x, c.y - 0.9, 4.0) {
-                            closest_dist = dist;
-                            target_cow = Some(i);
-                        }
-                    }
-                    if let Some(i) = target_cow {
-                        self.cows[i].health -= damage;
-                        self.cows[i].hit_timer = 10;
-                        self.cows[i].last_player_damage_tick = self.world_tick;
-                        self.cows[i].vy = -0.3;
-                        self.cows[i].vx = if self.player.x < self.cows[i].x {
-                            0.4
-                        } else {
-                            -0.4
-                        };
-                        hit_entity = true;
-                    } else {
-                        let mut target_sheep = None;
-                        for (i, s) in self.sheep.iter().enumerate() {
-                            let dist = ((s.x - mx).powi(2) + ((s.y - 0.9) - my).powi(2)).sqrt();
-                            if dist < closest_dist && self.can_melee_entity(s.x, s.y - 0.9, 4.0) {
-                                closest_dist = dist;
-                                target_sheep = Some(i);
-                            }
-                        }
-                        if let Some(i) = target_sheep {
-                            if self.try_shear_sheep(i) {
-                                hit_entity = true;
-                            } else {
-                                self.sheep[i].health -= damage;
-                                self.sheep[i].hit_timer = 10;
-                                self.sheep[i].last_player_damage_tick = self.world_tick;
-                                self.sheep[i].vy = -0.3;
-                                self.sheep[i].vx = if self.player.x < self.sheep[i].x {
-                                    0.4
-                                } else {
-                                    -0.4
-                                };
-                                hit_entity = true;
-                            }
-                        } else {
-                            let mut target_pig = None;
-                            for (i, p) in self.pigs.iter().enumerate() {
-                                let dist = ((p.x - mx).powi(2) + ((p.y - 0.9) - my).powi(2)).sqrt();
-                                if dist < closest_dist && self.can_melee_entity(p.x, p.y - 0.9, 4.0)
-                                {
-                                    closest_dist = dist;
-                                    target_pig = Some(i);
-                                }
-                            }
-                            if let Some(i) = target_pig {
-                                self.pigs[i].health -= damage;
-                                self.pigs[i].hit_timer = 10;
-                                self.pigs[i].last_player_damage_tick = self.world_tick;
-                                self.pigs[i].vy = -0.3;
-                                self.pigs[i].vx = if self.player.x < self.pigs[i].x {
-                                    0.4
-                                } else {
-                                    -0.4
-                                };
-                                hit_entity = true;
-                            } else {
-                                let mut target_chicken = None;
-                                for (i, c) in self.chickens.iter().enumerate() {
-                                    let dist =
-                                        ((c.x - mx).powi(2) + ((c.y - 0.6) - my).powi(2)).sqrt();
-                                    if dist < closest_dist
-                                        && self.can_melee_entity(c.x, c.y - 0.6, 4.0)
-                                    {
-                                        closest_dist = dist;
-                                        target_chicken = Some(i);
-                                    }
-                                }
-                                if let Some(i) = target_chicken {
-                                    self.chickens[i].health -= damage;
-                                    self.chickens[i].hit_timer = 10;
-                                    self.chickens[i].last_player_damage_tick = self.world_tick;
-                                    self.chickens[i].vy = -0.26;
-                                    self.chickens[i].vx = if self.player.x < self.chickens[i].x {
-                                        0.35
-                                    } else {
-                                        -0.35
-                                    };
-                                    hit_entity = true;
-                                } else {
-                                    let mut target_wolf = None;
-                                    for (i, w) in self.wolves.iter().enumerate() {
-                                        let dist = ((w.x - mx).powi(2)
-                                            + ((w.y - 0.6) - my).powi(2))
-                                        .sqrt();
-                                        if dist < closest_dist
-                                            && self.can_melee_entity(w.x, w.y - 0.6, 4.1)
-                                        {
-                                            closest_dist = dist;
-                                            target_wolf = Some(i);
-                                        }
-                                    }
-                                    if let Some(i) = target_wolf {
-                                        let hit_x = self.wolves[i].x;
-                                        let hit_y = self.wolves[i].y;
-                                        self.wolves[i].health -= damage;
-                                        self.wolves[i].hit_timer = 10;
-                                        self.wolves[i].last_player_damage_tick = self.world_tick;
-                                        self.wolves[i].vy = -0.24;
-                                        self.wolves[i].vx = if self.player.x < self.wolves[i].x {
-                                            0.36
-                                        } else {
-                                            -0.36
-                                        };
-                                        self.provoke_wolves_near(hit_x, hit_y, 12.0);
-                                        hit_entity = true;
-                                    } else {
-                                        let mut target_ocelot = None;
-                                        for (i, o) in self.ocelots.iter().enumerate() {
-                                            let dist = ((o.x - mx).powi(2)
-                                                + ((o.y - 0.6) - my).powi(2))
-                                            .sqrt();
-                                            if dist < closest_dist
-                                                && self.can_melee_entity(o.x, o.y - 0.6, 4.1)
-                                            {
-                                                closest_dist = dist;
-                                                target_ocelot = Some(i);
-                                            }
-                                        }
-                                        if let Some(i) = target_ocelot {
-                                            self.ocelots[i].health -= damage;
-                                            self.ocelots[i].hit_timer = 10;
-                                            self.ocelots[i].last_player_damage_tick =
-                                                self.world_tick;
-                                            self.ocelots[i].vy = -0.24;
-                                            self.ocelots[i].vx =
-                                                if self.player.x < self.ocelots[i].x {
-                                                    0.34
-                                                } else {
-                                                    -0.34
-                                                };
-                                            self.spook_ocelots_near(
-                                                self.ocelots[i].x,
-                                                self.ocelots[i].y,
-                                                12.0,
-                                                self.player.x,
-                                            );
-                                            hit_entity = true;
-                                        } else {
-                                            let mut target_squid = None;
-                                            for (i, s) in self.squids.iter().enumerate() {
-                                                let dist = ((s.x - mx).powi(2)
-                                                    + ((s.y - 0.45) - my).powi(2))
-                                                .sqrt();
-                                                if dist < closest_dist
-                                                    && self.can_melee_entity(s.x, s.y - 0.45, 4.2)
-                                                {
-                                                    closest_dist = dist;
-                                                    target_squid = Some(i);
-                                                }
-                                            }
-                                            if let Some(i) = target_squid {
-                                                self.squids[i].health -= damage;
-                                                self.squids[i].hit_timer = 10;
-                                                self.squids[i].last_player_damage_tick =
-                                                    self.world_tick;
-                                                self.squids[i].vy = -0.24;
-                                                self.squids[i].vx =
-                                                    if self.player.x < self.squids[i].x {
-                                                        0.34
-                                                    } else {
-                                                        -0.34
-                                                    };
-                                                hit_entity = true;
-                                            } else {
-                                                let mut target_villager = None;
-                                                for (i, v) in self.villagers.iter().enumerate() {
-                                                    let dist = ((v.x - mx).powi(2)
-                                                        + ((v.y - 0.9) - my).powi(2))
-                                                    .sqrt();
-                                                    if dist < closest_dist
-                                                        && self.can_melee_entity(
-                                                            v.x,
-                                                            v.y - 0.9,
-                                                            4.0,
-                                                        )
-                                                    {
-                                                        closest_dist = dist;
-                                                        target_villager = Some(i);
-                                                    }
-                                                }
-                                                if let Some(i) = target_villager {
-                                                    self.villagers[i].health -= damage;
-                                                    self.villagers[i].hit_timer = 10;
-                                                    self.villagers[i].last_player_damage_tick =
-                                                        self.world_tick;
-                                                    self.villagers[i].vy = -0.3;
-                                                    self.villagers[i].vx =
-                                                        if self.player.x < self.villagers[i].x {
-                                                            0.4
-                                                        } else {
-                                                            -0.4
-                                                        };
-                                                    hit_entity = true;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            hit_entity =
+                self.perform_melee(mouse_target_x as f64 + 0.5, mouse_target_y as f64 + 0.5);
 
             if hit_entity {
                 self.player.attack_timer = 10;
@@ -20442,6 +19928,14 @@ mod tests {
         state.zombies[0].grounded = true;
 
         state.update(0, 0);
+        assert_eq!(
+            state.player.health, 20.0,
+            "first contact must warn, not deal instant damage"
+        );
+        assert_eq!(state.zombies[0].attack_windup, 8);
+        for _ in 0..8 {
+            state.update(0, 0);
+        }
         let after_first_hit = state.player.health;
         assert!(after_first_hit < 20.0);
 

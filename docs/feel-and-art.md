@@ -8,7 +8,7 @@ latency.
 ## Try the candidate
 
 Run the local development executable. Restart the co-op server and every client
-together: the updated movement rules use **network protocol 11**.
+together: the updated movement rules use **network protocol 12**.
 
 - Hold A/D or an arrow for one second, then release. In a terminal with key-release
   support, movement should stay continuous through the initial keyboard-repeat
@@ -27,6 +27,50 @@ Terminals that do not send key-up events retain the repeat-based fallback. They
 cannot distinguish a short tap from a held key waiting for its first repeat.
 This pass does not claim that limitation is solved. Simulation stays at 20 ticks
 per second; the 60 fps render budget does not change survival/gameplay timers.
+
+## Lantern Run: play the complete loop
+
+```sh
+./termcraft trial
+```
+
+This creates or resumes the isolated `lantern-run` world. Use a different ID,
+for example `./termcraft trial second-run`, for a fresh attempt. Your usual
+survival save is separate. No model or provider is required.
+
+Start at the camp with tools, bread, six planks and four torches. Follow the trail
+right, cross the steps and broken ground, then defeat the three ruin guards.
+Read their amber attack warnings: move behind a committed melee attack, jump
+cover, or interrupt a skeleton's drawn bow. Open the gate, right-click the supply
+chest and transfer its supplies. Build across the final eight-block gap and place
+a torch on top of the stone signal. The objective row records shared progress.
+A/D moves, Space jumps, left-click attacks/mines, right-click uses/places, E opens
+inventory, and Q saves/exits. Quick-move chest stacks with Shift-click.
+
+The same world can be hosted with `./termcraft world serve lantern-run` and joined
+with the usual client/SSH commands. New co-op identities receive one starter kit;
+reconnecting retains their saved inventory. An interrupted encounter restarts its
+wave on reopen, since mobs are session-only. Loot, bridge blocks and completed
+progress persist. The supply chest is ordinary world storage and can be reached
+before the guards are defeated; the objective still requires all three kills.
+
+This pass adds phase-linked weapon swings, compact jump poses, player hit flashes,
+actual enemy windup markers, body-based melee selection and swept arrows that hit
+the first actor before terrain. Hurt recovery preserves knockback instead of
+letting AI steering erase it on the next tick. Idle target panels clear the scene;
+reachable creatures show identity and health.
+
+[Combat and traversal captures](design/lantern-run-2026-10-12/index.html) distinguish
+staged renderer poses from the full CLI playthrough. Reproduce that playthrough:
+
+```sh
+python3 scripts/test_lantern_trial.py --binary ./termcraft --report /tmp/lantern.json
+```
+
+The scripted run uses ordinary inventory, attacks, mining and placement, then
+saves/reopens completion. It knows the map and advances simulated time between
+actions. Human enjoyment, uncoached onboarding and real network feel still need
+playtesting; this is a focused candidate, not final acceptance of the whole game.
 
 ## Five-minute feel check
 

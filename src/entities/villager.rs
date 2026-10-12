@@ -59,6 +59,10 @@ impl Villager {
     }
 
     pub fn update_ai(&mut self, is_day: bool) {
+        if self.hit_timer > 0 {
+            return;
+        }
+
         use rand::Rng;
 
         if self.jump_cooldown > 0 {

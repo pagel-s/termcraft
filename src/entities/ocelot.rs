@@ -59,6 +59,10 @@ impl Ocelot {
     }
 
     pub fn update_ai(&mut self, player_x: f64, player_y: f64, chicken_target: Option<(f64, f64)>) {
+        if self.hit_timer > 0 {
+            return;
+        }
+
         use rand::Rng;
 
         if self.jump_cooldown > 0 {

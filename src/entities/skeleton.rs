@@ -13,6 +13,9 @@ pub struct Skeleton {
     pub hit_timer: u8,
     pub last_player_damage_tick: u64,
     pub bow_cooldown: u8,
+    pub bow_windup: u8,
+    pub aim_x: f64,
+    pub aim_y: f64,
     pub stuck_ticks: u8,
     pub reroute_ticks: u8,
     pub reroute_dir: i8,
@@ -34,6 +37,9 @@ impl Skeleton {
             hit_timer: 0,
             last_player_damage_tick: 0,
             bow_cooldown: 0,
+            bow_windup: 0,
+            aim_x: x,
+            aim_y: y,
             stuck_ticks: 0,
             reroute_ticks: 0,
             reroute_dir: 0,
@@ -48,10 +54,29 @@ impl Skeleton {
     }
 
     pub fn update_ai(&mut self, player_x: f64, player_y: f64) -> bool {
+        if self.hit_timer > 0 {
+            self.bow_windup = 0;
+            self.bow_cooldown = self.bow_cooldown.max(16).saturating_sub(1);
+            return false;
+        }
+        if self.bow_windup > 0 {
+            self.vx = 0.0;
+            self.bow_windup -= 1;
+            if (player_x - self.x).abs() > 12.0 {
+                self.bow_windup = 0;
+                self.bow_cooldown = 20;
+                return false;
+            }
+            if self.bow_windup == 0 {
+                self.bow_cooldown = 60;
+                return true;
+            }
+            return false;
+        }
+
         let dx = player_x - self.x;
         let dy = player_y - self.y;
         let dist = (dx * dx + dy * dy).sqrt();
-        let mut shoot = false;
 
         if dist < 12.0 {
             self.facing_right = dx > 0.0;
@@ -76,8 +101,10 @@ impl Skeleton {
             if self.bow_cooldown > 0 {
                 self.bow_cooldown -= 1;
             } else if dist < 10.0 {
-                shoot = true;
-                self.bow_cooldown = 60; // 3 seconds at 20tps
+                self.bow_windup = 12; // 600 ms warning, including the first shot.
+                self.aim_x = player_x;
+                self.aim_y = player_y - 0.9;
+                self.vx = 0.0;
             }
         } else if self.age % 100 < 20 {
             self.vx = if self.facing_right { 0.1 } else { -0.1 };
@@ -87,6 +114,6 @@ impl Skeleton {
                 self.facing_right = !self.facing_right;
             }
         }
-        shoot
+        false
     }
 }

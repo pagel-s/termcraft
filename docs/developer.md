@@ -59,14 +59,33 @@ state; it does not call providers from rendering or simulation ticks.
 
 `src/world/environment.rs` persists biome ambience overrides without rewriting
 blocks. Director preferences, recent context and conditional structure undo live
-in a separate per-world sidecar. Native chat is currently Overworld/local only;
-the experimental network protocol does not carry these authoring requests.
+in a separate per-world sidecar. Shared director requests are host-controlled in the Overworld; guests observe
+results while normal play continues. The network protocol carries shared chat and
+director state.
 `src/engine/metrics.rs` provides bounded timing windows for F3 diagnostics.
 
 Public positioning recommendation:
 
 - do not market the current server/client path as a flagship feature
 - describe it as experimental until local-play parity and networking parity are materially closer
+
+## Combat and authored trial
+
+`src/engine/combat.rs` centralizes body targeting, terrain line of sight, swept
+projectile ordering, damage dispatch and melee windup timing. Entity AI preserves
+hurt impulses and pauses steering during committed attacks. Protocol 12 carries
+the new warning states and shared trial progress; matching builds are required.
+
+`src/engine/trial.rs` creates the opt-in Lantern Run recipe, tracks credited guard
+kills and detects the bridge/signal finish. `lantern-trial.json` is a separate
+versioned atomic sidecar; progression remains v7. Session-only guards restart an
+unfinished encounter after reopening. Supplies are ordinary preseeded chest
+contents, never refilled on resume. Trial creation does not alter existing worlds.
+
+`examples/lantern_review.rs` stages renderer poses on disposable trial terrain.
+`scripts/test_lantern_trial.py --binary ./termcraft` instead completes the route
+through real stdio tools without teleport, loadout or direct state edits, and
+checks save/reopen. Its accelerated, map-aware actions are not a human playtest.
 
 ## Input Boundary
 

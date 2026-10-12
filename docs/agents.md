@@ -196,7 +196,7 @@ Try this prompt in the connected client:
 The tools include world schema/validation/creation/listing, entering/leaving a
 world, observing nearby tiles/entities and the complete inventory, moving,
 jumping, mining/attacking, selecting items, interacting/placing, listing/crafting
-recipes, closing inventory, respawning, and saving. They do not expose developer
+recipes, clicking inventory/container slots, closing inventory, respawning, and saving. They do not expose developer
 loadout or teleport commands.
 
 `act` advances 1–40 ticks, with 20 ticks per simulated second. Time pauses between
@@ -206,6 +206,17 @@ coordinates increase right and down. Observations expose a bounded local map,
 including nearby underground blocks; they are not a strict line-of-sight view.
 Interactions still obey the normal reach, collision, ingredients, and line of
 sight checks. Recipe IDs are session-local lookup indexes, not stable content IDs.
+
+`inventory_click` uses the ordinary open inventory/container UI. Pass `slot` and
+`kind`: 0 swaps with the cursor, 1 splits, and 2 quick-moves. Slot numbering starts
+with container slots when a chest is open. `observe` includes open chest contents,
+nearby entity health, and the optional trial objective/progress. `act(jump: true)`
+queues takeoff as well as holding the jump, so normal grounded jumps work.
+
+To let your client try the authored route, first run `termcraft trial create demo`,
+then ask it to enter `demo`, observe, follow the objective, collect chest supplies,
+build the bridge and light the signal under normal rules. Stepped tools remain
+separate from a live human session.
 
 After the agent leaves:
 

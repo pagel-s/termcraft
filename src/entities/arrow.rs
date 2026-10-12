@@ -24,7 +24,7 @@ impl Arrow {
             age: 0,
             dead: false,
             from_player: false,
-            damage: 1.0,
+            damage: 2.0,
         }
     }
 

@@ -33,8 +33,9 @@ acceptance gate for the art or game feel.
    readable enemy attacks, impactful hits and useful rewards, then a building or
    traversal payoff. Show danger before damage; make movement, jump timing,
    knockback and recovery decisions legible. Connect director-created challenges
-   to this loop without requiring an always-on LLM player. Encounter/reward design
-   and stronger combat feedback remain to be implemented and playtested.
+   to this loop without requiring an always-on LLM player. Lantern Run now
+   implements an encounter, supplies and bridge/signal payoff; human acceptance
+   remains open.
 4. **Judge physics through an obstacle course.** Include reversal, jump buffering,
    ledges, low ceilings, stairs, ladders, water entry/exit and combat knockback.
    Test local and delayed co-op with the same route. Check collision alignment in
@@ -94,17 +95,43 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 | Personalized events | `/auto exploration|building|combat`, healthy-player/travel/modal/encounter gates, 120-second cooldown, three attempts/session; `/pause` and reset controls | `src/engine/director.rs`, cooldown regressions and prior 128-second PTY run |
 | Shared human game | Independent full player sessions, normal inventory/crafting/storage/workstations/combat, world/entities tick once, distant terrain physics, separate death/respawn, reconnect and periodic/exit saves | `src/engine/actors.rs`, `src/engine/net.rs`, `src/engine/server_save.rs`, `src/engine/cooperative_tests.rs`, `tests/multiplayer_tcp.rs` |
 | Shared director | Host-only requests and `/connect`, shared messages, no pause while typing; cancel/revoke/pause on host departure before promotion | `src/engine/network_client.rs`, `src/engine/net.rs`, real TCP/MCP and two-rendered-client checks |
-| Optional LLM play | 15 stepped world/player tools plus six live director tools; absolute-path JSON/TOML client config; normal game rules, bounded observations/actions, no developer loadout/teleport | `src/engine/agent.rs`, `src/engine/mcp.rs`, `docs/agents.md` |
+| Optional LLM play | 16 stepped world/player tools plus six live director tools; absolute-path JSON/TOML client config; normal game rules, bounded observations/actions, no developer loadout/teleport | `src/engine/agent.rs`, `src/engine/mcp.rs`, `docs/agents.md` |
 | New worlds | Typed deterministic recipes, validation/repair, retained prompt, named isolated saves and writer leases, native entry; optional trusted provider executable | `src/world/recipe.rs`, `src/worlds.rs`, `src/generator.rs`, `scripts/generate_world.py` |
 | Join/distribute | `termcraft join user@host --player NAME` manages a local SSH tunnel and stable reconnect identity; native archive packager with license/docs/manifest/checksum; manual four-platform artifact workflow | `src/engine/ssh.rs`, `scripts/package_release.py`, `.github/workflows/native-artifacts.yml`, `docs/distribution.md` |
 
 The local executable is `/home/sebastian/projects/termcraft/termcraft`.
 The package version remains `0.1.0`; generated archives are explicitly development
-builds, not mislabeled beta artifacts. Network protocol is **11**, requiring
+builds, not mislabeled beta artifacts. Network protocol is **12**, requiring
 matching builds. New native saves use progression version **7**; back up older
 saves before testing because older executables cannot read the new format.
 
 ## Measured results and validation
+
+### Lantern Run and combat review, 12 October
+
+The next candidate implements a complete opt-in route with camp, terrain steps,
+three guards, supplies, an eight-block bridge and a signal objective. Normal CLI
+MCP actions complete the route and preserve completion across save/reopen.
+Attack windups, committed facing, skeleton aim, swept arrows, body targeting,
+knockback recovery, airborne/swing/hurt poses and quieter idle HUD connect the
+visual changes to actual gameplay decisions. Chest-only edits now mark chunks
+dirty; agent jump requests queue actual takeoff and open-container tools use the
+normal UI. Fresh co-op identities receive one trial kit, without reconnect refills.
+
+Read-only physics/gameplay and visual review rounds caught and fixed inconsistent
+impulses, attack steering, invisible compact warning/leg poses, and an ocelot jump
+indexing regression. The new regression runs one ocelot with zero wolves through
+an obstacle. Wolf/ocelot movement and jump probes use consistent body dimensions.
+Stable and Rust 1.88 pass **611 unit tests** and strict all-target Clippy. Protocol
+**12** requires restarting matching clients/servers; progression remains v7.
+
+[Review and provenance](docs/design/lantern-run-2026-10-12/provenance.md) and
+[exact qualification identity](docs/assets/lantern-run-2026-10-12.json) distinguish
+staged pose captures, ordinary-rule CLI completion, terminal input and transport
+checks. The route is reproducible with `./termcraft trial`; this is not acceptance
+of overall human enjoyment, all-terminal/WAN smoothness or the full survival arc.
+Larger village design, full fluids/boats, human co-op and clean Windows/macOS
+qualification remain open. Previous reports retain their original build identities.
 
 ### 2D translation and complete item review, 12 October
 

@@ -63,7 +63,9 @@ failures. Test copies of saves: older builds cannot open progression v7.
   [complete block/item/physics review](docs/design/2d-refinement-2026-10-12/provenance.md).
 - [ ] **Gameplay quality:** play a coherent five-minute encounter with readable
   attacks, useful rewards and a building/traversal payoff. Automated foundation
-  tests do not establish that this target is met.
+  tests do not establish that this target is met. Lantern Run is now available via
+  `termcraft trial`; its normal-rule CLI completion is automated, human acceptance
+  remains open.
 - [ ] **Classic survival:** fresh world through dragon/credits; early resources,
   storage/workstations, death/respawn, v1–6 save upgrades, dimension travel and
   reopen. Developer loadouts/teleports do not count as a playthrough.
@@ -97,7 +99,7 @@ failures. Test copies of saves: older builds cannot open progression v7.
 3. Inspect license, startup instructions, manifest and `cargo package --list`.
    Exclude large videos/GIFs, private saves, bridge/reconnect credentials and keys.
 4. Review Debian PR #4 and AUR guidance against the final version/executable.
-5. Finalize the draft release notes. Retain protocol 11 matching-build and
+5. Finalize the draft release notes. Retain protocol 12 matching-build and
    progression v7 backup/migration notices and remaining gameplay limits.
 6. Regular pushes to `beta/terminal-reborn` are user-authorized and have been
    performed, with Sebastian Pagel as sole author/committer. Obtain separate

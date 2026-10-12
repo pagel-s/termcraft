@@ -52,6 +52,10 @@ impl Sheep {
     }
 
     pub fn update_ai(&mut self) {
+        if self.hit_timer > 0 {
+            return;
+        }
+
         use rand::Rng;
         let mut rng = rand::thread_rng();
 

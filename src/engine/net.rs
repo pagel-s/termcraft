@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 11;
+pub const NET_PROTOCOL_VERSION: u16 = 12;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;
@@ -161,6 +161,7 @@ pub struct ServerSnapshot {
     pub session: PlayerSession,
     pub chest: Option<(i32, i32, crate::world::item::Inventory)>,
     pub entities: RuntimeEntities,
+    pub trial: Option<super::state::Trial>,
     pub thunder_flash: u8,
     pub rain_intensity: f32,
     pub wind_intensity: f32,
@@ -188,6 +189,7 @@ impl ServerSnapshot {
             session: PlayerSession::capture(state),
             chest: PlayerSession::capture(state).chest(state),
             entities: RuntimeEntities::capture(state, state.player.x),
+            trial: state.trial.clone(),
             thunder_flash: state.thunder_flash_timer,
             rain_intensity: state.weather_rain_intensity,
             wind_intensity: state.weather_wind_intensity,
@@ -581,6 +583,7 @@ impl ServerSimulation {
             }
         }
         self.state.world.try_save_all()?;
+        self.state.save_trial()?;
         self.director.save(&self.state).map_err(io::Error::other)?;
         self.saved.settings = super::state::SharedSettings::capture(&self.state);
         self.saved.write(self.state.world.save_root())

@@ -318,6 +318,9 @@ impl Chunk {
     }
 
     pub fn chest_inventory_mut(&mut self, x: usize, y: usize) -> Option<&mut Inventory> {
+        if self.chests.contains_key(&(x, y)) {
+            self.dirty = true;
+        }
         self.chests.get_mut(&(x, y))
     }
 
@@ -330,6 +333,7 @@ impl Chunk {
         if self.get_block(x, y) != BlockType::Chest {
             return None;
         }
+        self.dirty = true;
         match self.chests.entry((x, y)) {
             Entry::Occupied(entry) => Some(entry.into_mut()),
             Entry::Vacant(entry) => {
@@ -563,6 +567,40 @@ mod tests {
         let _ = std::fs::remove_file(path);
     }
 
+    #[test]
+    fn chest_inventory_only_edits_save_after_a_clean_checkpoint() {
+        let root = std::env::temp_dir().join(format!("tc-chest-dirty-{}", rand::random::<u64>()));
+        std::fs::create_dir_all(&root).unwrap();
+        let mut chunk = Chunk::new(0, "overworld");
+        chunk.set_save_root(&root);
+        chunk.set_block(4, 6, BlockType::Chest);
+        chunk
+            .ensure_chest_inventory(4, 6, 27)
+            .unwrap()
+            .add_item(super::super::item::ItemType::Diamond, 3);
+        chunk.try_save_to_disk().unwrap();
+        assert!(!chunk.dirty);
+        chunk.chest_inventory_mut(4, 6).unwrap().slots.fill(None);
+        assert!(chunk.dirty);
+        chunk.try_save_to_disk().unwrap();
+        let loaded = Chunk::try_load_from_directory(0, "overworld", &root)
+            .unwrap()
+            .unwrap();
+        assert!(
+            loaded
+                .chest_inventory(4, 6)
+                .unwrap()
+                .slots
+                .iter()
+                .all(Option::is_none)
+        );
+        chunk
+            .ensure_chest_inventory(4, 6, 27)
+            .unwrap()
+            .add_item(super::super::item::ItemType::Bread, 1);
+        assert!(chunk.dirty);
+        std::fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn test_chunk_save_does_not_leave_temporary_file() {
         let save_key = "chunkatomic";

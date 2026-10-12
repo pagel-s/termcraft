@@ -36,6 +36,7 @@ include = [
     "/scripts/release_smoke.sh",
     "/scripts/test_ssh_join.py",
     "/scripts/test_native_archive.py",
+    "/scripts/test_lantern_trial.py",
     "/scripts/generate_world.py",
     "/scripts/demo_director.py",
 ]

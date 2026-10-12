@@ -136,7 +136,19 @@ impl GameState {
             return;
         }
         let (x, y) = self.multiplayer_join_spawn_near(self.player.x.floor() as i32);
-        let actor = PlayerSession::fresh(x, y);
+        let mut actor = PlayerSession::fresh(x, y);
+        if self.trial.is_some() {
+            for (item, n) in [
+                (ItemType::StoneSword, 1),
+                (ItemType::WoodAxe, 1),
+                (ItemType::WoodPickaxe, 1),
+                (ItemType::Planks, 6),
+                (ItemType::Torch, 4),
+                (ItemType::Bread, 2),
+            ] {
+                actor.inventory.add_item(item, n);
+            }
+        }
         if self.active_peer.is_none() {
             actor.apply(self);
             self.active_peer = Some(id);
