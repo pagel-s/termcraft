@@ -11215,9 +11215,6 @@ impl GameState {
         if !self.cooperative() {
             self.tick_player_actions(mouse_target_x, mouse_target_y);
         }
-        let gravity = 0.08;
-        let max_fall_speed = 1.0;
-
         let mut dead_zombies = Vec::new();
         for i in 0..self.zombies.len() {
             self.select_nearest_peer(self.zombies[i].x, self.zombies[i].y);
@@ -12548,69 +12545,24 @@ impl GameState {
             }
             self.cows[i].update_ai();
             self.cows[i].age += 1;
-            let mut c_vy = self.cows[i].vy + gravity;
-            if c_vy > max_fall_speed {
-                c_vy = max_fall_speed;
-            }
-            self.cows[i].vy = c_vy;
-            let c_nx = self.cows[i].x + self.cows[i].vx;
-            let mut c_hw = false;
-            let c_cx = if self.cows[i].vx > 0.0 {
-                c_nx + 0.3
-            } else {
-                c_nx - 0.3
-            };
-            if self.is_colliding(c_cx, self.cows[i].y - 0.1, CollisionType::Horizontal)
-                || self.is_colliding(c_cx, self.cows[i].y - 1.5, CollisionType::Horizontal)
-            {
-                c_hw = true;
-            }
-            if !c_hw {
-                self.cows[i].x = c_nx;
-            } else {
+            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_movement_with_jump_held(
+                self.cows[i].x,
+                self.cows[i].y,
+                self.cows[i].vx,
+                self.cows[i].vy,
+                self.cows[i].grounded,
+                0.6,
+                1.375,
+                true,
+                false,
+            );
+            self.cows[i].x = nx;
+            self.cows[i].y = ny;
+            self.cows[i].vx = nvx;
+            self.cows[i].vy = nvy;
+            self.cows[i].grounded = grounded;
+            if hit_wall {
                 self.cows[i].jump();
-            }
-            let c_ny = self.cows[i].y + self.cows[i].vy;
-            let c_py = self.cows[i].y;
-            if self.cows[i].vy > 0.0 {
-                if self.is_colliding(self.cows[i].x, c_ny, CollisionType::VerticalDown(c_py))
-                    || self.is_colliding(
-                        self.cows[i].x - 0.3,
-                        c_ny,
-                        CollisionType::VerticalDown(c_py),
-                    )
-                    || self.is_colliding(
-                        self.cows[i].x + 0.3,
-                        c_ny,
-                        CollisionType::VerticalDown(c_py),
-                    )
-                {
-                    self.cows[i].y = c_ny.floor();
-                    self.cows[i].vy = 0.0;
-                    self.cows[i].grounded = true;
-                } else {
-                    self.cows[i].y = c_ny;
-                    self.cows[i].grounded = false;
-                }
-            } else if self.cows[i].vy < 0.0 {
-                if self.is_colliding(self.cows[i].x, c_ny - 1.9, CollisionType::VerticalUp)
-                    || self.is_colliding(
-                        self.cows[i].x - 0.3,
-                        c_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                    || self.is_colliding(
-                        self.cows[i].x + 0.3,
-                        c_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                {
-                    self.cows[i].y = c_ny.ceil();
-                    self.cows[i].vy = 0.0;
-                } else {
-                    self.cows[i].y = c_ny;
-                    self.cows[i].grounded = false;
-                }
             }
             self.cows[i].vx *= 0.5;
             if self.cows[i].vx.abs() < 0.02 {
@@ -12629,69 +12581,24 @@ impl GameState {
             }
             self.sheep[i].update_ai();
             self.sheep[i].age += 1;
-            let mut s_vy = self.sheep[i].vy + gravity;
-            if s_vy > max_fall_speed {
-                s_vy = max_fall_speed;
-            }
-            self.sheep[i].vy = s_vy;
-            let s_nx = self.sheep[i].x + self.sheep[i].vx;
-            let mut s_hw = false;
-            let s_cx = if self.sheep[i].vx > 0.0 {
-                s_nx + 0.3
-            } else {
-                s_nx - 0.3
-            };
-            if self.is_colliding(s_cx, self.sheep[i].y - 0.1, CollisionType::Horizontal)
-                || self.is_colliding(s_cx, self.sheep[i].y - 1.5, CollisionType::Horizontal)
-            {
-                s_hw = true;
-            }
-            if !s_hw {
-                self.sheep[i].x = s_nx;
-            } else {
+            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_movement_with_jump_held(
+                self.sheep[i].x,
+                self.sheep[i].y,
+                self.sheep[i].vx,
+                self.sheep[i].vy,
+                self.sheep[i].grounded,
+                0.55,
+                1.125,
+                true,
+                false,
+            );
+            self.sheep[i].x = nx;
+            self.sheep[i].y = ny;
+            self.sheep[i].vx = nvx;
+            self.sheep[i].vy = nvy;
+            self.sheep[i].grounded = grounded;
+            if hit_wall {
                 self.sheep[i].jump();
-            }
-            let s_ny = self.sheep[i].y + self.sheep[i].vy;
-            let s_py = self.sheep[i].y;
-            if self.sheep[i].vy > 0.0 {
-                if self.is_colliding(self.sheep[i].x, s_ny, CollisionType::VerticalDown(s_py))
-                    || self.is_colliding(
-                        self.sheep[i].x - 0.3,
-                        s_ny,
-                        CollisionType::VerticalDown(s_py),
-                    )
-                    || self.is_colliding(
-                        self.sheep[i].x + 0.3,
-                        s_ny,
-                        CollisionType::VerticalDown(s_py),
-                    )
-                {
-                    self.sheep[i].y = s_ny.floor();
-                    self.sheep[i].vy = 0.0;
-                    self.sheep[i].grounded = true;
-                } else {
-                    self.sheep[i].y = s_ny;
-                    self.sheep[i].grounded = false;
-                }
-            } else if self.sheep[i].vy < 0.0 {
-                if self.is_colliding(self.sheep[i].x, s_ny - 1.9, CollisionType::VerticalUp)
-                    || self.is_colliding(
-                        self.sheep[i].x - 0.3,
-                        s_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                    || self.is_colliding(
-                        self.sheep[i].x + 0.3,
-                        s_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                {
-                    self.sheep[i].y = s_ny.ceil();
-                    self.sheep[i].vy = 0.0;
-                } else {
-                    self.sheep[i].y = s_ny;
-                    self.sheep[i].grounded = false;
-                }
             }
             self.sheep[i].vx *= 0.5;
             if self.sheep[i].vx.abs() < 0.02 {
@@ -12710,71 +12617,24 @@ impl GameState {
             }
             self.pigs[i].update_ai();
             self.pigs[i].age += 1;
-            let mut p_vy = self.pigs[i].vy + gravity;
-            if p_vy > max_fall_speed {
-                p_vy = max_fall_speed;
-            }
-            self.pigs[i].vy = p_vy;
-            let p_nx = self.pigs[i].x + self.pigs[i].vx;
-            let mut p_hw = false;
-            let p_cx = if self.pigs[i].vx > 0.0 {
-                p_nx + 0.3
-            } else {
-                p_nx - 0.3
-            };
-            if self.is_colliding(p_cx, self.pigs[i].y - 0.1, CollisionType::Horizontal)
-                || self.is_colliding(p_cx, self.pigs[i].y - 1.5, CollisionType::Horizontal)
-            {
-                p_hw = true;
-            }
-            if !p_hw {
-                self.pigs[i].x = p_nx;
-            } else {
+            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_movement_with_jump_held(
+                self.pigs[i].x,
+                self.pigs[i].y,
+                self.pigs[i].vx,
+                self.pigs[i].vy,
+                self.pigs[i].grounded,
+                0.5,
+                1.0,
+                true,
+                false,
+            );
+            self.pigs[i].x = nx;
+            self.pigs[i].y = ny;
+            self.pigs[i].vx = nvx;
+            self.pigs[i].vy = nvy;
+            self.pigs[i].grounded = grounded;
+            if hit_wall {
                 self.pigs[i].jump();
-                self.pigs[i].facing_right = !self.pigs[i].facing_right;
-                self.pigs[i].vx = 0.0;
-            }
-            let p_ny = self.pigs[i].y + self.pigs[i].vy;
-            let p_py = self.pigs[i].y;
-            if self.pigs[i].vy > 0.0 {
-                if self.is_colliding(self.pigs[i].x, p_ny, CollisionType::VerticalDown(p_py))
-                    || self.is_colliding(
-                        self.pigs[i].x - 0.3,
-                        p_ny,
-                        CollisionType::VerticalDown(p_py),
-                    )
-                    || self.is_colliding(
-                        self.pigs[i].x + 0.3,
-                        p_ny,
-                        CollisionType::VerticalDown(p_py),
-                    )
-                {
-                    self.pigs[i].y = p_ny.floor();
-                    self.pigs[i].vy = 0.0;
-                    self.pigs[i].grounded = true;
-                } else {
-                    self.pigs[i].y = p_ny;
-                    self.pigs[i].grounded = false;
-                }
-            } else if self.pigs[i].vy < 0.0 {
-                if self.is_colliding(self.pigs[i].x, p_ny - 1.9, CollisionType::VerticalUp)
-                    || self.is_colliding(
-                        self.pigs[i].x - 0.3,
-                        p_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                    || self.is_colliding(
-                        self.pigs[i].x + 0.3,
-                        p_ny - 1.9,
-                        CollisionType::VerticalUp,
-                    )
-                {
-                    self.pigs[i].y = p_ny.ceil();
-                    self.pigs[i].vy = 0.0;
-                } else {
-                    self.pigs[i].y = p_ny;
-                    self.pigs[i].grounded = false;
-                }
             }
             self.pigs[i].vx *= 0.5;
             if self.pigs[i].vx.abs() < 0.02 {
@@ -12801,71 +12661,27 @@ impl GameState {
                 ));
                 self.chickens[i].egg_lay_timer = rng.gen_range(6000..12000);
             }
-            let mut c_vy = self.chickens[i].vy + gravity * 0.65;
-            if c_vy > max_fall_speed * 0.55 {
-                c_vy = max_fall_speed * 0.55;
-            }
-            self.chickens[i].vy = c_vy;
-            let c_nx = self.chickens[i].x + self.chickens[i].vx;
-            let mut c_hw = false;
-            let c_cx = if self.chickens[i].vx > 0.0 {
-                c_nx + 0.26
-            } else {
-                c_nx - 0.26
-            };
-            if self.is_colliding(c_cx, self.chickens[i].y - 0.1, CollisionType::Horizontal)
-                || self.is_colliding(c_cx, self.chickens[i].y - 1.1, CollisionType::Horizontal)
-            {
-                c_hw = true;
-            }
-            if !c_hw {
-                self.chickens[i].x = c_nx;
-            } else {
-                self.chickens[i].jump();
-                self.chickens[i].facing_right = !self.chickens[i].facing_right;
-                self.chickens[i].vx = 0.0;
-            }
-            let c_ny = self.chickens[i].y + self.chickens[i].vy;
-            let c_py = self.chickens[i].y;
             if self.chickens[i].vy > 0.0 {
-                if self.is_colliding(self.chickens[i].x, c_ny, CollisionType::VerticalDown(c_py))
-                    || self.is_colliding(
-                        self.chickens[i].x - 0.24,
-                        c_ny,
-                        CollisionType::VerticalDown(c_py),
-                    )
-                    || self.is_colliding(
-                        self.chickens[i].x + 0.24,
-                        c_ny,
-                        CollisionType::VerticalDown(c_py),
-                    )
-                {
-                    self.chickens[i].y = c_ny.floor();
-                    self.chickens[i].vy = 0.0;
-                    self.chickens[i].grounded = true;
-                } else {
-                    self.chickens[i].y = c_ny;
-                    self.chickens[i].grounded = false;
-                }
-            } else if self.chickens[i].vy < 0.0 {
-                if self.is_colliding(self.chickens[i].x, c_ny - 1.3, CollisionType::VerticalUp)
-                    || self.is_colliding(
-                        self.chickens[i].x - 0.24,
-                        c_ny - 1.3,
-                        CollisionType::VerticalUp,
-                    )
-                    || self.is_colliding(
-                        self.chickens[i].x + 0.24,
-                        c_ny - 1.3,
-                        CollisionType::VerticalUp,
-                    )
-                {
-                    self.chickens[i].y = c_ny.ceil();
-                    self.chickens[i].vy = 0.0;
-                } else {
-                    self.chickens[i].y = c_ny;
-                    self.chickens[i].grounded = false;
-                }
+                self.chickens[i].vy = (self.chickens[i].vy - 0.028).clamp(0.0, 0.47);
+            }
+            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_movement_with_jump_held(
+                self.chickens[i].x,
+                self.chickens[i].y,
+                self.chickens[i].vx,
+                self.chickens[i].vy,
+                self.chickens[i].grounded,
+                0.3,
+                1.0,
+                true,
+                false,
+            );
+            self.chickens[i].x = nx;
+            self.chickens[i].y = ny;
+            self.chickens[i].vx = nvx;
+            self.chickens[i].vy = nvy;
+            self.chickens[i].grounded = grounded;
+            if hit_wall {
+                self.chickens[i].jump();
             }
             self.chickens[i].vx *= 0.56;
             if self.chickens[i].vx.abs() < 0.02 {
@@ -13637,6 +13453,22 @@ impl GameState {
         preview.current_dimension = self.current_dimension;
     }
 
+    /// Clip a small visual reconciliation against the same actor/terrain shapes.
+    pub(crate) fn resolve_motion_presentation(&self, x: f64, y: f64) -> (f64, f64) {
+        let (x, y, ..) = self.resolve_entity_overlap(
+            self.player.x,
+            self.player.y,
+            x,
+            y,
+            0.0,
+            0.0,
+            PLAYER_HALF_WIDTH,
+            PLAYER_HEIGHT,
+            self.player.grounded,
+        );
+        (x, y)
+    }
+
     fn tick_player_actions(&mut self, mouse_target_x: i32, mouse_target_y: i32) {
         let (water_submersion, lava_submersion) = self.entity_fluid_submersion(
             self.player.x,
@@ -14388,11 +14220,12 @@ impl GameState {
                 let mut supported_velocity = 0.0;
                 for step in 1..=steps {
                     let candidate = velocity * step as f64 / steps as f64;
-                    if !self.has_stable_ground_support(
-                        self.player.x + candidate,
-                        self.player.y,
-                        PLAYER_HALF_WIDTH,
-                        velocity,
+                    let edge =
+                        self.player.x + candidate + velocity.signum() * (PLAYER_HALF_WIDTH - 0.001);
+                    if !self.is_colliding(
+                        edge,
+                        self.player.y + 0.05,
+                        CollisionType::VerticalDown(self.player.y),
                     ) {
                         break;
                     }
@@ -14470,6 +14303,26 @@ impl GameState {
         false
     }
 
+    fn collision_bounds_at(&self, wx: i32, wy: i32) -> impl Iterator<Item = [f64; 4]> {
+        self.world
+            .get_block(wx, wy)
+            .collision_boxes()
+            .iter()
+            .map(move |b| {
+                [
+                    wx as f64 + b[0],
+                    wy as f64 + b[1],
+                    wx as f64 + b[2],
+                    wy as f64 + b[3],
+                ]
+            })
+    }
+
+    fn collision_bounds_at_point(&self, x: f64, y: f64) -> Option<[f64; 4]> {
+        self.collision_bounds_at(x.floor() as i32, y.floor() as i32)
+            .find(|b| x >= b[0] && x < b[2] && y >= b[1] && y < b[3])
+    }
+
     fn block_has_entity_collision_at(&self, wx: i32, wy: i32) -> bool {
         let block = self.world.get_block(wx, wy);
         block.is_solid()
@@ -14511,63 +14364,63 @@ impl GameState {
                         continue;
                     }
 
-                    let block_left = bx as f64;
-                    let block_right = bx as f64 + 1.0;
-                    let block_top = by as f64;
-                    let block_bottom = by as f64 + 1.0;
-                    let overlap_x = entity_right.min(block_right) - entity_left.max(block_left);
-                    let overlap_y = entity_bottom.min(block_bottom) - entity_top.max(block_top);
-                    if overlap_x <= COLLISION_EPSILON || overlap_y <= COLLISION_EPSILON {
-                        continue;
-                    }
-
-                    let prev_left = prev_x - half_width;
-                    let prev_right = prev_x + half_width;
-                    let prev_top = prev_y - height;
-                    let prev_bottom = prev_y;
-
-                    let inferred_resolution =
-                        if prev_bottom <= block_top + COLLISION_EPSILON && prev_y <= y {
-                            Some((0.0, -(entity_bottom - block_top + COLLISION_EPSILON), true))
-                        } else if prev_top >= block_bottom - COLLISION_EPSILON && prev_y >= y {
-                            Some((0.0, block_bottom - entity_top + COLLISION_EPSILON, true))
-                        } else if prev_right <= block_left + COLLISION_EPSILON && prev_x <= x {
-                            Some((-(entity_right - block_left + COLLISION_EPSILON), 0.0, false))
-                        } else if prev_left >= block_right - COLLISION_EPSILON && prev_x >= x {
-                            Some((block_right - entity_left + COLLISION_EPSILON, 0.0, false))
-                        } else {
-                            None
-                        };
-
-                    let resolution = inferred_resolution.unwrap_or_else(|| {
-                        let push_left = -(entity_right - block_left + COLLISION_EPSILON);
-                        let push_right = block_right - entity_left + COLLISION_EPSILON;
-                        let push_up = -(entity_bottom - block_top + COLLISION_EPSILON);
-                        let push_down = block_bottom - entity_top + COLLISION_EPSILON;
-
-                        let horizontal = if push_left.abs() <= push_right.abs() {
-                            (push_left, 0.0, false)
-                        } else {
-                            (push_right, 0.0, false)
-                        };
-                        let vertical = if push_up.abs() <= push_down.abs() {
-                            (0.0, push_up, true)
-                        } else {
-                            (0.0, push_down, true)
-                        };
-
-                        if vertical.1.abs() <= horizontal.0.abs() {
-                            vertical
-                        } else {
-                            horizontal
+                    for [block_left, block_top, block_right, block_bottom] in
+                        self.collision_bounds_at(bx, by)
+                    {
+                        let overlap_x = entity_right.min(block_right) - entity_left.max(block_left);
+                        let overlap_y = entity_bottom.min(block_bottom) - entity_top.max(block_top);
+                        if overlap_x <= COLLISION_EPSILON || overlap_y <= COLLISION_EPSILON {
+                            continue;
                         }
-                    });
 
-                    match best_resolution {
-                        Some((best_dx, best_dy, _))
-                            if resolution.0.abs() + resolution.1.abs()
-                                >= best_dx.abs() + best_dy.abs() => {}
-                        _ => best_resolution = Some(resolution),
+                        let prev_left = prev_x - half_width;
+                        let prev_right = prev_x + half_width;
+                        let prev_top = prev_y - height;
+                        let prev_bottom = prev_y;
+
+                        let inferred_resolution =
+                            if prev_bottom <= block_top + COLLISION_EPSILON && prev_y <= y {
+                                Some((0.0, -(entity_bottom - block_top + COLLISION_EPSILON), true))
+                            } else if prev_top >= block_bottom - COLLISION_EPSILON && prev_y >= y {
+                                Some((0.0, block_bottom - entity_top + COLLISION_EPSILON, true))
+                            } else if prev_right <= block_left + COLLISION_EPSILON && prev_x <= x {
+                                Some((-(entity_right - block_left + COLLISION_EPSILON), 0.0, false))
+                            } else if prev_left >= block_right - COLLISION_EPSILON && prev_x >= x {
+                                Some((block_right - entity_left + COLLISION_EPSILON, 0.0, false))
+                            } else {
+                                None
+                            };
+
+                        let resolution = inferred_resolution.unwrap_or_else(|| {
+                            let push_left = -(entity_right - block_left + COLLISION_EPSILON);
+                            let push_right = block_right - entity_left + COLLISION_EPSILON;
+                            let push_up = -(entity_bottom - block_top + COLLISION_EPSILON);
+                            let push_down = block_bottom - entity_top + COLLISION_EPSILON;
+
+                            let horizontal = if push_left.abs() <= push_right.abs() {
+                                (push_left, 0.0, false)
+                            } else {
+                                (push_right, 0.0, false)
+                            };
+                            let vertical = if push_up.abs() <= push_down.abs() {
+                                (0.0, push_up, true)
+                            } else {
+                                (0.0, push_down, true)
+                            };
+
+                            if vertical.1.abs() <= horizontal.0.abs() {
+                                vertical
+                            } else {
+                                horizontal
+                            }
+                        });
+
+                        match best_resolution {
+                            Some((best_dx, best_dy, _))
+                                if resolution.0.abs() + resolution.1.abs()
+                                    >= best_dx.abs() + best_dy.abs() => {}
+                            _ => best_resolution = Some(resolution),
+                        }
                     }
                 }
             }
@@ -14611,18 +14464,19 @@ impl GameState {
         for probe_x in probe_xs {
             let block_x = probe_x.floor() as i32;
             for block_y in y.floor() as i32..=(y + max_snap_distance).floor() as i32 {
-                let support_y = block_y as f64;
-                let drop = support_y - y;
-                if drop < -SNAP_UP_TOLERANCE {
+                if !self.block_has_entity_collision_at(block_x, block_y) {
                     continue;
                 }
-                if drop > max_snap_distance {
-                    break;
-                }
-                if self.block_has_entity_collision_at(block_x, block_y) {
-                    best_support_y =
-                        Some(best_support_y.map_or(support_y, |best_y| best_y.min(support_y)));
-                    break;
+                for bounds in self.collision_bounds_at(block_x, block_y) {
+                    if probe_x < bounds[0] || probe_x >= bounds[2] {
+                        continue;
+                    }
+                    let support_y = bounds[1];
+                    let drop = support_y - y;
+                    if (-SNAP_UP_TOLERANCE..=max_snap_distance).contains(&drop) {
+                        best_support_y =
+                            Some(best_support_y.map_or(support_y, |best_y| best_y.min(support_y)));
+                    }
                 }
             }
         }
@@ -14630,7 +14484,7 @@ impl GameState {
         best_support_y
     }
 
-    fn has_stable_ground_support(&self, x: f64, y: f64, half_width: f64, vx: f64) -> bool {
+    fn has_stable_ground_support(&self, x: f64, y: f64, half_width: f64, _vx: f64) -> bool {
         const COLLISION_EPSILON: f64 = 0.001;
 
         let side_probe = (half_width - COLLISION_EPSILON).max(0.0);
@@ -14640,15 +14494,9 @@ impl GameState {
             supported[idx] = self.is_colliding(probe_x, y + 0.05, CollisionType::VerticalDown(y));
         }
 
-        let support_hits = supported.into_iter().filter(|hit| *hit).count();
-        if vx > 0.0 {
-            return supported[2];
-        }
-        if vx < 0.0 {
-            return supported[1];
-        }
-
-        supported[0] || support_hits >= 2
+        // An actor remains supported until its entire foot leaves the surface.
+        // Looking only at the leading edge caused a false airborne tick on stairs.
+        supported.into_iter().any(|hit| hit)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -14836,9 +14684,9 @@ impl GameState {
             && let Some(step_probe_x) = step_probe_x
         {
             let step_heights: &[f64] = if fluid_exit_step || rising_jump_assist {
-                &[0.42, 0.52, 0.6, 0.78, 0.92, 1.0]
+                &[0.5, 0.6, 0.78, 0.92, 1.0]
             } else {
-                &[0.42, 0.52, 0.6]
+                &[0.5, 0.6]
             };
             for &step_up in step_heights {
                 let step_y = y - step_up;
@@ -14913,6 +14761,17 @@ impl GameState {
                 let t = step as f64 / sweep_steps as f64;
                 let candidate_x = x + vx * t;
                 if horizontal_collides(candidate_x + horizontal_edge_offset, y) {
+                    let mut clear = furthest_x;
+                    let mut blocked = candidate_x;
+                    for _ in 0..12 {
+                        let middle = (clear + blocked) * 0.5;
+                        if horizontal_collides(middle + horizontal_edge_offset, y) {
+                            blocked = middle;
+                        } else {
+                            clear = middle;
+                        }
+                    }
+                    furthest_x = clear;
                     break;
                 }
                 furthest_x = candidate_x;
@@ -14951,10 +14810,18 @@ impl GameState {
                         .any(|probe_x| self.is_colliding(probe_x, probe_y, kind))
                 });
             if let Some(collision_y) = collision_y {
-                y = if falling {
-                    collision_y.floor()
+                let probe_y = if falling {
+                    collision_y
                 } else {
-                    (collision_y - height).floor() + 1.0 + height + COLLISION_EPSILON
+                    collision_y - height
+                };
+                let surfaces = [x, x - side_probe, x + side_probe]
+                    .into_iter()
+                    .filter_map(|probe_x| self.collision_bounds_at_point(probe_x, probe_y));
+                y = if falling {
+                    surfaces.map(|b| b[1]).fold(collision_y, f64::min)
+                } else {
+                    surfaces.map(|b| b[3]).fold(probe_y, f64::max) + height + COLLISION_EPSILON
                 };
                 vy = 0.0;
                 grounded = falling;
@@ -14976,7 +14843,9 @@ impl GameState {
         hit_wall |= overlap_hit_wall;
 
         if !in_water && !in_lava && !on_ladder && (0.0..=0.14).contains(&vy) {
-            let max_snap_distance = if grounded {
+            let max_snap_distance = if started_grounded && !jump_held && vy >= 0.0 {
+                0.55
+            } else if grounded {
                 0.24
             } else if vx.abs() < 0.02 {
                 0.18
@@ -15019,7 +14888,7 @@ impl GameState {
             }
             return false;
         }
-        true
+        self.collision_bounds_at_point(x, y).is_some()
     }
 
     fn is_exposed_to_sky(&self, x: f64, top_y: f64) -> bool {
@@ -15742,7 +15611,7 @@ mod tests {
         let (_nx, ny, _nvx, nvy, ngr, _hit_wall) = state.calculate_movement(
             0.74,
             10.0,
-            0.35,
+            0.6, // The whole foot, including its trailing edge, clears the block.
             0.0,
             true,
             PLAYER_HALF_WIDTH,

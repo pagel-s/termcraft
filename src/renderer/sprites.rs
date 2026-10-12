@@ -6,6 +6,7 @@ mod dragon;
 enum SpritePixels {
     Rows(&'static [&'static str]),
     Dragon(&'static dragon::Frame),
+    Item(super::ItemType),
 }
 
 impl SpritePixels {
@@ -13,18 +14,21 @@ impl SpritePixels {
         match self {
             Self::Rows(rows) => rows[0].len(),
             Self::Dragon(_) => dragon::WIDTH,
+            Self::Item(_) => 8,
         }
     }
     fn height(&self) -> usize {
         match self {
             Self::Rows(rows) => rows.len(),
             Self::Dragon(_) => dragon::HEIGHT,
+            Self::Item(_) => 8,
         }
     }
     fn token(&self, x: usize, y: usize) -> u8 {
         match self {
             Self::Rows(rows) => rows[y].as_bytes()[x],
             Self::Dragon(frame) => frame[y][x],
+            Self::Item(item) => super::items::token(*item, x, y),
         }
     }
 }
@@ -192,6 +196,10 @@ impl ActorSprite {
     fn pixel_dimensions(&self, scale: i32) -> (usize, usize) {
         if let Some((width, rows)) = self.dimensions {
             return (width.max(1), (rows * 2).max(1));
+        }
+        if matches!(self.kind, SpriteKind::Item) {
+            let pixels = (scale as usize * 3 / 2).max(2);
+            return (pixels, pixels);
         }
         let pixels = self.pixels();
         (
@@ -371,40 +379,18 @@ impl ActorSprite {
                 "    r   ", "  rrrr  ", " rtttrr ", "rtwwttrr", " rtttrr ", "  rrrr  ", "    r   ",
             ],
             SpriteKind::Arrow => &["       g", "tppppppg", "       g"],
-            SpriteKind::Item => match self.held_item {
-                Some(
-                    super::ItemType::WoodSword
-                    | super::ItemType::StoneSword
-                    | super::ItemType::IronSword
-                    | super::ItemType::DiamondSword,
-                ) => &["   a", "  aa", " aa ", "taa ", " tt ", "b t "],
-                Some(
-                    super::ItemType::WoodPickaxe
-                    | super::ItemType::StonePickaxe
-                    | super::ItemType::IronPickaxe
-                    | super::ItemType::DiamondPickaxe,
-                ) => &[" aaa", "aa  ", "  t ", " t  ", "t   "],
-                Some(
-                    super::ItemType::WoodAxe
-                    | super::ItemType::StoneAxe
-                    | super::ItemType::IronAxe
-                    | super::ItemType::DiamondAxe,
-                ) => &[" aaa", " aa ", " at ", " t  ", "t   "],
-                Some(
-                    super::ItemType::WoodShovel
-                    | super::ItemType::StoneShovel
-                    | super::ItemType::IronShovel
-                    | super::ItemType::DiamondShovel,
-                ) => &["  aa", "  aa", "  t ", " t  ", "t   "],
-                Some(item) if item.to_block().is_some() => &["++++", "+..a", "+..a", "----"],
-                _ => &[" aa ", "a++a", "aaaa", " -- "],
-            },
+            SpriteKind::Item => {
+                return SpritePixels::Item(self.held_item.unwrap_or(super::ItemType::Dirt));
+            }
             SpriteKind::Orb => &[" + ", "+w+", " + "],
         })
     }
 
     fn color(&self, pixel: u8) -> Option<Color> {
         use SpriteKind::*;
+        if matches!(self.kind, Item) {
+            return super::items::color(self.held_item.unwrap_or(super::ItemType::Dirt), pixel);
+        }
         let (skin, coat, legs, accent) = match self.kind {
             Player => (
                 self.colors[0],
@@ -685,30 +671,46 @@ impl Renderer {
         let Some((wx, wy)) = actor.world_position else {
             return;
         };
-        let Some(ground) = (wy.floor() as i32..=wy.floor() as i32 + 4).find(|y| {
-            state.world.get_block(wx.floor() as i32, *y).is_solid()
-                && !state.world.get_block(wx.floor() as i32, *y - 1).is_solid()
-        }) else {
+        let surface_at = |wx: f64| {
+            let bx = wx.floor() as i32;
+            let local = wx.rem_euclid(1.0);
+            (wy.floor() as i32..=wy.floor() as i32 + 4)
+                .flat_map(|by| {
+                    state
+                        .world
+                        .get_block(bx, by)
+                        .collision_boxes()
+                        .iter()
+                        .filter_map(move |b| {
+                            let top = by as f64 + b[1];
+                            (local >= b[0] && local < b[2] && top >= wy - 0.05).then_some(top)
+                        })
+                })
+                .min_by(f64::total_cmp)
+        };
+        let Some(ground) = surface_at(wx) else {
             return;
         };
-        let height = (ground as f64 - wy).max(0.0);
+        let height = (ground - wy).max(0.0);
         let (width, _) = actor.pixel_dimensions(scale);
         let (vx, vy, cx, cy, _) = self.world_view.unwrap();
         let unit = (scale * 2) as f64;
         let center = (wx * unit).round() as i32 - vx + cx + (height * 0.18 * unit) as i32;
-        let y = ground * scale * 2 - vy * 2 - self.vertical_pixel_offset + cy * 2;
+
         let radius = (width as f64 * 0.55 + scale as f64 * 0.2).max(1.0);
         for dx in -(radius.ceil() as i32)..=radius.ceil() as i32 {
             let x = center + dx;
             if x < 0 || x >= self.width as i32 {
                 continue;
             }
-            let bx = (x + vx - cx).div_euclid(scale * 2);
-            if !state.world.get_block(bx, ground).is_solid()
-                || state.world.get_block(bx, ground - 1).is_solid()
-            {
+            let sample_x = (x + vx - cx) as f64 / unit;
+            let Some(surface) = surface_at(sample_x) else {
+                continue;
+            };
+            if (surface - ground).abs() > 0.55 {
                 continue;
             }
+            let y = (surface * unit).round() as i32 - vy * 2 - self.vertical_pixel_offset + cy * 2;
             let soft = (1.0 - (dx as f64 / radius).powi(2)).max(0.0);
             let alpha = (soft * 0.31 * (-height * 0.55).exp()) as f32;
             for depth in 0..2 {
@@ -856,7 +858,14 @@ impl Renderer {
                         as f64
                         / (2 * scale) as f64;
                     let covered = state.world.get_block(wx.floor() as i32, wy.floor() as i32);
-                    if covered.is_solid() && covered != super::BlockType::Glass {
+                    if covered != super::BlockType::Glass
+                        && covered.collision_boxes().iter().any(|b| {
+                            wx.rem_euclid(1.0) >= b[0]
+                                && wx.rem_euclid(1.0) < b[2]
+                                && wy.rem_euclid(1.0) >= b[1]
+                                && wy.rem_euclid(1.0) < b[3]
+                        })
+                    {
                         continue;
                     }
                     let emissive = matches!(actor.kind, SpriteKind::Fireball | SpriteKind::Orb)
@@ -908,8 +917,16 @@ impl Renderer {
     }
 
     pub(super) fn put_pixel(&mut self, x: i32, y_pixel: i32, color: Color) {
+        self.put_pixel_bounded(x, y_pixel, color, self.height as i32 - 4);
+    }
+
+    pub(super) fn put_ui_pixel(&mut self, x: i32, y_pixel: i32, color: Color) {
+        self.put_pixel_bounded(x, y_pixel, color, self.height as i32);
+    }
+
+    fn put_pixel_bounded(&mut self, x: i32, y_pixel: i32, color: Color, bottom: i32) {
         let y = y_pixel.div_euclid(2);
-        if x < 0 || x >= self.width as i32 || y < 0 || y >= self.height as i32 - 4 {
+        if x < 0 || x >= self.width as i32 || y < 0 || y >= bottom {
             return;
         }
         let idx = y as usize * self.width as usize + x as usize;

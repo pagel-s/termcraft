@@ -2,14 +2,14 @@
 use super::{BlockType, GameState, Renderer};
 
 type Rgb = (u8, u8, u8);
-struct Tile {
-    pixels: [&'static str; 4],
-    colors: [Rgb; 4], // body, highlight, shadow, accent
-    detail: Option<[&'static str; 8]>,
+pub(super) struct Tile {
+    pub(super) pixels: [&'static str; 4],
+    pub(super) colors: [Rgb; 4], // body, highlight, shadow, accent
+    pub(super) detail: Option<[&'static str; 8]>,
 }
 
 impl Tile {
-    fn for_block(
+    pub(super) fn for_block(
         block: BlockType,
         dimension: crate::world::Dimension,
         above: BlockType,
@@ -126,8 +126,8 @@ impl Tile {
             }
             Glass => ["+  +", " a  ", "  a ", "+  +"],
             Wool | Snow | Ice => ["++++", "....", ".+..", "..-."],
-            StoneSlab => ["++++", "....", "----", ".-.."],
-            StoneStairs => ["..++", "..--", "++..", "----"],
+            StoneSlab => ["    ", "    ", "++++", "...."],
+            StoneStairs => ["  ++", "  ..", "++..", "...."],
             EnchantingTable => {
                 colors[3] = (122, 231, 223);
                 [" aa ", "++++", "-aa-", "----"]
@@ -141,8 +141,11 @@ impl Tile {
                 colors = [(119, 82, 45), (251, 175, 72), (75, 53, 34), (255, 221, 130)];
                 [" aa ", " ++ ", " .  ", " .  "]
             }
-            RedstoneTorch(_) => {
+            RedstoneTorch(on) => {
                 colors = [(103, 71, 44), (222, 93, 58), (66, 44, 32), (249, 116, 76)];
+                if !on {
+                    colors = [(86, 62, 43), (111, 58, 49), (55, 41, 33), (123, 63, 52)];
+                }
                 [" aa ", " ++ ", " .  ", " .  "]
             }
             Tnt | PrimedTnt(_) => {
@@ -156,7 +159,13 @@ impl Tile {
                     ["+   ", " +  ", "  + ", "----"]
                 }
             }
-            StoneButton(_) => ["    ", "    ", " ++ ", " -- "],
+            StoneButton(timer) => {
+                if timer > 0 {
+                    ["    ", "    ", "    ", " -- "]
+                } else {
+                    ["    ", "    ", " ++ ", " -- "]
+                }
+            }
             Cactus => [" +. ", "a+.a", " +. ", "a+.a"],
             DeadBush => ["    ", "+ + ", " + +", "  + "],
             RedFlower | YellowFlower => {
@@ -185,14 +194,29 @@ impl Tile {
                     ["++++", "a..a", ".aa.", "..a."]
                 }
             }
-            Obsidian => ["..-.", ".a..", "-..-", "..a."],
+            Obsidian => {
+                colors = [(76, 65, 94), (107, 91, 127), (43, 37, 58), (86, 72, 105)];
+                ["+..-", ".a.-", ".-..", "..a-"]
+            }
             Netherrack => {
                 colors = [(106, 59, 54), (128, 72, 62), (86, 45, 45), (119, 58, 48)];
                 ["+..-", ".-..", "a.+.", "..-."]
             }
             Glowstone => ["+aa+", "a++a", "a+a+", "+aa+"],
             NetherPortal | EndPortal => ["a..a", ".aa.", "a..a", ".aa."],
-            EndPortalFrame { .. } => ["aaaa", "+--+", "+aa+", "----"],
+            EndPortalFrame { filled } => {
+                colors = [
+                    (66, 91, 76),
+                    (123, 143, 105),
+                    (41, 56, 49),
+                    if filled {
+                        (108, 206, 164)
+                    } else {
+                        (27, 37, 38)
+                    },
+                ];
+                ["+aa+", "+--+", "....", "----"]
+            }
             IronDoor(open) | WoodDoor(open) => {
                 if open {
                     ["+   ", "+   ", "+a  ", "+   "]
@@ -202,8 +226,47 @@ impl Tile {
             }
             Ladder => ["+  +", "++++", "+  +", "++++"],
             RedstoneDust(_) => ["    ", "    ", "  a ", "aaaa"],
-            RedstoneRepeater { .. } => ["    ", "a a ", "----", "...."],
-            Piston { .. } | StickyPiston { .. } => ["aaaa", "++++", "-..-", "----"],
+            RedstoneRepeater {
+                powered,
+                facing_right,
+                ..
+            } => {
+                colors[3] = if powered {
+                    (239, 99, 69)
+                } else {
+                    (117, 54, 47)
+                };
+                if facing_right {
+                    ["    ", "a a ", "--a-", "...."]
+                } else {
+                    ["    ", " a a", "-a--", "...."]
+                }
+            }
+            Piston {
+                extended,
+                facing_right,
+            }
+            | StickyPiston {
+                extended,
+                facing_right,
+            } => {
+                colors = [
+                    (109, 108, 100),
+                    (159, 137, 98),
+                    (67, 70, 72),
+                    if matches!(block, StickyPiston { .. }) {
+                        (110, 159, 88)
+                    } else {
+                        (169, 139, 93)
+                    },
+                ];
+                match (extended, facing_right) {
+                    (false, true) => ["...a", ".++a", ".--a", "---a"],
+                    (false, false) => ["a...", "a++.", "a--.", "a---"],
+                    (true, true) => [".. a", ".++a", ".--a", "-- a"],
+                    (true, false) => ["a ..", "a++.", "a--.", "a --"],
+                }
+            }
             Crops(stage) | NetherWart(stage) => {
                 if stage >= 4 {
                     [" a a", "a.a.", " a.a", "...."]
@@ -609,6 +672,15 @@ impl Renderer {
     // A bounded, visual-only cutaway back wall. It has no collision or saved blocks.
     fn room_backdrop(state: &GameState, x: i32, y: i32) -> Option<Rgb> {
         let roof = (1..=6).find(|dy| state.world.get_block(x, y - dy) != BlockType::Air)?;
+        // A recessed back wall distinguishes the End tower's open walking
+        // tunnel from its solid upper column. Mining/building still uses real blocks.
+        if state.current_dimension == crate::world::Dimension::End
+            && roof <= 3
+            && state.world.get_block(x, y - roof) == BlockType::Obsidian
+            && (1..=3).any(|dy| state.world.get_block(x, y + dy) == BlockType::Obsidian)
+        {
+            return Some((31, 27, 43));
+        }
         if !matches!(
             state.world.get_block(x, y - roof),
             BlockType::Planks | BlockType::Wood | BlockType::BirchWood | BlockType::StoneBricks

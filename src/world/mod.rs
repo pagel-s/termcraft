@@ -5208,77 +5208,43 @@ impl World {
             }
         }
 
-        for (idx, tower_x) in END_TOWER_XS.iter().enumerate() {
-            let tower_x = *tower_x;
-            if tower_x < c_start || tower_x >= c_start + CHUNK_WIDTH as i32 {
-                continue;
-            }
-            let lx = (tower_x - c_start) as usize;
-            let mut base_y = 34;
-            for y in 2..(CHUNK_HEIGHT as i32 - 2) {
-                if chunk.get_block(lx, y as usize) == BlockType::EndStone {
-                    base_y = y;
-                    break;
-                }
-            }
-            let height = 8 + ((idx as i32 * 5 + tower_x.abs()) % 5);
-            let top_y = (base_y - height).max(2);
-            let arch_roof_y = (base_y - 4).max(top_y + 1);
-
-            for wy in top_y..arch_roof_y {
-                if wy > 1 {
-                    chunk.set_block(lx, wy as usize, BlockType::Obsidian);
-                }
-            }
-
-            for wx in (tower_x - 2)..=(tower_x + 2) {
-                if wx >= c_start && wx < c_start + CHUNK_WIDTH as i32 && arch_roof_y > 1 {
-                    let local_x = (wx - c_start) as usize;
-                    chunk.set_block(local_x, arch_roof_y as usize, BlockType::Obsidian);
-                }
-            }
-
-            for support_x in [tower_x - 2, tower_x + 2] {
-                if support_x < c_start || support_x >= c_start + CHUNK_WIDTH as i32 {
+        // A side-on slice needs a continuous ground route: solid upper columns,
+        // a three-block cutaway tunnel through each base, and buried foundations.
+        // Geometry is evaluated from world coordinates so chunk seams cannot split
+        // a column, cap or tunnel (the outer towers cross chunk boundaries).
+        for (idx, &tower_x) in END_TOWER_XS.iter().enumerate() {
+            let base_y = (34.0 + perlin.get([tower_x as f64 * 0.08, 700.0]) * 2.0) as i32;
+            let top_y = base_y - [14, 11, 13, 16][idx];
+            for wx in tower_x - 3..=tower_x + 3 {
+                if wx < c_start || wx >= c_start + CHUNK_WIDTH as i32 {
                     continue;
                 }
-                let support_lx = (support_x - c_start) as usize;
-                for wy in (arch_roof_y + 1)..=base_y {
-                    if wy > 1 {
-                        chunk.set_block(support_lx, wy as usize, BlockType::Obsidian);
+                let lx = (wx - c_start) as usize;
+                // Level the small approach, including two clear head blocks.
+                for wy in base_y - 3..=base_y + 2 {
+                    chunk.set_block(
+                        lx,
+                        wy as usize,
+                        if wy < base_y {
+                            BlockType::Air
+                        } else {
+                            BlockType::EndStone
+                        },
+                    );
+                }
+                if (wx - tower_x).abs() <= 2 {
+                    for wy in top_y..base_y - 3 {
+                        chunk.set_block(lx, wy as usize, BlockType::Obsidian);
+                    }
+                    // The buried foot reads as a foundation, not spindly legs.
+                    for wy in base_y..=base_y + 1 {
+                        chunk.set_block(lx, wy as usize, BlockType::Obsidian);
                     }
                 }
-            }
-
-            for wx in (tower_x - 1)..=(tower_x + 1) {
-                if wx >= c_start && wx < c_start + CHUNK_WIDTH as i32 {
-                    let local_x = (wx - c_start) as usize;
-                    for passage_y in (arch_roof_y + 1)..=(base_y - 1) {
-                        if passage_y > 1 {
-                            chunk.set_block(local_x, passage_y as usize, BlockType::Air);
-                        }
-                    }
-                }
-            }
-
-            for wx in (tower_x - 3)..=(tower_x + 3) {
-                if wx >= c_start && wx < c_start + CHUNK_WIDTH as i32 {
-                    let local_x = (wx - c_start) as usize;
-                    if base_y > 1 && chunk.get_block(local_x, base_y as usize) == BlockType::Air {
-                        chunk.set_block(local_x, base_y as usize, BlockType::EndStone);
-                    }
-                }
-            }
-            let glow_y = top_y - 1;
-            if glow_y > 1 {
-                chunk.set_block(lx, glow_y as usize, BlockType::Glowstone);
-            }
-            if base_y - 2 > 1 {
-                for support_x in [tower_x - 2, tower_x + 2] {
-                    if support_x >= c_start && support_x < c_start + CHUNK_WIDTH as i32 {
-                        let support_lx = (support_x - c_start) as usize;
-                        chunk.set_block(support_lx, (base_y - 2) as usize, BlockType::Glowstone);
-                    }
+                // Slightly wider crown, well above the walking route.
+                chunk.set_block(lx, top_y as usize, BlockType::Obsidian);
+                if wx == tower_x {
+                    chunk.set_block(lx, (top_y - 1) as usize, BlockType::Glowstone);
                 }
             }
         }
@@ -9636,28 +9602,44 @@ mod tests {
     }
 
     #[test]
-    fn test_end_towers_have_player_passage_in_2d() {
+    fn test_end_towers_have_proportional_columns_and_continuous_passages_across_chunk_seams() {
         let mut world = World::new_for_dimension(Dimension::End);
-
         for tower_x in END_TOWER_XS {
-            world.load_chunks_around(tower_x);
-            let mut passage_floor_y = None;
-            for y in 4..(CHUNK_HEIGHT as i32 - 2) {
-                let center_clear = (tower_x - 1..=tower_x + 1).all(|wx| {
-                    world.get_block(wx, y - 1) == BlockType::Air
-                        && world.get_block(wx, y - 2) == BlockType::Air
-                });
-                let has_tower_shell = (tower_x - 2..=tower_x + 2).any(|wx| {
-                    world.get_block(wx, y) == BlockType::Obsidian
-                        || world.get_block(wx, y - 1) == BlockType::Obsidian
-                        || world.get_block(wx, y - 2) == BlockType::Obsidian
-                        || world.get_block(wx, y - 3) == BlockType::Obsidian
-                });
-                if center_clear && has_tower_shell {
-                    passage_floor_y = Some(y);
+            world.load_chunks_for_spawn_search(tower_x, 8);
+            let top = (2..40)
+                .find(|&y| world.get_block(tower_x, y) == BlockType::Obsidian)
+                .unwrap();
+            let floor = (top + 1..40)
+                .find(|&y| {
+                    world.get_block(tower_x, y) == BlockType::Air
+                        && world.get_block(tower_x, y + 1) == BlockType::Air
+                        && world.get_block(tower_x, y + 2) == BlockType::Air
+                        && world.get_block(tower_x, y + 3) == BlockType::Obsidian
+                })
+                .unwrap()
+                + 3;
+            assert!((11..=16).contains(&(floor - top)));
+            assert_eq!(world.get_block(tower_x, top - 1), BlockType::Glowstone);
+            for x in tower_x - 3..=tower_x + 3 {
+                assert_eq!(
+                    world.get_block(x, top),
+                    BlockType::Obsidian,
+                    "crown at chunk seam"
+                );
+                for y in floor - 3..floor {
+                    assert_eq!(
+                        world.get_block(x, y),
+                        BlockType::Air,
+                        "blocked 2D route at {x},{y}"
+                    );
+                }
+                assert!(world.get_block(x, floor).is_solid());
+                if (x - tower_x).abs() <= 2 {
+                    for y in top..floor - 3 {
+                        assert_eq!(world.get_block(x, y), BlockType::Obsidian);
+                    }
                 }
             }
-            assert!(passage_floor_y.is_some());
         }
     }
 

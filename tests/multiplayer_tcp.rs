@@ -530,15 +530,26 @@ impl Client {
     #[track_caller]
     fn until(&self, predicate: impl Fn(&ServerSnapshot) -> bool) -> Box<ServerSnapshot> {
         let deadline = Instant::now() + Duration::from_secs(8);
+        let caller = std::panic::Location::caller();
+        let mut last = String::from("no snapshot received");
         loop {
             let msg = self
                 .incoming
                 .recv_timeout(deadline.saturating_duration_since(Instant::now()))
-                .expect("snapshot timeout");
-            if let ServerWireMessage::Snapshot(snapshot) = msg
-                && predicate(&snapshot)
-            {
-                return snapshot;
+                .unwrap_or_else(|error| panic!("snapshot timeout at {caller}: {error}; {last}"));
+            if let ServerWireMessage::Snapshot(snapshot) = msg {
+                if predicate(&snapshot) {
+                    return snapshot;
+                }
+                last = format!(
+                    "tick {}, player ({:.3},{:.3}), wood {}, planks {}, ack {}",
+                    snapshot.tick,
+                    snapshot.player.x,
+                    snapshot.player.y,
+                    count(&snapshot, ItemType::Wood),
+                    count(&snapshot, ItemType::Planks),
+                    snapshot.acknowledged_sequence
+                );
             }
         }
     }
@@ -588,6 +599,11 @@ fn two_socket_players_mine_build_disconnect_and_resume_after_restart() -> io::Re
         "unexpected fixture spawn {}",
         first.player.x
     );
+    // Both can reach the contested block; only A can reach its drop. Letting
+    // equally positioned players race the pickup made this test nondeterministic.
+    b.send(ClientCommand::SetMoveLeft(true));
+    b.until(|s| s.player.x <= -1.0);
+    b.send(ClientCommand::ClearDirectionalInput);
     for c in [&mut a, &mut b] {
         c.send(ClientCommand::AimAt(2, 63));
         c.send(ClientCommand::SetPrimaryAction(true));
@@ -603,9 +619,9 @@ fn two_socket_players_mine_build_disconnect_and_resume_after_restart() -> io::Re
         c.send(ClientCommand::SetPrimaryAction(false));
     }
     a.send(ClientCommand::SetMoveRight(true));
-    a.until(|s| s.player.x >= 0.5);
-    a.send(ClientCommand::ClearDirectionalInput);
+    // Wait for the actual pickup, not the original spawn x (already >= 0.5).
     let collected = a.until(|s| count(s, ItemType::Wood) == 1);
+    a.send(ClientCommand::ClearDirectionalInput);
     let other = b.until(|s| s.tick >= collected.tick);
     assert_eq!(count(&other, ItemType::Wood), 0);
     let recipe = Recipe::all()

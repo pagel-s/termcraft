@@ -14,6 +14,114 @@ fn scene() -> GameState {
 }
 
 #[test]
+fn slabs_and_stairs_match_visible_surfaces_in_both_directions() {
+    let mut s = scene();
+    for x in -16..=16 {
+        for y in 0..20 {
+            s.world.set_block(x, y, BlockType::Air);
+        }
+        s.world.set_block(x, 20, BlockType::Stone);
+    }
+    for x in [0, 1, 6, 7] {
+        s.world.set_block(x, 19, BlockType::StoneSlab);
+    }
+    s.world.set_block(2, 19, BlockType::StoneStairs);
+    for x in 3..=5 {
+        s.world.set_block(x, 19, BlockType::Stone);
+    }
+    for direction in [-1.0, 1.0] {
+        let mut x = if direction > 0.0 { -1.5 } else { 8.5 };
+        let mut y = 20.0;
+        let mut grounded = true;
+        for _ in 0..56 {
+            let (nx, ny, _, vy, gr, hit) = s.calculate_movement_with_jump_held(
+                x,
+                y,
+                direction * 0.2,
+                0.0,
+                grounded,
+                PLAYER_HALF_WIDTH,
+                PLAYER_HEIGHT,
+                true,
+                false,
+            );
+            assert!(!hit, "shaped course blocked at {x},{y}");
+            assert!(
+                gr && vy == 0.0,
+                "stair traversal must stay grounded at {nx},{ny}"
+            );
+            assert!(
+                (ny - y).abs() <= 0.501,
+                "stairs must change height by half a block"
+            );
+            assert!(
+                !s.is_colliding(nx, ny - 0.01, CollisionType::Horizontal),
+                "feet penetrated drawn surface"
+            );
+            x = nx;
+            y = ny;
+            grounded = gr;
+        }
+        assert!(if direction > 0.0 { x > 8.0 } else { x < -1.0 });
+    }
+}
+
+#[test]
+fn shaped_blocks_land_at_half_height_and_leave_real_head_clearance() {
+    let mut s = scene();
+    s.world.set_block(0, 20, BlockType::StoneSlab);
+    let (_, y, _, vy, grounded, _) =
+        s.calculate_movement(0.25, 20.2, 0.0, 0.6, false, 0.2, 1.8, false);
+    assert_eq!(y, 20.5);
+    assert_eq!(vy, 0.0);
+    assert!(grounded);
+    s.world.set_block(0, 20, BlockType::StoneStairs);
+    for (x, expected_y) in [(0.2, 20.5), (0.8, 20.0)] {
+        let (_, y, _, _, gr, _) = s.calculate_movement(x, 19.8, 0.0, 0.8, false, 0.1, 1.8, false);
+        assert_eq!(y, expected_y);
+        assert!(gr);
+    }
+    assert!(!s.is_colliding(0.2, 20.25, CollisionType::Horizontal));
+    assert!(s.is_colliding(0.8, 20.25, CollisionType::Horizontal));
+}
+
+#[test]
+fn half_step_cannot_push_player_through_a_low_ceiling_or_up_a_full_wall() {
+    let mut s = scene();
+    for x in -2..=3 {
+        s.world.set_block(x, 20, BlockType::Stone);
+    }
+    s.world.set_block(1, 19, BlockType::StoneSlab);
+    s.world.set_block(1, 17, BlockType::Stone);
+    let (x, y, _, _, _, hit) = s.calculate_movement(
+        0.5,
+        20.0,
+        0.6,
+        0.0,
+        true,
+        PLAYER_HALF_WIDTH,
+        PLAYER_HEIGHT,
+        true,
+    );
+    assert!(hit && x <= 0.752);
+    assert_eq!(y, 20.0);
+    s.world.set_block(1, 17, BlockType::Air);
+    s.world.set_block(1, 19, BlockType::Stone);
+    let (_, y, _, _, _, hit) = s.calculate_movement(
+        0.5,
+        20.0,
+        0.6,
+        0.0,
+        true,
+        PLAYER_HALF_WIDTH,
+        PLAYER_HEIGHT,
+        true,
+    );
+    assert!(hit);
+    assert_eq!(y, 20.0);
+}
+
+#[test]
 fn held_jump_climbs_ladder_continuously_and_sneak_holds_position() {
     let mut s = scene();
     for y in 0..30 {

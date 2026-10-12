@@ -43,6 +43,7 @@ impl PlayerPreview {
         if state.current_dimension != self.physics.current_dimension {
             self.physics.world = crate::world::World::network_replica(state.current_dimension);
             self.revisions.clear();
+            self.raw.0 = f64::NAN;
         }
         let center =
             (state.player.x.floor() as i32).div_euclid(crate::world::chunk::CHUNK_WIDTH as i32);
@@ -68,7 +69,16 @@ impl PlayerPreview {
         let raw = (current.0, current.1, state.player.age);
         let alpha = alpha.clamp(0.0, 1.0);
         if self.raw != raw || alpha < self.last_alpha {
-            self.anchor = current;
+            // Ordinary ticks meet the predicted endpoint exactly. A release or
+            // server correction can change it: settle a small error through this
+            // tick instead of snapping the player AND scrolling the whole world.
+            let error = (self.endpoint.0 - current.0, self.endpoint.1 - current.1);
+            self.anchor = if self.raw.0.is_finite() && error.0.hypot(error.1) < 0.75 {
+                self.physics
+                    .resolve_motion_presentation(self.endpoint.0, self.endpoint.1)
+            } else {
+                current
+            };
             self.anchor_alpha = 0.0;
         } else if self.endpoint != endpoint {
             // Input may change between physics ticks. Rebase at the visible
@@ -77,13 +87,25 @@ impl PlayerPreview {
             self.anchor_alpha = self.last_alpha;
         }
         self.raw = raw;
-        self.endpoint = endpoint;
+        self.endpoint = if self.anchor_alpha > 0.0 {
+            // Integrate the new input only over the unrendered part of the tick.
+            // A full-tick endpoint made releasing a held direction rewind.
+            (
+                self.anchor.0 + (endpoint.0 - current.0) * (1.0 - self.anchor_alpha),
+                self.anchor.1 + (endpoint.1 - current.1) * (1.0 - self.anchor_alpha),
+            )
+        } else {
+            endpoint
+        };
         let t =
             ((alpha - self.anchor_alpha) / (1.0 - self.anchor_alpha).max(0.0001)).clamp(0.0, 1.0);
         self.last = (
-            self.anchor.0 + (endpoint.0 - self.anchor.0) * t,
-            self.anchor.1 + (endpoint.1 - self.anchor.1) * t,
+            self.anchor.0 + (self.endpoint.0 - self.anchor.0) * t,
+            self.anchor.1 + (self.endpoint.1 - self.anchor.1) * t,
         );
+        self.last = self
+            .physics
+            .resolve_motion_presentation(self.last.0, self.last.1);
         self.last_alpha = alpha;
         self.last
     }
@@ -178,6 +200,50 @@ impl MotionHistory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn releasing_between_ticks_does_not_rewind_and_small_corrections_do_not_snap_camera() {
+        use crate::{engine::command::ClientCommand, world::block::BlockType};
+        let mut state = GameState::network_view();
+        state.world.apply_chunk_column_snapshot(
+            0,
+            &vec![
+                BlockType::Air;
+                crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+            ],
+        );
+        for x in 0..16 {
+            state.world.set_block(x, 20, BlockType::Stone);
+        }
+        state.player.x = 4.0;
+        state.player.y = 20.0;
+        state.player.grounded = true;
+        state.apply_client_command(ClientCommand::SetMoveRight(true));
+        state.player.vx = 0.32;
+        let mut preview = PlayerPreview::new();
+        preview.position(&state, 0.0);
+        let before = preview.position(&state, 0.66);
+        state.apply_client_command(ClientCommand::SetMoveRight(false));
+        let released = preview.position(&state, 0.9);
+        assert!(released.0 >= before.0, "release rewound the visible player");
+        assert!(
+            released.0 - before.0 < 0.04,
+            "release kept moving at held speed"
+        );
+        state.predict_motion_tick();
+        state.player.age += 1;
+        let next = preview.position(&state, 0.0);
+        assert!(
+            (next.0 - released.0).abs() < 0.04,
+            "tick boundary snapped the camera"
+        );
+        for _ in 0..4 {
+            preview.position(&state, 0.99);
+            state.predict_motion_tick();
+            state.player.age += 1;
+            preview.position(&state, 0.0);
+        }
+        assert!((preview.position(&state, 0.99).0 - state.player.x).abs() < 0.02);
+    }
     #[test]
     fn local_preview_is_collision_resolved_and_never_mutates_the_game() {
         use crate::{

@@ -96,7 +96,7 @@ failures. Test copies of saves: older builds cannot open progression v7.
 3. Inspect license, startup instructions, manifest and `cargo package --list`.
    Exclude large videos/GIFs, private saves, bridge/reconnect credentials and keys.
 4. Review Debian PR #4 and AUR guidance against the final version/executable.
-5. Finalize the draft release notes. Retain protocol 10 matching-build and
+5. Finalize the draft release notes. Retain protocol 11 matching-build and
    progression v7 backup/migration notices and remaining gameplay limits.
 6. Obtain separate authorization before pushing, tagging, publishing crates or
    releases, dispatching GitHub workflows, announcing or provisioning hosting.

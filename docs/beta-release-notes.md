@@ -108,7 +108,7 @@ are checked locally. Windows/macOS workflow outputs still need building and
 native qualification.
 
 Shared play supports eight connections, 64 saved identities and the Overworld.
-Protocol **10** requires matching builds. Classic survival through the dragon,
+Protocol **11** requires matching builds. Classic survival through the dragon,
 sustained human co-op, remote SSH/WAN behavior, live model quality and all-platform
 terminals remain release gates. Automated results do not establish a completed
 human campaign or a viral release.

@@ -8,7 +8,7 @@ latency.
 ## Try the candidate
 
 Run the local development executable. Restart the co-op server and every client
-together: the updated movement rules use **network protocol 10**.
+together: the updated movement rules use **network protocol 11**.
 
 - Hold A/D or an arrow for one second, then release. In a terminal with key-release
   support, movement should stay continuous through the initial keyboard-repeat

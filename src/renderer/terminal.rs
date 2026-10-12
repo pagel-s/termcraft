@@ -3,6 +3,8 @@ use crate::engine::state::{
     WeatherType,
 };
 use crate::world::Dimension;
+#[path = "items.rs"]
+mod items;
 #[path = "materials.rs"]
 mod materials;
 #[path = "motion.rs"]
@@ -1225,7 +1227,11 @@ impl Renderer {
         self.clear_back_buffer();
         self.actor_sprites.clear();
         let physical_size = (self.width, self.height);
-        let scale = if self.zoom && self.width >= 140 && self.height >= 44 {
+        let boss_view = state.current_dimension == Dimension::End && state.ender_dragon.is_some();
+        let scale = if self.zoom && boss_view && self.width >= 100 && self.height >= 32 {
+            // Keep the ground, crystal towers and airborne boss in one 2D arena.
+            2
+        } else if self.zoom && self.width >= 140 && self.height >= 44 {
             4
         } else if self.zoom && self.width >= 100 && self.height >= 32 {
             2
@@ -1250,7 +1256,12 @@ impl Renderer {
             .get_or_insert_with(|| Box::new(motion::PlayerPreview::new()));
         let (render_player_x, render_player_y) = preview.position(state, frame_alpha);
 
-        self.update_vertical_camera(render_player_y);
+        let camera_target = if boss_view {
+            render_player_y - 3.0
+        } else {
+            render_player_y
+        };
+        self.update_vertical_camera(camera_target);
 
         let physical_view_x = (render_player_x * 2.0 * scale as f64).round() as i32;
         let physical_view_y = (self.camera_y * scale as f64).floor() as i32;
@@ -3467,6 +3478,18 @@ impl Renderer {
                 slot_bg,
             );
             self.put_char(slot_x + slot_w - 1, ui_y + 2, right_edge, slot_fg, slot_bg);
+            if self.pixel_colors
+                && let Some(stack) = stack
+            {
+                self.put_str(
+                    slot_x,
+                    ui_y + 1,
+                    &format!("{slot_number}    {label:<2} {badge:>2}{right_edge}"),
+                    slot_fg,
+                    slot_bg,
+                );
+                self.draw_item_icon(slot_x + 1, ui_y + 1, stack.item_type, slot_bg);
+            }
         }
 
         let detail_line = if let Some(stack) = &state.inventory.slots[state.hotbar_index as usize] {
@@ -4973,6 +4996,16 @@ impl Renderer {
         detail
     }
 
+    fn draw_item_icon(&mut self, sx: i32, sy: i32, item: ItemType, background: Color) {
+        for y in 0..4 {
+            for x in 0..4 {
+                let token = items::token(item, x * 2, y * 2);
+                let color = items::color(item, token).unwrap_or(background);
+                self.put_ui_pixel(sx + x as i32, sy * 2 + y as i32, color);
+            }
+        }
+    }
+
     fn draw_inventory_stack(
         &mut self,
         sx: i32,
@@ -4981,6 +5014,26 @@ impl Renderer {
         is_selected: bool,
         slot_bg: Color,
     ) {
+        if self.pixel_colors {
+            self.put_str(sx, sy + 1, "      ", Color::Reset, slot_bg);
+            // Counts share the corner as in the hotbar; the selected item's full
+            // name, durability and enchantment remain in the detail row.
+            self.draw_item_icon(sx + 1, sy, stack.item_type, slot_bg);
+            if stack.count > 1 {
+                self.put_str(
+                    sx + 3,
+                    sy + 1,
+                    &format!("{:>2}", stack.count.min(99)),
+                    if is_selected {
+                        Color::Black
+                    } else {
+                        Color::White
+                    },
+                    slot_bg,
+                );
+            }
+            return;
+        }
         let icon = Self::inventory_item_label(stack.item_type);
         let icon_fg = if is_selected {
             Color::Black
@@ -5357,28 +5410,15 @@ impl Renderer {
             };
             self.put_str(output_x, output_y, "[    ]", output_fg, output_bg);
             if let Some((result, count)) = state.crafting_output_preview() {
-                let icon = Self::inventory_item_label(result);
-                self.put_str(
-                    output_x + 1,
+                self.draw_inventory_stack(
+                    output_x,
                     output_y,
-                    &icon,
-                    if output_selected {
-                        Color::Black
-                    } else {
-                        Self::inventory_item_color(result)
+                    &ItemStack {
+                        item_type: result,
+                        count,
+                        durability: None,
                     },
-                    output_bg,
-                );
-                let output_count = count.min(99);
-                self.put_str(
-                    output_x + 3,
-                    output_y,
-                    &format!("{output_count:>2}"),
-                    if output_selected {
-                        Color::Black
-                    } else {
-                        Color::Cyan
-                    },
+                    output_selected,
                     output_bg,
                 );
             }

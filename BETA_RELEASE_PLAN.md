@@ -100,11 +100,38 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 
 The local executable is `/home/sebastian/projects/termcraft/termcraft`.
 The package version remains `0.1.0`; generated archives are explicitly development
-builds, not mislabeled beta artifacts. Network protocol is **10**, requiring
+builds, not mislabeled beta artifacts. Network protocol is **11**, requiring
 matching builds. New native saves use progression version **7**; back up older
 saves before testing because older executables cannot read the new format.
 
 ## Measured results and validation
+
+### 2D translation and complete item review, 12 October
+
+The current candidate replaces the End's thin arch stems with five-block-wide
+upper columns, seven-block crowns, 11–16-block heights and continuous three-block
+base tunnels. A wider boss view keeps the arena readable. Fresh generation changes;
+existing saved terrain is preserved. Slabs and stairs now share explicit half-block
+geometry between physics, material art, occlusion and contact shadows. Walking
+steps up/down half blocks; full-block climbs still require jumping. Four farm-animal
+solvers now use the shared swept rules with sprite-sized heights. Sub-tick releases
+and small corrections settle without abruptly resetting the camera.
+
+All 135 item types have shared pixel icons in inventory, hotbar, crafting output
+and world drops. Material items use the placed-block palette. The reproducible
+catalog covers 97 block/state samples, all items and both pixel-view resolutions;
+`examples/material_review.rs` and `examples/translation_review.rs` isolate saves.
+Inactive redstone torches, buttons, piston directions and filled End frames now
+have distinct visual states. Local stable checks pass **593 unit tests**, strict
+all-target Clippy and three real TCP regressions. Protocol **11** requires matching
+client/server builds. The contested-pickup TCP fixture now separates players before
+mining and waits for pickup rather than the initial spawn coordinate.
+
+This remains a review candidate. Human control/art acceptance, real WAN latency,
+full fluid/boat qualification, larger village design and bespoke combat animations
+remain open. The complete review captures and final qualification follow this source
+checkpoint; earlier reports retain their original binary identities.
+
 
 ### Ender Dragon candidate, 12 October
 

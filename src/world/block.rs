@@ -92,6 +92,18 @@ pub enum BlockType {
 }
 
 impl BlockType {
+    /// Local collision rectangles [left, top, right, bottom], with y down.
+    /// Slabs occupy the lower half; the existing unoriented stair rises right.
+    /// Rendering and all shared actor movement use this same shape definition.
+    pub fn collision_boxes(&self) -> &'static [[f64; 4]] {
+        match self {
+            Self::StoneSlab => &[[0.0, 0.5, 1.0, 1.0]],
+            Self::StoneStairs => &[[0.0, 0.5, 1.0, 1.0], [0.5, 0.0, 1.0, 0.5]],
+            _ if self.is_solid() => &[[0.0, 0.0, 1.0, 1.0]],
+            _ => &[],
+        }
+    }
+
     pub fn is_solid(&self) -> bool {
         !matches!(
             self,
