@@ -62,6 +62,11 @@ lighting, ground-contact shadows and opaque terrain occlusion ground creatures i
 the scene. Transparent torches/windows no longer retain old glyph fragments.
 See the [before/after audit](design/art-audit-2026-10-11/provenance.md).
 
+The Ender Dragon gains a larger horned silhouette, articulated wing poses, visible
+ribs, curved tail and clearer eyes. Its health/phase banner preserves the armor
+HUD; targeting moves clear of the airborne boss. This refines presentation while
+retaining the existing encounter mechanics.
+
 Classic walking is now 6.4 blocks/second, with sharper reversal and shorter jumps
 when a held jump is released early. Collision-resolved local presentation and a
 camera jump dead zone reduce visible stepping and unnecessary camera movement.

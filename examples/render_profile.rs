@@ -3,6 +3,7 @@ use std::io::{self, Write};
 use std::time::Instant;
 use termcraft::engine::state::{GameState, WeatherType};
 use termcraft::entities::zombie::Zombie;
+use termcraft::entities::{end_crystal::EndCrystal, ender_dragon::EnderDragon};
 use termcraft::renderer::Renderer;
 use termcraft::world::{Dimension, World, block::BlockType, recipe::WorldRecipe};
 use termcraft::worlds::WorldStore;
@@ -49,12 +50,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "dense_mobs",
         "nether",
         "end",
+        "end_dragon",
     ] {
         let mut state = GameState::open_in_directory(&path)?;
         state.dismiss_startup_splash();
         state.current_dimension = match scene {
             "nether" => Dimension::Nether,
-            "end" => Dimension::End,
+            "end" | "end_dragon" => Dimension::End,
             _ => Dimension::Overworld,
         };
         state.world = World::open_in_directory(state.current_dimension, &path)?;
@@ -100,6 +102,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         state.player.y = 64.0;
         state.player.vx = 0.0;
         state.player.vy = 0.0;
+        if scene == "end_dragon" {
+            state.ender_dragon = Some(EnderDragon::new(0.5, 62.0));
+            state.end_crystals = vec![EndCrystal::new(-7.5, 60.0)];
+        }
         for (width, height) in [(120, 40), (200, 60)] {
             let mut renderer = Renderer::with_size(width, height);
             let mut samples = Vec::new();
@@ -112,9 +118,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             for frame in 0..210 {
                 state.player.age = frame;
+                if let Some(dragon) = &mut state.ender_dragon {
+                    dragon.age = frame / 3;
+                    dragon.phase = if frame >= 105 {
+                        termcraft::entities::ender_dragon::DragonPhase::Swoop
+                    } else {
+                        termcraft::entities::ender_dragon::DragonPhase::Patrol
+                    };
+                }
                 state.time_of_day += 0.1;
                 let started = Instant::now();
-                renderer.render_to(&state, 0.0, &mut sink)?;
+                renderer.render_to(
+                    &state,
+                    if scene == "end_dragon" {
+                        (frame % 3) as f64 / 3.0
+                    } else {
+                        0.0
+                    },
+                    &mut sink,
+                )?;
                 if frame >= 30 {
                     samples.push(started.elapsed().as_secs_f64() * 1000.0);
                 }

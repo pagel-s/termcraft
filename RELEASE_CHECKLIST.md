@@ -58,7 +58,8 @@ failures. Test copies of saves: older builds cannot open progression v7.
 - [ ] **Art readability and consistency:** assess the coordinated characters,
   creatures, terrain, structures and HUD in real play. Review the
   [entity/proportion/shadow audit](docs/design/art-audit-2026-10-11/provenance.md),
-  including small-view identities and night/cave lighting.
+  including small-view identities and night/cave lighting, plus the
+  [dragon refinement](docs/design/dragon-refinement-2026-10-12/provenance.md).
 - [ ] **Gameplay quality:** play a coherent five-minute encounter with readable
   attacks, useful rewards and a building/traversal payoff. Automated foundation
   tests do not establish that this target is met.

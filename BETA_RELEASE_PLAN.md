@@ -106,6 +106,26 @@ saves before testing because older executables cannot read the new format.
 
 ## Measured results and validation
 
+### Ender Dragon candidate, 12 October
+
+The dragon now uses a 64×40 authored source canvas with ribbed near/far wings,
+curved tail, horned jaw, readable eyes and seven wing poses. The body stays fixed
+through a twelve-step wing cycle; swooping changes its rate. A dedicated boss
+health/phase banner preserves armor information. Targeting moves above the hotbar
+during the fight, clearing the boss's face near the right screen edge.
+
+`docs/design/dragon-refinement-2026-10-12/provenance.md` contains unchanged-fixture
+before/after, a wing loop and 15 focused pose captures at three sizes. All **587
+unit tests** and strict Clippy pass on stable Rust and Rust 1.88. Regressions cover
+fixed body/eye anchors and both facing directions near the HUD, at each pixel-view
+size. `examples/render_profile.rs` adds a separate animated `end_dragon` scene.
+Exact build identity and costs: `docs/assets/dragon-refinement-2026-10-12.json`.
+
+Development checkpoints are pushed to `beta/terminal-reborn`, authored only by
+Sebastian Pagel. CI now runs on `beta/**` pushes. Existing boss AI/combat/physics
+are unchanged; banking/dive/attack poses, tail articulation, encounter redesign
+and human acceptance remain open.
+
 ### Entity, proportion and shadow candidate, 11 October
 
 The second art audit replaces generic/stretch-scaled creatures with individually

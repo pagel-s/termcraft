@@ -289,7 +289,7 @@ impl Renderer {
             for crystal in &state.end_crystals {
                 lines.push((
                     project(crystal.x, crystal.y - 0.5),
-                    project(dragon.x, dragon.y - 1.0),
+                    project(dragon.x, dragon.y - 1.4),
                     Self::rgb((168, 94, 184)),
                 ));
             }

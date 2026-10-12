@@ -31,7 +31,10 @@ def main():
     for path in sorted((root / "docs").rglob("*")):
         # Keep the current compact art review usable offline. Historical videos
         # and large gameplay recordings are deliberately outside native bundles.
-        review_clip = path == root / "docs/design/pixel-refinement/movement.gif"
+        review_clip = path in {
+            root / "docs/design/pixel-refinement/movement.gif",
+            root / "docs/design/dragon-refinement-2026-10-12/flight.gif",
+        }
         if path.is_file() and (path.suffix in {".md", ".json", ".html", ".png"} or review_clip):
             files[path.relative_to(root).as_posix()] = path.read_bytes()
     for script in ("demo_director.py", "generate_world.py"):

@@ -96,6 +96,9 @@ shadows and terrain occlusion. `src/renderer/shading.rs` provides continuous sha
 presentation lighting with warm/ember/arcane local tints; gameplay lighting rules
 remain separate. The pixel view paints its background/material masks directly,
 so transparent pixels never inherit the old glyph-upscale layer.
+`src/renderer/dragon.rs` compile-time rasterizes the dragon's seven wing poses;
+the body/eye anchor remains fixed and the runtime allocates no animation frames.
+`examples/dragon_review.rs` stages three viewport sizes and both facing directions.
 `src/renderer/motion.rs`
 interpolates resolved actor positions and previews local motion through isolated
 collision prediction. UI presentation must never mutate the authoritative game.

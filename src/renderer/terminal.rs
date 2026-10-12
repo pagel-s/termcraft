@@ -1840,7 +1840,11 @@ impl Renderer {
                             )
                             .with_subcell(dragon_x, dragon_y, scale)
                             .with_hit(dragon.hit_timer > 0)
-                            .with_dimensions((scale * 12) as usize, (scale * 3) as usize),
+                            .with_alert(matches!(
+                                dragon.phase,
+                                crate::entities::ender_dragon::DragonPhase::Swoop
+                            ))
+                            .with_animation_time(dragon.age as f64 + frame_alpha),
                         );
                     } else {
                         let wings = if (dragon.age / 4).is_multiple_of(2) {
@@ -3491,10 +3495,11 @@ impl Renderer {
         }
 
         let hud_x = self.width as i32 - 22;
+        let boss_active = state.current_dimension == Dimension::End && state.ender_dragon.is_some();
         for x in 0..self.width as i32 {
             self.put_world_char(x, 0, ' ', Color::White, Color::AnsiValue(234));
         }
-        for y in 1..=11 {
+        for y in 1..=if boss_active { 5 } else { 11 } {
             for x in (hud_x - 1).max(0)..self.width as i32 {
                 self.put_world_char(x, y, ' ', Color::White, Color::AnsiValue(234));
             }
@@ -3591,21 +3596,34 @@ impl Renderer {
                 );
             } else if let Some(dragon) = &state.ender_dragon {
                 let hp_ratio = (dragon.health / dragon.max_health).clamp(0.0, 1.0);
-                let bars = (hp_ratio * 12.0).round() as usize;
+                let bars = (hp_ratio * 20.0).round() as usize;
                 let mut hp_bar = String::new();
-                for i in 0..12 {
-                    hp_bar.push(if i < bars { '#' } else { '-' });
+                for i in 0..20 {
+                    hp_bar.push(if i < bars { '█' } else { '░' });
                 }
+                let phase = match dragon.phase {
+                    crate::entities::ender_dragon::DragonPhase::Patrol => "FLYING",
+                    crate::entities::ender_dragon::DragonPhase::Swoop => "SWOOP",
+                };
+                let banner = format!("Ender Dragon [{hp_bar}] {phase}");
+                let banner_width = banner.chars().count() as i32;
+                let banner_x = ((self.width as i32 - banner_width) / 2)
+                    .min(hud_x - banner_width - 2)
+                    .max(0);
                 self.put_str(
-                    hud_x - 2,
-                    3,
-                    &format!("Dragon [{hp_bar}]"),
-                    Color::Rgb {
-                        r: 235,
-                        g: 115,
-                        b: 245,
+                    banner_x,
+                    1,
+                    &banner,
+                    if dragon.hit_timer > 0 {
+                        Color::Red
+                    } else {
+                        Color::Rgb {
+                            r: 235,
+                            g: 115,
+                            b: 245,
+                        }
                     },
-                    Color::Reset,
+                    Color::AnsiValue(234),
                 );
             } else if state.has_defeated_dragon() && !state.has_seen_completion_credits() {
                 self.put_str(
@@ -3908,15 +3926,37 @@ impl Renderer {
                 "Too Far"
             };
             let target: String = t_str.chars().take(16).collect();
-            self.put_str(hud_x, 7, "┌─ Target ─────────┐", Color::White, Color::Reset);
+            let target_y = if boss_active { (ui_y - 6).max(7) } else { 7 };
+            if boss_active {
+                // Keep the airspace around the boss clear while preserving
+                // readable mining/reach feedback above the hotbar.
+                for y in target_y..=target_y + 3 {
+                    for x in (hud_x - 1).max(0)..self.width as i32 {
+                        self.put_world_char(x, y, ' ', Color::White, Color::AnsiValue(234));
+                    }
+                }
+            }
             self.put_str(
                 hud_x,
-                8,
+                target_y,
+                "┌─ Target ─────────┐",
+                Color::White,
+                Color::Reset,
+            );
+            self.put_str(
+                hud_x,
+                target_y + 1,
                 &format!("│ {target:<16} │"),
                 Color::Yellow,
                 Color::Reset,
             );
-            self.put_str(hud_x, 9, "└──────────────────┘", Color::White, Color::Reset);
+            self.put_str(
+                hud_x,
+                target_y + 2,
+                "└──────────────────┘",
+                Color::White,
+                Color::Reset,
+            );
             let progress =
                 if state.player.last_mine_x == hover_bx && state.player.last_mine_y == hover_by {
                     state.player.mining_timer.clamp(0.0, 1.0)
@@ -3936,7 +3976,7 @@ impl Renderer {
             } else {
                 format!("Reach {dist:.1} / 4.5")
             };
-            self.put_str(hud_x, 10, &feedback, Color::Cyan, Color::Reset);
+            self.put_str(hud_x, target_y + 3, &feedback, Color::Cyan, Color::Reset);
         }
 
         if state.is_showing_startup_splash() {

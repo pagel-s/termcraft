@@ -1,0 +1,405 @@
+{
+  "date": "2026-10-12",
+  "version": "0.1.0",
+  "development_build": true,
+  "network_protocol": 10,
+  "progression_format": 7,
+  "binary_sha256": "e7b5dd8fb88638f05dc5659de112b729c577000dada9c30d88d68cd2e6a29b78",
+  "branch": "beta/terminal-reborn",
+  "parent_checkpoint": "00766f4062cda097c9a42c6bb3cdd44c0b2d94b7",
+  "sole_author": {
+    "name": "Sebastian Pagel",
+    "email": "pagel.sebastian.1@gmail.com"
+  },
+  "source_files_sha256": {
+    "src/engine/actors.rs": "914fb5817bf7fb1469d1596f73b4b7883dd93d7c04b9453d6f4aad2f5e80d790",
+    "src/engine/agent.rs": "1a815467583d2437ee0ba0e254d054dadcbea61c707ef6ac58e84521795f9cbf",
+    "src/engine/client_identity.rs": "f933ead5814571e06990b1240a64990c501f2ccf3f49d2692e85df4081a47ff7",
+    "src/engine/command.rs": "5d1253c14aa3373f9045fb124afef252df548b7015aa9e3c9250b834e6b1ae11",
+    "src/engine/cooperative_tests.rs": "88634e8dbaa70cb26eefdf88ed035713093d8c6732c4f369fa85ba7d7f20bed0",
+    "src/engine/director.rs": "3e42dfc17fe075d0a27a942efb67d489baa1a706b8b9868cb40288058ab368f9",
+    "src/engine/director_bridge.rs": "779db5699d7d891dd32969cd9caabd5ad4ea6448fb407397035c348e8ffacaa2",
+    "src/engine/game_loop.rs": "e5ffe9924ebcb98297a971ff55daf09d1833c3c7d3e8ee74915985861d8e8d7f",
+    "src/engine/mcp.rs": "1b0560f7053f394a05028cf8fdd8aa6b2bae8ab3360e65d53be7e2eb4dce18ff",
+    "src/engine/metrics.rs": "ae2e4bc6f4b594730cdf7e082dd61c8150e67f3f8784449a9f84d5867449ce26",
+    "src/engine/mod.rs": "2e420b0e72475ed65f857ac5749973fcacae4d57b9e7ffbbfd3455b83b2e74a7",
+    "src/engine/net.rs": "2a529a269d1315f5a8f9c4a4bbdd93d28d4e6da0179d8633843275d99a6a8619",
+    "src/engine/network_client.rs": "601ab718ba474b8f8cb7766608188408dd7d028fefd4ea2079fd2f1c14dce848",
+    "src/engine/physics_tests.rs": "649c679213a1e65629ba02e2bbd929f7f93d8cd197d47d9400c7d6c5e55bfcbd",
+    "src/engine/replication.rs": "e2f0ec01b0080332f8e5fc0776e9073cdc393f920bb0451890dcb69182648c83",
+    "src/engine/server_save.rs": "88614f4fca2e94191308af6edc81acd92c39f0b2f08b81ddd8fd5bddaab49f96",
+    "src/engine/ssh.rs": "ddef288244a3184c0397f4439fe81abbc1eda27fce7c672c4e3f0e66af22dabe",
+    "src/engine/state.rs": "367ff968c8b93afe2bf5cc35e38126c3b418a1bdb222136666d6b0caeaded6d1",
+    "src/entities/arrow.rs": "f8e9f1d7ac90c937f39b1098b51c3f1267ff989543a45c504dee88b376e55ca2",
+    "src/entities/blaze.rs": "d010d5e4f677e723096c6a8289f84d4c65f936bb0629f1e0b26bb2a505e5ac60",
+    "src/entities/boat.rs": "1ae01c7a979f69317ece8edb8182a1aa173a130768160fd8c098ae007abbf7bc",
+    "src/entities/chicken.rs": "d08b5c6c81e915dfd27334b3874fccea96a1b6172bbfad94f147c6b91282c0c8",
+    "src/entities/cow.rs": "c3d8a0788b1e8bd12841b648aad0aa8da750eb9a88531c0550b15229d555c2e8",
+    "src/entities/creeper.rs": "f1d664ad1a18eb5db33d4d41576d349fa2e459fbbbdcc71ff18b575d4662862e",
+    "src/entities/end_crystal.rs": "b1a8093f50c4a473906ec2057ed382ef9fd3a3841abe9b4f0bfc008f71a8fb9d",
+    "src/entities/ender_dragon.rs": "8b702f27743f76da75739926a8ff7dfd35ff81125606a1ebeaea246bdca885d4",
+    "src/entities/enderman.rs": "12e7a60e455280051d0cbcae322fec91a1930c3331ec99e236ea9b7135871dcc",
+    "src/entities/experience_orb.rs": "9a1bb8d47107c8227ad4e5f323d22a3c73d04ac9bdc15280c3c149284f689085",
+    "src/entities/fireball.rs": "6201fa43ff9d2cf83cfd2458347bf712ae847f4b69a980b7b4e4c3d5d6e82ce4",
+    "src/entities/ghast.rs": "ba8ca106a9c272332f5b384a650fa631ddce50038ab5ea5e1a2e9254ceb4d44d",
+    "src/entities/item_entity.rs": "c7695cb7f8d6cb3b1754bffb237aa57abb8f3d6567919e91d3c8e913cceffc70",
+    "src/entities/mod.rs": "dd00ab1f98916d4f32099e70136488245669bf1ea9c3d35bbdbdd3cb615ecd41",
+    "src/entities/ocelot.rs": "4d5811fe7ecbf6c84e0dd5c684ddc5ee5d00af7595f5bfe26a83f20759baeb20",
+    "src/entities/pig.rs": "3ac7e0b9fcc2f49b6e245ca383edee7e9ce6cb62b9ba4270a4fb2b86c49fe733",
+    "src/entities/player.rs": "a023d27a9a5ff754ebb11a347f3b3b9d43d251fe20cc44e6b7c31fd335c4253e",
+    "src/entities/sheep.rs": "ad9358ee93c141b3a061393f1ccc59b9e8156724b4638f5700879d0906bc618e",
+    "src/entities/silverfish.rs": "68b61cf86609320a0021579fd78cc6b6b8c3d92af74aca47857ebf2e0e49a292",
+    "src/entities/skeleton.rs": "0fd1664cb627e77cd327b2334efb3697027c5bcf9e5d75ddd9e423909cb73535",
+    "src/entities/slime.rs": "d947c1f02a120aee12c2d0865b4a17bc690ad73d742d9527d3cb5ef8d408e41e",
+    "src/entities/spider.rs": "52e5939531f1d4d88c4011a4581baf8ede59f19837e844fd87cec0726919195c",
+    "src/entities/squid.rs": "e8c511c0669d2d795c7644afb8f081fafd84d9f1a6c134f8b60bd8c201504e35",
+    "src/entities/villager.rs": "e80a348bb3654ff59cc8b0ae6faed808339f9714ef1e51e37c111cedd5bb87d3",
+    "src/entities/wolf.rs": "3bfe94f5274fd91b5f6c33d318f86a728996bc3429e0bd5fbb3414a6405ab3f7",
+    "src/entities/zombie.rs": "595baea2e15178a19362f20212d5d1a1566b2531fb6b87d598c0d20a2dca2a12",
+    "src/entities/zombie_pigman.rs": "623c080008d7f12c87c0758d51ce28624d4115f4781e0024f1dba92b45df26be",
+    "src/generator.rs": "ded7e61681e85c50188a7db46787b2505830fc010ed74c39b91f06dab4ec6ee0",
+    "src/lib.rs": "561f45eb6f3688f8cb43b58071d680c49058fb361548598ed9b85d6b3ca4ec0d",
+    "src/main.rs": "afe8fb65d5a86b2fec46ee8eb2a35a57ba1a5249011623cd114374cae12ebad2",
+    "src/renderer/dragon.rs": "b08ddf1b50805bbbbd0f4f339d7a56caabac2333c85c14fa8f6efecfa7f36279",
+    "src/renderer/lighting.rs": "cd6e4a174b92e016505a5073bdfebf649f9c04371669d8c19bbc2a965ca2b2bc",
+    "src/renderer/materials.rs": "70cd63f3bda0bb8ef41cb2f64c06bd60190c20ebb23441c0d073545412a3ee8c",
+    "src/renderer/mod.rs": "0569b850df797afc3c809ce4acc98072d2978b3f704b4bf9df3496fb255c17ef",
+    "src/renderer/motion.rs": "39f0d5db4097931e0705168f336708619ee06ee6ed114ccc77e546f1f42fa3ec",
+    "src/renderer/shading.rs": "b9de8605b06527320bb54dd6ff86909b1f4982983fa2cc2d759828f4826627a8",
+    "src/renderer/sprites.rs": "16a44154b49077de675c0d6213ada8ab369ee89aa09d87abd9f559ad3a85836b",
+    "src/renderer/terminal.rs": "44133aba2c02e971f799420e98dd14dad5a114d1c00791e6d0de0450d4f9cdb8",
+    "src/save_path.rs": "1fc474160c75cbc95ab2ce6b853f19c465bb967619c597747651750f14b91366",
+    "src/world/block.rs": "85af3df8cbdfce5f5d1f1ed0f5677634bc7fd746d95b76f4852b74ca1ad907d1",
+    "src/world/chunk.rs": "00e359f47c2db056420d0cdc9ef4d9b280de460ccf29249c33143f677455cc54",
+    "src/world/environment.rs": "545d69216b383b65f904fa79f824a7f8ee880ac5e869a4edddd655ba023e5b70",
+    "src/world/item.rs": "19789af02f37534a459e9c02edf79d4341cdb3342f035c6e712d948d9d3fb585",
+    "src/world/mod.rs": "ebb601c19f980c04f4b5b5f9782206929a985d8efc629402cf116cfe3950ad56",
+    "src/world/recipe.rs": "9002eea8be4fcb41a1f6c016f92097ed3edfac5f1147d8e30712d88762f1dbda",
+    "src/worlds.rs": "398b506316ce006fac7c4873e7f2588259dd861609d12f66f37b08cd2cd5a715",
+    "Cargo.toml": "0a38c9e2c00ae9731864693f3284d2fa857fd7fe4e9a6cb269aafd3424513461",
+    "Cargo.lock": "479f5157de03513501e030b35205fd6c5485463ea45c6ce33720a3865cdf312c",
+    "examples/dragon_review.rs": "07a8c4c345cd80cefca3d617be2db6a9ae282b679dcba0763f2d55435593a1c1",
+    "examples/render_profile.rs": "dc882cc75b903e8b920af3dd82b771f2dd9d4f1011ba3841f59562820a12f692",
+    "examples/pixel_review.rs": "40e9fd19ac69dddce4bcb34eb4bc36cf9eaccb26016b35a68082356f03b3e630",
+    "scripts/capture_terminal_art.py": "209defdfb233006e60e7ac60e0d3bc543833c6eda26b0fa0691b8b87d95cea63",
+    "scripts/package_release.py": "62215a5f4df731c51442f3a88b5749c0ab80de6da8fcf7ace99b7030512bfecb",
+    ".github/workflows/ci.yml": "3dd59eb4259e0d7577080f2769024ae1a57c93176483b48f85963ec5c7062104"
+  },
+  "checks": {
+    "stable_rust": "1.98.1",
+    "minimum_rust": "1.88.0",
+    "unit_tests": {
+      "stable": 587,
+      "minimum_rust": 587,
+      "failed": 0
+    },
+    "strict_all_target_clippy": {
+      "stable": "passed",
+      "minimum_rust": "passed"
+    },
+    "format": "passed",
+    "optimized_binary_and_examples": "passed",
+    "offline_cargo_package_verification": "passed",
+    "strict_mkdocs": "passed",
+    "native_archive": "Separate dist/native-qualification-20261012.json report; archive built after this document."
+  },
+  "change_scope": {
+    "rust_files_changed": [
+      "src/renderer/dragon.rs",
+      "src/renderer/sprites.rs",
+      "src/renderer/terminal.rs",
+      "src/renderer/materials.rs"
+    ],
+    "prior_binary_sha256": "2c50a69058ae5575b640bf6ca1ed7d7f4bc312f02a476f9d7cbed25137beeb71",
+    "movement_network_combat_ai_unchanged": true,
+    "prior_tcp_and_ssh_evidence": "Historical reports in docs/assets/pixel-refinement-2026-10-11.json; not rerun for this visual-only revision.",
+    "ci": "beta/** pushes now run the existing CI workflow; remote results are separate from local checks."
+  },
+  "native_enhanced_input": {
+    "result": {
+      "mode": "native",
+      "status": "passed",
+      "held_without_repeat_delta": 3.5199957117647105,
+      "release_drift": 0.058554777599995944,
+      "arrow_delta": -2.5035294262375,
+      "focus_loss_cleared": true,
+      "terminal_restored": true,
+      "artifacts": "/tmp/termcraft-foundation-ui-au8e4fi6"
+    },
+    "method": "Real Unix PTY, disposable flat save, enhanced hold/release/focus sequences, authoritative live MCP positions, F3/F4/inventory and terminal restoration.",
+    "limits": "Automated Linux check, not human acceptance or remote/other-platform terminal qualification."
+  },
+  "renderer_profile": {
+    "data": {
+      "color_mode": "color",
+      "limits": "Real renderer and ANSI encoding to a counting writer; excludes emulator presentation, kernel I/O, simulation, model and networking.",
+      "results": [
+        {
+          "bytes": 65069,
+          "frames": 210,
+          "p50_ms": 0.791773,
+          "p95_ms": 0.812705,
+          "p99_ms": 0.8226960000000001,
+          "scene": "daylight",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 169550,
+          "frames": 210,
+          "p50_ms": 1.535832,
+          "p95_ms": 1.556266,
+          "p99_ms": 1.60499,
+          "scene": "daylight",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 1710284,
+          "frames": 210,
+          "p50_ms": 0.7731,
+          "p95_ms": 0.794101,
+          "p99_ms": 0.821822,
+          "scene": "storm",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 4624412,
+          "frames": 210,
+          "p50_ms": 1.611845,
+          "p95_ms": 1.633523,
+          "p99_ms": 1.659537,
+          "scene": "storm",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 162239,
+          "frames": 210,
+          "p50_ms": 1.047978,
+          "p95_ms": 1.092849,
+          "p99_ms": 1.100542,
+          "scene": "torch_cave",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 337151,
+          "frames": 210,
+          "p50_ms": 2.441421,
+          "p95_ms": 2.567643,
+          "p99_ms": 2.5874930000000003,
+          "scene": "torch_cave",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 79302,
+          "frames": 210,
+          "p50_ms": 0.803799,
+          "p95_ms": 0.841068,
+          "p99_ms": 0.862258,
+          "scene": "dense_mobs",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 201871,
+          "frames": 210,
+          "p50_ms": 1.685879,
+          "p95_ms": 1.767909,
+          "p99_ms": 1.810076,
+          "scene": "dense_mobs",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 62125,
+          "frames": 210,
+          "p50_ms": 0.508529,
+          "p95_ms": 0.5207649999999999,
+          "p99_ms": 0.5281980000000001,
+          "scene": "nether",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 144481,
+          "frames": 210,
+          "p50_ms": 0.977662,
+          "p95_ms": 0.99416,
+          "p99_ms": 1.012763,
+          "scene": "nether",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 58803,
+          "frames": 210,
+          "p50_ms": 0.454931,
+          "p95_ms": 0.470058,
+          "p99_ms": 0.48055,
+          "scene": "end",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 152035,
+          "frames": 210,
+          "p50_ms": 0.8600460000000001,
+          "p95_ms": 0.870585,
+          "p99_ms": 0.875841,
+          "scene": "end",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 119439,
+          "frames": 210,
+          "p50_ms": 0.477219,
+          "p95_ms": 0.496049,
+          "p99_ms": 0.501881,
+          "scene": "end_dragon",
+          "viewport": [
+            120,
+            40
+          ],
+          "write_calls": 210
+        },
+        {
+          "bytes": 340057,
+          "frames": 210,
+          "p50_ms": 0.933745,
+          "p95_ms": 0.968783,
+          "p99_ms": 0.988,
+          "scene": "end_dragon",
+          "viewport": [
+            200,
+            60
+          ],
+          "write_calls": 210
+        }
+      ]
+    },
+    "measured_executable_sha256": "b336acb8a9c0a595bcc37c4698b99aa647c3e5ca88a62370642bf9557bb6e30d",
+    "method": "210 frames per case; first 30 omitted from timing percentiles. Separate end_dragon scene advances wing animation and switches Patrol/Swoop halfway through each viewport run. Stationary actor positions. One output write per frame.",
+    "limits": "Renderer and ANSI encoding only; excludes emulator, kernel I/O, simulation and network latency. The end_dragon case differs from the earlier end case; not a speedup claim."
+  },
+  "visual_review": {
+    "provenance": "docs/design/dragon-refinement-2026-10-12/provenance.md",
+    "source_canvas": [
+      64,
+      40
+    ],
+    "wing_art_frames": 7,
+    "wing_cycle_steps": 12,
+    "entity_viewports": [
+      [
+        120,
+        40
+      ],
+      [
+        160,
+        48
+      ],
+      [
+        200,
+        60
+      ]
+    ],
+    "focused_pose_captures": 15,
+    "focused_position": [
+      0.5,
+      32.0
+    ],
+    "unchanged_comparison_position": [
+      6.0,
+      31.0
+    ],
+    "capture_example_sha256": "dabed658f0ce3e2c8812cfe48d98fb1efabb489b701208004af71dd405887027",
+    "world_capture_example_sha256": "0c7b14cccb43e822604e3d7fa9c7bdf94137f9521c845a75ef45b1b021deaf97",
+    "before_source_commit": "00766f4062cda097c9a42c6bb3cdd44c0b2d94b7",
+    "before_binary_sha256": "2c50a69058ae5575b640bf6ca1ed7d7f4bc312f02a476f9d7cbed25137beeb71",
+    "method": "Actual ANSI output, offline rasterization at 9x18 cells with exact half-block rectangles. No image enhancement. Before/after have identical fixture positions/geometry/clock. Focused poses center the dragon separately so the full wing cycle fits.",
+    "gif": {
+      "source_60_hz_frames": 66,
+      "source_duration_ms": 1100,
+      "encoded_frames_after_identical_frame_coalescing": 12,
+      "encoded_duration_ms": 1100,
+      "size": [
+        960,
+        576
+      ],
+      "nearest_neighbor_reduction": true,
+      "palette_quantized": true,
+      "fixed_position_fixture": true
+    },
+    "human_acceptance": false,
+    "asset_sha256": {
+      "after.png": "e77c7cb85a9f4862da539b54facd16b2d09e70b52965296b68aa2442586a3bc8",
+      "before.png": "9d819e80832e6d867110e8efc2e9c3c8b7bfd4fcfe0bf603efcc3eac90a903c3",
+      "comparison.png": "7edff08e345170a53067c7cbdbc0598aaaae53d8a41c5d681a10c13c1fc7ac99",
+      "flight.gif": "19f495edb5d9bf26da18f9d64edba77417e3187bc900d5195430d26413913f51",
+      "hit-120x40.png": "a0c511f04fc7276d546dc162e5f950dcdf759279ab8afc508da2912ecb241694",
+      "hit-160x48.png": "f8386efbb9c1878df76d91ea48e4c8ee5dcd7f562457e66337bd5948e47969fd",
+      "hit-200x60.png": "937feea76d85a685045034a6fce86a37a53764c6d969934d370851fcbc9308bb",
+      "left-120x40.png": "3fb840c3b223af9a6fc7b604170c327c22e4ee078e8a3ba9dd6e403da64332b1",
+      "left-160x48.png": "6a9fee001b4038f4eade4bc22bc7dd0792da425adbfe3c263888c82ef9f38083",
+      "left-200x60.png": "b13f11bf82d6b212ab8b28c32b8a379794af1bd4d11bdc2d5cca05eae62ea61e",
+      "lowered-120x40.png": "90ab70c70064b2f06712038f71a826d5bed61914b76b79b7f882d66ffdac1950",
+      "lowered-160x48.png": "54a9913b03fb57b1eafc37af606975234d7c1125543a6e4c172d40e44dda418d",
+      "lowered-200x60.png": "0a56412b51ab36850073f6dc62ab39d86ff6c75ea385ef94cf23f4f527d19f8a",
+      "provenance.md": "ffaf6d31940bfb8ba1c6a1e241ddd857d253e65fd99c2fbcf4ea5925904a2b90",
+      "raised-120x40.png": "16ddfe265d4526e456713ac3108e62e9ccea069af1ce129294cd558e69df2e24",
+      "raised-160x48.png": "491577b2ae025db82800a65dd6d41b5c3d84df268482ce3f554f1745ab2c3aac",
+      "raised-200x60.png": "951866a10240b6ac62503446fa2faa5e2c4215a1b12d55151eb08448b4ce9214",
+      "swoop-120x40.png": "6e96f0d79de649f9550d29245a9632041008929c67953ca9b94895a3df2349b1",
+      "swoop-160x48.png": "e06749ad5601e561a865021893c50bda16c49c4907c254cec0d4252e58926258",
+      "swoop-200x60.png": "d3b38abb629f3fc2f15b8ad19bd568c7173b995aa5a79e2b737bd1b177b1393e"
+    }
+  },
+  "remaining_quality_work": [
+    "Bespoke banking/dive/attack poses and tail articulation.",
+    "More cinematic encounter/camera composition, human boss-fight readability and art acceptance.",
+    "Existing boss AI/combat/physics unchanged; larger wing/tail art does not create new collision or attack reach.",
+    "General shadow, larger-village, movement/platform and human co-op gates remain in BETA_RELEASE_PLAN.md."
+  ],
+  "publication": "Development checkpoint on beta/terminal-reborn. No beta release, tag or merge."
+}

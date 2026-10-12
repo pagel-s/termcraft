@@ -98,6 +98,18 @@ output; human art acceptance remains open. This pass adds bounded contact shadow
 not general projected sunlight. Bespoke creature animations, larger villages,
 HUD refinement and finer furniture/stair/slab collision still need work.
 
+## Ender Dragon follow-up
+
+The dragon has a larger authored canvas with separate wing ribs/membranes,
+curved tail, horned jaw, visible eyes and seven wing poses. Its body remains fixed
+while wings flap; swooping changes the flap rate. A separate boss health/phase
+banner preserves armor information, and targeting moves above the hotbar during
+the fight, clearing the previous overlap with its face near the right edge.
+[Before/after, wing loop and all pose sizes](design/dragon-refinement-2026-10-12/provenance.md)
+come from the real renderer. AI, combat geometry and physics are unchanged.
+Banking/dive/attack poses, tail articulation and human boss-fight acceptance remain
+open. Exact checks and build identity: `docs/assets/dragon-refinement-2026-10-12.json`.
+
 ## Earlier selected pixel-art refinement
 
 Terminal pixel art is the selected direction. The new shared material atlas covers

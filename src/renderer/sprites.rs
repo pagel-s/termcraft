@@ -1,5 +1,33 @@
 //! Terminal-native pixel figures. Each cell holds two vertical color pixels.
 use super::{Color, RenderCell, Renderer};
+#[path = "dragon.rs"]
+mod dragon;
+
+enum SpritePixels {
+    Rows(&'static [&'static str]),
+    Dragon(&'static dragon::Frame),
+}
+
+impl SpritePixels {
+    fn width(&self) -> usize {
+        match self {
+            Self::Rows(rows) => rows[0].len(),
+            Self::Dragon(_) => dragon::WIDTH,
+        }
+    }
+    fn height(&self) -> usize {
+        match self {
+            Self::Rows(rows) => rows.len(),
+            Self::Dragon(_) => dragon::HEIGHT,
+        }
+    }
+    fn token(&self, x: usize, y: usize) -> u8 {
+        match self {
+            Self::Rows(rows) => rows[y].as_bytes()[x],
+            Self::Dragon(frame) => frame[y][x],
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 pub(super) enum SpriteKind {
@@ -53,6 +81,7 @@ pub(super) struct ActorSprite {
     alert: bool,
     variant: bool,
     helmet: Option<Color>,
+    animation_time: f64,
 }
 
 impl ActorSprite {
@@ -90,6 +119,7 @@ impl ActorSprite {
             alert: false,
             variant: false,
             helmet: None,
+            animation_time: age as f64,
         }
     }
     #[allow(clippy::too_many_arguments)]
@@ -154,14 +184,19 @@ impl ActorSprite {
         self
     }
 
+    pub(super) fn with_animation_time(mut self, time: f64) -> Self {
+        self.animation_time = time;
+        self
+    }
+
     fn pixel_dimensions(&self, scale: i32) -> (usize, usize) {
         if let Some((width, rows)) = self.dimensions {
             return (width.max(1), (rows * 2).max(1));
         }
         let pixels = self.pixels();
         (
-            ((pixels[0].len() * scale as usize + 2) / 4).max(1),
-            ((pixels.len() * scale as usize + 2) / 4).max(1),
+            ((pixels.width() * scale as usize + 2) / 4).max(1),
+            ((pixels.height() * scale as usize + 2) / 4).max(1),
         )
     }
 
@@ -177,8 +212,11 @@ impl ActorSprite {
         )
     }
 
-    fn pixels(&self) -> &'static [&'static str] {
-        match self.kind {
+    fn pixels(&self) -> SpritePixels {
+        if matches!(self.kind, SpriteKind::Dragon) {
+            return SpritePixels::Dragon(dragon::frame(self.animation_time, self.alert));
+        }
+        SpritePixels::Rows(match self.kind {
             SpriteKind::Player => &[
                 " hhhh ", " hssse", " sssn ", "  ss  ", " acca ", "acccaw", "acccaw", " cccc ",
                 " -cc- ", " ll l ", " ll l ", " l ll ", " l ll ", " b bb ",
@@ -316,24 +354,7 @@ impl ActorSprite {
                 " ++++++ ", "+ssssss+", "+ssssss+", "+seesse+", "+ssssss+", " +ssss+ ", "  llll  ",
                 " l ll l ", " l ll l ", "l  ll  l",
             ],
-            SpriteKind::Dragon => &[
-                "      h                   h      ",
-                "      hh                 hh      ",
-                "      hhv               vhh      ",
-                "     hhvvv             vvhh      ",
-                "     hhvvvv           vvvhh      ",
-                "    hhvvvvvv    h    vvvvhh      ",
-                "   hhvvvvvvvv  hhh  vvvvhh   h   ",
-                "  hhvvvvvvvvvhhsshhvvvvhh   hhh  ",
-                " hhvvvvvvvvhhsssssshhvhh  hsssse ",
-                "hhvvvvvvhhhsssssssssshhhhhsssssnn",
-                "    hhhhssssssssssssssssssssnnn  ",
-                "hhhhsssssss--ss--ssssssssssnn    ",
-                "   hhhhhhh  ll   ll  hhhhh       ",
-                "           ll     ll             ",
-                "           bb     bb             ",
-                "                                 ",
-            ],
+            SpriteKind::Dragon => unreachable!(),
             SpriteKind::Crystal => &[
                 "    +   ", "   +v+  ", "  +vvv+ ", " +vvwvv+", "  +vvv+ ", "   +v+  ", "    +   ",
                 "   ppp  ", "  ppppp ", " ppppppp",
@@ -379,7 +400,7 @@ impl ActorSprite {
                 _ => &[" aa ", "a++a", "aaaa", " -- "],
             },
             SpriteKind::Orb => &[" + ", "+w+", " + "],
-        }
+        })
     }
 
     fn color(&self, pixel: u8) -> Option<Color> {
@@ -470,7 +491,7 @@ impl ActorSprite {
                 (150, 194, 112),
             ),
             Squid => palette((69, 113, 128), (53, 87, 105), (53, 84, 99), (106, 146, 151)),
-            Dragon => palette((53, 48, 67), (40, 36, 54), (79, 67, 85), (105, 75, 129)),
+            Dragon => palette((104, 108, 124), (65, 68, 84), (87, 90, 106), (105, 73, 133)),
             Crystal => palette(
                 (186, 119, 226),
                 (95, 75, 122),
@@ -500,7 +521,8 @@ impl ActorSprite {
         let color = match pixel {
             b' ' => return None,
             b'e' => Renderer::rgb(match self.kind {
-                Enderman | Dragon => (214, 133, 244),
+                Enderman => (214, 133, 244),
+                Dragon => (244, 132, 246),
                 Ghast | Blaze | Creeper | Wolf if self.alert => (229, 112, 66),
                 Spider => (205, 83, 55),
                 _ => (26, 27, 29),
@@ -508,7 +530,8 @@ impl ActorSprite {
             b'h' => self.helmet.unwrap_or_else(|| match self.kind {
                 Player => Renderer::rgb((73, 53, 43)),
                 Cow => Renderer::rgb((207, 195, 164)),
-                Enderman | Dragon => accent,
+                Enderman => accent,
+                Dragon => Renderer::rgb((197, 192, 208)),
                 _ => Renderer::dim_color(skin, 0.65),
             }),
             b's' | b'a' => skin,
@@ -538,6 +561,11 @@ impl ActorSprite {
                 }
             }
             b'v' => accent,
+            b'o' if matches!(self.kind, Dragon) => Renderer::rgb((72, 66, 91)),
+            b'i' if matches!(self.kind, Dragon) => Renderer::rgb((174, 170, 196)),
+            b'z' if matches!(self.kind, Dragon) => Renderer::rgb((127, 116, 158)),
+            b'j' if matches!(self.kind, Dragon) => Renderer::rgb((68, 50, 91)),
+            b'w' if matches!(self.kind, Dragon) => Renderer::rgb((229, 219, 231)),
             b't' => {
                 if matches!(self.kind, Blaze) {
                     accent
@@ -734,7 +762,8 @@ impl Renderer {
             return;
         }
         let pixels = actor.pixels();
-        let source_width = pixels[0].len();
+        let source_width = pixels.width();
+        let source_height = pixels.height();
         let (width, mut pixel_height) = actor.pixel_dimensions(scale);
         if actor.crouched {
             pixel_height = (pixel_height * 4 / 5).max(1);
@@ -762,15 +791,11 @@ impl Renderer {
                     source_col = source_width - 1 - source_col;
                 }
                 let source_y =
-                    ((py * 2 + 1) * pixels.len() / (pixel_height * 2)).min(pixels.len() - 1);
-                let mut token = pixels[source_y]
-                    .as_bytes()
-                    .get(source_col)
-                    .copied()
-                    .unwrap_or(b' ');
+                    ((py * 2 + 1) * source_height / (pixel_height * 2)).min(source_height - 1);
+                let mut token = pixels.token(source_col, source_y);
                 // Keep identity pixels when a small terminal combines source pixels.
                 // Center-only sampling previously discarded entire eye rows.
-                if pixel_height < pixels.len() {
+                if pixel_height < source_height {
                     let out_col = if actor.facing_right {
                         col
                     } else {
@@ -780,27 +805,24 @@ impl Renderer {
                     let x1 = ((out_col + 1) * source_width)
                         .div_ceil(width)
                         .min(source_width);
-                    let y0 = py * pixels.len() / pixel_height;
-                    let y1 = ((py + 1) * pixels.len())
+                    let y0 = py * source_height / pixel_height;
+                    let y1 = ((py + 1) * source_height)
                         .div_ceil(pixel_height)
-                        .min(pixels.len());
-                    if pixels[y0..y1]
-                        .iter()
-                        .any(|row| row.as_bytes()[x0..x1].contains(&b'e'))
-                    {
+                        .min(source_height);
+                    if (y0..y1).any(|y| (x0..x1).any(|x| pixels.token(x, y) == b'e')) {
                         token = b'e';
                     }
                 }
                 if actor.humanoid_kind()
                     && actor.moving
                     && !actor.crouched
-                    && source_y >= pixels.len() - 4
+                    && source_y >= source_height - 4
                 {
                     let middle = source_width / 2;
                     let left = middle - 1 - usize::from(actor.stride == 0);
                     let right = middle + usize::from(actor.stride == 2);
                     token = if source_col == left || source_col == right {
-                        if source_y + 1 == pixels.len() {
+                        if source_y + 1 == source_height {
                             b'b'
                         } else {
                             b'l'
@@ -815,9 +837,9 @@ impl Renderer {
                         let ny = source_y as isize + dy;
                         nx < 0
                             || ny < 0
-                            || ny >= pixels.len() as isize
+                            || ny >= source_height as isize
                             || nx >= source_width as isize
-                            || pixels[ny as usize].as_bytes()[nx as usize] == b' '
+                            || pixels.token(nx as usize, ny as usize) == b' '
                     };
                     let normal = if edge(0, -1) {
                         1.1
@@ -934,8 +956,10 @@ mod tests {
         ] {
             let sprite = ActorSprite::mob(0, 0, kind, true, 0.0, 0, Color::White);
             let pixels = sprite.pixels();
-            assert!(pixels.len() >= 3);
-            assert!(pixels.iter().all(|r| r.len() == pixels[0].len()));
+            assert!(pixels.height() >= 3);
+            if let SpritePixels::Rows(rows) = pixels {
+                assert!(rows.iter().all(|r| r.len() == rows[0].len()));
+            }
         }
     }
     fn fixture() -> super::super::GameState {
@@ -1096,6 +1120,43 @@ mod tests {
                     .any(|c| c.fg == eye || c.bg == eye),
                 "Enderman eyes lost at {w}x{h}"
             );
+        }
+    }
+
+    #[test]
+    fn dragon_eyes_survive_facing_and_wing_changes_in_each_pixel_view() {
+        let mut state = fixture();
+        state.current_dimension = crate::world::Dimension::End;
+        let eye = Renderer::rgb((244, 132, 246));
+        for (w, h) in [(120, 40), (160, 48), (200, 60)] {
+            for facing_right in [false, true] {
+                for age in [0, 6, 11] {
+                    for x in [0.5, 6.0] {
+                        let mut dragon = crate::entities::ender_dragon::EnderDragon::new(x, 7.0);
+                        dragon.facing_right = facing_right;
+                        dragon.age = age;
+                        state.ender_dragon = Some(dragon);
+                        let mut renderer = Renderer::with_size(w, h);
+                        renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+                        assert!(
+                            renderer
+                                .back_buffer
+                                .iter()
+                                .any(|cell| cell.fg == eye || cell.bg == eye),
+                            "dragon eyes lost at {w}x{h}, facing right {facing_right}, age {age}, x {x}"
+                        );
+                        let row = |y: usize| {
+                            renderer.back_buffer[y * w as usize..(y + 1) * w as usize]
+                                .iter()
+                                .map(|c| c.ch)
+                                .collect::<String>()
+                        };
+                        assert!(row(1).contains("Ender Dragon"));
+                        assert!(row(3).contains("Armor"));
+                        assert!(row(h as usize - 10).contains("Target"));
+                    }
+                }
+            }
         }
     }
 }
