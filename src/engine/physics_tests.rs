@@ -672,30 +672,10 @@ fn generated_loft_storage_and_beds_are_reachable_after_normal_climbing() {
                 break;
             }
         }
-        let target = at(2) as f64 + 0.5;
-        for _ in 0..36 {
-            let dx = target - s.player.x;
-            if dx.abs() < 0.35 {
-                break;
-            }
-            s.apply_client_command(ClientCommand::SetMoveLeft(dx < 0.0));
-            s.apply_client_command(ClientCommand::SetMoveRight(dx > 0.0));
-            if s.player.grounded {
-                s.apply_client_command(ClientCommand::QueueJump);
-            }
-            s.update(0, 0);
-        }
-        s.apply_client_command(ClientCommand::ClearDirectionalInput);
+        // All stations must be usable from the ladder. Do not qualify a room
+        // by making the player jump across the tops of its furniture.
         s.apply_client_command(ClientCommand::SetJumpHeld(false));
-        for _ in 0..4 {
-            s.update(0, 0);
-        }
-        assert!(
-            (s.player.x - target).abs() < 0.6 && s.player.y < (g - 3) as f64,
-            "could not reach loft furniture: {},{}",
-            s.player.x,
-            s.player.y
-        );
+        s.apply_client_command(ClientCommand::SetSneakHeld(true));
         s.apply_client_command(ClientCommand::UseAt(at(1), g - 4));
         assert!(s.at_chest, "loft chest was out of reach");
         s.apply_client_command(ClientCommand::ToggleInventory);

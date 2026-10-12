@@ -943,36 +943,66 @@ impl Renderer {
         }
         if let Some(phase) = actor.swing {
             let direction = if actor.facing_right { 1.0 } else { -1.0 };
-            let hand = (x + width as i32 / 2, y_pixel + pixel_height as i32 / 2);
-            let angle = if phase < 0.25 {
-                -1.7 + phase * 2.4
-            } else if phase < 0.65 {
-                -1.1 + (phase - 0.25) * 5.5
-            } else {
-                1.1 - (phase - 0.65) * 2.0
-            };
-            let length = (scale as f64 * 2.8).max(3.0);
-            let color = actor
-                .held_item
-                .map_or(Color::White, Self::inventory_item_color);
-            for step in 0..=length as i32 {
-                let px = hand.0 + (direction * angle.cos() * step as f64).round() as i32;
-                let py = hand.1 + (angle.sin() * step as f64).round() as i32;
-                let c = if step == 0 {
-                    Self::rgb(Self::player_skin_rgb())
+            let shoulder = (
+                x + if actor.facing_right {
+                    width as i32 * 2 / 3
                 } else {
-                    color
-                };
-                self.put_visible_effect(px, py, c, state);
+                    width as i32 / 3
+                },
+                y_pixel + pixel_height as i32 * 3 / 8,
+            );
+            let angle = -1.1 + (phase.clamp(0.0, 1.0) * std::f64::consts::PI).sin() * 1.8;
+            let arm_length = (pixel_height as f64 * 0.22).round().max(1.0) as i32;
+            let skin = actor.color(b'a').unwrap_or(actor.colors[0]);
+            let sleeve = actor.color(b'c').unwrap_or(actor.colors[1]);
+            for step in 0..=arm_length {
+                let px = shoulder.0 + (direction * angle.cos() * f64::from(step)).round() as i32;
+                let py = shoulder.1 + (angle.sin() * f64::from(step)).round() as i32;
+                self.put_swing_pixel(
+                    px,
+                    py,
+                    if step * 2 < arm_length { sleeve } else { skin },
+                    state,
+                    lighting,
+                );
             }
-            if (0.25..0.65).contains(&phase) {
-                for offset in [-0.22, 0.0, 0.22] {
-                    self.put_visible_effect(
-                        hand.0
-                            + (direction * (angle + offset).cos() * (length + 1.0)).round() as i32,
-                        hand.1 + ((angle + offset).sin() * (length + 1.0)).round() as i32,
-                        Self::rgb((229, 229, 207)),
+            if let Some(item) = actor.held_item {
+                let tool_length = if matches!(
+                    item,
+                    super::ItemType::WoodPickaxe
+                        | super::ItemType::StonePickaxe
+                        | super::ItemType::IronPickaxe
+                        | super::ItemType::DiamondPickaxe
+                        | super::ItemType::WoodAxe
+                        | super::ItemType::StoneAxe
+                        | super::ItemType::IronAxe
+                        | super::ItemType::DiamondAxe
+                        | super::ItemType::WoodShovel
+                        | super::ItemType::StoneShovel
+                        | super::ItemType::IronShovel
+                        | super::ItemType::DiamondShovel
+                        | super::ItemType::WoodHoe
+                        | super::ItemType::StoneHoe
+                        | super::ItemType::IronHoe
+                        | super::ItemType::DiamondHoe
+                        | super::ItemType::WoodSword
+                        | super::ItemType::StoneSword
+                        | super::ItemType::IronSword
+                        | super::ItemType::DiamondSword
+                        | super::ItemType::FishingRod
+                        | super::ItemType::Bow
+                ) {
+                    (scale / 2).max(1)
+                } else {
+                    1
+                };
+                for step in arm_length + 1..=arm_length + tool_length {
+                    self.put_swing_pixel(
+                        shoulder.0 + (direction * angle.cos() * f64::from(step)).round() as i32,
+                        shoulder.1 + (angle.sin() * f64::from(step)).round() as i32,
+                        Self::inventory_item_color(item),
                         state,
+                        lighting,
                     );
                 }
             }
@@ -1049,6 +1079,21 @@ impl Renderer {
         }
     }
 
+    fn put_swing_pixel(
+        &mut self,
+        x: i32,
+        y: i32,
+        color: Color,
+        state: &GameState,
+        lighting: Option<&super::shading::SceneLighting>,
+    ) {
+        let (vx, vy, cx, cy, scale) = self.world_view.unwrap();
+        let wx = (x + vx - cx) as f64 / f64::from(2 * scale);
+        let wy = (y + vy * 2 + self.vertical_pixel_offset - cy * 2) as f64 / f64::from(2 * scale);
+        let color = lighting.map_or(color, |light| light.shade(color, wx, wy, 0.94, false));
+        self.put_visible_effect(x, y, color, state);
+    }
+
     pub(super) fn put_pixel(&mut self, x: i32, y_pixel: i32, color: Color) {
         self.put_pixel_bounded(x, y_pixel, color, self.height as i32 - 4);
     }
@@ -1096,6 +1141,57 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn empty_hand_swing_keeps_arm_proportions_and_never_draws_a_white_weapon() {
+        let state = fixture();
+        for scale in [2, 3, 4] {
+            for facing in [false, true] {
+                for phase in [0.0, 0.25, 0.5, 0.75, 0.99] {
+                    let mut renderer = Renderer::with_size(160, 48);
+                    renderer.world_view = Some((0, 0, 0, 0, scale));
+                    let lighting = super::super::shading::SceneLighting::new(
+                        &state,
+                        &[15; 1024],
+                        (0, 0, 32, 32),
+                    );
+                    let actor = ActorSprite::humanoid(
+                        0,
+                        0,
+                        SpriteKind::Player,
+                        facing,
+                        0.0,
+                        0,
+                        [Renderer::rgb((190, 150, 120)), Color::Blue, Color::DarkBlue],
+                        false,
+                        false,
+                    )
+                    .with_subcell(5.0, 8.0, scale)
+                    .with_swing(Some(phase));
+                    renderer.draw_actor_sprite(&actor, scale, Some(&lighting), &state);
+                    let (width, height) = actor.pixel_dimensions(scale);
+                    let center = 5 * 2 * scale;
+                    let radius = width as i32 / 2 + (height as f64 * 0.25).ceil() as i32;
+                    let mut drawn = 0;
+                    for (i, cell) in renderer.back_buffer.iter().enumerate() {
+                        for color in [cell.fg, cell.bg] {
+                            if color != Color::Reset {
+                                drawn += 1;
+                                assert_ne!(color, Color::White, "empty hand became a white rod");
+                                let x = (i % 160) as i32;
+                                assert!(
+                                    (center - radius..=center + radius).contains(&x),
+                                    "swing overhang exceeded a normal arm at scale {scale}"
+                                );
+                            }
+                        }
+                    }
+                    assert!(drawn > 0);
+                }
+            }
+        }
+    }
+
     #[test]
     fn compact_airborne_pose_keeps_both_boots() {
         let mut state = crate::engine::state::GameState::network_view();

@@ -1,6 +1,7 @@
 #[path = "client_identity.rs"]
 mod identity;
 use super::command::ClientCommand;
+use super::game_loop::{confirms_control_key_releases, input_stale_timeout};
 use super::net::{
     ChunkDeltaPacket, ClientHello, ClientInputFrame, ClientPredictionState, NET_PROTOCOL_VERSION,
     SERVER_TICK_RATE, ServerSnapshot, ServerWireMessage, read_framed_server_message,
@@ -24,9 +25,11 @@ const CLIENT_TICK_DURATION: Duration = Duration::from_millis(1000 / SERVER_TICK_
 const CLIENT_MAX_CATCHUP_TICKS_PER_FRAME: u8 = 5;
 const CLIENT_TARGET_FPS: u64 = 60;
 const CLIENT_FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / CLIENT_TARGET_FPS);
-// Bounded fallback for legacy terminals without key-up events. Enhanced terminals
-// retain held controls until a real release or focus/modal transition.
-const REMOTE_HORIZONTAL_STALE_TIMEOUT: Duration = Duration::from_millis(150);
+// Match native input: conservative pulses until a control release is observed,
+// then a bounded watchdog for missing key-up events.
+const REMOTE_HORIZONTAL_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(150);
+const REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(96);
+const REMOTE_HORIZONTAL_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(320);
 const REMOTE_JUMP_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(340);
 const REMOTE_JUMP_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(160);
 const REMOTE_JUMP_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(420);
@@ -298,6 +301,8 @@ fn run_tcp_client_loop(
     let mut right_active = false;
     let mut left_last_input_at: Option<Instant> = None;
     let mut right_last_input_at: Option<Instant> = None;
+    let mut left_repeat_observed = false;
+    let mut right_repeat_observed = false;
     let mut jump_held_sent = false;
     let mut jump_last_input_at: Option<Instant> = None;
     let mut jump_repeat_observed = false;
@@ -312,7 +317,7 @@ fn run_tcp_client_loop(
     while running {
         while event::poll(Duration::from_millis(0))? {
             let ev = event::read()?;
-            if matches!(&ev, Event::Key(key) if key.kind == KeyEventKind::Release) {
+            if matches!(&ev, Event::Key(key) if confirms_control_key_releases(key)) {
                 key_releases = true;
                 renderer.note_key_release();
             }
@@ -370,7 +375,13 @@ fn run_tcp_client_loop(
                             }
                             left_active = false;
                             right_active = false;
+                            left_last_input_at = None;
+                            right_last_input_at = None;
+                            left_repeat_observed = false;
+                            right_repeat_observed = false;
                             jump_held_sent = false;
+                            jump_last_input_at = None;
+                            jump_repeat_observed = false;
                             state.chat.open = true;
                         }
                         KeyCode::F(4) => renderer.toggle_zoom(),
@@ -387,6 +398,25 @@ fn run_tcp_client_loop(
                             }
                         }
                         KeyCode::Char('e') => {
+                            for command in [
+                                ClientCommand::ClearDirectionalInput,
+                                ClientCommand::SetJumpHeld(false),
+                            ] {
+                                queue_client_command(
+                                    &mut prediction,
+                                    &mut pending_outbound,
+                                    command,
+                                );
+                            }
+                            left_active = false;
+                            right_active = false;
+                            left_last_input_at = None;
+                            right_last_input_at = None;
+                            left_repeat_observed = false;
+                            right_repeat_observed = false;
+                            jump_held_sent = false;
+                            jump_last_input_at = None;
+                            jump_repeat_observed = false;
                             queue_client_command(
                                 &mut prediction,
                                 &mut pending_outbound,
@@ -503,8 +533,12 @@ fn run_tcp_client_loop(
                                 );
                             }
                         }
-                        KeyCode::Left | KeyCode::Char('a' | 'A') => {
-                            left_last_input_at = Some(Instant::now());
+                        KeyCode::Left | KeyCode::Char('a' | 'A') if !state.inventory_open => {
+                            let now = Instant::now();
+                            left_repeat_observed = left_last_input_at.is_some_and(|last| {
+                                now.duration_since(last) <= REMOTE_HORIZONTAL_PRESS_REPEAT_WINDOW
+                            });
+                            left_last_input_at = Some(now);
                             if !left_active {
                                 left_active = true;
                                 queue_client_command(
@@ -515,6 +549,8 @@ fn run_tcp_client_loop(
                             }
                             if right_active {
                                 right_active = false;
+                                right_last_input_at = None;
+                                right_repeat_observed = false;
                                 queue_client_command(
                                     &mut prediction,
                                     &mut pending_outbound,
@@ -522,8 +558,12 @@ fn run_tcp_client_loop(
                                 );
                             }
                         }
-                        KeyCode::Right | KeyCode::Char('d' | 'D') => {
-                            right_last_input_at = Some(Instant::now());
+                        KeyCode::Right | KeyCode::Char('d' | 'D') if !state.inventory_open => {
+                            let now = Instant::now();
+                            right_repeat_observed = right_last_input_at.is_some_and(|last| {
+                                now.duration_since(last) <= REMOTE_HORIZONTAL_PRESS_REPEAT_WINDOW
+                            });
+                            right_last_input_at = Some(now);
                             if !right_active {
                                 right_active = true;
                                 queue_client_command(
@@ -534,6 +574,8 @@ fn run_tcp_client_loop(
                             }
                             if left_active {
                                 left_active = false;
+                                left_last_input_at = None;
+                                left_repeat_observed = false;
                                 queue_client_command(
                                     &mut prediction,
                                     &mut pending_outbound,
@@ -613,22 +655,62 @@ fn run_tcp_client_loop(
                                 jump_held_sent = true;
                             }
                         }
-                        if matches!(
-                            key_event.code,
-                            KeyCode::Left
-                                | KeyCode::Right
-                                | KeyCode::Char('a')
-                                | KeyCode::Char('A')
-                                | KeyCode::Char('d')
-                                | KeyCode::Char('D')
-                        ) {
+                        if !state.inventory_open
+                            && matches!(
+                                key_event.code,
+                                KeyCode::Left
+                                    | KeyCode::Right
+                                    | KeyCode::Char('a')
+                                    | KeyCode::Char('A')
+                                    | KeyCode::Char('d')
+                                    | KeyCode::Char('D')
+                            )
+                        {
                             if matches!(
                                 key_event.code,
                                 KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('A')
                             ) {
+                                left_repeat_observed = true;
                                 left_last_input_at = Some(Instant::now());
+                                if !left_active {
+                                    left_active = true;
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetMoveLeft(true),
+                                    );
+                                }
+                                if right_active {
+                                    right_active = false;
+                                    right_last_input_at = None;
+                                    right_repeat_observed = false;
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetMoveRight(false),
+                                    );
+                                }
                             } else {
+                                right_repeat_observed = true;
                                 right_last_input_at = Some(Instant::now());
+                                if !right_active {
+                                    right_active = true;
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetMoveRight(true),
+                                    );
+                                }
+                                if left_active {
+                                    left_active = false;
+                                    left_last_input_at = None;
+                                    left_repeat_observed = false;
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetMoveLeft(false),
+                                    );
+                                }
                             }
                         }
                     }
@@ -637,6 +719,7 @@ fn run_tcp_client_loop(
                             if left_active {
                                 left_active = false;
                                 left_last_input_at = None;
+                                left_repeat_observed = false;
                                 queue_client_command(
                                     &mut prediction,
                                     &mut pending_outbound,
@@ -648,6 +731,7 @@ fn run_tcp_client_loop(
                             if right_active {
                                 right_active = false;
                                 right_last_input_at = None;
+                                right_repeat_observed = false;
                                 queue_client_command(
                                     &mut prediction,
                                     &mut pending_outbound,
@@ -676,6 +760,8 @@ fn run_tcp_client_loop(
                                 right_active = false;
                                 left_last_input_at = None;
                                 right_last_input_at = None;
+                                left_repeat_observed = false;
+                                right_repeat_observed = false;
                                 queue_client_command(
                                     &mut prediction,
                                     &mut pending_outbound,
@@ -819,6 +905,8 @@ fn run_tcp_client_loop(
                         right_active = false;
                         left_last_input_at = None;
                         right_last_input_at = None;
+                        left_repeat_observed = false;
+                        right_repeat_observed = false;
                         queue_client_command(
                             &mut prediction,
                             &mut pending_outbound,
@@ -858,41 +946,61 @@ fn run_tcp_client_loop(
         }
 
         let now = Instant::now();
-        if !key_releases
-            && left_active
-            && left_last_input_at
-                .is_none_or(|ts| now.duration_since(ts) > REMOTE_HORIZONTAL_STALE_TIMEOUT)
+        if left_active
+            && left_last_input_at.is_none_or(|ts| {
+                now.duration_since(ts)
+                    > input_stale_timeout(
+                        key_releases,
+                        if left_repeat_observed {
+                            REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT
+                        } else {
+                            REMOTE_HORIZONTAL_STALE_TIMEOUT_INITIAL
+                        },
+                    )
+            })
         {
             left_active = false;
             left_last_input_at = None;
+            left_repeat_observed = false;
             queue_client_command(
                 &mut prediction,
                 &mut pending_outbound,
                 ClientCommand::SetMoveLeft(false),
             );
         }
-        if !key_releases
-            && right_active
-            && right_last_input_at
-                .is_none_or(|ts| now.duration_since(ts) > REMOTE_HORIZONTAL_STALE_TIMEOUT)
+        if right_active
+            && right_last_input_at.is_none_or(|ts| {
+                now.duration_since(ts)
+                    > input_stale_timeout(
+                        key_releases,
+                        if right_repeat_observed {
+                            REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT
+                        } else {
+                            REMOTE_HORIZONTAL_STALE_TIMEOUT_INITIAL
+                        },
+                    )
+            })
         {
             right_active = false;
             right_last_input_at = None;
+            right_repeat_observed = false;
             queue_client_command(
                 &mut prediction,
                 &mut pending_outbound,
                 ClientCommand::SetMoveRight(false),
             );
         }
-        if !key_releases
-            && jump_held_sent
+        if jump_held_sent
             && jump_last_input_at.is_none_or(|ts| {
                 now.duration_since(ts)
-                    > if jump_repeat_observed {
-                        REMOTE_JUMP_STALE_TIMEOUT_REPEAT
-                    } else {
-                        REMOTE_JUMP_STALE_TIMEOUT_INITIAL
-                    }
+                    > input_stale_timeout(
+                        key_releases,
+                        if jump_repeat_observed {
+                            REMOTE_JUMP_STALE_TIMEOUT_REPEAT
+                        } else {
+                            REMOTE_JUMP_STALE_TIMEOUT_INITIAL
+                        },
+                    )
             })
         {
             jump_held_sent = false;
@@ -975,7 +1083,7 @@ fn run_tcp_client_loop(
                 / CLIENT_TICK_DURATION.as_secs_f64())
             .clamp(0.0, 1.0);
             renderer.render(&state, frame_alpha)?;
-            next_frame_deadline = now + CLIENT_FRAME_DURATION;
+            next_frame_deadline = Instant::now() + CLIENT_FRAME_DURATION;
         }
         let wake_at = next_frame_deadline.min(last_tick + CLIENT_TICK_DURATION);
         event::poll(wake_at.saturating_duration_since(Instant::now()))?;

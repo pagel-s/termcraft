@@ -231,3 +231,22 @@ a read-only director connection. It never edits player/world state. Pillow is ne
 for software captures. The village profile stages six villagers and measures 1,000
 real engine ticks after warmup. Renderer profiles include a generated village scene;
 these CPU timings exclude terminal emulator and WAN latency.
+
+## Terminal compatibility and moving output
+
+```sh
+cargo build --release --locked --bins --examples
+python3 scripts/test_terminal_input.py --binary target/release/termcraft --village-example target/release/examples/village_review --report /tmp/terminal-input.json --keep-artifacts
+env -u NO_COLOR target/release/examples/sky_review /tmp/sky-ansi
+python3 scripts/capture_terminal_art.py /tmp/sky-ansi /tmp/sky-png
+env -u NO_COLOR target/release/examples/motion_profile > /tmp/motion-profile.json
+```
+
+The terminal test deliberately answers the enhancement query while sending plain
+ASCII taps with no key-up. It then checks unrelated releases, confirmed holds,
+missing key-up, repeat refresh, focus loss and restoration in native/co-op modes.
+A generated copied village checks door click+drag+walk in every view. The sky
+example stages fixed poses/time in disposable geometry. The motion profile compares
+stationary and synthetic 6.4-block/s camera pans with color enabled. Counting-writer
+bytes and CPU time exclude emulator presentation; synchronized output is only a
+request to supporting terminals, not a latency measurement.

@@ -84,13 +84,21 @@ try:
     mcp = subprocess.Popen([binary, 'mcp'], env=env, stdin=subprocess.PIPE,
                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     call('director_connect', {})
+    os.write(master, b'\x1b[100;1:1u')
+    pump(.035)
+    os.write(master, b'\x1b[100;1:3u')
+    pump(.1)
     start = call('director_observe', {})['context']['player']
     doors = sorted(x for b in fixture['buildings'] for x in (b['left'], b['right']))
     clicked = []
     heights = []
-    os.write(master, b'\x1b[100;1:1u')  # Enhanced D press; no repeated key events.
+    os.write(master, b'\x1b[100;1:1u')  # Enhanced D press, followed by normal OS repeat events.
     begun = time.monotonic()
+    last_repeat = begun
     while time.monotonic() - begun < 28:
+        if time.monotonic() - last_repeat > .4:
+            os.write(master, b'\x1b[100;1:2u')
+            last_repeat = time.monotonic()
         player = call('director_observe', {})['context']['player']
         x = player['x']
         heights.append(player['y'])
@@ -98,9 +106,17 @@ try:
             break
         for door in doors:
             if door not in clicked and .35 < door + .5 - x < 2.3:
-                col = round(80 + (door + .5 - x) * 8) + 1
-                os.write(master, f'\x1b[<2;{col};35M\x1b[<2;{col};35m'.encode())
+                # Aim at the settled image, not at a live state observation
+                # that can be ahead of the frame currently visible in the PTY.
+                os.write(master, b'\x1b[100;1:3u')
+                pump(.16)
+                settled = call('director_observe', {})['context']['player']
+                col = round((door + .5) * 4 - round(settled['x'] * 4) + 80) + 1
+                os.write(master, f'\x1b[<2;{col};34M\x1b[<2;{col};34m'.encode())
+                pump(.1)
                 clicked.append(door)
+                os.write(master, b'\x1b[100;1:1u')
+                last_repeat = time.monotonic()
         pump(.07)
     else:
         raise AssertionError(('Native village walk stalled', player, clicked, doors))
@@ -116,7 +132,7 @@ try:
     assert p.returncode == 0 and restored and before == termios.tcgetattr(slave)
     report = {'status': 'passed', 'binary_sha256': hashlib.sha256(Path(binary).read_bytes()).hexdigest(),
               'start': start, 'end': end, 'walked_blocks': end['x'] - start['x'],
-              'doors_opened_with_mouse': clicked, 'jump_events': 0,
+              'doors_opened_with_mouse': clicked, 'jump_events': 0, 'pauses_to_aim_at_doors': True,
               'max_feet_deviation': max(abs(y - fixture['ground_y']) for y in heights),
               'terminal_restored': True, 'artifacts': str(root),
               'limits': 'Local PTY with enhanced held-key and actual SGR mouse input. Read-only director observations. Copied generated review save, spawning/daylight disabled. Excludes emulator/WAN latency and human enjoyment.'}

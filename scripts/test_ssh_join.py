@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import pty
 import select
@@ -166,7 +167,7 @@ class Client:
     def pump(self):
         if select.select([self.master], [], [], 0.01)[0]:
             self.output.extend(os.read(self.master, 65536))
-        return b"Termcraft |" in self.output
+        return b"Termcraft |" in re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"", self.output)
 
     def drain(self):
         while select.select([self.master], [], [], 0.01)[0]:

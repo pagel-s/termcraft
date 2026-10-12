@@ -1,6 +1,5 @@
 use crate::engine::state::{
     ARMOR_UI_OFFSET, CRAFT_GRID_UI_OFFSET, CRAFT_OUTPUT_UI_SLOT, GameState, PrecipitationType,
-    WeatherType,
 };
 use crate::world::Dimension;
 #[path = "items.rs"]
@@ -26,8 +25,9 @@ use crossterm::{
     execute, queue,
     style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
     terminal::{
-        Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
-        enable_raw_mode, size, supports_keyboard_enhancement,
+        BeginSynchronizedUpdate, Clear, ClearType, EndSynchronizedUpdate, EnterAlternateScreen,
+        LeaveAlternateScreen, disable_raw_mode, enable_raw_mode, size,
+        supports_keyboard_enhancement,
     },
 };
 use sprites::{ActorSprite, SpriteKind};
@@ -65,7 +65,7 @@ pub struct Renderer {
     camera_initialized: bool,
     key_releases: bool,
     world_view: Option<(i32, i32, i32, i32, i32)>,
-    zoom: bool,
+    zoom: u8,
     pixel_colors: bool,
     actor_sprites: Vec<ActorSprite>,
     motion: motion::MotionHistory,
@@ -102,7 +102,7 @@ impl Renderer {
             camera_initialized: false,
             key_releases: false,
             world_view: None,
-            zoom: true,
+            zoom: 0,
             pixel_colors: true,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
@@ -117,12 +117,13 @@ impl Renderer {
     pub fn init(&mut self) -> std::io::Result<()> {
         enable_raw_mode()?;
         if std::env::var_os("NO_COLOR").is_some() {
-            self.zoom = false;
+            self.zoom = 1;
             self.pixel_colors = false;
         }
-        // Enhanced terminals (and native Windows input) report real key-up events.
-        // Expiring their held keys on an OS-repeat timer interrupts continuous motion.
-        self.key_releases = cfg!(windows) || supports_keyboard_enhancement().unwrap_or(false);
+        // Capability replies do not prove that releases make it through a terminal
+        // or multiplexer. Stay bounded until a control key-up is actually received.
+        let _enhancement_available = supports_keyboard_enhancement().unwrap_or(false);
+        self.key_releases = false;
         execute!(
             self.stdout,
             EnterAlternateScreen,
@@ -143,6 +144,7 @@ impl Renderer {
     pub fn restore(&mut self) -> std::io::Result<()> {
         let screen = execute!(
             self.stdout,
+            EndSynchronizedUpdate,
             PopKeyboardEnhancementFlags,
             DisableMouseCapture,
             DisableBracketedPaste,
@@ -176,7 +178,7 @@ impl Renderer {
         if !self.pixel_colors {
             return;
         }
-        self.zoom = !self.zoom;
+        self.zoom = (self.zoom + 1) % 3;
         // Picking continues to use the image still on screen until the next frame.
         self.buffer.fill(RenderCell::default());
     }
@@ -1154,60 +1156,6 @@ impl Renderer {
         Self::rgb(base)
     }
 
-    fn overworld_cloud_layer(
-        world_char_x: i32,
-        block_y: i32,
-        sky_occluder_y: i32,
-        cloud_offset: f32,
-        day_mix: f32,
-        twilight_mix: f32,
-        weather: (PrecipitationType, f32),
-    ) -> Option<(char, Color)> {
-        let (precipitation, rain_mix) = weather;
-        let sky_depth = sky_occluder_y - block_y;
-        if sky_depth < 5 || !(2..=28).contains(&block_y) {
-            return None;
-        }
-
-        let wx = world_char_x as f32;
-        let by = block_y as f32;
-        let band_strength = (1.0 - ((by - 12.0).abs() / 10.5)).clamp(0.0, 1.0);
-        let density = (wx * 0.034 + cloud_offset).sin() * 0.95
-            + (wx * 0.079 - cloud_offset * 0.72 + by * 0.14).cos() * 0.72
-            + (wx * 0.017 + by * 0.28 + cloud_offset * 0.22).sin() * 0.44
-            + (wx * 0.008 - cloud_offset * 0.1).cos() * 0.25
-            + band_strength * 0.85
-            - (if precipitation != PrecipitationType::None {
-                1.28
-            } else {
-                1.5
-            } - rain_mix * 0.22);
-        if density <= 0.0 {
-            return None;
-        }
-
-        let mut cloud_rgb = Self::lerp_rgb((174, 182, 206), (244, 244, 240), day_mix);
-        cloud_rgb = Self::lerp_rgb(cloud_rgb, (255, 218, 186), twilight_mix * 0.26);
-        if precipitation != PrecipitationType::None {
-            cloud_rgb = Self::lerp_rgb(cloud_rgb, (188, 194, 204), 0.55 + rain_mix * 0.2);
-        }
-        cloud_rgb = Self::lerp_rgb(
-            cloud_rgb,
-            Self::lerp_rgb((176, 182, 192), (244, 244, 242), day_mix),
-            0.12 + band_strength * 0.06,
-        );
-
-        let (glyph, tint_mix) = if density > 0.9 {
-            ('▓', 0.22)
-        } else if density > 0.45 {
-            ('▒', 0.08)
-        } else {
-            ('░', 0.0)
-        };
-        let cloud_rgb = Self::lerp_rgb(cloud_rgb, (255, 255, 255), tint_mix);
-        Some((glyph, Self::rgb(cloud_rgb)))
-    }
-
     pub fn render(&mut self, state: &GameState, frame_alpha: f64) -> std::io::Result<()> {
         self.check_resize()?;
         let now = std::time::Instant::now();
@@ -1228,13 +1176,15 @@ impl Renderer {
         self.actor_sprites.clear();
         let physical_size = (self.width, self.height);
         let boss_view = state.current_dimension == Dimension::End && state.ender_dragon.is_some();
-        let scale = if self.zoom && boss_view && self.width >= 100 && self.height >= 32 {
-            // Keep the ground, crystal towers and airborne boss in one 2D arena.
-            2
-        } else if self.zoom && self.width >= 140 && self.height >= 44 {
-            4
-        } else if self.zoom && self.width >= 100 && self.height >= 32 {
-            2
+        // Start in a useful pixel overview. Detailed art is an explicit view,
+        // rather than automatically halving world context on a larger terminal.
+        let scale = if self.pixel_colors && self.zoom != 1 && self.width >= 100 && self.height >= 32
+        {
+            if self.zoom == 2 && !boss_view && self.width >= 140 && self.height >= 44 {
+                4
+            } else {
+                2
+            }
         } else {
             1
         };
@@ -1319,7 +1269,6 @@ impl Renderer {
         let is_overworld = state.current_dimension == Dimension::Overworld;
         // Quantize sky/weather animation so the terminal diff changes less often,
         // improving frame pacing without making the sky feel static.
-        let cloud_anim_phase = (state.player.age / 6) as f32;
         let precip_anim_phase = (state.player.age / 2) as f32;
         let end_twinkle_phase = (state.player.age / 8) as i32;
         let mut sky_light = if is_nether {
@@ -1354,7 +1303,6 @@ impl Renderer {
         } else {
             0.0
         };
-        let cloud_offset = tod / 2400.0 + cloud_anim_phase * (0.024 + wind_mix * 0.032);
         if is_overworld {
             for (x, entry) in precipitation_by_bx.iter_mut().enumerate() {
                 *entry = state.precipitation_at(min_bx + x as i32);
@@ -1502,73 +1450,24 @@ impl Renderer {
                     if !sky_exposed && light_val == 0 && block_y > 32 {
                         final_bg = Color::AnsiValue(233);
                     } else if sky_exposed {
-                        if let Some((cloud_char, cloud_fg)) = Self::overworld_cloud_layer(
-                            world_char_x,
-                            block_y,
-                            sky_horizon_y,
-                            cloud_offset,
-                            sky_day_mix,
-                            sky_twilight_mix,
-                            (precipitation, rain_mix),
-                        ) {
-                            final_char = cloud_char;
-                            final_fg = cloud_fg;
-                        }
-                        if state.weather == WeatherType::Clear {
-                            let sky_parallax_y = ((render_player_y - 34.0) * 0.35).round() as i32;
-                            if (4000.0..=20000.0).contains(&tod) {
-                                let sun_progress = (tod - 4000.0) / 16000.0;
-                                let sun_screen_x =
-                                    ((self.width as f32 - 1.0) * sun_progress) as i32;
-                                let sun_screen_y = 4
-                                    + (12.0 * (sun_progress - 0.5).powi(2)) as i32
-                                    + sky_parallax_y;
-                                if (screen_x - sun_screen_x).abs() < 4
-                                    && (screen_y - sun_screen_y).abs() < 2
-                                    && final_char == ' '
-                                {
-                                    final_char = '█';
-                                    final_fg = if sky_light_u8 < 10 {
-                                        Color::Rgb {
-                                            r: 255,
-                                            g: 140,
-                                            b: 0,
-                                        }
-                                    } else {
-                                        Color::Yellow
-                                    };
-                                }
-                            } else {
-                                let moon_progress = if tod < 4000.0 {
-                                    (tod + 4000.0) / 8000.0
-                                } else {
-                                    (tod - 20000.0) / 8000.0
-                                };
-                                let moon_screen_x =
-                                    ((self.width as f32 - 1.0) * moon_progress) as i32;
-                                let moon_screen_y = 4
-                                    + (12.0 * (moon_progress - 0.5).powi(2)) as i32
-                                    + sky_parallax_y;
-                                if (screen_x - moon_screen_x).abs() < 3
-                                    && (screen_y - moon_screen_y).abs() < 2
-                                    && final_char == ' '
-                                {
-                                    final_char = '█';
-                                    final_fg = Color::White;
-                                }
-                            }
-                            if sky_light_u8 <= 8 && final_char == ' ' {
-                                let hash = (world_char_x.wrapping_mul(31)
-                                    ^ block_y.wrapping_mul(17))
-                                    % 150;
-                                if hash == 0 {
-                                    final_char = '.';
-                                    final_fg = Color::White;
-                                } else if hash == 1 {
-                                    final_char = '+';
-                                    final_fg = Color::DarkGrey;
-                                }
-                            }
+                        if self.pixel_colors {
+                            // The wide view shares the same designed sky; switching
+                            // views must not bring back the old noise/cloud glyphs.
+                            let size = (self.width as i32, ui_y * 2);
+                            let mixes = (sky_day_mix, sky_twilight_mix);
+                            final_char = '▀';
+                            final_fg = Self::rgb(Self::screen_sky_pixel(
+                                state,
+                                (screen_x, screen_y * 2),
+                                size,
+                                mixes,
+                            ));
+                            final_bg = Self::rgb(Self::screen_sky_pixel(
+                                state,
+                                (screen_x, screen_y * 2 + 1),
+                                size,
+                                mixes,
+                            ));
                         }
 
                         if precipitation != PrecipitationType::None && final_char == ' ' {
@@ -3746,7 +3645,7 @@ impl Renderer {
                 1,
                 0,
                 &format!(
-                    "Termcraft | {:?} | {:?} | {}    {chat_hint}E: inventory{settings_hint}  F3: diagnostics  F4: zoom",
+                    "Termcraft | {:?} | {:?} | {}    {chat_hint}E: inventory{settings_hint}  F3: diagnostics  F4: view",
                     state.current_dimension,
                     state.weather,
                     state.difficulty_name()
@@ -4062,6 +3961,19 @@ impl Renderer {
                 )
             } else if dist > 4.5 {
                 "Move closer to target".into()
+            } else if !state.can_see_block(state.player.x, state.player.y - 1.0, hover_bx, hover_by)
+            {
+                "Blocked: move around".into()
+            } else if matches!(
+                state.world.get_block(hover_bx, hover_by),
+                BlockType::Chest
+                    | BlockType::Furnace
+                    | BlockType::CraftingTable
+                    | BlockType::Bed
+                    | BlockType::WoodDoor(_)
+                    | BlockType::IronDoor(_)
+            ) {
+                "R-click / F: use".into()
             } else {
                 format!("Reach {dist:.1} / 4.5")
             };
@@ -4082,7 +3994,19 @@ impl Renderer {
 
         let mut encoded = std::mem::take(&mut self.frame_output);
         encoded.clear();
+        queue!(&mut encoded, BeginSynchronizedUpdate)?;
+        // Uniform pixel halves are a background cell. Invisible foreground
+        // colors must not cause extra updates or split otherwise identical runs.
+        for cell in &mut self.back_buffer {
+            if matches!(cell.ch, '▀' | '▄' | '█') && cell.fg == cell.bg {
+                cell.ch = ' ';
+            }
+            if cell.ch == ' ' {
+                cell.fg = Color::Reset;
+            }
+        }
         let mut run = String::new();
+        let mut cursor = None;
         let mut last_fg = Color::Reset;
         let mut last_bg = Color::Reset;
         let row_width = self.width as usize;
@@ -4117,7 +4041,10 @@ impl Renderer {
                     }
                 }
 
-                queue!(&mut encoded, MoveTo(run_start as u16, y))?;
+                if cursor != Some((run_start, y)) {
+                    queue!(&mut encoded, MoveTo(run_start as u16, y))?;
+                }
+                cursor = Some((x, y));
                 if run_fg != last_fg {
                     queue!(&mut encoded, SetForegroundColor(run_fg))?;
                     last_fg = run_fg;
@@ -4129,7 +4056,7 @@ impl Renderer {
                 queue!(&mut encoded, Print(&run))?;
             }
         }
-        queue!(&mut encoded, ResetColor)?;
+        queue!(&mut encoded, ResetColor, EndSynchronizedUpdate)?;
         let result = output.write_all(&encoded).and_then(|_| output.flush());
         self.frame_output = encoded;
         result?;
@@ -5690,7 +5617,21 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
+
+    #[test]
+    fn default_view_has_context_and_cycles_wide_then_detailed() {
+        let state = GameState::network_view();
+        let mut renderer = Renderer::with_size(160, 48);
+        let mut output = Vec::new();
+        for expected_scale in [2, 1, 4, 2] {
+            output.clear();
+            renderer.render_to(&state, 0.0, &mut output).unwrap();
+            assert_eq!(renderer.world_view.unwrap().4, expected_scale);
+            assert!(output.starts_with(b"\x1b[?2026h"));
+            assert!(output.ends_with(b"\x1b[?2026l"));
+            renderer.toggle_zoom();
+        }
+    }
 
     #[test]
     fn detailed_view_keeps_an_eight_block_roof_below_the_header() {
@@ -5757,6 +5698,7 @@ mod tests {
     #[test]
     fn half_pixel_overlay_preserves_the_other_half_and_fine_view_picking() {
         let mut renderer = Renderer::with_size(160, 48);
+        renderer.zoom = 2;
         renderer.put_pixel(2, 8, Color::Red);
         renderer.put_pixel(2, 9, Color::Blue);
         let cell = renderer.back_buffer[4 * 160 + 2];
@@ -5960,29 +5902,6 @@ mod tests {
         assert!(matches!(zenith, Color::Rgb { .. }));
         assert_ne!(horizon, zenith);
         assert_ne!(zenith, storm);
-    }
-
-    #[test]
-    fn cloud_layer_produces_soft_and_dense_bands() {
-        let mut glyphs = HashSet::new();
-        let day_mix = Renderer::day_mix(6000.0);
-        let twilight_mix = Renderer::twilight_mix(6000.0);
-        for x in -240..=240 {
-            if let Some((glyph, _)) = Renderer::overworld_cloud_layer(
-                x,
-                12,
-                36,
-                18.0,
-                day_mix,
-                twilight_mix,
-                (PrecipitationType::None, 0.0),
-            ) {
-                glyphs.insert(glyph);
-            }
-        }
-
-        assert!(glyphs.contains(&'░'));
-        assert!(glyphs.contains(&'▒') || glyphs.contains(&'▓'));
     }
 
     #[test]
@@ -6452,7 +6371,7 @@ mod tests {
             camera_initialized: false,
             key_releases: false,
             world_view: None,
-            zoom: true,
+            zoom: 0,
             pixel_colors: true,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
@@ -6516,7 +6435,7 @@ mod tests {
             camera_initialized: false,
             key_releases: false,
             world_view: None,
-            zoom: true,
+            zoom: 0,
             pixel_colors: true,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
@@ -6565,7 +6484,7 @@ mod tests {
             camera_initialized: false,
             key_releases: false,
             world_view: None,
-            zoom: true,
+            zoom: 0,
             pixel_colors: true,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
@@ -6614,7 +6533,7 @@ mod tests {
             camera_initialized: false,
             key_releases: false,
             world_view: None,
-            zoom: true,
+            zoom: 0,
             pixel_colors: true,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
@@ -6660,7 +6579,7 @@ mod tests {
             camera_initialized: false,
             key_releases: false,
             world_view: None,
-            zoom: true,
+            zoom: 0,
             pixel_colors: true,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
@@ -6706,7 +6625,7 @@ mod tests {
             camera_initialized: false,
             key_releases: false,
             world_view: None,
-            zoom: true,
+            zoom: 0,
             pixel_colors: true,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
@@ -6756,7 +6675,7 @@ mod tests {
             camera_initialized: false,
             key_releases: false,
             world_view: None,
-            zoom: true,
+            zoom: 0,
             pixel_colors: true,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),

@@ -108,6 +108,25 @@ saves before testing because older executables cannot read the new format.
 ## Measured results and validation
 
 
+### Native terminal feedback correction, 12 October
+
+Human playtesting exposed indefinite movement, repeatedly toggled doors, poor sky,
+oversized swings, apparent frame layers and excessive default zoom. Earlier scripted
+checks trusted ideal key events and mostly stationary renderer measurements.
+The corrected candidate bounds input even when key-up is missing, confirms actual
+control releases, removes world right-drag use repeats, brackets whole frames with
+synchronized updates and paces output after flush. Default pixel overview doubles
+world context; close detail is explicit. Clouds/sun/stars share one stable sky space,
+and swings use proportionate shaded arms. Reach/obstruction feedback explains fixture
+use; ladder-level storage/bed tests avoid furniture-top acrobatics.
+
+[Review and reproduction](docs/design/terminal-feedback-2026-10-12/provenance.md)
+and [exact build evidence](docs/assets/terminal-feedback-2026-10-12.json) cover a
+capability-positive plain-key PTY, native/co-op lost releases, all-view door clicks
+and moving ANSI load. The first unconfirmed hold retains repeat-based limitations;
+emulator-specific latency and human visual/feel acceptance remain open. These
+corrections are necessary progress, not completion of the overall quality target.
+
 ### Connected village redesign, 12 October
 
 Fresh ordinary Overworld chunks now generate connected settlements with a cottage,

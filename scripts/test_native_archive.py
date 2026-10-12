@@ -9,6 +9,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path, PurePosixPath
 import subprocess
 import tarfile
@@ -50,7 +51,7 @@ def terminal_smoke(binary, env):
         assert process.poll() == 0, "extracted native terminal did not exit cleanly"
         while select.select([master], [], [], 0)[0]:
             output.extend(os.read(master, 65536))
-        assert b"Termcraft |" in output and b"\x1b[?1049l" in output
+        assert b"Termcraft |" in re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"", output) and b"\x1b[?1049l" in output
         assert before == termios.tcgetattr(slave), "terminal settings not restored"
     finally:
         if process.poll() is None:

@@ -365,6 +365,110 @@ impl Tile {
 }
 
 impl Renderer {
+    // Sky art lives in screen pixels. Walking and jumping must not scroll a
+    // second landscape behind the collision world or make stars blink in/out.
+    pub(super) fn screen_sky_pixel(
+        state: &GameState,
+        (sx, sy): (i32, i32),
+        (width, rows): (i32, i32),
+        (day, twilight): (f32, f32),
+    ) -> Rgb {
+        let height = sy as f32 / rows.max(1) as f32;
+        let zenith = Self::lerp_rgb((13, 22, 43), (91, 143, 181), day);
+        let horizon = Self::lerp_rgb((31, 39, 61), (177, 204, 210), day);
+        let mut sky = Self::lerp_rgb(zenith, horizon, height * 0.78);
+        sky = Self::lerp_rgb(sky, (221, 156, 124), twilight * height * 0.32);
+        sky = Self::lerp_rgb(sky, (69, 85, 102), state.weather_rain_intensity * 0.6);
+        if state.thunder_flash_timer > 0 {
+            sky = Self::lerp_rgb(sky, (227, 236, 245), 0.65);
+        }
+
+        if day < 0.25 && sy < rows / 2 {
+            // One restrained star per screen-space region, with a fixed offset.
+            let hash = ((sx.div_euclid(32) * 73) ^ (sy.div_euclid(16) * 137)).rem_euclid(997);
+            if sx.rem_euclid(32) == 4 + hash % 24 && sy.rem_euclid(16) == 3 + (hash / 24) % 10 {
+                sky = Self::lerp_rgb(sky, (185, 199, 219), 1.0 - day * 4.0);
+            }
+        }
+
+        if state.weather_rain_intensity < 0.2 {
+            let (progress, moon) = if day > 0.3 {
+                (
+                    ((state.time_of_day - 4000.0) / 16000.0).clamp(0.0, 1.0),
+                    false,
+                )
+            } else if day < 0.25 {
+                (
+                    if state.time_of_day < 4000.0 {
+                        (state.time_of_day + 4000.0) / 8000.0
+                    } else {
+                        (state.time_of_day - 20000.0) / 8000.0
+                    },
+                    true,
+                )
+            } else {
+                (-1.0, false)
+            };
+            let center_x = (4.0 + (width - 9).max(1) as f32 * progress).round() as i32;
+            let center_y = (rows as f32 * (0.13 + 0.2 * (progress - 0.5).abs())).round() as i32;
+            let px = sx - center_x + 4;
+            let py = sy - center_y + 4;
+            // A nine-pixel disc with deliberately stepped corners, rather than
+            // a sampled ellipse that changes shape with fractional positions.
+            let inset = match py {
+                0 | 8 => 3,
+                1 | 7 => 1,
+                2..=6 => 0,
+                _ => 9,
+            };
+            if (0.0..=1.0).contains(&progress) && px >= inset && px < 9 - inset {
+                sky = if moon {
+                    if matches!((px, py), (5, 2) | (6, 3) | (3, 6)) {
+                        (166, 184, 200)
+                    } else if py >= 6 {
+                        (192, 206, 215)
+                    } else {
+                        (218, 227, 229)
+                    }
+                } else if py >= 6 {
+                    (245, 198, 105)
+                } else {
+                    (255, 231, 164)
+                };
+            }
+        }
+
+        if day > 0.2 {
+            // Authored compact silhouettes drift one pixel every four seconds.
+            // Both clouds use the same sky space; there is no camera parallax.
+            let drift = ((state.player.age / 80) % 192) as i32;
+            let x = (sx + drift).rem_euclid(192);
+            let first_y = (rows / 7).clamp(7, 18);
+            let spans = [(9, 15), (6, 19), (3, 22), (0, 26), (1, 25), (4, 22)];
+            let second_spans = [(6, 11), (3, 15), (0, 19), (2, 17)];
+            let cloud = if let Some(&(left, right)) = spans.get((sy - first_y) as usize) {
+                (22 + left..=22 + right).contains(&x)
+            } else if let Some(&(left, right)) =
+                second_spans.get((sy - first_y - rows / 8) as usize)
+            {
+                (123 + left..=123 + right).contains(&x)
+            } else {
+                false
+            };
+            if cloud {
+                let underside = sy == first_y + 5 || sy == first_y + rows / 8 + 3;
+                let tint = if underside {
+                    (186, 205, 213)
+                } else {
+                    (229, 236, 232)
+                };
+                let tint = Self::lerp_rgb(tint, (168, 181, 193), state.weather_rain_intensity);
+                sky = Self::lerp_rgb(sky, tint, ((day - 0.2) / 0.8).clamp(0.0, 1.0));
+            }
+        }
+        sky
+    }
+
     pub(super) fn render_pixel_effects(&mut self, state: &GameState) {
         let (vx, vy, cx, cy, scale) = self.world_view.unwrap();
         let project = |x: f64, y: f64| {
@@ -453,7 +557,6 @@ impl Renderer {
         let day = Self::day_mix(state.time_of_day);
         let twilight = Self::twilight_mix(state.time_of_day);
         let rows = i32::from(self.height - 4) * 2;
-        let phase = state.player.age as f64 / 180.0;
         for sy in 0..rows {
             let world_y = (sy + vy * 2 + self.vertical_pixel_offset - cy * 2) as f64 / unit as f64;
             for sx in 0..i32::from(self.width) {
@@ -462,61 +565,12 @@ impl Renderer {
                 let ground = horizons[(bx - left) as usize];
                 let rgb = match state.current_dimension {
                     Dimension::Overworld if world_y < ground as f64 => {
-                        let height = sy as f32 / rows as f32;
-                        let zenith = Self::lerp_rgb((12, 20, 43), (74, 113, 160), day);
-                        let horizon = Self::lerp_rgb((36, 41, 65), (174, 196, 195), day);
-                        let mut sky = Self::lerp_rgb(zenith, horizon, height.powf(0.8));
-                        sky = Self::lerp_rgb(sky, (226, 151, 112), twilight * height * 0.42);
-                        sky =
-                            Self::lerp_rgb(sky, (60, 76, 93), state.weather_rain_intensity * 0.55);
-                        if state.thunder_flash_timer > 0 {
-                            sky = Self::lerp_rgb(sky, (227, 236, 245), 0.65);
-                        }
-                        let distant_ridge = ground as f64
-                            - 1.4
-                            - (world_x * 0.11).sin() * 1.2
-                            - (world_x * 0.037 + 2.0).sin() * 1.8;
-                        if world_y > distant_ridge {
-                            sky = Self::lerp_rgb(sky, (48, 81, 91), 0.42 * day + 0.2);
-                        } else if height < 0.48 {
-                            let cloud =
-                                (world_x * 0.19 + phase * 0.04).sin() + (world_y * 0.8).sin();
-                            if cloud > 1.62 && day > 0.2 {
-                                sky = Self::lerp_rgb(sky, (214, 221, 215), 0.4);
-                            }
-                        }
-                        let sun_progress = ((state.time_of_day - 4000.0) / 16000.0).clamp(0.0, 1.0);
-                        let sun_x = (self.width as f32 - 1.0) * sun_progress;
-                        let sun_y = rows as f32 * (0.12 + 0.28 * (sun_progress - 0.5).abs());
-                        if day > 0.3
-                            && state.weather_rain_intensity < 0.2
-                            && (sx as f32 - sun_x).powi(2) + (sy as f32 - sun_y).powi(2) < 12.0
-                        {
-                            sky = (255, 227, 157);
-                        }
-                        let moon_progress = if state.time_of_day < 4000.0 {
-                            (state.time_of_day + 4000.0) / 8000.0
-                        } else {
-                            (state.time_of_day - 20000.0) / 8000.0
-                        };
-                        let moon_x = self.width as f32 * moon_progress;
-                        let moon_y = rows as f32 * (0.12 + 0.28 * (moon_progress - 0.5).abs());
-                        if day < 0.25
-                            && state.weather_rain_intensity < 0.2
-                            && (sx as f32 - moon_x).powi(2) + (sy as f32 - moon_y).powi(2) < 8.0
-                        {
-                            sky = (197, 209, 218);
-                        }
-                        let hash = (bx.wrapping_mul(173)
-                            ^ (world_y.floor() as i32).wrapping_mul(97))
-                        .rem_euclid(313);
-                        if day < 0.25
-                            && hash == 0
-                            && sx.rem_euclid(unit) == 1
-                            && sy.rem_euclid(unit) == 1
-                        {
-                            sky = (183, 198, 222);
-                        }
+                        let mut sky = Self::screen_sky_pixel(
+                            state,
+                            (sx, sy),
+                            (i32::from(self.width), rows),
+                            (day, twilight),
+                        );
                         let precipitation = state.precipitation_at(bx);
                         if state.weather_rain_intensity > 0.05
                             && precipitation != super::PrecipitationType::None
@@ -550,7 +604,7 @@ impl Renderer {
                         sky
                     }
                     Dimension::End => {
-                        let hash = (sx + vx / 3).wrapping_mul(31) ^ (sy + vy / 3).wrapping_mul(67);
+                        let hash = sx.wrapping_mul(31) ^ sy.wrapping_mul(67);
                         if hash.rem_euclid(347) == 0 {
                             (176, 156, 207)
                         } else {
@@ -802,6 +856,45 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sky_art_stays_together_during_camera_motion_in_every_pixel_scale() {
+        let mut state = GameState::network_view();
+        let air = vec![
+            BlockType::Air;
+            crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+        ];
+        for chunk in -2..=2 {
+            state.world.apply_chunk_column_snapshot(chunk, &air);
+        }
+        for dimension in [
+            crate::world::Dimension::Overworld,
+            crate::world::Dimension::End,
+        ] {
+            state.current_dimension = dimension;
+            for time in [12000.0, 22000.0] {
+                state.time_of_day = time;
+                for scale in [2, 3, 4] {
+                    let mut renderer = Renderer::with_size(160, 48);
+                    let lighting =
+                        super::super::shading::SceneLighting::new(&state, &[15], (0, 0, 1, 1));
+                    renderer.world_view = Some((0, 30 * scale, 80, 36, scale));
+                    renderer.render_pixel_sky(&state, &lighting);
+                    let still = renderer.back_buffer.clone();
+                    for (vx, vy, half) in [(-13, 27 * scale, 1), (17, 33 * scale, 0)] {
+                        renderer.world_view = Some((vx, vy, 80, 36, scale));
+                        renderer.vertical_pixel_offset = half;
+                        renderer.render_pixel_sky(&state, &lighting);
+                        assert!(
+                            renderer.back_buffer == still,
+                            "sky split/flickered during camera motion in {dimension:?}, time {time}, scale {scale}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     fn enclosed_room() -> GameState {
         let mut s = GameState::network_view();
         s.world.apply_chunk_column_snapshot(

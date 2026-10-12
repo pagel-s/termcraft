@@ -6655,7 +6655,7 @@ impl GameState {
             .is_none()
     }
 
-    fn can_see_block(&self, x: f64, y: f64, bx: i32, by: i32) -> bool {
+    pub(crate) fn can_see_block(&self, x: f64, y: f64, bx: i32, by: i32) -> bool {
         // A reachable face/corner is sufficient; aiming only at the center can
         // bury the ray behind an adjoining frame block.
         self.has_line_of_sight(x, y, bx as f64 + 0.5, by as f64 + 0.5)

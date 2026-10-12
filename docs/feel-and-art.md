@@ -16,10 +16,10 @@ together: the updated movement rules use **network protocol 12**.
 - Jump beside a wall and under a ceiling. The player now moves vertically relative
   to the easing camera; co-op predicts jump, landing and collision locally.
 - Switch focus while holding movement. Focus loss clears held controls.
-- Use F4 to compare the pixel view with the wide view. At 140×44 and above,
-  blocks use an 8×8 pixel grid and standard humanoids have fourteen pixel rows. At 100×32
-  and above, a smaller pixel view is used; smaller terminals use the wide view.
-  HUD and inventory retain their normal resolution.
+- The default is a pixel overview at 100×32 and above. F4 cycles overview →
+  wide glyphs → detailed pixels. Detail uses 8×8 block pixels at 140×44 and above;
+  the default overview shows twice as much world horizontally. Smaller terminals
+  use wide glyphs. HUD and inventory retain their normal resolution.
 - Mine/place around negative world coordinates, then repeat after F4 and a resize.
   Targeting should match the visible tile.
 
@@ -27,6 +27,37 @@ Terminals that do not send key-up events retain the repeat-based fallback. They
 cannot distinguish a short tap from a held key waiting for its first repeat.
 This pass does not claim that limitation is solved. Simulation stays at 20 ticks
 per second; the 60 fps render budget does not change survival/gameplay timers.
+
+## Terminal feedback correction, 12 October
+
+The village checkpoint passed narrow fixtures but missed real input compatibility
+and moving terminal output. A capability-positive terminal sending one plain `d`
+kept walking indefinitely. The game now starts conservatively, promotes held-key
+support only after receiving an actual movement/jump release, and uses a two-second
+watchdog even after confirmation. Native and co-op share the policy. Repeats renew
+holds; focus loss clears them. The first long hold can pause before OS repeat until
+key-up is observed. Repeat-only input retains its inherent tap/hold ambiguity.
+
+Right-click dragging no longer repeatedly toggles a world door; inventory dragging
+is retained. Target feedback says `R-click / F: use` for reachable fixtures and
+`Blocked: move around` when terrain obstructs the interaction. A tighter test uses
+chests, furnace and beds from the ladder, without jumping across furniture tops.
+
+Frames now carry synchronized-update boundaries and avoid redundant cursor moves
+and invisible foreground changes. Frame pacing waits after the terminal flush,
+preventing slow output from immediately queuing another frame. Synchronization
+requires emulator support; CPU timings alone do not prove smooth presentation.
+The default pixel overview shows 40 blocks across at 160×48 instead of 20. F4 gives
+wide glyphs, then optional detail. The sky uses restrained screen-space clouds,
+a stepped sun/moon and stable stars in both color overview/detail and wide views.
+The noisy cloud field, foreground-derived distant ridge and competing sky motion
+are removed. Swing poses use a short shaded arm and compact held tool.
+
+[Actual captures, reproduction and limits](design/terminal-feedback-2026-10-12/provenance.md)
+include a moving-output profile. The retained native/co-op PTY test advertises
+keyboard support but first sends plain taps; it also drops a release deliberately
+and opens/drags/walks through doors in all three views. These checks do not establish
+your emulator's latency, real WAN feel or overall human visual/gameplay acceptance.
 
 ## Connected villages: the latest refinement
 
@@ -58,8 +89,7 @@ TERMCRAFT_SAVE_DIR=<printed-review-save-path> target/release/termcraft
 ```
 
 Walk through all buildings in both directions, right-clicking the doors. Climb each
-ladder with Space, move onto the loft beside the furniture, and open the chest and
-furnace. Compare faces, windows, floors and roofs at 120×40 and 160×48, then F4 and
+ladder with Space, hold Shift near the top of the ladder, and open the chest and furnace. Compare faces, windows, floors and roofs at 120×40 and 160×48, then F4 and
 80×24. Enable `doDaylightCycle` in O settings to reach night, then use a bed and check
 the saved respawn. Enable `doMobSpawning` to observe villagers. Inspect crop hydration and
 return after saving/quitting to confirm edits and emptied chests persist. Villager

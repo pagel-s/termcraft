@@ -10,14 +10,15 @@ const TICKS_PER_SECOND: u64 = 20;
 const TICK_DURATION: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 const MAX_CATCHUP_TICKS_PER_FRAME: u8 = 5;
 // Legacy terminals cannot distinguish a tap from a hold before OS repeat starts.
-// These bounded fallback pulses favor stopping after taps. Release-reporting
-// terminals bypass them entirely and retain input until key-up or focus loss.
+// These bounded fallback pulses favor stopping after taps. Confirmed key-up
+// streams use a longer watchdog, so a dropped release still cannot run forever.
 const HORIZONTAL_INPUT_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(150);
 const HORIZONTAL_INPUT_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(96);
 const HORIZONTAL_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(320);
 const JUMP_INPUT_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(340);
 const JUMP_INPUT_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(160);
 const JUMP_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(420);
+const CONFIRMED_INPUT_WATCHDOG: Duration = Duration::from_secs(2);
 const AUTOSAVE_INTERVAL: Duration = Duration::from_secs(45);
 const AUTOSAVE_CHUNK_BUDGET_PER_FRAME: usize = 1;
 const TARGET_FPS: u64 = 60;
@@ -27,6 +28,20 @@ const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / TARGET_FPS
 enum HorizontalDirection {
     Left,
     Right,
+}
+
+pub(super) fn confirms_control_key_releases(key: &crossterm::event::KeyEvent) -> bool {
+    key.kind == KeyEventKind::Release
+        && (GameLoop::horizontal_direction_from_key(&key.code).is_some()
+            || GameLoop::is_jump_key(&key.code))
+}
+
+pub(super) fn input_stale_timeout(key_releases: bool, legacy_timeout: Duration) -> Duration {
+    if key_releases {
+        CONFIRMED_INPUT_WATCHDOG
+    } else {
+        legacy_timeout
+    }
 }
 
 pub struct GameLoop {
@@ -130,7 +145,7 @@ impl GameLoop {
             // Handle Input (Non-blocking)
             while event::poll(Duration::from_millis(0))? {
                 let ev = event::read()?;
-                if matches!(&ev, Event::Key(key) if key.kind == KeyEventKind::Release) {
+                if matches!(&ev, Event::Key(key) if confirms_control_key_releases(key)) {
                     self.key_releases = true;
                     renderer.note_key_release();
                 }
@@ -602,23 +617,16 @@ impl GameLoop {
                                 }
                             }
                             MouseEventKind::Drag(MouseButton::Right) => {
-                                if self.state.inventory_open {
-                                    if let Some(slot_idx) = renderer.get_inventory_click(
+                                if self.state.inventory_open
+                                    && let Some(slot_idx) = renderer.get_inventory_click(
                                         &self.state,
                                         mouse_event.column,
                                         mouse_event.row,
-                                    ) && self.last_inventory_right_drag_slot != Some(slot_idx)
-                                    {
-                                        self.state.handle_inventory_right_click(slot_idx);
-                                        self.last_inventory_right_drag_slot = Some(slot_idx);
-                                    }
-                                } else {
-                                    let (bx, by) = renderer.screen_to_world(
-                                        &self.state,
-                                        mouse_event.column,
-                                        mouse_event.row,
-                                    );
-                                    self.state.interact_block(bx, by, false);
+                                    )
+                                    && self.last_inventory_right_drag_slot != Some(slot_idx)
+                                {
+                                    self.state.handle_inventory_right_click(slot_idx);
+                                    self.last_inventory_right_drag_slot = Some(slot_idx);
                                 }
                             }
                             MouseEventKind::Up(MouseButton::Left) => {
@@ -698,7 +706,7 @@ impl GameLoop {
                     .performance
                     .render
                     .record(render_started.elapsed());
-                next_frame_deadline = now + FRAME_DURATION;
+                next_frame_deadline = Instant::now() + FRAME_DURATION;
             }
             // poll wakes for input without consuming it. Input is processed immediately,
             // while rendering stays bounded and simulation retains its fixed 20 Hz step.
@@ -917,11 +925,12 @@ impl GameLoop {
     }
 
     fn stale_timeout_for_direction(&self, direction: HorizontalDirection) -> Duration {
-        if self.direction_repeat_observed(direction) {
+        let legacy_timeout = if self.direction_repeat_observed(direction) {
             HORIZONTAL_INPUT_STALE_TIMEOUT_REPEAT
         } else {
             HORIZONTAL_INPUT_STALE_TIMEOUT_INITIAL
-        }
+        };
+        input_stale_timeout(self.key_releases, legacy_timeout)
     }
 
     fn clear_stale_direction(&mut self, direction: HorizontalDirection) -> bool {
@@ -950,9 +959,6 @@ impl GameLoop {
     }
 
     fn clear_stale_horizontal_input(&mut self, now: Instant) {
-        if self.key_releases {
-            return;
-        }
         let left_stale = self.state.moving_left
             && self.left_last_input_at.is_none_or(|ts| {
                 now.duration_since(ts) > self.stale_timeout_for_direction(HorizontalDirection::Left)
@@ -972,16 +978,13 @@ impl GameLoop {
     }
 
     fn clear_stale_jump_input(&mut self, now: Instant) {
-        if self.key_releases {
-            return;
-        }
         if !self.jump_held_active {
             return;
         }
-        if self
-            .jump_last_input_at
-            .is_none_or(|ts| now.duration_since(ts) > self.jump_stale_timeout())
-        {
+        if self.jump_last_input_at.is_none_or(|ts| {
+            now.duration_since(ts)
+                > input_stale_timeout(self.key_releases, self.jump_stale_timeout())
+        }) {
             self.clear_jump_hold_state();
         }
     }
@@ -994,7 +997,12 @@ mod tests {
     #[test]
     fn release_reporting_terminal_keeps_held_movement_and_jump_until_key_up() {
         let mut game = GameLoop::new();
-        game.key_releases = true;
+        game.key_releases =
+            confirms_control_key_releases(&crossterm::event::KeyEvent::new_with_kind(
+                KeyCode::Char('d'),
+                KeyModifiers::NONE,
+                KeyEventKind::Release,
+            ));
         let now = Instant::now();
         game.handle_horizontal_press(HorizontalDirection::Right, now, false);
         game.handle_jump_press(now, false);
@@ -1008,6 +1016,70 @@ mod tests {
         game.handle_horizontal_release(HorizontalDirection::Right);
         game.clear_jump_hold_state();
         assert!(!game.state.moving_right);
+        assert!(!game.jump_held_active);
+    }
+
+    #[test]
+    fn first_tap_stops_without_any_terminal_key_up_events() {
+        let mut game = GameLoop::new();
+        let now = Instant::now();
+        game.handle_horizontal_press(HorizontalDirection::Right, now, false);
+        game.clear_stale_horizontal_input(now + Duration::from_millis(151));
+        assert!(!game.state.moving_right);
+        assert!(!game.key_releases);
+    }
+
+    #[test]
+    fn unrelated_releases_do_not_disable_conservative_movement_timeout() {
+        let mut game = GameLoop::new();
+        let now = Instant::now();
+        for code in [KeyCode::Char('e'), KeyCode::F(3), KeyCode::Null] {
+            let release = crossterm::event::KeyEvent::new_with_kind(
+                code,
+                KeyModifiers::NONE,
+                KeyEventKind::Release,
+            );
+            game.key_releases |= confirms_control_key_releases(&release);
+        }
+        game.handle_horizontal_press(HorizontalDirection::Left, now, false);
+        game.clear_stale_horizontal_input(now + Duration::from_millis(151));
+        assert!(!game.state.moving_left);
+        assert!(!game.key_releases);
+    }
+
+    #[test]
+    fn confirmed_control_stream_stops_after_a_dropped_release() {
+        let mut game = GameLoop::new();
+        game.key_releases = true;
+        let now = Instant::now();
+        game.handle_horizontal_press(HorizontalDirection::Right, now, false);
+        game.handle_jump_press(now, false);
+        let stale = now + CONFIRMED_INPUT_WATCHDOG + Duration::from_millis(1);
+        game.clear_stale_horizontal_input(stale);
+        game.clear_stale_jump_input(stale);
+        assert!(!game.state.moving_right);
+        assert!(!game.jump_held_active);
+    }
+
+    #[test]
+    fn confirmed_repeat_stream_refreshes_the_missing_release_watchdog() {
+        let mut game = GameLoop::new();
+        game.key_releases = true;
+        let now = Instant::now();
+        game.handle_horizontal_press(HorizontalDirection::Left, now, false);
+        game.handle_jump_press(now, false);
+        let repeat = now + Duration::from_millis(1900);
+        game.handle_horizontal_press(HorizontalDirection::Left, repeat, true);
+        game.handle_jump_hold_repeat(repeat);
+        let still_held = now + Duration::from_millis(2100);
+        game.clear_stale_horizontal_input(still_held);
+        game.clear_stale_jump_input(still_held);
+        assert!(game.state.moving_left);
+        assert!(game.jump_held_active);
+        let stale = repeat + CONFIRMED_INPUT_WATCHDOG + Duration::from_millis(1);
+        game.clear_stale_horizontal_input(stale);
+        game.clear_stale_jump_input(stale);
+        assert!(!game.state.moving_left);
         assert!(!game.jump_held_active);
     }
 
