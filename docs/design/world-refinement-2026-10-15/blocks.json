@@ -1,0 +1,2621 @@
+[
+  {
+    "index": 0,
+    "name": "Dirt",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        22,
+        16,
+        26,
+        18
+      ],
+      "blocks-00-160x48.ansi": [
+        42,
+        22,
+        46,
+        24
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        24,
+        28,
+        32,
+        32
+      ]
+    },
+    "x": -9,
+    "y": 28
+  },
+  {
+    "index": 1,
+    "name": "Grass",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        34,
+        16,
+        38,
+        18
+      ],
+      "blocks-00-160x48.ansi": [
+        54,
+        22,
+        58,
+        24
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        48,
+        28,
+        56,
+        32
+      ]
+    },
+    "x": -6,
+    "y": 28
+  },
+  {
+    "index": 2,
+    "name": "Stone",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        46,
+        16,
+        50,
+        18
+      ],
+      "blocks-00-160x48.ansi": [
+        66,
+        22,
+        70,
+        24
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        72,
+        28,
+        80,
+        32
+      ]
+    },
+    "x": -3,
+    "y": 28
+  },
+  {
+    "index": 3,
+    "name": "Wood",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        58,
+        16,
+        62,
+        18
+      ],
+      "blocks-00-160x48.ansi": [
+        78,
+        22,
+        82,
+        24
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        96,
+        28,
+        104,
+        32
+      ]
+    },
+    "x": 0,
+    "y": 28
+  },
+  {
+    "index": 4,
+    "name": "Leaves",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        70,
+        16,
+        74,
+        18
+      ],
+      "blocks-00-160x48.ansi": [
+        90,
+        22,
+        94,
+        24
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        120,
+        28,
+        128,
+        32
+      ]
+    },
+    "x": 3,
+    "y": 28
+  },
+  {
+    "index": 5,
+    "name": "IronOre",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        82,
+        16,
+        86,
+        18
+      ],
+      "blocks-00-160x48.ansi": [
+        102,
+        22,
+        106,
+        24
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        144,
+        28,
+        152,
+        32
+      ]
+    },
+    "x": 6,
+    "y": 28
+  },
+  {
+    "index": 6,
+    "name": "GoldOre",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        22,
+        22,
+        26,
+        24
+      ],
+      "blocks-00-160x48.ansi": [
+        42,
+        28,
+        46,
+        30
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        24,
+        40,
+        32,
+        44
+      ]
+    },
+    "x": -9,
+    "y": 31
+  },
+  {
+    "index": 7,
+    "name": "DiamondOre",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        34,
+        22,
+        38,
+        24
+      ],
+      "blocks-00-160x48.ansi": [
+        54,
+        28,
+        58,
+        30
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        48,
+        40,
+        56,
+        44
+      ]
+    },
+    "x": -6,
+    "y": 31
+  },
+  {
+    "index": 8,
+    "name": "CoalOre",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        46,
+        22,
+        50,
+        24
+      ],
+      "blocks-00-160x48.ansi": [
+        66,
+        28,
+        70,
+        30
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        72,
+        40,
+        80,
+        44
+      ]
+    },
+    "x": -3,
+    "y": 31
+  },
+  {
+    "index": 9,
+    "name": "Sand",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        58,
+        22,
+        62,
+        24
+      ],
+      "blocks-00-160x48.ansi": [
+        78,
+        28,
+        82,
+        30
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        96,
+        40,
+        104,
+        44
+      ]
+    },
+    "x": 0,
+    "y": 31
+  },
+  {
+    "index": 10,
+    "name": "Gravel",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        70,
+        22,
+        74,
+        24
+      ],
+      "blocks-00-160x48.ansi": [
+        90,
+        28,
+        94,
+        30
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        120,
+        40,
+        128,
+        44
+      ]
+    },
+    "x": 3,
+    "y": 31
+  },
+  {
+    "index": 11,
+    "name": "Bedrock",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        82,
+        22,
+        86,
+        24
+      ],
+      "blocks-00-160x48.ansi": [
+        102,
+        28,
+        106,
+        30
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        144,
+        40,
+        152,
+        44
+      ]
+    },
+    "x": 6,
+    "y": 31
+  },
+  {
+    "index": 12,
+    "name": "Planks",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        22,
+        28,
+        26,
+        30
+      ],
+      "blocks-00-160x48.ansi": [
+        42,
+        34,
+        46,
+        36
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        24,
+        52,
+        32,
+        56
+      ]
+    },
+    "x": -9,
+    "y": 34
+  },
+  {
+    "index": 13,
+    "name": "CraftingTable",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        34,
+        28,
+        38,
+        30
+      ],
+      "blocks-00-160x48.ansi": [
+        54,
+        34,
+        58,
+        36
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        48,
+        52,
+        56,
+        56
+      ]
+    },
+    "x": -6,
+    "y": 34
+  },
+  {
+    "index": 14,
+    "name": "Torch",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        46,
+        28,
+        50,
+        30
+      ],
+      "blocks-00-160x48.ansi": [
+        66,
+        34,
+        70,
+        36
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        72,
+        52,
+        80,
+        56
+      ]
+    },
+    "x": -3,
+    "y": 34
+  },
+  {
+    "index": 15,
+    "name": "Lever(false)",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        58,
+        28,
+        62,
+        30
+      ],
+      "blocks-00-160x48.ansi": [
+        78,
+        34,
+        82,
+        36
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        96,
+        52,
+        104,
+        56
+      ]
+    },
+    "x": 0,
+    "y": 34
+  },
+  {
+    "index": 16,
+    "name": "Lever(true)",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        70,
+        28,
+        74,
+        30
+      ],
+      "blocks-00-160x48.ansi": [
+        90,
+        34,
+        94,
+        36
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        120,
+        52,
+        128,
+        56
+      ]
+    },
+    "x": 3,
+    "y": 34
+  },
+  {
+    "index": 17,
+    "name": "StoneButton(0)",
+    "page": 0,
+    "views": {
+      "blocks-00-120x40.ansi": [
+        82,
+        28,
+        86,
+        30
+      ],
+      "blocks-00-160x48.ansi": [
+        102,
+        34,
+        106,
+        36
+      ],
+      "blocks-00-detail-200x72.ansi": [
+        144,
+        52,
+        152,
+        56
+      ]
+    },
+    "x": 6,
+    "y": 34
+  },
+  {
+    "index": 0,
+    "name": "StoneButton(4)",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        22,
+        16,
+        26,
+        18
+      ],
+      "blocks-01-160x48.ansi": [
+        42,
+        22,
+        46,
+        24
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        24,
+        28,
+        32,
+        32
+      ]
+    },
+    "x": -9,
+    "y": 28
+  },
+  {
+    "index": 1,
+    "name": "RedstoneTorch(false)",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        34,
+        16,
+        38,
+        18
+      ],
+      "blocks-01-160x48.ansi": [
+        54,
+        22,
+        58,
+        24
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        48,
+        28,
+        56,
+        32
+      ]
+    },
+    "x": -6,
+    "y": 28
+  },
+  {
+    "index": 2,
+    "name": "RedstoneTorch(true)",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        46,
+        16,
+        50,
+        18
+      ],
+      "blocks-01-160x48.ansi": [
+        66,
+        22,
+        70,
+        24
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        72,
+        28,
+        80,
+        32
+      ]
+    },
+    "x": -3,
+    "y": 28
+  },
+  {
+    "index": 3,
+    "name": "Furnace",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        58,
+        16,
+        62,
+        18
+      ],
+      "blocks-01-160x48.ansi": [
+        78,
+        22,
+        82,
+        24
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        96,
+        28,
+        104,
+        32
+      ]
+    },
+    "x": 0,
+    "y": 28
+  },
+  {
+    "index": 4,
+    "name": "Snow",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        70,
+        16,
+        74,
+        18
+      ],
+      "blocks-01-160x48.ansi": [
+        90,
+        22,
+        94,
+        24
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        120,
+        28,
+        128,
+        32
+      ]
+    },
+    "x": 3,
+    "y": 28
+  },
+  {
+    "index": 5,
+    "name": "Ice",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        82,
+        16,
+        86,
+        18
+      ],
+      "blocks-01-160x48.ansi": [
+        102,
+        22,
+        106,
+        24
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        144,
+        28,
+        152,
+        32
+      ]
+    },
+    "x": 6,
+    "y": 28
+  },
+  {
+    "index": 6,
+    "name": "Cactus",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        22,
+        22,
+        26,
+        24
+      ],
+      "blocks-01-160x48.ansi": [
+        42,
+        28,
+        46,
+        30
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        24,
+        40,
+        32,
+        44
+      ]
+    },
+    "x": -9,
+    "y": 31
+  },
+  {
+    "index": 7,
+    "name": "DeadBush",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        34,
+        22,
+        38,
+        24
+      ],
+      "blocks-01-160x48.ansi": [
+        54,
+        28,
+        58,
+        30
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        48,
+        40,
+        56,
+        44
+      ]
+    },
+    "x": -6,
+    "y": 31
+  },
+  {
+    "index": 8,
+    "name": "BirchWood",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        46,
+        22,
+        50,
+        24
+      ],
+      "blocks-01-160x48.ansi": [
+        66,
+        28,
+        70,
+        30
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        72,
+        40,
+        80,
+        44
+      ]
+    },
+    "x": -3,
+    "y": 31
+  },
+  {
+    "index": 9,
+    "name": "BirchLeaves",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        58,
+        22,
+        62,
+        24
+      ],
+      "blocks-01-160x48.ansi": [
+        78,
+        28,
+        82,
+        30
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        96,
+        40,
+        104,
+        44
+      ]
+    },
+    "x": 0,
+    "y": 31
+  },
+  {
+    "index": 10,
+    "name": "RedFlower",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        70,
+        22,
+        74,
+        24
+      ],
+      "blocks-01-160x48.ansi": [
+        90,
+        28,
+        94,
+        30
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        120,
+        40,
+        128,
+        44
+      ]
+    },
+    "x": 3,
+    "y": 31
+  },
+  {
+    "index": 11,
+    "name": "YellowFlower",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        82,
+        22,
+        86,
+        24
+      ],
+      "blocks-01-160x48.ansi": [
+        102,
+        28,
+        106,
+        30
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        144,
+        40,
+        152,
+        44
+      ]
+    },
+    "x": 6,
+    "y": 31
+  },
+  {
+    "index": 12,
+    "name": "TallGrass",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        22,
+        28,
+        26,
+        30
+      ],
+      "blocks-01-160x48.ansi": [
+        42,
+        34,
+        46,
+        36
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        24,
+        52,
+        32,
+        56
+      ]
+    },
+    "x": -9,
+    "y": 34
+  },
+  {
+    "index": 13,
+    "name": "Water(1)",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        34,
+        28,
+        38,
+        30
+      ],
+      "blocks-01-160x48.ansi": [
+        54,
+        34,
+        58,
+        36
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        48,
+        52,
+        56,
+        56
+      ]
+    },
+    "x": -6,
+    "y": 34
+  },
+  {
+    "index": 14,
+    "name": "Water(4)",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        46,
+        28,
+        50,
+        30
+      ],
+      "blocks-01-160x48.ansi": [
+        66,
+        34,
+        70,
+        36
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        72,
+        52,
+        80,
+        56
+      ]
+    },
+    "x": -3,
+    "y": 34
+  },
+  {
+    "index": 15,
+    "name": "Water(8)",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        58,
+        28,
+        62,
+        30
+      ],
+      "blocks-01-160x48.ansi": [
+        78,
+        34,
+        82,
+        36
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        96,
+        52,
+        104,
+        56
+      ]
+    },
+    "x": 0,
+    "y": 34
+  },
+  {
+    "index": 16,
+    "name": "Lava(1)",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        70,
+        28,
+        74,
+        30
+      ],
+      "blocks-01-160x48.ansi": [
+        90,
+        34,
+        94,
+        36
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        120,
+        52,
+        128,
+        56
+      ]
+    },
+    "x": 3,
+    "y": 34
+  },
+  {
+    "index": 17,
+    "name": "Lava(4)",
+    "page": 1,
+    "views": {
+      "blocks-01-120x40.ansi": [
+        82,
+        28,
+        86,
+        30
+      ],
+      "blocks-01-160x48.ansi": [
+        102,
+        34,
+        106,
+        36
+      ],
+      "blocks-01-detail-200x72.ansi": [
+        144,
+        52,
+        152,
+        56
+      ]
+    },
+    "x": 6,
+    "y": 34
+  },
+  {
+    "index": 0,
+    "name": "Lava(8)",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        22,
+        16,
+        26,
+        18
+      ],
+      "blocks-02-160x48.ansi": [
+        42,
+        22,
+        46,
+        24
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        24,
+        28,
+        32,
+        32
+      ]
+    },
+    "x": -9,
+    "y": 28
+  },
+  {
+    "index": 1,
+    "name": "Cobblestone",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        34,
+        16,
+        38,
+        18
+      ],
+      "blocks-02-160x48.ansi": [
+        54,
+        22,
+        58,
+        24
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        48,
+        28,
+        56,
+        32
+      ]
+    },
+    "x": -6,
+    "y": 28
+  },
+  {
+    "index": 2,
+    "name": "Obsidian",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        46,
+        16,
+        50,
+        18
+      ],
+      "blocks-02-160x48.ansi": [
+        66,
+        22,
+        70,
+        24
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        72,
+        28,
+        80,
+        32
+      ]
+    },
+    "x": -3,
+    "y": 28
+  },
+  {
+    "index": 3,
+    "name": "Farmland(0)",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        58,
+        16,
+        62,
+        18
+      ],
+      "blocks-02-160x48.ansi": [
+        78,
+        22,
+        82,
+        24
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        96,
+        28,
+        104,
+        32
+      ]
+    },
+    "x": 0,
+    "y": 28
+  },
+  {
+    "index": 4,
+    "name": "Farmland(7)",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        70,
+        16,
+        74,
+        18
+      ],
+      "blocks-02-160x48.ansi": [
+        90,
+        22,
+        94,
+        24
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        120,
+        28,
+        128,
+        32
+      ]
+    },
+    "x": 3,
+    "y": 28
+  },
+  {
+    "index": 5,
+    "name": "Crops(0)",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        82,
+        16,
+        86,
+        18
+      ],
+      "blocks-02-160x48.ansi": [
+        102,
+        22,
+        106,
+        24
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        144,
+        28,
+        152,
+        32
+      ]
+    },
+    "x": 6,
+    "y": 28
+  },
+  {
+    "index": 6,
+    "name": "Crops(3)",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        22,
+        22,
+        26,
+        24
+      ],
+      "blocks-02-160x48.ansi": [
+        42,
+        28,
+        46,
+        30
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        24,
+        40,
+        32,
+        44
+      ]
+    },
+    "x": -9,
+    "y": 31
+  },
+  {
+    "index": 7,
+    "name": "Crops(7)",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        34,
+        22,
+        38,
+        24
+      ],
+      "blocks-02-160x48.ansi": [
+        54,
+        28,
+        58,
+        30
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        48,
+        40,
+        56,
+        44
+      ]
+    },
+    "x": -6,
+    "y": 31
+  },
+  {
+    "index": 8,
+    "name": "RedstoneOre",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        46,
+        22,
+        50,
+        24
+      ],
+      "blocks-02-160x48.ansi": [
+        66,
+        28,
+        70,
+        30
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        72,
+        40,
+        80,
+        44
+      ]
+    },
+    "x": -3,
+    "y": 31
+  },
+  {
+    "index": 9,
+    "name": "RedstoneDust(0)",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        58,
+        22,
+        62,
+        24
+      ],
+      "blocks-02-160x48.ansi": [
+        78,
+        28,
+        82,
+        30
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        96,
+        40,
+        104,
+        44
+      ]
+    },
+    "x": 0,
+    "y": 31
+  },
+  {
+    "index": 10,
+    "name": "RedstoneDust(7)",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        70,
+        22,
+        74,
+        24
+      ],
+      "blocks-02-160x48.ansi": [
+        90,
+        28,
+        94,
+        30
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        120,
+        40,
+        128,
+        44
+      ]
+    },
+    "x": 3,
+    "y": 31
+  },
+  {
+    "index": 11,
+    "name": "RedstoneDust(15)",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        82,
+        22,
+        86,
+        24
+      ],
+      "blocks-02-160x48.ansi": [
+        102,
+        28,
+        106,
+        30
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        144,
+        40,
+        152,
+        44
+      ]
+    },
+    "x": 6,
+    "y": 31
+  },
+  {
+    "index": 12,
+    "name": "Netherrack",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        22,
+        28,
+        26,
+        30
+      ],
+      "blocks-02-160x48.ansi": [
+        42,
+        34,
+        46,
+        36
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        24,
+        52,
+        32,
+        56
+      ]
+    },
+    "x": -9,
+    "y": 34
+  },
+  {
+    "index": 13,
+    "name": "SoulSand",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        34,
+        28,
+        38,
+        30
+      ],
+      "blocks-02-160x48.ansi": [
+        54,
+        34,
+        58,
+        36
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        48,
+        52,
+        56,
+        56
+      ]
+    },
+    "x": -6,
+    "y": 34
+  },
+  {
+    "index": 14,
+    "name": "Glowstone",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        46,
+        28,
+        50,
+        30
+      ],
+      "blocks-02-160x48.ansi": [
+        66,
+        34,
+        70,
+        36
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        72,
+        52,
+        80,
+        56
+      ]
+    },
+    "x": -3,
+    "y": 34
+  },
+  {
+    "index": 15,
+    "name": "NetherPortal",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        58,
+        28,
+        62,
+        30
+      ],
+      "blocks-02-160x48.ansi": [
+        78,
+        34,
+        82,
+        36
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        96,
+        52,
+        104,
+        56
+      ]
+    },
+    "x": 0,
+    "y": 34
+  },
+  {
+    "index": 16,
+    "name": "Tnt",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        70,
+        28,
+        74,
+        30
+      ],
+      "blocks-02-160x48.ansi": [
+        90,
+        34,
+        94,
+        36
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        120,
+        52,
+        128,
+        56
+      ]
+    },
+    "x": 3,
+    "y": 34
+  },
+  {
+    "index": 17,
+    "name": "PrimedTnt(1)",
+    "page": 2,
+    "views": {
+      "blocks-02-120x40.ansi": [
+        82,
+        28,
+        86,
+        30
+      ],
+      "blocks-02-160x48.ansi": [
+        102,
+        34,
+        106,
+        36
+      ],
+      "blocks-02-detail-200x72.ansi": [
+        144,
+        52,
+        152,
+        56
+      ]
+    },
+    "x": 6,
+    "y": 34
+  },
+  {
+    "index": 0,
+    "name": "PrimedTnt(4)",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        22,
+        16,
+        26,
+        18
+      ],
+      "blocks-03-160x48.ansi": [
+        42,
+        22,
+        46,
+        24
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        24,
+        28,
+        32,
+        32
+      ]
+    },
+    "x": -9,
+    "y": 28
+  },
+  {
+    "index": 1,
+    "name": "Piston { extended: false, facing_right: false }",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        34,
+        16,
+        38,
+        18
+      ],
+      "blocks-03-160x48.ansi": [
+        54,
+        22,
+        58,
+        24
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        48,
+        28,
+        56,
+        32
+      ]
+    },
+    "x": -6,
+    "y": 28
+  },
+  {
+    "index": 2,
+    "name": "Piston { extended: false, facing_right: true }",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        46,
+        16,
+        50,
+        18
+      ],
+      "blocks-03-160x48.ansi": [
+        66,
+        22,
+        70,
+        24
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        72,
+        28,
+        80,
+        32
+      ]
+    },
+    "x": -3,
+    "y": 28
+  },
+  {
+    "index": 3,
+    "name": "Piston { extended: true, facing_right: false }",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        58,
+        16,
+        62,
+        18
+      ],
+      "blocks-03-160x48.ansi": [
+        78,
+        22,
+        82,
+        24
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        96,
+        28,
+        104,
+        32
+      ]
+    },
+    "x": 0,
+    "y": 28
+  },
+  {
+    "index": 4,
+    "name": "Piston { extended: true, facing_right: true }",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        70,
+        16,
+        74,
+        18
+      ],
+      "blocks-03-160x48.ansi": [
+        90,
+        22,
+        94,
+        24
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        120,
+        28,
+        128,
+        32
+      ]
+    },
+    "x": 3,
+    "y": 28
+  },
+  {
+    "index": 5,
+    "name": "StickyPiston { extended: false, facing_right: false }",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        82,
+        16,
+        86,
+        18
+      ],
+      "blocks-03-160x48.ansi": [
+        102,
+        22,
+        106,
+        24
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        144,
+        28,
+        152,
+        32
+      ]
+    },
+    "x": 6,
+    "y": 28
+  },
+  {
+    "index": 6,
+    "name": "StickyPiston { extended: false, facing_right: true }",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        22,
+        22,
+        26,
+        24
+      ],
+      "blocks-03-160x48.ansi": [
+        42,
+        28,
+        46,
+        30
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        24,
+        40,
+        32,
+        44
+      ]
+    },
+    "x": -9,
+    "y": 31
+  },
+  {
+    "index": 7,
+    "name": "StickyPiston { extended: true, facing_right: false }",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        34,
+        22,
+        38,
+        24
+      ],
+      "blocks-03-160x48.ansi": [
+        54,
+        28,
+        58,
+        30
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        48,
+        40,
+        56,
+        44
+      ]
+    },
+    "x": -6,
+    "y": 31
+  },
+  {
+    "index": 8,
+    "name": "StickyPiston { extended: true, facing_right: true }",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        46,
+        22,
+        50,
+        24
+      ],
+      "blocks-03-160x48.ansi": [
+        66,
+        28,
+        70,
+        30
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        72,
+        40,
+        80,
+        44
+      ]
+    },
+    "x": -3,
+    "y": 31
+  },
+  {
+    "index": 9,
+    "name": "StoneBricks",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        58,
+        22,
+        62,
+        24
+      ],
+      "blocks-03-160x48.ansi": [
+        78,
+        28,
+        82,
+        30
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        96,
+        40,
+        104,
+        44
+      ]
+    },
+    "x": 0,
+    "y": 31
+  },
+  {
+    "index": 10,
+    "name": "EndPortalFrame { filled: false }",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        70,
+        22,
+        74,
+        24
+      ],
+      "blocks-03-160x48.ansi": [
+        90,
+        28,
+        94,
+        30
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        120,
+        40,
+        128,
+        44
+      ]
+    },
+    "x": 3,
+    "y": 31
+  },
+  {
+    "index": 11,
+    "name": "EndPortalFrame { filled: true }",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        82,
+        22,
+        86,
+        24
+      ],
+      "blocks-03-160x48.ansi": [
+        102,
+        28,
+        106,
+        30
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        144,
+        40,
+        152,
+        44
+      ]
+    },
+    "x": 6,
+    "y": 31
+  },
+  {
+    "index": 12,
+    "name": "EndPortal",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        22,
+        28,
+        26,
+        30
+      ],
+      "blocks-03-160x48.ansi": [
+        42,
+        34,
+        46,
+        36
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        24,
+        52,
+        32,
+        56
+      ]
+    },
+    "x": -9,
+    "y": 34
+  },
+  {
+    "index": 13,
+    "name": "EndStone",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        34,
+        28,
+        38,
+        30
+      ],
+      "blocks-03-160x48.ansi": [
+        54,
+        34,
+        58,
+        36
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        48,
+        52,
+        56,
+        56
+      ]
+    },
+    "x": -6,
+    "y": 34
+  },
+  {
+    "index": 14,
+    "name": "IronDoor(false)",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        46,
+        28,
+        50,
+        30
+      ],
+      "blocks-03-160x48.ansi": [
+        66,
+        34,
+        70,
+        36
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        72,
+        52,
+        80,
+        56
+      ]
+    },
+    "x": -3,
+    "y": 34
+  },
+  {
+    "index": 15,
+    "name": "IronDoor(true)",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        58,
+        28,
+        62,
+        30
+      ],
+      "blocks-03-160x48.ansi": [
+        78,
+        34,
+        82,
+        36
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        96,
+        52,
+        104,
+        56
+      ]
+    },
+    "x": 0,
+    "y": 34
+  },
+  {
+    "index": 16,
+    "name": "SilverfishSpawner",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        70,
+        28,
+        74,
+        30
+      ],
+      "blocks-03-160x48.ansi": [
+        90,
+        34,
+        94,
+        36
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        120,
+        52,
+        128,
+        56
+      ]
+    },
+    "x": 3,
+    "y": 34
+  },
+  {
+    "index": 17,
+    "name": "Bed",
+    "page": 3,
+    "views": {
+      "blocks-03-120x40.ansi": [
+        82,
+        28,
+        86,
+        30
+      ],
+      "blocks-03-160x48.ansi": [
+        102,
+        34,
+        106,
+        36
+      ],
+      "blocks-03-detail-200x72.ansi": [
+        144,
+        52,
+        152,
+        56
+      ]
+    },
+    "x": 6,
+    "y": 34
+  },
+  {
+    "index": 0,
+    "name": "Chest",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        22,
+        16,
+        26,
+        18
+      ],
+      "blocks-04-160x48.ansi": [
+        42,
+        22,
+        46,
+        24
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        24,
+        28,
+        32,
+        32
+      ]
+    },
+    "x": -9,
+    "y": 28
+  },
+  {
+    "index": 1,
+    "name": "Glass",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        34,
+        16,
+        38,
+        18
+      ],
+      "blocks-04-160x48.ansi": [
+        54,
+        22,
+        58,
+        24
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        48,
+        28,
+        56,
+        32
+      ]
+    },
+    "x": -6,
+    "y": 28
+  },
+  {
+    "index": 2,
+    "name": "WoodDoor(false)",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        46,
+        16,
+        50,
+        18
+      ],
+      "blocks-04-160x48.ansi": [
+        66,
+        22,
+        70,
+        24
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        72,
+        28,
+        80,
+        32
+      ]
+    },
+    "x": -3,
+    "y": 28
+  },
+  {
+    "index": 3,
+    "name": "WoodDoor(true)",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        58,
+        16,
+        62,
+        18
+      ],
+      "blocks-04-160x48.ansi": [
+        78,
+        22,
+        82,
+        24
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        96,
+        28,
+        104,
+        32
+      ]
+    },
+    "x": 0,
+    "y": 28
+  },
+  {
+    "index": 4,
+    "name": "Ladder",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        70,
+        16,
+        74,
+        18
+      ],
+      "blocks-04-160x48.ansi": [
+        90,
+        22,
+        94,
+        24
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        120,
+        28,
+        128,
+        32
+      ]
+    },
+    "x": 3,
+    "y": 28
+  },
+  {
+    "index": 5,
+    "name": "StoneSlab",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        82,
+        16,
+        86,
+        18
+      ],
+      "blocks-04-160x48.ansi": [
+        102,
+        22,
+        106,
+        24
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        144,
+        28,
+        152,
+        32
+      ]
+    },
+    "x": 6,
+    "y": 28
+  },
+  {
+    "index": 6,
+    "name": "StoneStairs",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        22,
+        22,
+        26,
+        24
+      ],
+      "blocks-04-160x48.ansi": [
+        42,
+        28,
+        46,
+        30
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        24,
+        40,
+        32,
+        44
+      ]
+    },
+    "x": -9,
+    "y": 31
+  },
+  {
+    "index": 7,
+    "name": "EnchantingTable",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        34,
+        22,
+        38,
+        24
+      ],
+      "blocks-04-160x48.ansi": [
+        54,
+        28,
+        58,
+        30
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        48,
+        40,
+        56,
+        44
+      ]
+    },
+    "x": -6,
+    "y": 31
+  },
+  {
+    "index": 8,
+    "name": "Anvil",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        46,
+        22,
+        50,
+        24
+      ],
+      "blocks-04-160x48.ansi": [
+        66,
+        28,
+        70,
+        30
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        72,
+        40,
+        80,
+        44
+      ]
+    },
+    "x": -3,
+    "y": 31
+  },
+  {
+    "index": 9,
+    "name": "BrewingStand",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        58,
+        22,
+        62,
+        24
+      ],
+      "blocks-04-160x48.ansi": [
+        78,
+        28,
+        82,
+        30
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        96,
+        40,
+        104,
+        44
+      ]
+    },
+    "x": 0,
+    "y": 31
+  },
+  {
+    "index": 10,
+    "name": "BlazeSpawner",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        70,
+        22,
+        74,
+        24
+      ],
+      "blocks-04-160x48.ansi": [
+        90,
+        28,
+        94,
+        30
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        120,
+        40,
+        128,
+        44
+      ]
+    },
+    "x": 3,
+    "y": 31
+  },
+  {
+    "index": 11,
+    "name": "RedstoneRepeater { powered: false, delay: 2, facing_right: false, timer: 0, target_powered: false }",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        82,
+        22,
+        86,
+        24
+      ],
+      "blocks-04-160x48.ansi": [
+        102,
+        28,
+        106,
+        30
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        144,
+        40,
+        152,
+        44
+      ]
+    },
+    "x": 6,
+    "y": 31
+  },
+  {
+    "index": 12,
+    "name": "RedstoneRepeater { powered: false, delay: 2, facing_right: true, timer: 0, target_powered: false }",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        22,
+        28,
+        26,
+        30
+      ],
+      "blocks-04-160x48.ansi": [
+        42,
+        34,
+        46,
+        36
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        24,
+        52,
+        32,
+        56
+      ]
+    },
+    "x": -9,
+    "y": 34
+  },
+  {
+    "index": 13,
+    "name": "RedstoneRepeater { powered: true, delay: 2, facing_right: false, timer: 0, target_powered: true }",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        34,
+        28,
+        38,
+        30
+      ],
+      "blocks-04-160x48.ansi": [
+        54,
+        34,
+        58,
+        36
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        48,
+        52,
+        56,
+        56
+      ]
+    },
+    "x": -6,
+    "y": 34
+  },
+  {
+    "index": 14,
+    "name": "RedstoneRepeater { powered: true, delay: 2, facing_right: true, timer: 0, target_powered: true }",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        46,
+        28,
+        50,
+        30
+      ],
+      "blocks-04-160x48.ansi": [
+        66,
+        34,
+        70,
+        36
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        72,
+        52,
+        80,
+        56
+      ]
+    },
+    "x": -3,
+    "y": 34
+  },
+  {
+    "index": 15,
+    "name": "Wool",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        58,
+        28,
+        62,
+        30
+      ],
+      "blocks-04-160x48.ansi": [
+        78,
+        34,
+        82,
+        36
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        96,
+        52,
+        104,
+        56
+      ]
+    },
+    "x": 0,
+    "y": 34
+  },
+  {
+    "index": 16,
+    "name": "Sapling",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        70,
+        28,
+        74,
+        30
+      ],
+      "blocks-04-160x48.ansi": [
+        90,
+        34,
+        94,
+        36
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        120,
+        52,
+        128,
+        56
+      ]
+    },
+    "x": 3,
+    "y": 34
+  },
+  {
+    "index": 17,
+    "name": "SugarCane",
+    "page": 4,
+    "views": {
+      "blocks-04-120x40.ansi": [
+        82,
+        28,
+        86,
+        30
+      ],
+      "blocks-04-160x48.ansi": [
+        102,
+        34,
+        106,
+        36
+      ],
+      "blocks-04-detail-200x72.ansi": [
+        144,
+        52,
+        152,
+        56
+      ]
+    },
+    "x": 6,
+    "y": 34
+  },
+  {
+    "index": 0,
+    "name": "Bookshelf",
+    "page": 5,
+    "views": {
+      "blocks-05-120x40.ansi": [
+        22,
+        16,
+        26,
+        18
+      ],
+      "blocks-05-160x48.ansi": [
+        42,
+        22,
+        46,
+        24
+      ],
+      "blocks-05-detail-200x72.ansi": [
+        24,
+        28,
+        32,
+        32
+      ]
+    },
+    "x": -9,
+    "y": 28
+  },
+  {
+    "index": 1,
+    "name": "NetherWart(0)",
+    "page": 5,
+    "views": {
+      "blocks-05-120x40.ansi": [
+        34,
+        16,
+        38,
+        18
+      ],
+      "blocks-05-160x48.ansi": [
+        54,
+        22,
+        58,
+        24
+      ],
+      "blocks-05-detail-200x72.ansi": [
+        48,
+        28,
+        56,
+        32
+      ]
+    },
+    "x": -6,
+    "y": 28
+  },
+  {
+    "index": 2,
+    "name": "NetherWart(1)",
+    "page": 5,
+    "views": {
+      "blocks-05-120x40.ansi": [
+        46,
+        16,
+        50,
+        18
+      ],
+      "blocks-05-160x48.ansi": [
+        66,
+        22,
+        70,
+        24
+      ],
+      "blocks-05-detail-200x72.ansi": [
+        72,
+        28,
+        80,
+        32
+      ]
+    },
+    "x": -3,
+    "y": 28
+  },
+  {
+    "index": 3,
+    "name": "NetherWart(3)",
+    "page": 5,
+    "views": {
+      "blocks-05-120x40.ansi": [
+        58,
+        16,
+        62,
+        18
+      ],
+      "blocks-05-160x48.ansi": [
+        78,
+        22,
+        82,
+        24
+      ],
+      "blocks-05-detail-200x72.ansi": [
+        96,
+        28,
+        104,
+        32
+      ]
+    },
+    "x": 0,
+    "y": 28
+  },
+  {
+    "index": 4,
+    "name": "BirchSapling",
+    "page": 5,
+    "views": {
+      "blocks-05-120x40.ansi": [
+        70,
+        16,
+        74,
+        18
+      ],
+      "blocks-05-160x48.ansi": [
+        90,
+        22,
+        94,
+        24
+      ],
+      "blocks-05-detail-200x72.ansi": [
+        120,
+        28,
+        128,
+        32
+      ]
+    },
+    "x": 3,
+    "y": 28
+  },
+  {
+    "index": 5,
+    "name": "ZombieSpawner",
+    "page": 5,
+    "views": {
+      "blocks-05-120x40.ansi": [
+        82,
+        16,
+        86,
+        18
+      ],
+      "blocks-05-160x48.ansi": [
+        102,
+        22,
+        106,
+        24
+      ],
+      "blocks-05-detail-200x72.ansi": [
+        144,
+        28,
+        152,
+        32
+      ]
+    },
+    "x": 6,
+    "y": 28
+  },
+  {
+    "index": 6,
+    "name": "SkeletonSpawner",
+    "page": 5,
+    "views": {
+      "blocks-05-120x40.ansi": [
+        22,
+        22,
+        26,
+        24
+      ],
+      "blocks-05-160x48.ansi": [
+        42,
+        28,
+        46,
+        30
+      ],
+      "blocks-05-detail-200x72.ansi": [
+        24,
+        40,
+        32,
+        44
+      ]
+    },
+    "x": -9,
+    "y": 31
+  }
+]

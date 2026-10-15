@@ -79,7 +79,7 @@
       "source": "examples/world_review.rs",
       "title": "Desert",
       "x": -815.5,
-      "y": 40.0
+      "y": 27.0
     },
     {
       "caption": "Native seeded terrain. Player/camera position is staged; water scenes also stage a boat.",
@@ -186,8 +186,8 @@
       "origin": "Generated",
       "source": "examples/world_review.rs",
       "title": "Jungle",
-      "x": 2942.5,
-      "y": 41.0
+      "x": 2943.5,
+      "y": 28.0
     },
     {
       "caption": "Native seeded terrain. Player/camera position is staged; water scenes also stage a boat.",
@@ -214,7 +214,7 @@
       "source": "examples/world_review.rs",
       "title": "Extreme hills",
       "x": -1647.5,
-      "y": 34.0
+      "y": 25.0
     },
     {
       "caption": "Native seeded terrain. Player/camera position is staged; water scenes also stage a boat.",
@@ -1386,7 +1386,7 @@
       "y": 46.0
     },
     {
-      "caption": "Current playable side-view dragon over the real generated arena; creature positions and phase are staged for inspection.",
+      "caption": "Playable front-facing dragon over the real generated arena. Head/torso targeting matches this projection; creature positions and phase are staged for inspection.",
       "category": "End",
       "dimension": "End",
       "id": "end-dragon",
@@ -1401,12 +1401,12 @@
       ],
       "origin": "Staged actors",
       "source": "examples/world_review.rs",
-      "title": "Dragon encounter \u2014 current art",
+      "title": "Dragon encounter \u2014 frontal dragon",
       "x": 7.5,
       "y": 34.0
     },
     {
-      "caption": "Opt-in front-facing candidate over the actual generated arena. This is not the playable default, and frontal combat is not qualified.",
+      "caption": "The adopted frontal artwork, with an extra tall detail view for inspection. The normal encounter keeps the wider overview for arena visibility.",
       "category": "End",
       "dimension": "End",
       "id": "end-front-preview",
@@ -1426,9 +1426,9 @@
           "rows": 100
         }
       ],
-      "origin": "Art preview",
+      "origin": "Staged actors",
       "source": "examples/world_review.rs",
-      "title": "Dragon encounter \u2014 front art preview",
+      "title": "Frontal dragon \u2014 detailed inspection",
       "x": 7.5,
       "y": 34.0
     },

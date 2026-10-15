@@ -1,12 +1,18 @@
 # Termcraft world atlas, 15 October 2026
 
 [Open the gallery](index.html). It contains **78 scenes and 170 views**, including
-three animations, captured with the renderer after
-`3181b0930db2d66ec6040dfc45565ad56372147e` on `beta/terminal-reborn`.
+three animations, refreshed after the swamp, frontal-dragon, ore and material
+refinements in `1324916` on `beta/terminal-reborn`.
 
-This checkpoint adds capture tooling and a review gallery. It changes no gameplay,
-physics, generation, entity art or installed executable. All game data is opened
-in disposable temporary worlds; no player saves or model services are used.
+The original gallery checkpoint is preserved in Git at `40f3e11`. This refresh
+captures current gameplay/art: Swamp hummocks/trees/reeds, bounded ore deposits,
+the adopted frontal dragon and refined blocks. Biome portraits now choose the
+actual surface; the hills portrait previously selected a cave floor near sea
+level. The live camera keeps its jump dead zone and above-player framing.
+
+All game data is opened in disposable temporary worlds; no player saves or model
+services are used. [Every block/state before and after](../world-refinement-2026-10-15/index.html)
+is available as a separate labelled audit, with ore census and verification.
 
 ## Coverage
 
@@ -25,8 +31,8 @@ in disposable temporary worlds; no player saves or model services are used.
   corridors/supports and a generated route shrine.
 - Bridge and reliquary structure studies, with the generation limitation below.
 - Generated End island, all four towers, walking cutaways, crystal anchors, return
-  portal, island edge/void and an outer island scaffold. Side-view dragon and the
-  opt-in front-facing art candidate are separate encounter cards over real terrain.
+  portal, island edge/void and an outer island scaffold. The playable frontal dragon has
+  overview and detailed encounter cards over real terrain.
 - Representative creatures/props and variants, trial camp/combat/jump/ravine,
   co-op composition, inventory, unsent game-master chat, a built portal/workshop,
   staged cave materials and the built-in Frostbound ruins world recipe.
@@ -35,7 +41,7 @@ The [catalog](catalog.json) gives each scene's origin, fixture source, image vie
 and native player/camera coordinates where applicable. Overview and Detail are
 actual renderer zoom settings; they have different visible context. Panoramas and
 tall views use larger terminal dimensions. The front-dragon detailed view uses a
-taller viewport so the complete candidate fits. These are software rasterizations
+taller viewport so the complete dragon fits. These are software rasterizations
 of ANSI with square half-cell pixels, not terminal-emulator screenshots.
 
 ## Scene origin labels
@@ -68,8 +74,9 @@ based on the private builder footprints. They are not exact private-builder
 replays or naturally generated discoveries.
 
 The End outer islands and return portal retain their current scaffold behavior.
-The front dragon remains a renderer art preview; its frontal combat geometry has
-not been qualified. The lava-layer cutaway puts the camera/player inside the
+The frontal dragon is the playable default, with frontal melee/arrow/contact
+regions and regression coverage. This gallery stages the encounter; it is not a
+complete human boss-fight playthrough. The lava-layer cutaway puts the camera/player inside the
 underground lava layer and does not show a safe spawn or open lava coastline.
 
 ## Reproduction
