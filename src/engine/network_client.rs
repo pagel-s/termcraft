@@ -1,7 +1,7 @@
 #[path = "client_identity.rs"]
 mod identity;
 use super::command::ClientCommand;
-use super::game_loop::{confirms_control_key_releases, input_stale_timeout};
+use super::game_loop::{LegacyJumpGrace, confirms_control_key_releases, input_stale_timeout};
 use super::net::{
     ChunkDeltaPacket, ClientHello, ClientInputFrame, ClientPredictionState, NET_PROTOCOL_VERSION,
     SERVER_TICK_RATE, ServerSnapshot, ServerWireMessage, read_framed_server_message,
@@ -26,7 +26,7 @@ const CLIENT_MAX_CATCHUP_TICKS_PER_FRAME: u8 = 5;
 const CLIENT_TARGET_FPS: u64 = 60;
 const CLIENT_FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / CLIENT_TARGET_FPS);
 // Match native input: conservative pulses until a control release is observed,
-// then a bounded watchdog for missing key-up events.
+// then hold until actual release or a focus/menu/connection reset.
 const REMOTE_HORIZONTAL_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(150);
 const REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(96);
 const REMOTE_HORIZONTAL_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(320);
@@ -303,6 +303,7 @@ fn run_tcp_client_loop(
     let mut right_last_input_at: Option<Instant> = None;
     let mut left_repeat_observed = false;
     let mut right_repeat_observed = false;
+    let mut jump_movement_grace = LegacyJumpGrace::default();
     let mut jump_held_sent = false;
     let mut jump_last_input_at: Option<Instant> = None;
     let mut jump_repeat_observed = false;
@@ -359,320 +360,212 @@ fn run_tcp_client_loop(
                 continue;
             }
             match ev {
-                Event::Key(key_event) => match key_event.kind {
-                    KeyEventKind::Press => match key_event.code {
-                        KeyCode::Char('t' | 'T') if !state.inventory_open => {
-                            for command in [
-                                ClientCommand::ClearDirectionalInput,
-                                ClientCommand::SetPrimaryAction(false),
-                                ClientCommand::SetJumpHeld(false),
-                            ] {
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    command,
-                                );
+                Event::Key(key_event) => {
+                    match key_event.kind {
+                        KeyEventKind::Press => match key_event.code {
+                            KeyCode::Char('t' | 'T') if !state.inventory_open => {
+                                for command in [
+                                    ClientCommand::ClearDirectionalInput,
+                                    ClientCommand::SetPrimaryAction(false),
+                                    ClientCommand::SetJumpHeld(false),
+                                ] {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        command,
+                                    );
+                                }
+                                left_active = false;
+                                right_active = false;
+                                left_last_input_at = None;
+                                right_last_input_at = None;
+                                left_repeat_observed = false;
+                                right_repeat_observed = false;
+                                jump_held_sent = false;
+                                jump_last_input_at = None;
+                                jump_repeat_observed = false;
+                                state.chat.open = true;
                             }
-                            left_active = false;
-                            right_active = false;
-                            left_last_input_at = None;
-                            right_last_input_at = None;
-                            left_repeat_observed = false;
-                            right_repeat_observed = false;
-                            jump_held_sent = false;
-                            jump_last_input_at = None;
-                            jump_repeat_observed = false;
-                            state.chat.open = true;
-                        }
-                        KeyCode::F(4) => renderer.toggle_zoom(),
-                        KeyCode::F(3) => state.show_debug_overlay = !state.show_debug_overlay,
-                        KeyCode::Char('q') | KeyCode::Esc => {
-                            if state.inventory_open {
+                            KeyCode::F(4) => renderer.toggle_zoom(),
+                            KeyCode::F(3) => state.show_debug_overlay = !state.show_debug_overlay,
+                            KeyCode::Char('q') | KeyCode::Esc => {
+                                if state.inventory_open {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::ToggleInventory,
+                                    );
+                                } else {
+                                    running = false;
+                                }
+                            }
+                            KeyCode::Char('e') => {
+                                for command in [
+                                    ClientCommand::ClearDirectionalInput,
+                                    ClientCommand::SetJumpHeld(false),
+                                ] {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        command,
+                                    );
+                                }
+                                left_active = false;
+                                right_active = false;
+                                left_last_input_at = None;
+                                right_last_input_at = None;
+                                left_repeat_observed = false;
+                                right_repeat_observed = false;
+                                jump_held_sent = false;
+                                jump_last_input_at = None;
+                                jump_repeat_observed = false;
                                 queue_client_command(
                                     &mut prediction,
                                     &mut pending_outbound,
                                     ClientCommand::ToggleInventory,
                                 );
-                            } else {
-                                running = false;
                             }
-                        }
-                        KeyCode::Char('e') => {
-                            for command in [
-                                ClientCommand::ClearDirectionalInput,
-                                ClientCommand::SetJumpHeld(false),
-                            ] {
+                            KeyCode::Up | KeyCode::Char(' ') => {
+                                let now = Instant::now();
+                                jump_repeat_observed = jump_last_input_at.is_some_and(|ts| {
+                                    now.duration_since(ts) <= REMOTE_JUMP_PRESS_REPEAT_WINDOW
+                                });
+                                if !key_releases && !jump_held_sent {
+                                    jump_movement_grace.begin(
+                                    now,
+                                    (left_active && left_repeat_observed
+                                        && left_last_input_at.is_some_and(|at| now.duration_since(at) <= REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT))
+                                        || (right_active && right_repeat_observed
+                                            && right_last_input_at.is_some_and(|at| now.duration_since(at) <= REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT)),
+                                );
+                                }
+                                jump_last_input_at = Some(now);
+                                if !jump_held_sent {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetJumpHeld(true),
+                                    );
+                                    jump_held_sent = true;
+                                }
                                 queue_client_command(
                                     &mut prediction,
                                     &mut pending_outbound,
-                                    command,
+                                    ClientCommand::QueueJump,
                                 );
                             }
-                            left_active = false;
-                            right_active = false;
-                            left_last_input_at = None;
-                            right_last_input_at = None;
-                            left_repeat_observed = false;
-                            right_repeat_observed = false;
-                            jump_held_sent = false;
-                            jump_last_input_at = None;
-                            jump_repeat_observed = false;
-                            queue_client_command(
-                                &mut prediction,
-                                &mut pending_outbound,
-                                ClientCommand::ToggleInventory,
-                            );
-                        }
-                        KeyCode::Up | KeyCode::Char(' ') => {
-                            let now = Instant::now();
-                            jump_repeat_observed = jump_last_input_at.is_some_and(|ts| {
-                                now.duration_since(ts) <= REMOTE_JUMP_PRESS_REPEAT_WINDOW
-                            });
-                            jump_last_input_at = Some(now);
-                            if !jump_held_sent {
+                            KeyCode::Char(c) if c.eq_ignore_ascii_case(&'w') => {
+                                let now = Instant::now();
+                                jump_repeat_observed = jump_last_input_at.is_some_and(|ts| {
+                                    now.duration_since(ts) <= REMOTE_JUMP_PRESS_REPEAT_WINDOW
+                                });
+                                if !key_releases && !jump_held_sent {
+                                    jump_movement_grace.begin(
+                                    now,
+                                    (left_active && left_repeat_observed
+                                        && left_last_input_at.is_some_and(|at| now.duration_since(at) <= REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT))
+                                        || (right_active && right_repeat_observed
+                                            && right_last_input_at.is_some_and(|at| now.duration_since(at) <= REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT)),
+                                );
+                                }
+                                jump_last_input_at = Some(now);
+                                if !jump_held_sent {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetJumpHeld(true),
+                                    );
+                                    jump_held_sent = true;
+                                }
                                 queue_client_command(
                                     &mut prediction,
                                     &mut pending_outbound,
-                                    ClientCommand::SetJumpHeld(true),
-                                );
-                                jump_held_sent = true;
-                            }
-                            queue_client_command(
-                                &mut prediction,
-                                &mut pending_outbound,
-                                ClientCommand::QueueJump,
-                            );
-                        }
-                        KeyCode::Char(c) if c.eq_ignore_ascii_case(&'w') => {
-                            let now = Instant::now();
-                            jump_repeat_observed = jump_last_input_at.is_some_and(|ts| {
-                                now.duration_since(ts) <= REMOTE_JUMP_PRESS_REPEAT_WINDOW
-                            });
-                            jump_last_input_at = Some(now);
-                            if !jump_held_sent {
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::SetJumpHeld(true),
-                                );
-                                jump_held_sent = true;
-                            }
-                            queue_client_command(
-                                &mut prediction,
-                                &mut pending_outbound,
-                                ClientCommand::QueueJump,
-                            );
-                        }
-                        KeyCode::F(5) => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::TravelToOverworld,
-                        ),
-                        KeyCode::F(6) => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::TravelToNether,
-                        ),
-                        KeyCode::F(7) => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::TravelToEnd,
-                        ),
-                        KeyCode::F(8) => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::TravelToSpawn,
-                        ),
-                        KeyCode::F(9) => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::EquipDiamondLoadout,
-                        ),
-                        KeyCode::Char(c) if c.eq_ignore_ascii_case(&'f') => {
-                            if !state.inventory_open {
-                                let (bx, by) =
-                                    renderer.screen_to_world(&state, state.mouse_x, state.mouse_y);
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::UseAt(bx, by),
+                                    ClientCommand::QueueJump,
                                 );
                             }
-                        }
-                        KeyCode::Char('x') => {
-                            queue_client_command(
+                            KeyCode::F(5) => queue_client_command(
                                 &mut prediction,
                                 &mut pending_outbound,
-                                ClientCommand::ToggleSneak,
-                            );
-                        }
-                        KeyCode::Delete if state.inventory_open => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::ClearCraftGrid,
-                        ),
-                        KeyCode::Enter if state.inventory_open => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::CraftGrid(
-                                key_event.modifiers.contains(KeyModifiers::SHIFT),
+                                ClientCommand::TravelToOverworld,
                             ),
-                        ),
-                        KeyCode::Enter | KeyCode::Char('r') => {
-                            if state.is_showing_death_screen() {
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::RespawnFromDeathScreen,
-                                );
-                            } else if state.is_showing_credits() {
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::SkipCompletionCredits,
-                                );
-                            }
-                        }
-                        KeyCode::Left | KeyCode::Char('a' | 'A') if !state.inventory_open => {
-                            let now = Instant::now();
-                            left_repeat_observed = left_last_input_at.is_some_and(|last| {
-                                now.duration_since(last) <= REMOTE_HORIZONTAL_PRESS_REPEAT_WINDOW
-                            });
-                            left_last_input_at = Some(now);
-                            if !left_active {
-                                left_active = true;
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::SetMoveLeft(true),
-                                );
-                            }
-                            if right_active {
-                                right_active = false;
-                                right_last_input_at = None;
-                                right_repeat_observed = false;
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::SetMoveRight(false),
-                                );
-                            }
-                        }
-                        KeyCode::Right | KeyCode::Char('d' | 'D') if !state.inventory_open => {
-                            let now = Instant::now();
-                            right_repeat_observed = right_last_input_at.is_some_and(|last| {
-                                now.duration_since(last) <= REMOTE_HORIZONTAL_PRESS_REPEAT_WINDOW
-                            });
-                            right_last_input_at = Some(now);
-                            if !right_active {
-                                right_active = true;
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::SetMoveRight(true),
-                                );
-                            }
-                            if left_active {
-                                left_active = false;
-                                left_last_input_at = None;
-                                left_repeat_observed = false;
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::SetMoveLeft(false),
-                                );
-                            }
-                        }
-                        KeyCode::Char('1') => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::SelectHotbarSlot(0),
-                        ),
-                        KeyCode::Char('2') => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::SelectHotbarSlot(1),
-                        ),
-                        KeyCode::Char('3') => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::SelectHotbarSlot(2),
-                        ),
-                        KeyCode::Char('4') => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::SelectHotbarSlot(3),
-                        ),
-                        KeyCode::Char('5') => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::SelectHotbarSlot(4),
-                        ),
-                        KeyCode::Char('6') => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::SelectHotbarSlot(5),
-                        ),
-                        KeyCode::Char('7') => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::SelectHotbarSlot(6),
-                        ),
-                        KeyCode::Char('8') => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::SelectHotbarSlot(7),
-                        ),
-                        KeyCode::Char('9') => queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::SelectHotbarSlot(8),
-                        ),
-                        KeyCode::Modifier(ModifierKeyCode::LeftShift)
-                        | KeyCode::Modifier(ModifierKeyCode::RightShift)
-                        | KeyCode::Modifier(ModifierKeyCode::IsoLevel3Shift)
-                        | KeyCode::Modifier(ModifierKeyCode::IsoLevel5Shift) => {
-                            sync_remote_sneak_hold(
+                            KeyCode::F(6) => queue_client_command(
                                 &mut prediction,
                                 &mut pending_outbound,
-                                true,
-                                &mut sneak_held_sent,
-                            );
-                        }
-                        _ => {}
-                    },
-                    KeyEventKind::Repeat => {
-                        if is_jump_key(&key_event.code) {
-                            let now = Instant::now();
-                            jump_repeat_observed = true;
-                            jump_last_input_at = Some(now);
-                            if !jump_held_sent {
+                                ClientCommand::TravelToNether,
+                            ),
+                            KeyCode::F(7) => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::TravelToEnd,
+                            ),
+                            KeyCode::F(8) => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::TravelToSpawn,
+                            ),
+                            KeyCode::F(9) => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::EquipDiamondLoadout,
+                            ),
+                            KeyCode::Char(c) if c.eq_ignore_ascii_case(&'f') => {
+                                if !state.inventory_open {
+                                    let (bx, by) = renderer.screen_to_world(
+                                        &state,
+                                        state.mouse_x,
+                                        state.mouse_y,
+                                    );
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::UseAt(bx, by),
+                                    );
+                                }
+                            }
+                            KeyCode::Char('x') => {
                                 queue_client_command(
                                     &mut prediction,
                                     &mut pending_outbound,
-                                    ClientCommand::SetJumpHeld(true),
+                                    ClientCommand::ToggleSneak,
                                 );
-                                jump_held_sent = true;
                             }
-                        }
-                        if !state.inventory_open
-                            && matches!(
-                                key_event.code,
-                                KeyCode::Left
-                                    | KeyCode::Right
-                                    | KeyCode::Char('a')
-                                    | KeyCode::Char('A')
-                                    | KeyCode::Char('d')
-                                    | KeyCode::Char('D')
-                            )
-                        {
-                            if matches!(
-                                key_event.code,
-                                KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('A')
-                            ) {
-                                left_repeat_observed = true;
-                                left_last_input_at = Some(Instant::now());
+                            KeyCode::Delete if state.inventory_open => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::ClearCraftGrid,
+                            ),
+                            KeyCode::Enter if state.inventory_open => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::CraftGrid(
+                                    key_event.modifiers.contains(KeyModifiers::SHIFT),
+                                ),
+                            ),
+                            KeyCode::Enter | KeyCode::Char('r') => {
+                                if state.is_showing_death_screen() {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::RespawnFromDeathScreen,
+                                    );
+                                } else if state.is_showing_credits() {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SkipCompletionCredits,
+                                    );
+                                }
+                            }
+                            KeyCode::Left | KeyCode::Char('a' | 'A') if !state.inventory_open => {
+                                let now = Instant::now();
+                                left_repeat_observed = left_last_input_at.is_some_and(|last| {
+                                    now.duration_since(last)
+                                        <= REMOTE_HORIZONTAL_PRESS_REPEAT_WINDOW
+                                });
+                                left_last_input_at = Some(now);
+                                jump_movement_grace.directional_event();
                                 if !left_active {
+                                    jump_movement_grace.reset();
                                     left_active = true;
                                     queue_client_command(
                                         &mut prediction,
@@ -690,10 +583,17 @@ fn run_tcp_client_loop(
                                         ClientCommand::SetMoveRight(false),
                                     );
                                 }
-                            } else {
-                                right_repeat_observed = true;
-                                right_last_input_at = Some(Instant::now());
+                            }
+                            KeyCode::Right | KeyCode::Char('d' | 'D') if !state.inventory_open => {
+                                let now = Instant::now();
+                                right_repeat_observed = right_last_input_at.is_some_and(|last| {
+                                    now.duration_since(last)
+                                        <= REMOTE_HORIZONTAL_PRESS_REPEAT_WINDOW
+                                });
+                                right_last_input_at = Some(now);
+                                jump_movement_grace.directional_event();
                                 if !right_active {
+                                    jump_movement_grace.reset();
                                     right_active = true;
                                     queue_client_command(
                                         &mut prediction,
@@ -712,87 +612,221 @@ fn run_tcp_client_loop(
                                     );
                                 }
                             }
-                        }
-                    }
-                    KeyEventKind::Release => match key_event.code {
-                        KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('A') => {
-                            if left_active {
-                                left_active = false;
-                                left_last_input_at = None;
-                                left_repeat_observed = false;
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::SetMoveLeft(false),
-                                );
-                            }
-                        }
-                        KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('D') => {
-                            if right_active {
-                                right_active = false;
-                                right_last_input_at = None;
-                                right_repeat_observed = false;
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::SetMoveRight(false),
-                                );
-                            }
-                        }
-                        KeyCode::Up
-                        | KeyCode::Char('w')
-                        | KeyCode::Char('W')
-                        | KeyCode::Char(' ') => {
-                            if jump_held_sent {
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::SetJumpHeld(false),
-                                );
-                            }
-                            jump_held_sent = false;
-                            jump_last_input_at = None;
-                            jump_repeat_observed = false;
-                        }
-                        KeyCode::Null => {
-                            if left_active || right_active {
-                                left_active = false;
-                                right_active = false;
-                                left_last_input_at = None;
-                                right_last_input_at = None;
-                                left_repeat_observed = false;
-                                right_repeat_observed = false;
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::ClearDirectionalInput,
-                                );
-                            }
-                            if jump_held_sent {
-                                queue_client_command(
-                                    &mut prediction,
-                                    &mut pending_outbound,
-                                    ClientCommand::SetJumpHeld(false),
-                                );
-                            }
-                            jump_held_sent = false;
-                            jump_last_input_at = None;
-                            jump_repeat_observed = false;
-                        }
-                        KeyCode::Modifier(ModifierKeyCode::LeftShift)
-                        | KeyCode::Modifier(ModifierKeyCode::RightShift)
-                        | KeyCode::Modifier(ModifierKeyCode::IsoLevel3Shift)
-                        | KeyCode::Modifier(ModifierKeyCode::IsoLevel5Shift) => {
-                            sync_remote_sneak_hold(
+                            KeyCode::Char('1') => queue_client_command(
                                 &mut prediction,
                                 &mut pending_outbound,
-                                false,
-                                &mut sneak_held_sent,
-                            );
+                                ClientCommand::SelectHotbarSlot(0),
+                            ),
+                            KeyCode::Char('2') => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::SelectHotbarSlot(1),
+                            ),
+                            KeyCode::Char('3') => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::SelectHotbarSlot(2),
+                            ),
+                            KeyCode::Char('4') => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::SelectHotbarSlot(3),
+                            ),
+                            KeyCode::Char('5') => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::SelectHotbarSlot(4),
+                            ),
+                            KeyCode::Char('6') => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::SelectHotbarSlot(5),
+                            ),
+                            KeyCode::Char('7') => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::SelectHotbarSlot(6),
+                            ),
+                            KeyCode::Char('8') => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::SelectHotbarSlot(7),
+                            ),
+                            KeyCode::Char('9') => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::SelectHotbarSlot(8),
+                            ),
+                            KeyCode::Modifier(ModifierKeyCode::LeftShift)
+                            | KeyCode::Modifier(ModifierKeyCode::RightShift)
+                            | KeyCode::Modifier(ModifierKeyCode::IsoLevel3Shift)
+                            | KeyCode::Modifier(ModifierKeyCode::IsoLevel5Shift) => {
+                                sync_remote_sneak_hold(
+                                    &mut prediction,
+                                    &mut pending_outbound,
+                                    true,
+                                    &mut sneak_held_sent,
+                                );
+                            }
+                            _ => {}
+                        },
+                        KeyEventKind::Repeat => {
+                            if is_jump_key(&key_event.code) {
+                                let now = Instant::now();
+                                jump_repeat_observed = true;
+                                jump_last_input_at = Some(now);
+                                if !jump_held_sent {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetJumpHeld(true),
+                                    );
+                                    jump_held_sent = true;
+                                }
+                            }
+                            if !state.inventory_open
+                                && matches!(
+                                    key_event.code,
+                                    KeyCode::Left
+                                        | KeyCode::Right
+                                        | KeyCode::Char('a')
+                                        | KeyCode::Char('A')
+                                        | KeyCode::Char('d')
+                                        | KeyCode::Char('D')
+                                )
+                            {
+                                if matches!(
+                                    key_event.code,
+                                    KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('A')
+                                ) {
+                                    left_repeat_observed = true;
+                                    left_last_input_at = Some(Instant::now());
+                                    jump_movement_grace.directional_event();
+                                    if !left_active {
+                                        jump_movement_grace.reset();
+                                        left_active = true;
+                                        queue_client_command(
+                                            &mut prediction,
+                                            &mut pending_outbound,
+                                            ClientCommand::SetMoveLeft(true),
+                                        );
+                                    }
+                                    if right_active {
+                                        right_active = false;
+                                        right_last_input_at = None;
+                                        right_repeat_observed = false;
+                                        queue_client_command(
+                                            &mut prediction,
+                                            &mut pending_outbound,
+                                            ClientCommand::SetMoveRight(false),
+                                        );
+                                    }
+                                } else {
+                                    right_repeat_observed = true;
+                                    right_last_input_at = Some(Instant::now());
+                                    jump_movement_grace.directional_event();
+                                    if !right_active {
+                                        jump_movement_grace.reset();
+                                        right_active = true;
+                                        queue_client_command(
+                                            &mut prediction,
+                                            &mut pending_outbound,
+                                            ClientCommand::SetMoveRight(true),
+                                        );
+                                    }
+                                    if left_active {
+                                        left_active = false;
+                                        left_last_input_at = None;
+                                        left_repeat_observed = false;
+                                        queue_client_command(
+                                            &mut prediction,
+                                            &mut pending_outbound,
+                                            ClientCommand::SetMoveLeft(false),
+                                        );
+                                    }
+                                }
+                            }
                         }
-                        _ => {}
-                    },
-                },
+                        KeyEventKind::Release => match key_event.code {
+                            KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('A') => {
+                                if left_active {
+                                    left_active = false;
+                                    left_last_input_at = None;
+                                    left_repeat_observed = false;
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetMoveLeft(false),
+                                    );
+                                }
+                            }
+                            KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('D') => {
+                                if right_active {
+                                    right_active = false;
+                                    right_last_input_at = None;
+                                    right_repeat_observed = false;
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetMoveRight(false),
+                                    );
+                                }
+                            }
+                            KeyCode::Up
+                            | KeyCode::Char('w')
+                            | KeyCode::Char('W')
+                            | KeyCode::Char(' ') => {
+                                if jump_held_sent {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetJumpHeld(false),
+                                    );
+                                }
+                                jump_held_sent = false;
+                                jump_last_input_at = None;
+                                jump_repeat_observed = false;
+                            }
+                            KeyCode::Null => {
+                                if left_active || right_active {
+                                    left_active = false;
+                                    right_active = false;
+                                    left_last_input_at = None;
+                                    right_last_input_at = None;
+                                    left_repeat_observed = false;
+                                    right_repeat_observed = false;
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::ClearDirectionalInput,
+                                    );
+                                }
+                                if jump_held_sent {
+                                    queue_client_command(
+                                        &mut prediction,
+                                        &mut pending_outbound,
+                                        ClientCommand::SetJumpHeld(false),
+                                    );
+                                }
+                                jump_held_sent = false;
+                                jump_last_input_at = None;
+                                jump_repeat_observed = false;
+                            }
+                            KeyCode::Modifier(ModifierKeyCode::LeftShift)
+                            | KeyCode::Modifier(ModifierKeyCode::RightShift)
+                            | KeyCode::Modifier(ModifierKeyCode::IsoLevel3Shift)
+                            | KeyCode::Modifier(ModifierKeyCode::IsoLevel5Shift) => {
+                                sync_remote_sneak_hold(
+                                    &mut prediction,
+                                    &mut pending_outbound,
+                                    false,
+                                    &mut sneak_held_sent,
+                                );
+                            }
+                            _ => {}
+                        },
+                    }
+                }
                 Event::Mouse(mouse_event) => {
                     state.mouse_x = mouse_event.column;
                     state.mouse_y = mouse_event.row;
@@ -947,16 +981,17 @@ fn run_tcp_client_loop(
 
         let now = Instant::now();
         if left_active
+            && !jump_movement_grace.active(now)
             && left_last_input_at.is_none_or(|ts| {
-                now.duration_since(ts)
-                    > input_stale_timeout(
-                        key_releases,
-                        if left_repeat_observed {
-                            REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT
-                        } else {
-                            REMOTE_HORIZONTAL_STALE_TIMEOUT_INITIAL
-                        },
-                    )
+                input_stale_timeout(
+                    key_releases,
+                    if left_repeat_observed {
+                        REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT
+                    } else {
+                        REMOTE_HORIZONTAL_STALE_TIMEOUT_INITIAL
+                    },
+                )
+                .is_some_and(|timeout| now.duration_since(ts) > timeout)
             })
         {
             left_active = false;
@@ -969,16 +1004,17 @@ fn run_tcp_client_loop(
             );
         }
         if right_active
+            && !jump_movement_grace.active(now)
             && right_last_input_at.is_none_or(|ts| {
-                now.duration_since(ts)
-                    > input_stale_timeout(
-                        key_releases,
-                        if right_repeat_observed {
-                            REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT
-                        } else {
-                            REMOTE_HORIZONTAL_STALE_TIMEOUT_INITIAL
-                        },
-                    )
+                input_stale_timeout(
+                    key_releases,
+                    if right_repeat_observed {
+                        REMOTE_HORIZONTAL_STALE_TIMEOUT_REPEAT
+                    } else {
+                        REMOTE_HORIZONTAL_STALE_TIMEOUT_INITIAL
+                    },
+                )
+                .is_some_and(|timeout| now.duration_since(ts) > timeout)
             })
         {
             right_active = false;
@@ -992,15 +1028,15 @@ fn run_tcp_client_loop(
         }
         if jump_held_sent
             && jump_last_input_at.is_none_or(|ts| {
-                now.duration_since(ts)
-                    > input_stale_timeout(
-                        key_releases,
-                        if jump_repeat_observed {
-                            REMOTE_JUMP_STALE_TIMEOUT_REPEAT
-                        } else {
-                            REMOTE_JUMP_STALE_TIMEOUT_INITIAL
-                        },
-                    )
+                input_stale_timeout(
+                    key_releases,
+                    if jump_repeat_observed {
+                        REMOTE_JUMP_STALE_TIMEOUT_REPEAT
+                    } else {
+                        REMOTE_JUMP_STALE_TIMEOUT_INITIAL
+                    },
+                )
+                .is_some_and(|timeout| now.duration_since(ts) > timeout)
             })
         {
             jump_held_sent = false;

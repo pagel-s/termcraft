@@ -20640,9 +20640,9 @@ mod tests {
     fn test_update_villager_population_bootstraps_empty_village_before_timer_expires() {
         use rand::{SeedableRng, rngs::StdRng};
 
-        let mut state = GameState::new();
+        let mut state = isolated_villager_behavior_fixture();
+        state.game_rules.do_mob_spawning = true;
         state.current_dimension = Dimension::Overworld;
-        state.world = World::new_for_dimension(Dimension::Overworld);
         state.world.load_chunks_around(0);
         state.villagers.clear();
         state.player.x = -16.5;

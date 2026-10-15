@@ -524,6 +524,7 @@ impl Renderer {
         &mut self,
         state: &GameState,
         lighting: &super::shading::SceneLighting,
+        frame_alpha: f64,
     ) {
         use crate::world::Dimension;
         let (vx, vy, cx, cy, scale) = self.world_view.unwrap();
@@ -555,6 +556,20 @@ impl Renderer {
                 .unwrap_or(crate::world::chunk::CHUNK_HEIGHT as i32);
             horizons.push(ground);
         }
+        let precipitation: Vec<_> = (left..=right)
+            .map(|x| {
+                let kind = state.precipitation_at(x);
+                let cutoff = if state.current_dimension == Dimension::Overworld
+                    && kind != super::PrecipitationType::None
+                    && state.weather_rain_intensity > 0.05
+                {
+                    Self::precipitation_cutoff(state, x)
+                } else {
+                    0
+                };
+                (kind, cutoff)
+            })
+            .collect();
         let day = Self::day_mix(state.time_of_day);
         let twilight = Self::twilight_mix(state.time_of_day);
         let rows = i32::from(self.height - 4) * 2;
@@ -572,15 +587,17 @@ impl Renderer {
                             (i32::from(self.width), rows),
                             (day, twilight),
                         );
-                        let precipitation = state.precipitation_at(bx);
-                        if state.weather_rain_intensity > 0.05
-                            && precipitation != super::PrecipitationType::None
+                        let (kind, cutoff) = precipitation[(bx - left) as usize];
+                        if world_y < cutoff as f64
+                            && let Some((color, opacity)) = Self::precipitation_pixel(
+                                kind,
+                                (world_x, world_y),
+                                state.player.age as f64 + frame_alpha,
+                                state.weather_rain_intensity,
+                                1.0 / unit as f64,
+                            )
                         {
-                            let rain =
-                                (sx * 17 + sy * 3 + (state.player.age * 2) as i32).rem_euclid(83);
-                            if rain < 2 {
-                                sky = Self::lerp_rgb(sky, (169, 196, 210), 0.55);
-                            }
+                            sky = Self::lerp_rgb(sky, color, opacity);
                         }
                         sky
                     }
@@ -963,12 +980,12 @@ mod tests {
                     let lighting =
                         super::super::shading::SceneLighting::new(&state, &[15], (0, 0, 1, 1));
                     renderer.world_view = Some((0, 30 * scale, 80, 36, scale));
-                    renderer.render_pixel_sky(&state, &lighting);
+                    renderer.render_pixel_sky(&state, &lighting, 0.0);
                     let still = renderer.back_buffer.clone();
                     for (vx, vy, half) in [(-13, 27 * scale, 1), (17, 33 * scale, 0)] {
                         renderer.world_view = Some((vx, vy, 80, 36, scale));
                         renderer.vertical_pixel_offset = half;
-                        renderer.render_pixel_sky(&state, &lighting);
+                        renderer.render_pixel_sky(&state, &lighting, 0.0);
                         assert!(
                             renderer.back_buffer == still,
                             "sky split/flickered during camera motion in {dimension:?}, time {time}, scale {scale}"
@@ -1007,7 +1024,7 @@ mod tests {
     ) -> Renderer {
         let mut renderer = Renderer::with_size(160, 48);
         renderer.world_view = Some((0, 16 * scale, 0, 0, scale));
-        renderer.render_pixel_sky(state, lighting);
+        renderer.render_pixel_sky(state, lighting, 0.0);
         renderer.render_pixel_materials(state, lighting);
         renderer
     }

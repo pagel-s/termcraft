@@ -12,6 +12,8 @@ mod motion;
 mod shading;
 #[path = "sprites.rs"]
 mod sprites;
+#[path = "weather.rs"]
+mod weather;
 use crate::world::block::BlockType;
 use crate::world::chunk::CHUNK_HEIGHT;
 use crate::world::item::{ItemStack, ItemType, Recipe};
@@ -1267,9 +1269,7 @@ impl Renderer {
         let is_nether = state.current_dimension == Dimension::Nether;
         let is_end = state.current_dimension == Dimension::End;
         let is_overworld = state.current_dimension == Dimension::Overworld;
-        // Quantize sky/weather animation so the terminal diff changes less often,
-        // improving frame pacing without making the sky feel static.
-        let precip_anim_phase = (state.player.age / 2) as f32;
+        // Keep distant End stars quiet; falling weather uses age + frame_alpha.
         let end_twinkle_phase = (state.player.age / 8) as i32;
         let mut sky_light = if is_nether {
             8.0
@@ -1309,17 +1309,21 @@ impl Renderer {
             }
         }
         let mut sky_occluder_by_bx = vec![max_by + 1; width_b];
+        let mut precipitation_cutoff_by_bx = vec![CHUNK_HEIGHT as i32; width_b];
         let mut sky_horizon_raw_by_bx = vec![max_by + 1; width_b];
         if is_overworld {
             for x in 0..width_b {
                 let bx = min_bx + x as i32;
                 let occluder_entry = &mut sky_occluder_by_bx[x];
+                *occluder_entry = (0..CHUNK_HEIGHT as i32)
+                    .find(|&y| Self::sky_backdrop_occluder(state.world.get_block(bx, y)))
+                    .unwrap_or(CHUNK_HEIGHT as i32);
+                if precipitation_by_bx[x] != PrecipitationType::None {
+                    precipitation_cutoff_by_bx[x] = Self::precipitation_cutoff(state, bx);
+                }
                 let horizon_entry = &mut sky_horizon_raw_by_bx[x];
                 for by in (min_by - 12)..=max_by {
                     let block = state.world.get_block(bx, by);
-                    if *occluder_entry == max_by + 1 && Self::sky_backdrop_occluder(block) {
-                        *occluder_entry = by;
-                    }
                     if *horizon_entry == max_by + 1 && Self::sky_horizon_anchor(block) {
                         *horizon_entry = by;
                     }
@@ -1421,6 +1425,7 @@ impl Renderer {
                 let mut final_bg = bg;
                 let precipitation = precipitation_by_bx[light_x];
                 let sky_occluder_y = sky_occluder_by_bx[light_x];
+                let precipitation_cutoff_y = precipitation_cutoff_by_bx[light_x];
                 let sky_horizon_y = sky_horizon_by_bx[light_x];
                 let sky_exposed = is_overworld && block_y < sky_occluder_y;
                 let sky_bg = if sky_exposed {
@@ -1470,41 +1475,55 @@ impl Renderer {
                             ));
                         }
 
-                        if precipitation != PrecipitationType::None && final_char == ' ' {
-                            let wet_hash = (world_char_x
-                                .wrapping_mul(13)
-                                .wrapping_add(block_y.wrapping_mul(7))
-                                .wrapping_add(
-                                    (precip_anim_phase * (1.0 + wind_mix)).round() as i32
-                                ))
-                                & 7;
-                            match precipitation {
-                                PrecipitationType::Rain => {
-                                    let rain_density = 2 + (rain_mix * 4.0) as i32;
-                                    if wet_hash <= rain_density {
-                                        final_char = '|';
-                                        final_fg = Color::Rgb {
-                                            r: 155,
-                                            g: 185,
-                                            b: 255,
-                                        };
-                                    }
+                        if self.pixel_colors {
+                            for half in 0..2 {
+                                let world_y = block_y as f64 + f64::from(half) * 0.5;
+                                if world_y >= precipitation_cutoff_y as f64 {
+                                    continue;
                                 }
-                                PrecipitationType::Snow => {
-                                    if wet_hash <= 1 {
-                                        final_char = '*';
-                                        final_fg = Color::White;
-                                    } else if wet_hash == 3 || wet_hash == 4 {
-                                        final_char = '.';
-                                        final_fg = Color::Rgb {
-                                            r: 220,
-                                            g: 220,
-                                            b: 220,
-                                        };
-                                    }
+                                if let Some((color, opacity)) = Self::precipitation_pixel(
+                                    precipitation,
+                                    (world_char_x as f64 / 2.0, world_y),
+                                    state.player.age as f64 + frame_alpha,
+                                    state.weather_rain_intensity,
+                                    0.5,
+                                ) {
+                                    let pixel = if half == 0 {
+                                        &mut final_fg
+                                    } else {
+                                        &mut final_bg
+                                    };
+                                    *pixel = Self::rgb(Self::lerp_rgb(
+                                        Self::color_rgb(*pixel).unwrap_or((0, 0, 0)),
+                                        color,
+                                        opacity,
+                                    ));
                                 }
-                                PrecipitationType::None => {}
                             }
+                        } else if block_y < precipitation_cutoff_y
+                            && Self::precipitation_pixel(
+                                precipitation,
+                                (world_char_x as f64 / 2.0, block_y as f64),
+                                state.player.age as f64 + frame_alpha,
+                                state.weather_rain_intensity,
+                                1.0,
+                            )
+                            .is_some()
+                        {
+                            final_char = if precipitation == PrecipitationType::Snow {
+                                '*'
+                            } else {
+                                '|'
+                            };
+                            final_fg = if precipitation == PrecipitationType::Snow {
+                                Color::White
+                            } else {
+                                Color::Rgb {
+                                    r: 142,
+                                    g: 184,
+                                    b: 216,
+                                }
+                            };
                         }
                     } else if is_end && final_char == ' ' {
                         let depth =
@@ -3303,6 +3322,7 @@ impl Renderer {
             state,
             &light,
             (min_bx, min_by, width_b, height_b),
+            frame_alpha,
         );
         let ui_y = self.height as i32 - 4;
         let screen_center_x = screen_center_x * scale;
@@ -3649,9 +3669,9 @@ impl Renderer {
                 1,
                 0,
                 &format!(
-                    "Termcraft | {:?} | {:?} | {}    {chat_hint}E: inventory{settings_hint}  F3: diagnostics  F4: view",
+                    "Termcraft | {:?} | {} | {}    {chat_hint}E: inventory{settings_hint}  F3: diagnostics  F4: view",
                     state.current_dimension,
-                    state.weather,
+                    Self::local_weather_label(state),
                     state.difficulty_name()
                 ),
                 Color::Grey,

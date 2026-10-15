@@ -256,10 +256,22 @@ env -u NO_COLOR target/release/examples/motion_profile > /tmp/motion-profile.jso
 ```
 
 The terminal test deliberately answers the enhancement query while sending plain
-ASCII taps with no key-up. It then checks unrelated releases, confirmed holds,
-missing key-up, repeat refresh, focus loss and restoration in native/co-op modes.
+ASCII taps with no key-up. It then checks unrelated releases, bounded legacy jump
+takeoff, confirmed run+jump chords, Space repeats without direction repeats,
+continued movement after Space-up, a quiet leftward hold beyond two seconds,
+actual direction release, focus loss and restoration in native/co-op modes.
 A generated copied village checks door click+drag+walk in every view. The sky
 example stages fixed poses/time in disposable geometry. The motion profile compares
 stationary and synthetic 6.4-block/s camera pans with color enabled. Counting-writer
 bytes and CPU time exclude emulator presentation; synchronized output is only a
 request to supporting terminals, not a latency measurement.
+
+`examples/weather_review.rs` stages rain/snow outside and around a covered room,
+plus 48 incremental ANSI frames at 20 Hz for each weather type. Run it with an
+output directory, then use `scripts/capture_terminal_art.py` for the static frames.
+Renderer regressions compare wet/clear output with identical lighting intensities,
+test downward particle displacement and require zero precipitation below roofs
+above the viewport at scales 1, 2 and 4. The candidate's confirmed control mode
+trusts real release events; it no longer expires a physically held key merely
+because OS repeat moved to another key. See `feel-and-art.md` for the lost-key-up
+and repeat-only limitations.

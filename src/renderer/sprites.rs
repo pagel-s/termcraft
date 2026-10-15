@@ -682,13 +682,14 @@ impl Renderer {
         state: &super::GameState,
         light: &[u8],
         region: (i32, i32, usize, usize),
+        frame_alpha: f64,
     ) {
         let lighting =
             (scale > 1).then(|| super::shading::SceneLighting::new(state, light, region));
         if scale > 1 {
             (self.width, self.height) = physical;
             self.clear_back_buffer();
-            self.render_pixel_sky(state, lighting.as_ref().unwrap());
+            self.render_pixel_sky(state, lighting.as_ref().unwrap(), frame_alpha);
             self.render_pixel_materials(state, lighting.as_ref().unwrap());
             self.render_pixel_effects(state);
         }

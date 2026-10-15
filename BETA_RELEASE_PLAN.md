@@ -58,6 +58,14 @@ torches become dropped items after neighboring chunk data is available. See
 report. This addresses the floating-torch feedback; overall human art/feel
 acceptance remains open.
 
+The run/jump and weather follow-up on the same date corrects direction expiry
+when Space takes keyboard repeat, upward precipitation, cave/roof leakage and
+missing wide-color precipitation. Confirmed key-up streams now retain held
+controls until release/reset; conservative repeat-only input gets a bounded
+takeoff grace and keeps its fundamental multi-key limitation. Snow has distinct
+motion/art and a correct local label. Character art is unchanged. See
+`docs/design/run-jump-weather-2026-10-15/provenance.md` for evidence and tradeoffs.
+
 The headline is **“Survive and build with friends over SSH.”** The distinguishing
 feature is a player-directed AI game master: ask in the running game for a battle,
 mobs, an environment or a structure, then continue playing while your chosen LLM
@@ -122,7 +130,7 @@ saves before testing because older executables cannot read the new format.
 Human playtesting exposed indefinite movement, repeatedly toggled doors, poor sky,
 oversized swings, apparent frame layers and excessive default zoom. Earlier scripted
 checks trusted ideal key events and mostly stationary renderer measurements.
-The corrected candidate bounds input even when key-up is missing, confirms actual
+That checkpoint bounded input even when key-up was missing, confirmed actual
 control releases, removes world right-drag use repeats, brackets whole frames with
 synchronized updates and paces output after flush. Default pixel overview doubles
 world context; close detail is explicit. Clouds/sun/stars share one stable sky space,

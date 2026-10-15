@@ -5,6 +5,34 @@ felt laggy and the figures had not visibly improved. It reopens the art/gameplay
 quality gate; prior renderer benchmarks measure CPU work, not enjoyment or input
 latency.
 
+## Run, jump and weather correction, 15 October
+
+Pressing Space can move OS keyboard repeat away from a held direction. The old
+per-key timeouts then cancelled running, stopped sprint and braked the player in
+midair. Native and co-op now retain confirmed key-release controls until the
+matching release or a focus/menu reset. Holding a direction, jumping, releasing
+jump and continuing no longer needs artificial direction repeats every two seconds.
+The terminal must first send an actual movement/jump key-up to confirm this mode.
+
+Repeat-only terminals still cannot report which keys are physically held. An
+already repeating direction gets a 750 ms grace through jump takeoff; Only a fresh direction event can re-arm it; Space
+alone cannot renew it, and stale input is not revived. This improves takeoff but
+does not promise arbitrary simultaneous held keys on terminals without key-up.
+For confirmed streams, an individually lost key-up is no longer detectable by
+silence: release that key again or change focus to clear held input. Disconnect
+and server session protection remain in place. F3 reports the active input mode.
+
+Rain and snow now fall downward in world coordinates, with fast blue streaks and
+slower pale flakes. Every color view and monochrome fallback uses the same field.
+Roofs, glass, slabs, foliage and fluid surfaces stop precipitation even when the
+cover is above the viewport. Snowy biomes show `Snow` in the weather label. Figure
+silhouettes, palettes, dimensions and animation were not changed in this or the
+preceding torch correction; F4 still selects different pixel/glyph resolutions.
+
+[Captures, clips and reproduction](design/run-jump-weather-2026-10-15/provenance.md)
+cover actual rendered motion, above-viewport roofs and combined native/co-op input.
+Human movement feel, emulator latency and visual acceptance remain open.
+
 ## Try the candidate
 
 Run the local development executable. Restart the co-op server and every client
@@ -34,7 +62,8 @@ The village checkpoint passed narrow fixtures but missed real input compatibilit
 and moving terminal output. A capability-positive terminal sending one plain `d`
 kept walking indefinitely. The game now starts conservatively, promotes held-key
 support only after receiving an actual movement/jump release, and uses a two-second
-watchdog even after confirmation. Native and co-op share the policy. Repeats renew
+watchdog even after confirmation in that checkpoint. The 15 October chord fix above
+replaces that confirmed-stream timeout. Native and co-op share the policy. Repeats renew
 holds; focus loss clears them. The first long hold can pause before OS repeat until
 key-up is observed. Repeat-only input retains its inherent tap/hold ambiguity.
 

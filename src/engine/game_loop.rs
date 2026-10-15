@@ -10,15 +10,15 @@ const TICKS_PER_SECOND: u64 = 20;
 const TICK_DURATION: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 const MAX_CATCHUP_TICKS_PER_FRAME: u8 = 5;
 // Legacy terminals cannot distinguish a tap from a hold before OS repeat starts.
-// These bounded fallback pulses favor stopping after taps. Confirmed key-up
-// streams use a longer watchdog, so a dropped release still cannot run forever.
+// These bounded fallback pulses favor stopping after taps. Once real key-up
+// events arrive, hold state must survive OS repeat moving to a second key.
 const HORIZONTAL_INPUT_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(150);
 const HORIZONTAL_INPUT_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(96);
 const HORIZONTAL_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(320);
 const JUMP_INPUT_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(340);
 const JUMP_INPUT_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(160);
 const JUMP_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(420);
-const CONFIRMED_INPUT_WATCHDOG: Duration = Duration::from_secs(2);
+const LEGACY_JUMP_MOVEMENT_GRACE: Duration = Duration::from_millis(750);
 const AUTOSAVE_INTERVAL: Duration = Duration::from_secs(45);
 const AUTOSAVE_CHUNK_BUDGET_PER_FRAME: usize = 1;
 const TARGET_FPS: u64 = 60;
@@ -36,11 +36,41 @@ pub(super) fn confirms_control_key_releases(key: &crossterm::event::KeyEvent) ->
             || GameLoop::is_jump_key(&key.code))
 }
 
-pub(super) fn input_stale_timeout(key_releases: bool, legacy_timeout: Duration) -> Duration {
-    if key_releases {
-        CONFIRMED_INPUT_WATCHDOG
-    } else {
-        legacy_timeout
+pub(super) fn input_stale_timeout(
+    key_releases: bool,
+    legacy_timeout: Duration,
+) -> Option<Duration> {
+    (!key_releases).then_some(legacy_timeout)
+}
+
+#[derive(Default)]
+pub(super) struct LegacyJumpGrace {
+    until: Option<Instant>,
+    used: bool,
+}
+
+impl LegacyJumpGrace {
+    pub(super) fn reset(&mut self) {
+        *self = Self::default();
+    }
+
+    pub(super) fn begin(&mut self, now: Instant, repeating_movement: bool) {
+        // Only directional input can re-arm this. Space repeats cannot renew it,
+        // and an old tap is never revived after its directional state expires.
+        if repeating_movement && !self.used {
+            self.until = Some(now + LEGACY_JUMP_MOVEMENT_GRACE);
+            self.used = true;
+        }
+    }
+
+    pub(super) fn active(&self, now: Instant) -> bool {
+        self.until.is_some_and(|until| now <= until)
+    }
+
+    pub(super) fn directional_event(&mut self) {
+        // Real direction input confirms movement again, even just before the
+        // prior grace expires. Preserve that grace, but allow the next jump.
+        self.used = false;
     }
 }
 
@@ -55,6 +85,7 @@ pub struct GameLoop {
     jump_repeat_observed: bool,
     jump_held_active: bool,
     key_releases: bool,
+    jump_movement_grace: LegacyJumpGrace,
     last_inventory_left_drag_slot: Option<usize>,
     last_inventory_right_drag_slot: Option<usize>,
     last_autosave_at: Instant,
@@ -95,6 +126,7 @@ impl GameLoop {
             jump_repeat_observed: false,
             jump_held_active: false,
             key_releases: false,
+            jump_movement_grace: LegacyJumpGrace::default(),
             last_inventory_left_drag_slot: None,
             last_inventory_right_drag_slot: None,
             last_autosave_at: Instant::now(),
@@ -816,6 +848,15 @@ impl GameLoop {
         now: Instant,
         explicit_repeat: bool,
     ) {
+        let active = match direction {
+            HorizontalDirection::Left => self.state.moving_left,
+            HorizontalDirection::Right => self.state.moving_right,
+        };
+        if !active {
+            self.jump_movement_grace.reset();
+        } else {
+            self.jump_movement_grace.directional_event();
+        }
         let last_for_direction = self.direction_last_input_at(direction);
         let repeat_like_press = last_for_direction
             .is_some_and(|ts| now.duration_since(ts) <= HORIZONTAL_PRESS_REPEAT_WINDOW);
@@ -846,6 +887,21 @@ impl GameLoop {
     }
 
     fn handle_jump_press(&mut self, now: Instant, explicit_repeat: bool) {
+        if !self.key_releases && !explicit_repeat && !self.jump_held_active {
+            self.jump_movement_grace.begin(
+                now,
+                (self.state.moving_left
+                    && self.left_repeat_observed
+                    && self.left_last_input_at.is_some_and(|at| {
+                        now.duration_since(at) <= HORIZONTAL_INPUT_STALE_TIMEOUT_REPEAT
+                    }))
+                    || (self.state.moving_right
+                        && self.right_repeat_observed
+                        && self.right_last_input_at.is_some_and(|at| {
+                            now.duration_since(at) <= HORIZONTAL_INPUT_STALE_TIMEOUT_REPEAT
+                        })),
+            );
+        }
         let repeat_like_press = self
             .jump_last_input_at
             .is_some_and(|ts| now.duration_since(ts) <= JUMP_PRESS_REPEAT_WINDOW);
@@ -876,6 +932,7 @@ impl GameLoop {
     }
 
     fn clear_horizontal_input_state(&mut self) {
+        self.jump_movement_grace.reset();
         self.state
             .apply_client_command(ClientCommand::ClearDirectionalInput);
         self.left_last_input_at = None;
@@ -924,7 +981,7 @@ impl GameLoop {
         }
     }
 
-    fn stale_timeout_for_direction(&self, direction: HorizontalDirection) -> Duration {
+    fn stale_timeout_for_direction(&self, direction: HorizontalDirection) -> Option<Duration> {
         let legacy_timeout = if self.direction_repeat_observed(direction) {
             HORIZONTAL_INPUT_STALE_TIMEOUT_REPEAT
         } else {
@@ -959,14 +1016,18 @@ impl GameLoop {
     }
 
     fn clear_stale_horizontal_input(&mut self, now: Instant) {
+        if self.jump_movement_grace.active(now) {
+            return;
+        }
         let left_stale = self.state.moving_left
             && self.left_last_input_at.is_none_or(|ts| {
-                now.duration_since(ts) > self.stale_timeout_for_direction(HorizontalDirection::Left)
+                self.stale_timeout_for_direction(HorizontalDirection::Left)
+                    .is_some_and(|timeout| now.duration_since(ts) > timeout)
             });
         let right_stale = self.state.moving_right
             && self.right_last_input_at.is_none_or(|ts| {
-                now.duration_since(ts)
-                    > self.stale_timeout_for_direction(HorizontalDirection::Right)
+                self.stale_timeout_for_direction(HorizontalDirection::Right)
+                    .is_some_and(|timeout| now.duration_since(ts) > timeout)
             });
 
         if left_stale {
@@ -982,8 +1043,8 @@ impl GameLoop {
             return;
         }
         if self.jump_last_input_at.is_none_or(|ts| {
-            now.duration_since(ts)
-                > input_stale_timeout(self.key_releases, self.jump_stale_timeout())
+            input_stale_timeout(self.key_releases, self.jump_stale_timeout())
+                .is_some_and(|timeout| now.duration_since(ts) > timeout)
         }) {
             self.clear_jump_hold_state();
         }
@@ -1007,7 +1068,7 @@ mod tests {
         game.handle_horizontal_press(HorizontalDirection::Right, now, false);
         game.handle_jump_press(now, false);
         // Includes the normal OS initial-repeat gap and a long uninterrupted hold.
-        for delay in [160, 500, 1500] {
+        for delay in [160, 500, 1500, 2500, 10000] {
             game.clear_stale_horizontal_input(now + Duration::from_millis(delay));
             game.clear_stale_jump_input(now + Duration::from_millis(delay));
             assert!(game.state.moving_right);
@@ -1048,39 +1109,96 @@ mod tests {
     }
 
     #[test]
-    fn confirmed_control_stream_stops_after_a_dropped_release() {
-        let mut game = GameLoop::new();
-        game.key_releases = true;
-        let now = Instant::now();
-        game.handle_horizontal_press(HorizontalDirection::Right, now, false);
-        game.handle_jump_press(now, false);
-        let stale = now + CONFIRMED_INPUT_WATCHDOG + Duration::from_millis(1);
-        game.clear_stale_horizontal_input(stale);
-        game.clear_stale_jump_input(stale);
-        assert!(!game.state.moving_right);
-        assert!(!game.jump_held_active);
+    fn confirmed_chord_keeps_running_after_jump_release_without_direction_repeats() {
+        for direction in [HorizontalDirection::Left, HorizontalDirection::Right] {
+            let mut game = GameLoop::with_state(GameState::network_view());
+            game.key_releases = true;
+            let now = Instant::now();
+            game.handle_horizontal_press(direction, now, false);
+            game.handle_jump_press(now + Duration::from_millis(100), false);
+            game.clear_jump_hold_state();
+            game.clear_stale_horizontal_input(now + Duration::from_secs(10));
+            assert!(game.state.moving_left || game.state.moving_right);
+            game.handle_horizontal_release(direction);
+            assert!(!game.state.moving_left && !game.state.moving_right);
+            // The same reset used by focus loss still clears the entire chord.
+            game.handle_horizontal_press(direction, now, false);
+            game.handle_jump_press(now, false);
+            game.clear_horizontal_input_state();
+            game.clear_jump_hold_state();
+            assert!(!game.state.moving_left && !game.state.moving_right);
+            assert!(!game.jump_held_active);
+        }
     }
 
     #[test]
-    fn confirmed_repeat_stream_refreshes_the_missing_release_watchdog() {
-        let mut game = GameLoop::new();
-        game.key_releases = true;
+    fn legacy_jump_grace_preserves_takeoff_but_cannot_be_renewed_by_space() {
+        let mut game = GameLoop::with_state(GameState::network_view());
         let now = Instant::now();
-        game.handle_horizontal_press(HorizontalDirection::Left, now, false);
-        game.handle_jump_press(now, false);
-        let repeat = now + Duration::from_millis(1900);
-        game.handle_horizontal_press(HorizontalDirection::Left, repeat, true);
-        game.handle_jump_hold_repeat(repeat);
-        let still_held = now + Duration::from_millis(2100);
-        game.clear_stale_horizontal_input(still_held);
-        game.clear_stale_jump_input(still_held);
-        assert!(game.state.moving_left);
-        assert!(game.jump_held_active);
-        let stale = repeat + CONFIRMED_INPUT_WATCHDOG + Duration::from_millis(1);
-        game.clear_stale_horizontal_input(stale);
-        game.clear_stale_jump_input(stale);
+        game.handle_horizontal_press(HorizontalDirection::Right, now, false);
+        game.handle_horizontal_press(
+            HorizontalDirection::Right,
+            now + Duration::from_millis(30),
+            false,
+        );
+        let jump = now + Duration::from_millis(50);
+        game.handle_jump_press(jump, false);
+        game.clear_stale_horizontal_input(jump + Duration::from_millis(500));
+        assert!(game.state.moving_right);
+        // Legacy repeat is also delivered as Press. Let the jump pulse expire,
+        // then send more Space presses: they cannot extend the original grace.
+        game.clear_stale_jump_input(jump + Duration::from_millis(400));
+        game.handle_jump_press(jump + Duration::from_millis(500), false);
+        game.clear_stale_horizontal_input(
+            jump + LEGACY_JUMP_MOVEMENT_GRACE + Duration::from_millis(1),
+        );
+        assert!(!game.state.moving_right);
+        game.clear_jump_hold_state();
+        game.handle_jump_press(jump + Duration::from_secs(2), false);
+        assert!(!game.state.moving_right);
+        // A single directional tap has no established repeat and gets no grace.
+        game.clear_jump_hold_state();
+        game.handle_horizontal_press(
+            HorizontalDirection::Left,
+            jump + Duration::from_secs(3),
+            false,
+        );
+        game.handle_jump_press(jump + Duration::from_secs(3), false);
+        game.clear_stale_horizontal_input(
+            jump + Duration::from_secs(3) + Duration::from_millis(151),
+        );
         assert!(!game.state.moving_left);
-        assert!(!game.jump_held_active);
+        // Event batches can arrive before stale cleanup after a frame stall.
+        // Space must not grant grace to an already stale repeating direction.
+        let mut delayed = GameLoop::with_state(GameState::network_view());
+        delayed.handle_horizontal_press(HorizontalDirection::Right, now, false);
+        delayed.handle_horizontal_press(
+            HorizontalDirection::Right,
+            now + Duration::from_millis(30),
+            false,
+        );
+        delayed.handle_jump_press(now + Duration::from_millis(500), false);
+        delayed.clear_stale_horizontal_input(now + Duration::from_millis(500));
+        assert!(!delayed.state.moving_right);
+        // A later real directional repeat re-arms grace for the next jump,
+        // even if the run has stayed active throughout.
+        let mut repeated = GameLoop::with_state(GameState::network_view());
+        repeated.handle_horizontal_press(HorizontalDirection::Right, now, false);
+        repeated.handle_horizontal_press(
+            HorizontalDirection::Right,
+            now + Duration::from_millis(30),
+            false,
+        );
+        repeated.handle_jump_press(now + Duration::from_millis(50), false);
+        repeated.clear_jump_hold_state();
+        repeated.handle_horizontal_press(
+            HorizontalDirection::Right,
+            now + Duration::from_millis(780),
+            true,
+        );
+        repeated.handle_jump_press(now + Duration::from_millis(820), false);
+        repeated.clear_stale_horizontal_input(now + Duration::from_millis(1100));
+        assert!(repeated.state.moving_right);
     }
 
     #[test]

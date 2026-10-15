@@ -218,6 +218,28 @@ def check_input(binary, root, mode):
         assert "keys:repeat" in game.screen.text(), "capability claim was treated as key-up proof"
         game.capture("legacy-tap-stopped")
         game.send(b"\x1b[13~")
+        # Legacy OS repeat shifts to Space. Preserve established movement
+        # through takeoff, but never renew it forever from Space alone.
+        legacy_start = game.player()
+        for _ in range(3):
+            game.send(b"d")
+            game.pump(0.04)
+        game.send(b" ")
+        game.pump(0.25)
+        legacy_air = game.player()
+        assert legacy_air["x"] - legacy_start["x"] > 1.3, (mode, "legacy jump braked direction", legacy_start, legacy_air)
+        assert legacy_air["y"] < legacy_start["y"] - 0.2, (mode, "legacy jump did not take off")
+        for _ in range(5):
+            game.send(b" ")
+            game.pump(0.2)
+        # Repeated jump requests can leave ordinary airborne momentum after
+        # direction has stopped. End the jump input and allow a normal landing.
+        game.pump(1.0)
+        legacy_end = game.x()
+        legacy_landed = game.player()
+        game.pump(0.3)
+        assert abs(game.x() - legacy_end) < 0.3, (mode, "legacy movement did not stop after landing", legacy_end, game.player())
+        assert abs(legacy_landed["y"] - legacy_start["y"]) < 0.05, (mode, "legacy jump never landed")
         # Prime only after checking the first tap: this is actual control key-up.
         game.send(b"\x1b[100;1:3u")
         game.send(b"\x1b[100;1:1u")
@@ -231,24 +253,41 @@ def check_input(binary, root, mode):
         game.pump(0.3)
         release_stopped = game.x()
         assert release_stopped - released < 0.35, (mode, "key-up did not stop movement")
-        # Lost release after confirmed support: bound movement, then verify rest.
+        # OS repeat can stay on Space, or cease entirely after Space-up,
+        # while D is still physically held. Neither case may expire D.
         game.send(b"\x1b[100;1:1u")
-        watchdog_start = game.x()
-        game.pump(2.4)
-        watchdog_end = game.x()
-        game.pump(0.3)
-        watchdog_stopped = game.x()
-        assert 5 < watchdog_end - watchdog_start < 14.5, (mode, "watchdog hold", watchdog_start, watchdog_end)
-        assert abs(watchdog_stopped - watchdog_end) < 0.3, (mode, "dropped release ran forever")
-        # A live repeat stream refreshes the watchdog past the first two seconds.
-        game.send(b"\x1b[100;1:1u")
-        game.pump(1.2)
-        repeat_start = game.x()
-        game.send(b"\x1b[100;1:2u")
-        game.pump(1.2)
-        repeat_end = game.x()
-        assert repeat_end - repeat_start > 5, (mode, "repeat did not refresh watchdog")
+        game.pump(0.15)
+        chord_start = game.player()
+        game.send(b"\x1b[32;1:1u")
+        game.pump(0.2)
+        chord_air = game.player()
+        assert chord_air["y"] < chord_start["y"] - 0.2, (mode, "confirmed chord did not jump")
+        for _ in range(5):
+            game.send(b"\x1b[32;1:2u")
+            game.pump(0.45)
+        chord_end = game.x()
+        assert chord_end - chord_start["x"] > 11, (mode, "Space repeat cancelled running")
+        game.send(b"\x1b[32;1:3u")
+        game.pump(0.7)
+        after_jump = game.x()
+        assert after_jump - chord_end > 2.5, (mode, "jump release cancelled running")
         game.send(b"\x1b[100;1:3u")
+        game.pump(0.1)
+        chord_released = game.x()
+        game.pump(0.3)
+        assert abs(game.x() - chord_released) < 0.35, (mode, "direction release did not stop chord")
+        # Repeat the opposite direction with no repeat events at all.
+        game.send(b"\x1b[97;1:1u")
+        game.pump(0.15)
+        left_start = game.player()
+        game.send(b"\x1b[32;1:1u")
+        game.pump(0.2)
+        assert game.player()["y"] < left_start["y"] - 0.2, (mode, "leftward chord did not jump")
+        game.send(b"\x1b[32;1:3u")
+        game.pump(2.3)
+        left_end = game.x()
+        assert left_start["x"] - left_end > 12, (mode, "quiet left hold expired after jump")
+        game.send(b"\x1b[97;1:3u")
         game.pump(0.2)
         # Focus loss must still clear a genuine held key immediately.
         game.send(b"\x1b[100;1:1u")
@@ -263,9 +302,11 @@ def check_input(binary, root, mode):
             "mode": mode, "status": "passed", "capability_positive_ascii_tap_delta": tap_end - start,
             "tap_rest_drift": stopped - tap_end, "unrelated_release_rest_drift": unrelated_stopped - unrelated_end,
             "confirmed_hold_delta": held_end - held_start, "key_up_drift": release_stopped - released,
-            "dropped_release_total_delta": watchdog_end - watchdog_start,
-            "watchdog_rest_drift": watchdog_stopped - watchdog_end,
-            "repeat_refresh_delta": repeat_end - repeat_start, "focus_loss_cleared": True,
+            "legacy_run_jump_delta": legacy_air["x"] - legacy_start["x"],
+            "run_jump_repeat_delta": chord_end - chord_start["x"],
+            "run_after_jump_release_delta": after_jump - chord_end,
+            "quiet_left_run_jump_delta": left_start["x"] - left_end,
+            "focus_loss_cleared": True,
             **game.finish(),
         }
     finally:

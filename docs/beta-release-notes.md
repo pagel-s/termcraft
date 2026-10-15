@@ -85,12 +85,18 @@ Existing saved chunks retain their geometry. See the
 [village comparison and route](design/village-refinement-2026-10-12/provenance.md).
 
 After native terminal feedback, the default is a wider pixel overview; F4 cycles
-wide glyphs and optional close detail. Missing key-up can no longer leave controls
-held indefinitely, and right-click dragging does not repeatedly toggle doors.
+wide glyphs and optional close detail. Plain-key taps remain bounded; confirmed
+key-release controls retain run+jump chords until actual release or focus/menu
+reset. An individually lost key-up requires releasing again or changing focus.
+Right-click dragging does not repeatedly toggle doors.
 Synchronized frame updates and flush-aware pacing reduce avoidable partial painting
 and output pressure. The sky uses stable designed clouds/sun/stars, and mining/hit
 poses use a proportionate arm. Emulator latency and human quality acceptance still
 need direct playtesting. See the [terminal correction](feel-and-art.md).
+
+Rain and snow use distinct downward-moving particles, share roof/cave clipping
+across views, and respect ceilings above the camera. Snowy biomes identify snow
+in the HUD. Character art is unchanged by these corrective passes.
 
 Classic walking is now 6.4 blocks/second, with sharper reversal and shorter jumps
 when a held jump is released early. Collision-resolved local presentation and a
