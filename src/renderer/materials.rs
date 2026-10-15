@@ -67,12 +67,16 @@ impl Tile {
                 ["++-+", ".-..", "--.-", "..+."]
             }
             StoneBricks => {
-                colors = [
-                    (111, 115, 115),
-                    (130, 134, 130),
-                    (86, 92, 96),
-                    (118, 124, 121),
-                ];
+                colors = if dimension == crate::world::Dimension::Nether {
+                    [(111, 58, 72), (170, 100, 94), (57, 31, 47), (139, 75, 79)]
+                } else {
+                    [
+                        (111, 115, 115),
+                        (130, 134, 130),
+                        (86, 92, 96),
+                        (118, 124, 121),
+                    ]
+                };
                 ["++++", "...-", "----", "-..."]
             }
             Wood => {
@@ -103,7 +107,11 @@ impl Tile {
                 colors = [(99, 105, 111), (115, 121, 124), (82, 88, 95), accent];
                 ["....", ".aa.", "a..a", ".-.."]
             }
-            Sand | Gravel | SoulSand => ["..+.", ".-..", "....", "..-."],
+            Sand | Gravel => ["..+.", ".-..", "....", "..-."],
+            SoulSand => {
+                colors = [(116, 85, 71), (147, 110, 85), (65, 48, 49), (98, 66, 61)];
+                ["+..+", ".--.", ".aa.", "-..-"]
+            }
             EndStone => {
                 colors = [
                     (167, 164, 117),
@@ -208,10 +216,18 @@ impl Tile {
                 ["+..-", ".a.-", ".-..", "..a-"]
             }
             Netherrack => {
-                colors = [(106, 59, 54), (128, 72, 62), (86, 45, 45), (119, 58, 48)];
-                ["+..-", ".-..", "a.+.", "..-."]
+                colors = [(138, 66, 60), (165, 83, 70), (112, 49, 51), (151, 73, 61)];
+                ["....", ".-..", "...a", "..+."]
             }
-            Glowstone => ["+aa+", "a++a", "a+a+", "+aa+"],
+            Glowstone => {
+                colors = [
+                    (176, 108, 52),
+                    (255, 219, 129),
+                    (112, 64, 45),
+                    (255, 174, 68),
+                ];
+                ["-a+-", "a++a", "+a+a", "-a+-"]
+            }
             NetherPortal | EndPortal => ["a..a", ".aa.", "a..a", ".aa."],
             EndPortalFrame { filled } => {
                 colors = [
@@ -534,26 +550,30 @@ impl Renderer {
         let mut horizons = std::mem::take(&mut self.pixel_horizons);
         horizons.clear();
         for bx in left..=right {
-            let ground = (0..crate::world::chunk::CHUNK_HEIGHT as i32)
-                .find(|&by| {
-                    // Isolated props and floating blocks cannot turn all the air
-                    // below them into underground. Find an actual terrain layer.
-                    (0..3).all(|dy| {
-                        matches!(
-                            state.world.get_block(bx, by + dy),
-                            BlockType::Grass
-                                | BlockType::Dirt
-                                | BlockType::Sand
-                                | BlockType::Snow
-                                | BlockType::Stone
-                                | BlockType::Water(_)
-                                | BlockType::Gravel
-                                | BlockType::Farmland(_)
-                                | BlockType::Ice
-                        )
+            let ground = if state.current_dimension == Dimension::Overworld {
+                (0..crate::world::chunk::CHUNK_HEIGHT as i32)
+                    .find(|&by| {
+                        // Isolated props and floating blocks cannot turn all the air
+                        // below them into underground. Find an actual terrain layer.
+                        (0..3).all(|dy| {
+                            matches!(
+                                state.world.get_block(bx, by + dy),
+                                BlockType::Grass
+                                    | BlockType::Dirt
+                                    | BlockType::Sand
+                                    | BlockType::Snow
+                                    | BlockType::Stone
+                                    | BlockType::Water(_)
+                                    | BlockType::Gravel
+                                    | BlockType::Farmland(_)
+                                    | BlockType::Ice
+                            )
+                        })
                     })
-                })
-                .unwrap_or(crate::world::chunk::CHUNK_HEIGHT as i32);
+                    .unwrap_or(crate::world::chunk::CHUNK_HEIGHT as i32)
+            } else {
+                crate::world::chunk::CHUNK_HEIGHT as i32
+            };
             horizons.push(ground);
         }
         let precipitation: Vec<_> = (left..=right)
@@ -573,6 +593,13 @@ impl Renderer {
         let day = Self::day_mix(state.time_of_day);
         let twilight = Self::twilight_mix(state.time_of_day);
         let rows = i32::from(self.height - 4) * 2;
+        let nether_columns: Vec<_> = if state.current_dimension == Dimension::Nether {
+            (0..i32::from(self.width))
+                .map(|sx| super::nether::Column::new((sx + vx - cx) as f64 / unit as f64))
+                .collect()
+        } else {
+            Vec::new()
+        };
         for sy in 0..rows {
             let world_y = (sy + vy * 2 + self.vertical_pixel_offset - cy * 2) as f64 / unit as f64;
             for sx in 0..i32::from(self.width) {
@@ -609,18 +636,8 @@ impl Renderer {
                         false,
                     ))
                     .unwrap(),
-                    Dimension::Nether => {
-                        let glow = (world_y as f32 / 110.0).clamp(0.0, 1.0);
-                        let mut sky = Self::lerp_rgb((28, 16, 27), (72, 31, 30), glow);
-                        let ember = ((world_x * 8.0).floor() as i32)
-                            .wrapping_mul(19)
-                            .wrapping_add(((world_y * 8.0).floor() as i32).wrapping_mul(37))
-                            .rem_euclid(719);
-                        if ember == 0 {
-                            sky = (171, 88, 51);
-                        }
-                        sky
-                    }
+                    Dimension::Nether => nether_columns[sx as usize]
+                        .pixel(world_y, state.player.age as f64 + frame_alpha),
                     Dimension::End => {
                         let hash = sx.wrapping_mul(31) ^ sy.wrapping_mul(67);
                         if hash.rem_euclid(347) == 0 {
@@ -683,6 +700,8 @@ impl Renderer {
                 // Texture variation is tied to world coordinates, never frame or camera.
                 let variation =
                     ((bx.wrapping_mul(31) ^ by.wrapping_mul(17)).rem_euclid(5) - 2) as f32 * 0.012;
+                let mirror = matches!(block, BlockType::Netherrack | BlockType::SoulSand)
+                    && (bx.wrapping_mul(37) ^ by.wrapping_mul(53)) & 1 == 0;
                 let backdrop_pixel = |px: usize, py: usize| {
                     let color = backdrop?;
                     let wx = bx as f64 + (px as f64 + 0.5) / unit as f64;
@@ -708,8 +727,11 @@ impl Renderer {
                             let token = if let Some(detail) = tile.detail {
                                 detail[py * 8 / unit as usize].as_bytes()[px * 8 / unit as usize]
                             } else {
-                                tile.pixels[py * 4 / unit as usize].as_bytes()
-                                    [px * 4 / unit as usize]
+                                tile.pixels[py * 4 / unit as usize].as_bytes()[if mirror {
+                                    3 - px * 4 / unit as usize
+                                } else {
+                                    px * 4 / unit as usize
+                                }]
                             };
                             let index = match token {
                                 b'.' => 0,
@@ -948,6 +970,9 @@ impl Renderer {
     fn room_backdrop(state: &GameState, x: i32, y: i32) -> Option<Rgb> {
         match state.world.room_enclosure(x, y)? {
             RoomMaterial::Wood => Some((132, 119, 98)),
+            RoomMaterial::Masonry if state.current_dimension == crate::world::Dimension::Nether => {
+                Some((87, 49, 61))
+            }
             RoomMaterial::Masonry => Some((103, 112, 116)),
             RoomMaterial::Obsidian => Some((31, 27, 43)),
         }
@@ -957,6 +982,55 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nether_backdrop_and_terrain_share_camera_translation_in_both_pixel_views() {
+        let mut state = GameState::network_view();
+        state.current_dimension = crate::world::Dimension::Nether;
+        let air = vec![
+            BlockType::Air;
+            crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+        ];
+        for chunk in -1..=2 {
+            state.world.apply_chunk_column_snapshot(chunk, &air);
+        }
+        for x in -20..70 {
+            for y in 43..55 {
+                state.world.set_block(x, y, BlockType::Netherrack);
+            }
+        }
+        let lighting =
+            super::super::shading::SceneLighting::new(&state, &[0; 1024], (0, 20, 32, 32));
+        for scale in [2, 4] {
+            let mut renderer = Renderer::with_size(160, 48);
+            renderer.world_view = Some((0, 30 * scale, 0, 0, scale));
+            renderer.render_pixel_sky(&state, &lighting, 0.0);
+            renderer.render_pixel_materials(&state, &lighting);
+            let still = renderer.back_buffer.clone();
+            renderer.world_view = Some((7, 30 * scale + 2, 0, 0, scale));
+            renderer.vertical_pixel_offset = 1;
+            renderer.render_pixel_sky(&state, &lighting, 0.0);
+            renderer.render_pixel_materials(&state, &lighting);
+            let pixel = |buffer: &[super::super::RenderCell], x: usize, y: usize| {
+                let cell = buffer[(y / 2) * 160 + x];
+                assert_eq!(cell.ch, '▀');
+                if y.is_multiple_of(2) {
+                    cell.fg
+                } else {
+                    cell.bg
+                }
+            };
+            for y in 0..80 {
+                for x in 0..150 {
+                    assert_eq!(
+                        pixel(&renderer.back_buffer, x, y),
+                        pixel(&still, x + 7, y + 5),
+                        "backdrop or terrain slid at scale {scale}, pixel {x},{y}"
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn sky_art_stays_together_during_camera_motion_in_every_pixel_scale() {

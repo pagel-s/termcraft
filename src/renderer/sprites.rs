@@ -257,8 +257,8 @@ impl ActorSprite {
                 " cccc ", " -cc- ", " l ll ", " l ll ", " ll l ", " b bb ",
             ],
             SpriteKind::Pigman => &[
-                " hhhh ", " srsse", " ssrrn", " sssn ", "  ss  ", " assa ", "asssrw", "asssrw",
-                " -rr- ", " ll l ", " ll l ", " l ll ", " l ll ", " b bb ",
+                "  hhhh  ", "  sse+  ", "  sPBnn ", "  ssrn  ", "   ss  w", " assa  w", "aBssar w",
+                " assPr w", "  -rr- w", "  ll l t", "  ll l  ", "  l ll  ", "  l ll  ", "  b bb  ",
             ],
             SpriteKind::Skeleton => &[
                 " ssss ", " sssse", " seenn", " ssss ", "  ss  ", "  ss t", " asssa", " a s t",
@@ -333,39 +333,75 @@ impl ActorSprite {
                 "s  l l l l  ",
                 "   b b b b  ",
             ],
-            SpriteKind::Ghast => &[
+            SpriteKind::Ghast if self.alert => &[
                 "   ++++++++++   ",
-                "  +ssssssssss+  ",
-                " +ss+ssss+ssss+ ",
-                " +ssssssssssss+ ",
-                " +ssppssssppss+ ",
-                " +sseesssseess+ ",
-                " +ssppssssppss+ ",
-                " +ssssssssssss+ ",
-                " +ssssnnnnssss+ ",
-                "  +sssnnnnsss+  ",
-                "   ++++++++++   ",
+                "  +++++++++++cc ",
+                " +ssssssssssscc ",
+                " +ssssssssssscc ",
+                " +spppssspppscc ",
+                " +seesssseesscc ",
+                " +spsssssspsscc ",
+                " +spsXXXXspsscc ",
+                " +sssXXXXsssscc ",
+                " +sssXrrXsssscc ",
+                "  +ssssssssscc  ",
                 "   l  l l  l    ",
                 "   l  l l  l    ",
-                "  l  l  l   l   ",
+                "  l   l  l  l   ",
                 "  l  l   l  l   ",
                 "  b  b   b  b   ",
             ],
+            SpriteKind::Ghast => &[
+                "   ++++++++++   ",
+                "  +++++++++++cc ",
+                " +ssssssssssscc ",
+                " +ssssssssssscc ",
+                " +spppssspppscc ",
+                " +seesssseesscc ",
+                " +spsssssspsscc ",
+                " +spsssssspsscc ",
+                " +ssssnnssssscc ",
+                " +ssssnnssssscc ",
+                "  +ssssssssscc  ",
+                "   l  l l  l    ",
+                "   l  l l  l    ",
+                "  l   l  l  l   ",
+                "  l  l   l  l   ",
+                "  b  b   b  b   ",
+            ],
+            SpriteKind::Blaze if ((self.animation_time / 5.0).floor() as u64).is_multiple_of(2) => {
+                &[
+                    " t  ++++  t ",
+                    " t  +ss+  t ",
+                    "    +ee+    ",
+                    "t   +nn+   t",
+                    "t    rr    t",
+                    " t  rwwr  t ",
+                    " t  r++r  t ",
+                    "    r++r    ",
+                    "  t  rr  t  ",
+                    "  t rrrr t  ",
+                    "  t  rr  t  ",
+                    "     rr     ",
+                    "    t  t    ",
+                    "    t  t    ",
+                ]
+            }
             SpriteKind::Blaze => &[
-                "  t    t  ",
-                "  t hh t  ",
-                "  t ss t  ",
-                "    ee    ",
-                "t   ss   t",
-                "t   cc   t",
-                "t  rrrr  t",
-                "    rr    ",
-                "  t cc t  ",
-                "  t rr t  ",
-                "  t ll t  ",
-                "    rr    ",
-                "  t    t  ",
-                "  t    t  ",
+                "   t++++t   ",
+                "   t+ss+t   ",
+                "    +ee+    ",
+                " t  +nn+  t ",
+                " t   rr   t ",
+                "t   rwwr   t",
+                "t   r++r   t",
+                "    r++r    ",
+                " t   rr   t ",
+                " t  rrrr  t ",
+                "     rr     ",
+                "   t rr t   ",
+                "   t    t   ",
+                "   t    t   ",
             ],
             SpriteKind::Spider => &[
                 "    ssssss    ",
@@ -423,10 +459,10 @@ impl ActorSprite {
             ),
             Zombie => palette((105, 139, 83), (63, 111, 133), (49, 65, 91), (66, 88, 61)),
             Pigman => palette(
-                (185, 138, 118),
-                (161, 99, 87),
-                (119, 89, 68),
-                (104, 134, 82),
+                (216, 153, 132),
+                (161, 108, 91),
+                (129, 108, 87),
+                (171, 106, 94),
             ),
             Skeleton => palette(
                 (218, 213, 190),
@@ -475,10 +511,10 @@ impl ActorSprite {
                 (220, 198, 126),
             ),
             Ghast => palette(
-                (220, 218, 205),
-                (198, 199, 195),
-                (176, 177, 176),
-                (132, 139, 144),
+                (231, 228, 218),
+                (143, 132, 153),
+                (188, 177, 181),
+                (69, 48, 63),
             ),
             Blaze => palette(
                 (227, 163, 65),
@@ -534,6 +570,7 @@ impl ActorSprite {
                 Dragon => (244, 132, 246),
                 Ghast | Blaze | Creeper | Wolf if self.alert => (229, 112, 66),
                 Spider => (205, 83, 55),
+                Pigman if self.alert => (255, 123, 62),
                 _ => (26, 27, 29),
             }),
             b'h' => self.helmet.unwrap_or_else(|| match self.kind {
@@ -562,6 +599,10 @@ impl ActorSprite {
                 }
             }
             b'g' => Renderer::rgb((196, 188, 159)),
+            b'P' if matches!(self.kind, Pigman) => Renderer::rgb((113, 153, 105)),
+            b'B' if matches!(self.kind, Pigman) => Renderer::rgb((234, 224, 186)),
+            b'X' if matches!(self.kind, Ghast) => Renderer::rgb((34, 22, 35)),
+            b'w' if matches!(self.kind, Blaze) => Renderer::rgb((255, 241, 171)),
             b'r' => {
                 if matches!(self.kind, Fireball | Blaze) {
                     Renderer::rgb((239, 117, 42))
@@ -862,6 +903,20 @@ impl Renderer {
         let pixels = actor.pixels();
         let source_width = pixels.width();
         let source_height = pixels.height();
+        let curl = [0, 1, 0, -1][((actor.animation_time / 6.0).floor() as usize) % 4];
+        let read_pixel = |sx: usize, sy: usize| {
+            if matches!(actor.kind, SpriteKind::Ghast) && sy >= 12 {
+                let offset = if sx < source_width / 2 { curl } else { -curl };
+                let source = sx as i32 + offset;
+                if source < 0 || source >= source_width as i32 {
+                    b' '
+                } else {
+                    pixels.token(source as usize, sy)
+                }
+            } else {
+                pixels.token(sx, sy)
+            }
+        };
         let (width, mut pixel_height) = actor.pixel_dimensions(scale);
         if actor.crouched {
             pixel_height = (pixel_height * 4 / 5).max(1);
@@ -890,7 +945,7 @@ impl Renderer {
                 }
                 let source_y =
                     ((py * 2 + 1) * source_height / (pixel_height * 2)).min(source_height - 1);
-                let mut token = pixels.token(source_col, source_y);
+                let mut token = read_pixel(source_col, source_y);
                 // Keep identity pixels when a small terminal combines source pixels.
                 // Center-only sampling previously discarded entire eye rows.
                 if pixel_height < source_height {
@@ -960,7 +1015,7 @@ impl Renderer {
                             || ny < 0
                             || ny >= source_height as isize
                             || nx >= source_width as isize
-                            || pixels.token(nx as usize, ny as usize) == b' '
+                            || read_pixel(nx as usize, ny as usize) == b' '
                     };
                     let normal = if edge(0, -1) {
                         1.1
@@ -991,10 +1046,15 @@ impl Renderer {
                         || (matches!(actor.kind, SpriteKind::Crystal)
                             && matches!(token, b'+' | b'v' | b'w'))
                         || (matches!(actor.kind, SpriteKind::Blaze)
-                            && matches!(token, b't' | b'r'))
+                            && matches!(token, b't' | b'r' | b'w'))
+                        || (matches!(actor.kind, SpriteKind::Ghast | SpriteKind::Blaze)
+                            && actor.alert
+                            && token == b'e')
                         || (matches!(actor.kind, SpriteKind::Enderman | SpriteKind::Dragon)
                             && token == b'e');
-                    color = lighting.unwrap().shade(color, wx, wy, normal, emissive);
+                    color = lighting
+                        .unwrap()
+                        .shade_actor(color, wx, wy, normal, emissive);
                     if matches!(actor.kind, SpriteKind::Slime) && matches!(token, b's' | b'+') {
                         color = self.blend_pixel(x + col as i32, y_pixel + py as i32, color, 0.78);
                     }

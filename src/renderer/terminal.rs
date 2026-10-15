@@ -8,6 +8,8 @@ mod items;
 mod materials;
 #[path = "motion.rs"]
 mod motion;
+#[path = "nether.rs"]
+mod nether;
 #[path = "shading.rs"]
 mod shading;
 #[path = "sprites.rs"]
@@ -2030,6 +2032,7 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(pigman.hit_timer > 0)
+                    .with_alert(pigman.is_aggressive())
                     .with_warning(pigman.attack_windup),
                 );
             }
@@ -2088,6 +2091,7 @@ impl Renderer {
                         )
                         .with_subcell(actor_x, actor_y, scale)
                         .with_hit(ghast.hit_timer > 0)
+                        .with_animation_time(ghast.age as f64 + frame_alpha)
                         .with_alert(ghast.shoot_cooldown < 16),
                     );
                 } else {
@@ -2148,6 +2152,7 @@ impl Renderer {
                         )
                         .with_subcell(actor_x, actor_y, scale)
                         .with_hit(blaze.hit_timer > 0)
+                        .with_animation_time(blaze.age as f64 + frame_alpha)
                         .with_warning(blaze.attack_windup)
                         .with_alert(blaze.shoot_cooldown < 10),
                     );

@@ -309,6 +309,13 @@ output; human art acceptance remains open. This pass adds bounded contact shadow
 not general projected sunlight. Bespoke creature animations, larger villages,
 HUD refinement and finer furniture/stair/slab collision still need work.
 
+## Nether follow-up
+
+The [Nether refinement review](design/nether-refinement-2026-10-15/index.html)
+compares generated terrain and current creatures before/after the lighting and
+material pass. Nether actors have readable fill, blazes emit local light, fortress
+interiors share the brick palette, and the backdrop moves with the terrain.
+
 ## Ender Dragon follow-up
 
 A [front-facing comparison](design/dragon-front-2026-10-15/index.html) now places

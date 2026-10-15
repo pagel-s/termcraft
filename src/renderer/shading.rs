@@ -10,6 +10,7 @@ pub(super) struct SceneLighting {
     arcane: Vec<u8>,
     daylight: f32,
     ambient: f32,
+    actor_ambient: f32,
 }
 
 impl SceneLighting {
@@ -23,8 +24,13 @@ impl SceneLighting {
             arcane: vec![0; levels.len()],
             // The End has no sun, but its open arena still needs a readable
             // cool fill. This is presentation only; mob/spawn light is unchanged.
-            ambient: if state.current_dimension == Dimension::End {
-                0.50
+            ambient: match state.current_dimension {
+                Dimension::End => 0.50,
+                Dimension::Nether => 0.48,
+                Dimension::Overworld => 0.0,
+            },
+            actor_ambient: if state.current_dimension == Dimension::Nether {
+                0.68
             } else {
                 0.0
             },
@@ -58,6 +64,15 @@ impl SceneLighting {
                 result.ember[y as usize * width + x as usize] = 14;
             }
         }
+        // A blaze is a visible furnace, including between attacks. Its local
+        // presentation glow follows the body and uses the same occlusion map.
+        for blaze in &state.blazes {
+            let x = blaze.x.floor() as i32 - left;
+            let y = (blaze.y - 0.9).floor() as i32 - top;
+            if x >= 0 && y >= 0 && x < width as i32 && y < height as i32 {
+                result.ember[y as usize * width + x as usize] = 12;
+            }
+        }
         let mut frontier = std::array::from_fn(|_| Vec::new());
         for channel in [&mut result.warm, &mut result.ember, &mut result.arcane] {
             if channel.iter().any(|v| *v > 0) {
@@ -87,6 +102,37 @@ impl SceneLighting {
         occlusion: f32,
         emissive: bool,
     ) -> Color {
+        self.shade_with_fill(color, (x, y), occlusion, emissive, self.ambient, 0.72)
+    }
+
+    pub(super) fn shade_actor(
+        &self,
+        color: Color,
+        x: f64,
+        y: f64,
+        occlusion: f32,
+        emissive: bool,
+    ) -> Color {
+        self.shade_with_fill(
+            color,
+            (x, y),
+            occlusion,
+            emissive,
+            self.ambient.max(self.actor_ambient),
+            if self.actor_ambient > 0.0 { 0.28 } else { 0.72 },
+        )
+    }
+
+    fn shade_with_fill(
+        &self,
+        color: Color,
+        position: (f64, f64),
+        occlusion: f32,
+        emissive: bool,
+        ambient: f32,
+        tint_strength: f32,
+    ) -> Color {
+        let (x, y) = position;
         let Some(rgb) = Renderer::color_rgb(color) else {
             return color;
         };
@@ -98,7 +144,7 @@ impl SceneLighting {
         let arcane = self.sample(&self.arcane, x, y);
         let emitted = warm.max(ember).max(arcane);
         let scalar = self.sample(&self.levels, x, y);
-        let level = ((scalar * self.daylight).max(emitted) / 15.0).max(self.ambient);
+        let level = ((scalar * self.daylight).max(emitted) / 15.0).max(ambient);
         let exposure = (0.18 + 0.82 * level.clamp(0.0, 1.0).powf(1.12)) * occlusion;
         let mut lit = Renderer::scale_rgb(rgb, exposure);
         // Cool ambient shadows and restrained local color, shared by terrain and actors.
@@ -111,7 +157,7 @@ impl SceneLighting {
                 (warm * 210.0 + ember * 145.0 + arcane * 147.0) / sum,
                 (warm * 155.0 + ember * 100.0 + arcane * 255.0) / sum,
             );
-            let strength = (emitted / (scalar + 1.0)).clamp(0.0, 1.0) * 0.72;
+            let strength = (emitted / (scalar + 1.0)).clamp(0.0, 1.0) * tint_strength;
             lit = (
                 (lit.0 as f32 * (1.0 - strength + strength * tint.0 / 255.0)) as u8,
                 (lit.1 as f32 * (1.0 - strength + strength * tint.1 / 255.0)) as u8,
@@ -135,6 +181,7 @@ mod tests {
             arcane: vec![0; 4],
             daylight: 1.0,
             ambient: 0.0,
+            actor_ambient: 0.0,
         };
         let a = l.sample(&l.levels, -0.001, 0.0);
         let b = l.sample(&l.levels, 0.001, 0.0);
@@ -153,6 +200,45 @@ mod tests {
         let b = Renderer::color_rgb(end.shade(dark, 1.5, 1.5, 1.0, false)).unwrap();
         assert!(b.0 >= 40 && b.2 >= 50);
         assert!(a.0 < 20 && b.0 > a.0 * 2);
+    }
+    #[test]
+    fn nether_fill_keeps_player_and_ground_readable_without_lighting_overworld_caves() {
+        let mut state = GameState::network_view();
+        let skin = Renderer::rgb((190, 150, 120));
+        let cave = SceneLighting::new(&state, &[0; 9], (0, 0, 3, 3));
+        assert_eq!(
+            cave.shade_actor(skin, 1.5, 1.5, 1.0, false),
+            cave.shade(skin, 1.5, 1.5, 1.0, false)
+        );
+        state.current_dimension = Dimension::Nether;
+        let nether = SceneLighting::new(&state, &[0; 9], (0, 0, 3, 3));
+        let actor = Renderer::color_rgb(nether.shade_actor(skin, 1.5, 1.5, 1.0, false)).unwrap();
+        let terrain = Renderer::color_rgb(nether.shade(skin, 1.5, 1.5, 1.0, false)).unwrap();
+        assert!(actor.0 >= 120 && actor.1 >= 95);
+        assert!(terrain.0 >= 95 && actor.0 > terrain.0);
+        assert_eq!(nether.shade_actor(skin, 1.5, 1.5, 0.5, true), skin);
+    }
+
+    #[test]
+    fn moving_blaze_glow_is_local_and_stops_at_solid_walls() {
+        let mut state = GameState::network_view();
+        let air = vec![
+            BlockType::Air;
+            crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+        ];
+        state.world.apply_chunk_column_snapshot(0, &air);
+        for y in 0..12 {
+            state.world.set_block(5, y, BlockType::Stone);
+        }
+        state
+            .blazes
+            .push(crate::entities::blaze::Blaze::new(3.5, 6.0));
+        let a = SceneLighting::new(&state, &[0; 144], (0, 0, 12, 12));
+        assert!(a.sample(&a.ember, 4.5, 5.5) > a.sample(&a.ember, 6.5, 5.5));
+        state.blazes[0].x = 9.5;
+        let b = SceneLighting::new(&state, &[0; 144], (0, 0, 12, 12));
+        assert!(b.sample(&b.ember, 4.5, 5.5) < a.sample(&a.ember, 4.5, 5.5));
+        assert!(b.sample(&b.ember, 8.5, 5.5) > a.sample(&a.ember, 8.5, 5.5));
     }
     #[test]
     fn local_light_is_warm_and_occluded_while_emission_keeps_its_color() {
