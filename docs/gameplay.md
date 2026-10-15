@@ -99,8 +99,10 @@ Reusing a Nether portal preserves nearby buildings, lights and chest contents;
 safe End arrival sites are reused without clearing existing builds. Falling
 momentum and accumulated fall distance reset during travel.
 
-Dimension travel currently works in solo worlds. Co-op players share one dimension;
-portal use does not transfer that shared server between dimensions.
+Dimension travel works in single-player and co-op. In co-op only the interacting
+player travels; friends can follow or remain in another dimension. Terrain,
+entities, inventories and saved portal links remain separate, with one shared
+dragon encounter for players in the End. Use matching protocol-13 clients/server.
 
 ## Travel / Test Shortcuts
 

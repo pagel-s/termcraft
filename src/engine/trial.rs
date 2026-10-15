@@ -290,6 +290,9 @@ impl GameState {
         }
     }
     pub(super) fn update_trial(&mut self) {
+        if self.cooperative() && self.current_dimension != Dimension::Overworld {
+            return;
+        }
         let Some(mut t) = self.trial.take() else {
             return;
         };

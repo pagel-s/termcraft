@@ -889,11 +889,16 @@ impl From<PlayerProgressSaveDataV2> for PlayerProgressSaveData {
 
 #[path = "actors.rs"]
 mod actors;
+#[path = "dimensions.rs"]
+mod dimensions;
 pub use actors::{PlayerSession, SharedSettings};
+pub(crate) use dimensions::SharedProgress;
 
 pub struct GameState {
     active_peer: Option<u16>,
     cooperative_players: std::collections::BTreeMap<u16, PlayerSession>,
+    cooperative_dimensions: std::collections::BTreeMap<u16, Dimension>,
+    cooperative_worlds: std::collections::BTreeMap<Dimension, dimensions::DimensionRuntime>,
     pub chat: super::director::ChatView,
     pub performance: super::metrics::PerformanceMetrics,
     pub show_debug_overlay: bool,
@@ -1660,6 +1665,11 @@ impl GameState {
     }
 
     pub fn try_save_progression(&self) -> std::io::Result<()> {
+        // Multiplayer identities are saved by the server, never over the
+        // single-player checkpoint of a named world shared through co-op.
+        if self.cooperative() {
+            return self.save_trial();
+        }
         self.world.check_storage()?;
         let encoded = Self::encode_progression(&self.to_progression_save_data())
             .map_err(std::io::Error::other)?;
@@ -1698,7 +1708,7 @@ impl GameState {
 
     fn save_before_dimension_change(&mut self) -> bool {
         let result = self.world.try_save_all().and_then(|()| {
-            if cfg!(test) {
+            if cfg!(test) || self.cooperative() {
                 Ok(())
             } else {
                 self.try_save_progression()
@@ -1776,6 +1786,8 @@ impl GameState {
         let mut state = Self {
             active_peer: None,
             cooperative_players: Default::default(),
+            cooperative_dimensions: Default::default(),
+            cooperative_worlds: Default::default(),
             chat: super::director::ChatView::default(),
             performance: super::metrics::PerformanceMetrics::default(),
             show_debug_overlay: false,
@@ -3945,10 +3957,8 @@ impl GameState {
         self.player.health = self.player.max_health;
         self.player.hunger = self.player.max_hunger;
 
+        self.travel_dimension(Dimension::Overworld);
         if !self.cooperative() {
-            self.current_dimension = Dimension::Overworld;
-            self.world = self.world.for_dimension(Dimension::Overworld);
-            self.reset_weather_for_dimension();
             self.clear_dimension_entities();
         }
         let (spawn_x, spawn_y) = self.resolve_overworld_spawn_location();
@@ -4198,9 +4208,6 @@ impl GameState {
                 return;
             }
             if let Some(target) = portal_use_target {
-                if self.cooperative() {
-                    return;
-                }
                 self.use_portal_target(target);
                 return;
             }
@@ -5650,8 +5657,7 @@ impl GameState {
     fn try_mount_boat(&mut self, boat_idx: usize) -> bool {
         if boat_idx >= self.boats.len()
             || self
-                .cooperative_players
-                .values()
+                .other_players_here()
                 .any(|p| p.mounted_boat == Some(boat_idx))
         {
             return false;
@@ -5710,7 +5716,7 @@ impl GameState {
         let active = self.active_peer;
         for idx in 0..self.boats.len() {
             if self.cooperative() {
-                let rider = self.peer_ids().into_iter().find(|id| {
+                let rider = self.peer_ids_here().into_iter().find(|id| {
                     self.peer_session(*id)
                         .is_some_and(|p| p.mounted_boat == Some(idx))
                 });
@@ -6635,7 +6641,7 @@ impl GameState {
             bx,
             by,
         ) && !self.can_place_block_under_rising_player(by)
-            || self.cooperative_players.values().any(|p| {
+            || self.other_players_here().any(|p| {
                 Self::entity_intersects_block(
                     p.player.x,
                     p.player.y,
@@ -7480,21 +7486,21 @@ impl GameState {
 
     pub fn portal_interaction_hint(&self, bx: i32, by: i32) -> Option<&'static str> {
         let target = self.portal_use_target_at(bx, by)?;
-        Some(if self.cooperative() {
-            "Travel: solo worlds"
-        } else if !self.has_portal_use_line_of_sight(
-            self.player.x,
-            self.player.y - 1.0,
-            bx,
-            by,
-            target,
-        ) {
-            "Blocked: move around"
-        } else if self.portal_cooldown > 0 {
-            "Portal recharging..."
-        } else {
-            "R-click / F: travel"
-        })
+        Some(
+            if !self.has_portal_use_line_of_sight(
+                self.player.x,
+                self.player.y - 1.0,
+                bx,
+                by,
+                target,
+            ) {
+                "Blocked: move around"
+            } else if self.portal_cooldown > 0 {
+                "Portal recharging..."
+            } else {
+                "R-click / F: travel"
+            },
+        )
     }
 
     fn find_existing_nether_portal_near(
@@ -8579,8 +8585,7 @@ impl GameState {
         let dy = y - self.player.y;
         (dx * dx + dy * dy) < min_dist_sq
             || self
-                .cooperative_players
-                .values()
+                .other_players_here()
                 .any(|p| (x - p.player.x).powi(2) + (y - p.player.y).powi(2) < min_dist_sq)
     }
 
@@ -9261,6 +9266,10 @@ impl GameState {
         }
 
         let crystal_count = self.end_crystals.len();
+        if let Some(dragon) = &self.ender_dragon {
+            self.select_nearest_peer(dragon.x, dragon.y);
+        }
+        let mut contact = None;
         let dragon_contact_damage = self.scaled_hostile_damage(2.5);
         let dragon_contact_cooldown = self.scaled_hostile_cooldown(16);
         if let Some(dragon) = self.ender_dragon.as_mut() {
@@ -9290,24 +9299,36 @@ impl GameState {
             dragon.y = next_y.clamp(8.0, 52.0);
 
             if crystal_count > 0
+                && dragon.health > 0.0
                 && dragon.health < dragon.max_health
                 && dragon.age.is_multiple_of(END_CRYSTAL_HEAL_INTERVAL)
             {
                 dragon.health = (dragon.health + END_CRYSTAL_HEAL_AMOUNT).min(dragon.max_health);
             }
 
-            let touches_player = dragon.hit_regions().iter().any(|r| {
-                ((self.player.x - r[0]) / (r[2] + PLAYER_HALF_WIDTH)).powi(2)
-                    + ((self.player.y - 0.9 - r[1]) / (r[3] + 0.9)).powi(2)
-                    <= 1.0
-            });
-            if touches_player && dragon.attack_cooldown == 0 {
-                if !self.death_screen_active && self.respawn_grace_ticks == 0 {
-                    self.player.health -= dragon_contact_damage;
+            if dragon.attack_cooldown == 0 && dragon.health > 0.0 {
+                contact = Some((dragon.hit_regions(), dragon.x));
+            }
+        }
+        if let Some((regions, dragon_x)) = contact {
+            let mut hit = false;
+            self.each_player(|state| {
+                let touches = regions.iter().any(|r| {
+                    ((state.player.x - r[0]) / (r[2] + PLAYER_HALF_WIDTH)).powi(2)
+                        + ((state.player.y - 0.9 - r[1]) / (r[3] + 0.9)).powi(2)
+                        <= 1.0
+                });
+                if touches && !state.death_screen_active {
+                    if state.respawn_grace_ticks == 0 {
+                        state.player.health -= dragon_contact_damage;
+                    }
+                    state.player.vx += if state.player.x > dragon_x { 0.7 } else { -0.7 };
+                    state.player.vy = -0.45;
+                    state.player.grounded = false;
+                    hit = true;
                 }
-                self.player.vx += if self.player.x > dragon.x { 0.7 } else { -0.7 };
-                self.player.vy = -0.45;
-                self.player.grounded = false;
+            });
+            if hit && let Some(dragon) = &mut self.ender_dragon {
                 dragon.attack_cooldown = dragon_contact_cooldown;
             }
         }
@@ -9785,27 +9806,30 @@ impl GameState {
     }
 
     fn trim_far_nether_mobs(&mut self) {
-        let px = self.player.x;
-        let py = self.player.y;
-        self.pigmen.retain(|p| {
-            let dist_sq = (p.x - px).powi(2) + (p.y - py).powi(2);
-            dist_sq <= NETHER_DESPAWN_DIST_SQ
-        });
-        self.ghasts.retain(|g| {
-            let dist_sq = (g.x - px).powi(2) + (g.y - py).powi(2);
-            dist_sq <= NETHER_DESPAWN_DIST_SQ * 1.4
-        });
-        self.blazes.retain(|b| {
-            let dist_sq = (b.x - px).powi(2) + (b.y - py).powi(2);
-            dist_sq <= NETHER_DESPAWN_DIST_SQ * 1.2
-        });
+        let positions: Vec<_> = std::iter::once((self.player.x, self.player.y))
+            .chain(
+                self.other_players_here()
+                    .map(|p| (p.player().x, p.player().y)),
+            )
+            .collect();
+        let distance = |x: f64, y: f64| {
+            positions
+                .iter()
+                .map(|&(px, py)| (x - px).powi(2) + (y - py).powi(2))
+                .fold(f64::INFINITY, f64::min)
+        };
+        self.pigmen
+            .retain(|p| distance(p.x, p.y) <= NETHER_DESPAWN_DIST_SQ);
+        self.ghasts
+            .retain(|p| distance(p.x, p.y) <= NETHER_DESPAWN_DIST_SQ * 1.4);
+        self.blazes
+            .retain(|p| distance(p.x, p.y) <= NETHER_DESPAWN_DIST_SQ * 1.2);
     }
 
     fn trim_far_overworld_mobs(&mut self) {
         let positions: Vec<_> = std::iter::once((self.player.x, self.player.y))
             .chain(
-                self.cooperative_players
-                    .values()
+                self.other_players_here()
                     .map(|a| (a.player().x, a.player().y)),
             )
             .collect();
@@ -10029,10 +10053,8 @@ impl GameState {
         if !self.save_before_dimension_change() {
             return;
         }
-        self.current_dimension = target_dimension;
-        self.world = self.world.for_dimension(target_dimension);
+        self.travel_dimension(target_dimension);
         self.world.load_chunks_around(target_x);
-        self.reset_weather_for_dimension();
 
         // A saved link names the player's chosen frame, including cave homes and
         // elevated builds. Surface heuristics apply only to automatic discovery.
@@ -10072,7 +10094,9 @@ impl GameState {
         self.jump_buffer_ticks = 0;
         self.stop_sprinting();
 
-        self.clear_dimension_entities();
+        if !self.cooperative() {
+            self.clear_dimension_entities();
+        }
         self.eye_guidance_timer = 0;
         self.save_progression();
     }
@@ -10270,6 +10294,7 @@ impl GameState {
     }
 
     fn transfer_overworld_end_dimension(&mut self, target_dimension: Dimension) {
+        let source_dimension = self.current_dimension;
         let target_x = match target_dimension {
             Dimension::End => 0,
             Dimension::Overworld => STRONGHOLD_CENTER_X,
@@ -10279,10 +10304,8 @@ impl GameState {
         if !self.save_before_dimension_change() {
             return;
         }
-        self.current_dimension = target_dimension;
-        self.world = self.world.for_dimension(target_dimension);
+        self.travel_dimension(target_dimension);
         self.world.load_chunks_around(target_x);
-        self.reset_weather_for_dimension();
 
         let (arrival_x, arrival_y) = if target_dimension == Dimension::End {
             let (best_x, best_y) = self.find_end_arrival_site();
@@ -10292,10 +10315,22 @@ impl GameState {
                 self.prepare_end_arrival_pad(best_x, best_y)
             }
         } else {
-            (
-                target_x as f64 + 0.5,
-                (STRONGHOLD_PORTAL_INNER_Y + 5) as f64 - 0.1,
-            )
+            let expected_floor = STRONGHOLD_PORTAL_INNER_Y + 5;
+            let site =
+                if Self::is_safe_spawn_column_base(&self.world, target_x, expected_floor, false) {
+                    Some((target_x, expected_floor))
+                } else {
+                    self.world.load_chunks_for_spawn_search(target_x, 24);
+                    Self::find_nearest_safe_spawn(&self.world, target_x, 24, false)
+                };
+            let Some((x, floor)) = site else {
+                self.travel_dimension(source_dimension);
+                self.save_error.replace(Some(
+                    "End return cancelled: no safe landing near the stronghold.".into(),
+                ));
+                return;
+            };
+            (x as f64 + 0.5, floor as f64 - 0.1)
         };
         self.player.x = arrival_x;
         self.player.y = arrival_y;
@@ -10310,7 +10345,9 @@ impl GameState {
             self.respawn_grace_ticks = self.respawn_grace_ticks.max(24);
         }
 
-        self.clear_dimension_entities();
+        if !self.cooperative() {
+            self.clear_dimension_entities();
+        }
         self.eye_guidance_timer = 0;
         self.save_progression();
     }
@@ -11097,7 +11134,7 @@ impl GameState {
         self.update_blaze_spawners(&mut rng);
         if self.cooperative() {
             let positions = self
-                .peer_ids()
+                .peer_ids_here()
                 .into_iter()
                 .filter_map(|id| self.peer_session(id).map(|s| s.player().x.floor() as i32))
                 .collect::<Vec<_>>();
@@ -20884,8 +20921,15 @@ mod tests {
 
         let mut state = GameState::new();
         state.current_dimension = Dimension::Overworld;
-        state.world = World::new_for_dimension(Dimension::Overworld);
-        state.world.load_chunks_around(0);
+        // Population should see only this fixture's home, never an unrelated
+        // settlement from a randomly seeded neighbouring generated chunk.
+        state.world = World::network_replica(Dimension::Overworld);
+        for chunk in -2..=2 {
+            state.world.apply_chunk_column_snapshot(
+                chunk,
+                &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT],
+            );
+        }
         state.villagers.clear();
         state.player.x = -16.5;
         state.player.y = 9.9;

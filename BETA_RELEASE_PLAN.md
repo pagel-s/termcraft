@@ -75,6 +75,26 @@ LLM player or bundled model service is not required. Performance, readability,
 physics and easy installation support this experience. Sharing/virality is an
 outcome to test with people, not something the implementation can guarantee.
 
+## Co-op dimension follow-up, 15 October
+
+The shared engine now owns separate terrain/entity/weather/clock state for each
+dimension. Players travel independently through normal portals; only actors in
+the same dimension participate in collision, damage, pickups and targeting.
+Shared dragon completion and portal links persist alongside per-identity dimensions
+in server checkpoint v2 (v1 remains readable). Native saves remain v8, and the
+server no longer overwrites native player checkpoints when authoring shared terrain.
+Network protocol 13 stamps actions with their source dimension and resets terrain
+revision tracking on transitions. Reconnect can begin directly in the Nether/End.
+
+Regressions cover friends remaining behind, shared arrivals, per-dimension ticks,
+explosions, stale actions, reconnect/restart, shared End progression, independent
+credits and native-checkpoint preservation. A real two-socket test ignites and uses
+a portal, verifies dimension-specific terrain streaming, reconnects in the Nether,
+returns one player, and restarts the server with the players in different dimensions.
+The test uses staged frames/starting tools; it is not a complete survival campaign.
+End return now finds supported clear space when a generated recipe lacks the usual
+stronghold landing. Human feel/art, long sessions and clean-platform checks remain open.
+
 ## Assessment baseline
 
 Source baseline: main commit
@@ -106,7 +126,7 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 | Performance | Brightness-priority lighting with material attenuation cached once; reusable frame encoder, one output write per frame; safe exploration cache eviction around all viewers | `src/renderer/lighting.rs`, `src/renderer/terminal.rs`, `examples/render_profile.rs`, `examples/coop_profile.rs`, `docs/performance.md` |
 | Visuals | Readable solid HUD, separate sprint/target rows, terrain-preserving target tint, mining progress/reach feedback, remote player ID labels, quieter cloud/End animation; F3 diagnostics | `src/renderer/terminal.rs`, rendered PTY/ANSI captures |
 | Physics | Shared release braking without cancelling later knockback; continuous ladder climb/hold; residual-momentum sneak ledge protection; correct final landing-distance damage; swept wall/ceiling collisions | `src/engine/state.rs`, `src/engine/physics_tests.rs`, existing collision regressions |
-| Saves/recovery | Reject unreadable chunks/seeds/progression; keep failed writes dirty; cancel unsafe dimension changes; v7 full native player checkpoint preserving crafting grid/enchantments/effects; upgrade v1–6; partial emergency native recovery copy | `src/world/chunk.rs`, `src/world/mod.rs`, `src/engine/state.rs`, `docs/world-format.md` |
+| Saves/recovery | Reject unreadable chunks/seeds/progression; keep failed writes dirty; cancel unsafe dimension changes; v8 full native player checkpoint preserving crafting grid/enchantments/effects and portal links; upgrade v1–7; partial emergency native recovery copy | `src/world/chunk.rs`, `src/world/mod.rs`, `src/engine/state.rs`, `docs/world-format.md` |
 | In-game director | T chat, asynchronous typed waves/weather/time/ambience/structures, whole-plan validation/preflight, stale-area checks, cancellation, preferences, conditional structure undo | `src/engine/director.rs`, `src/engine/game_loop.rs`, `src/world/environment.rs` |
 | Existing LLM as director | `/connect` opt-in authenticated loopback bridge; six live MCP tools for context, bounded wait, requests, validated submission/results and cancellation; sole simulation writer, no second key | `src/engine/director_bridge.rs`, `src/engine/agent.rs`, `tests/multiplayer_tcp.rs`, `docs/agents.md` |
 | Personalized events | `/auto exploration|building|combat`, healthy-player/travel/modal/encounter gates, 120-second cooldown, three attempts/session; `/pause` and reset controls | `src/engine/director.rs`, cooldown regressions and prior 128-second PTY run |
@@ -118,8 +138,8 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 
 The local executable is `/home/sebastian/projects/termcraft/termcraft`.
 The package version remains `0.1.0`; generated archives are explicitly development
-builds, not mislabeled beta artifacts. Network protocol is **12**, requiring
-matching builds. New native saves use progression version **7**; back up older
+builds, not mislabeled beta artifacts. Network protocol is **13**, requiring
+matching builds. New native saves use progression version **8**; back up older
 saves before testing because older executables cannot read the new format.
 
 ## Measured results and validation
@@ -438,8 +458,8 @@ human/LLM player entry is deferred. Ordinary gameplay remains model-independent.
 local TCP or an existing SSH tunnel. Player IDs, not custom display names, label
 avatars. Prediction remains approximate and server-authoritative; qualify jitter,
 slow clients, bandwidth and input feel under latency. No public host/accounts or
-internet-grade abuse controls have been provisioned. Cross-dimension multiplayer
-is outside the first shared release slice.
+internet-grade abuse controls have been provisioned. Independent co-op Nether/End portal travel is implemented in the follow-up pass;
+real human cross-dimension progression remains a qualification gate.
 
 **Persistence:** Writes are atomic per file, not across a whole world/plan. Mobs,
 loose items and encounters are session-only. Recovery copies capture loaded chunks

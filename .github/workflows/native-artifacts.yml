@@ -2,6 +2,21 @@ name: Native development artifacts
 
 on:
   workflow_dispatch:
+  push:
+    branches: ['beta/terminal-reborn']
+    paths:
+      - '.github/workflows/native-artifacts.yml'
+      - 'src/**'
+      - 'tests/**'
+      - 'examples/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'scripts/package_release.py'
+      - 'scripts/test_native_archive.py'
+
+concurrency:
+  group: native-development-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

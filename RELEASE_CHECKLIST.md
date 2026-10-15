@@ -52,7 +52,7 @@ and exposes no public listener. It does not qualify remote account administratio
 ## Human, model and platform gates
 
 Record OS, terminal, executable hash, world/backup, participants, duration and
-failures. Test copies of saves: older builds cannot open progression v7.
+failures. Test copies of saves: older builds cannot open progression v8.
 
 - [x] **Art direction:** terminal pixel art selected from the initial comparison.
 - [ ] **Art readability and consistency:** assess the coordinated characters,
@@ -67,14 +67,15 @@ failures. Test copies of saves: older builds cannot open progression v7.
   `termcraft trial`; its normal-rule CLI completion is automated, human acceptance
   remains open.
 - [ ] **Classic survival:** fresh world through dragon/credits; early resources,
-  storage/workstations, death/respawn, v1–6 save upgrades, dimension travel and
+  storage/workstations, death/respawn, v1–7 save upgrades, dimension travel and
   reopen. Developer loadouts/teleports do not count as a playthrough.
 - [ ] **Physics feel:** walk/stop/sprint/jump, fast wall/ceiling impacts, stairs,
   sneaking at both ledges, ladders, knockback, fall damage, swimming/drowning,
   boats, falling blocks and fluids; repeat in supported shared play.
 - [ ] **60-minute human co-op:** at least two people, distant exploration,
   contested edits/items/storage, combat/death, director, reconnect and restart.
-  Use Overworld only and include an actual remote SSH account/delayed link.
+  Include independent Nether/End travel, shared dragon progression and an actual
+  remote SSH account/delayed link.
 - [ ] **Existing-client game master:** keep Codex/Claude actively waiting; ask
   for a hard battle, passive mobs, snow and an accessible structure. Record
   request-to-application latency, repair count, accepted/applied status, fidelity
@@ -99,8 +100,8 @@ failures. Test copies of saves: older builds cannot open progression v7.
 3. Inspect license, startup instructions, manifest and `cargo package --list`.
    Exclude large videos/GIFs, private saves, bridge/reconnect credentials and keys.
 4. Review Debian PR #4 and AUR guidance against the final version/executable.
-5. Finalize the draft release notes. Retain protocol 12 matching-build and
-   progression v7 backup/migration notices and remaining gameplay limits.
+5. Finalize the draft release notes. Retain protocol 13 matching-build and
+   progression v8 backup/migration notices and remaining gameplay limits.
 6. Regular pushes to `beta/terminal-reborn` are user-authorized and have been
    performed, with Sebastian Pagel as sole author/committer. Obtain separate
    authorization for tagging, publishing crates/releases, manually dispatching

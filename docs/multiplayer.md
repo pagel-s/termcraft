@@ -1,6 +1,8 @@
 # Experimental local co-op
 
-Two terminal clients can now play in one authoritative Overworld. Players have
+Up to eight terminal clients can play across the Overworld, Nether and End.
+Each dimension has its own authoritative terrain, entities and simulation clock.
+Players can travel independently while friends remain in another dimension. Players have
 independent inventories, armor, health, hunger, crafting state and movement.
 Mining, building, chest transfers, workstations, mobs, projectiles, pickups and
 terrain changes run on the server. The world advances once per tick, including
@@ -9,8 +11,7 @@ inventories are replicated to clients.
 
 This is a development slice for trusted local connections. Shared host-controlled
 game-master chat, live MCP authoring and an SSH joining command are implemented.
-Public hosting, cross-dimension play and platform/latency qualification remain
-unfinished. This slice does not qualify the release as beta.
+Public hosting and platform/latency qualification remain unfinished. This slice does not qualify the release as beta.
 
 ## Try two players
 
@@ -82,12 +83,32 @@ Useful manual checks:
    inventory focus, weather and F3 readability. Test ordinary survival and death
    separately from the automated regressions.
 
+## Portals and shared progression
+
+Build and ignite a normal Nether portal, then right-click or press F on the
+opening/frame to travel. Only the interacting player travels. Friends can follow
+through the same linked frame, remain behind, or explore another dimension.
+The End frame uses twelve Eyes of Ender. Players in the End share one dragon;
+one player viewing credits does not pause or teleport everyone else. Death
+returns that player to their Overworld spawn. Debug travel/loadout keys remain
+disabled on the server.
+
+Terrain, mobs, boats, pickups, collision and explosions are dimension-local.
+Clients receive avatars and terrain from their own dimension. Inputs carry the
+source dimension, so delayed clicks cannot edit a different world after travel;
+key releases remain accepted. Travel clears held actions and retargets the cursor.
+The game-master currently authors the Overworld; the host returns there to request
+changes or undo its structures.
+
 ## Saves, limits and remaining work
 
 The default server stores data under `$TERMCRAFT_SAVE_DIR/multiplayer/default`
 (or the platform's normal save directory when the variable is unset). Named
 servers store it in their world directory. `server-state.json` holds a versioned
-server ID, world clock/rules and player records. Reconnect credentials live under
+server ID, world clocks/rules and player records. Server checkpoint version 2
+also saves each identity's dimension, portal links and shared dragon completion.
+Version 1 records upgrade with players in the Overworld. Reconnect and restart
+restore each saved dimension; native single-player inventory checkpoints stay separate. Reconnect credentials live under
 `clients/` in the local save directory; protect them like save files. On Unix,
 credential and server-record files are written with mode `0600`.
 
@@ -100,7 +121,7 @@ and retained data is retried. Corrupt records are rejected without replacement.
 Runtime mobs, loose items and active encounters are session-only, as in local
 play; they are not restored by restarting the server.
 
-Protocol **12** requires matching builds. Frames are capped at 256 KiB and nearby
+Protocol **13** requires matching builds. Frames are capped at 256 KiB and nearby
 entity snapshots at 512 entities within 128 columns. Terrain streaming covers
 seven chunk columns around each player. Snapshots are sent at 20 Hz. A two-minute
 eight-player delayed-link/stalled-reader fixture now passes; WAN bandwidth and

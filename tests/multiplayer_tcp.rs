@@ -473,6 +473,7 @@ impl Server {
     }
 }
 struct Client {
+    dimension: std::cell::Cell<SnapshotDimension>,
     writer: TcpStream,
     incoming: mpsc::Receiver<ServerWireMessage>,
     welcome: Welcome,
@@ -512,6 +513,7 @@ impl Client {
             }
         });
         Self {
+            dimension: std::cell::Cell::new(SnapshotDimension::Overworld),
             writer,
             incoming,
             welcome,
@@ -521,11 +523,9 @@ impl Client {
     fn send(&mut self, cmd: ClientCommand) {
         self.sequence += 1;
         // The server assigns the connection's identity, ignoring this forged ID.
-        write_framed_client_input(
-            &mut self.writer,
-            &ClientInputFrame::new(65535, self.sequence, 0, cmd),
-        )
-        .unwrap();
+        let mut frame = ClientInputFrame::new(65535, self.sequence, 0, cmd);
+        frame.dimension = self.dimension.get();
+        write_framed_client_input(&mut self.writer, &frame).unwrap();
     }
     #[track_caller]
     fn until(&self, predicate: impl Fn(&ServerSnapshot) -> bool) -> Box<ServerSnapshot> {
@@ -538,6 +538,7 @@ impl Client {
                 .recv_timeout(deadline.saturating_duration_since(Instant::now()))
                 .unwrap_or_else(|error| panic!("snapshot timeout at {caller}: {error}; {last}"));
             if let ServerWireMessage::Snapshot(snapshot) = msg {
+                self.dimension.set(snapshot.dimension);
                 if predicate(&snapshot) {
                     return snapshot;
                 }
@@ -553,6 +554,20 @@ impl Client {
             }
         }
     }
+    fn terrain_until(&self, predicate: impl Fn(&ChunkDeltaPacket) -> bool) {
+        let deadline = Instant::now() + Duration::from_secs(8);
+        loop {
+            let message = self
+                .incoming
+                .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                .expect("terrain stream timeout");
+            match message {
+                ServerWireMessage::ChunkDelta(delta) if predicate(&delta) => return,
+                ServerWireMessage::Snapshot(s) => self.dimension.set(s.dimension),
+                _ => {}
+            }
+        }
+    }
 }
 fn count(s: &ServerSnapshot, item: ItemType) -> u32 {
     s.session
@@ -563,6 +578,139 @@ fn count(s: &ServerSnapshot, item: ItemType) -> u32 {
         .filter(|s| s.item_type == item)
         .map(|s| s.count)
         .sum()
+}
+
+#[test]
+#[ignore = "requires local TCP sockets and Unix process signals"]
+fn portals_stream_separate_worlds_and_restore_dimensions_after_restart() -> io::Result<()> {
+    use termcraft::{
+        engine::{
+            server_save::{ServerSave, token},
+            state::PlayerSession,
+        },
+        world::{Dimension, block::BlockType, item::ItemStack},
+    };
+    let root = std::env::temp_dir().join(format!("termcraft-portals-tcp-{}", token()));
+    std::fs::create_dir_all(&root)?;
+    let mut recipe = WorldRecipe::example();
+    recipe.terrain = Terrain::Plains;
+    recipe.relief = 0;
+    recipe.regions.clear();
+    recipe.landmarks.clear();
+    let world = WorldStore::new(root.join("worlds"))
+        .create("tcp", "Portal transport fixture", &recipe)
+        .unwrap();
+    let mut state = GameState::open_in_directory(&world)?;
+    state.apply_client_command(ClientCommand::ToggleRuleMobSpawning);
+    for x in -1..=2 {
+        for y in 60..=64 {
+            state.world.set_block(
+                x,
+                y,
+                if x == -1 || x == 2 || y == 60 || y == 64 {
+                    BlockType::Obsidian
+                } else {
+                    BlockType::Air
+                },
+            );
+        }
+    }
+    state.world.set_block(6, 63, BlockType::Glowstone);
+    state.player.x = 0.5;
+    state.player.y = 64.0;
+    state.inventory.slots.fill(None);
+    state.inventory.slots[0] = Some(ItemStack {
+        item_type: ItemType::FlintAndSteel,
+        count: 1,
+        durability: Some(65),
+    });
+    let mut saved = ServerSave::read(&state)?;
+    let (token_a, token_b) = (token(), token());
+    saved
+        .players
+        .insert(token_a.clone(), PlayerSession::capture(&state));
+    state.inventory.slots.fill(None);
+    state.player.x = 3.5;
+    saved
+        .players
+        .insert(token_b.clone(), PlayerSession::capture(&state));
+    state.try_persist_world_and_progress()?;
+    saved.write(&world)?;
+    drop(state);
+    let probe = TcpListener::bind("127.0.0.1:0")?;
+    let addr = probe.local_addr()?.to_string();
+    drop(probe);
+    let mut server = Server::start(&root, &addr);
+    let mut a = Client::connect(&addr, Some(token_a.clone()));
+    let mut b = Client::connect(&addr, Some(token_b.clone()));
+    a.until(|s| s.dimension == SnapshotDimension::Overworld && s.remote_players.len() == 1);
+    b.until(|s| s.dimension == SnapshotDimension::Overworld && s.remote_players.len() == 1);
+    a.send(ClientCommand::UseAt(-1, 62));
+    let ignition = a.sequence;
+    a.until(|s| s.acknowledged_sequence >= ignition);
+    a.terrain_until(|p| {
+        p.dimension == SnapshotDimension::Overworld
+            && p.chunks
+                .iter()
+                .any(|c| c.blocks.contains(&BlockType::NetherPortal))
+    });
+    a.send(ClientCommand::UseAt(0, 62));
+    let arrived =
+        a.until(|s| s.dimension == SnapshotDimension::Nether && s.remote_players.is_empty());
+    let base_y = arrived.player.y.ceil() as i32;
+    a.terrain_until(|p| {
+        p.dimension == SnapshotDimension::Nether
+            && p.chunks
+                .iter()
+                .any(|c| c.blocks.contains(&BlockType::NetherPortal))
+    });
+    b.until(|s| s.dimension == SnapshotDimension::Overworld && s.remote_players.is_empty());
+    drop(a);
+    let mut a = Client::connect(&addr, Some(token_a.clone()));
+    a.until(|s| s.dimension == SnapshotDimension::Nether);
+    b.send(ClientCommand::UseAt(0, 62));
+    b.until(|s| s.dimension == SnapshotDimension::Nether && s.remote_players.len() == 1);
+    a.until(|s| {
+        s.dimension == SnapshotDimension::Nether
+            && s.remote_players.len() == 1
+            && s.tick > arrived.tick + 45
+    });
+    a.send(ClientCommand::SetMoveLeft(true));
+    a.until(|s| s.player.x <= 3.8);
+    a.send(ClientCommand::ClearDirectionalInput);
+    a.send(ClientCommand::UseAt(0, base_y - 2));
+    a.until(|s| s.dimension == SnapshotDimension::Overworld && s.remote_players.is_empty());
+    a.terrain_until(|p| {
+        p.dimension == SnapshotDimension::Overworld
+            && p.chunks.iter().any(|c| {
+                c.blocks.contains(&BlockType::Glowstone)
+                    && c.blocks.contains(&BlockType::NetherPortal)
+            })
+    });
+    b.until(|s| s.dimension == SnapshotDimension::Nether && s.remote_players.is_empty());
+    drop(a);
+    drop(b);
+    server.stop();
+    let mut restarted = Server::start(&root, &addr);
+    let a = Client::connect(&addr, Some(token_a));
+    let b = Client::connect(&addr, Some(token_b));
+    a.until(|s| s.dimension == SnapshotDimension::Overworld && s.remote_players.is_empty());
+    b.until(|s| s.dimension == SnapshotDimension::Nether && s.remote_players.is_empty());
+    drop(a);
+    drop(b);
+    restarted.stop();
+    let saved = ServerSave::read(&GameState::open_in_directory(&world)?)?;
+    assert_eq!(
+        saved
+            .dimensions
+            .values()
+            .filter(|&&d| d == Dimension::Nether)
+            .count(),
+        1
+    );
+    assert_eq!(saved.worlds.len(), 2);
+    std::fs::remove_dir_all(root)?;
+    Ok(())
 }
 #[test]
 #[ignore = "requires local TCP sockets and Unix process signals"]

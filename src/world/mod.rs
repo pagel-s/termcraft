@@ -20,7 +20,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub enum Dimension {
     Overworld,
     Nether,
@@ -611,6 +611,11 @@ impl World {
         self.chunks
             .get(&chunk_x)
             .map(|chunk| (chunk.blocks_revision(), chunk.blocks.clone()))
+    }
+
+    pub(crate) fn is_chunk_loaded_at(&self, world_x: i32) -> bool {
+        self.chunks
+            .contains_key(&world_x.div_euclid(CHUNK_WIDTH as i32))
     }
 
     pub(crate) fn chunk_blocks_revision(&self, chunk_x: i32) -> Option<u64> {

@@ -6,7 +6,7 @@ Local binaries still report `0.1.0` and archives are marked `dev`. The repositor
 
 ## Survive and build with friends over SSH
 
-Host a shared Overworld and join from your own terminal with
+Host a shared world across the Overworld, Nether and End and join with
 `termcraft join user@host --player alice`. Players have independent inventories,
 crafting, workstations, combat and death/respawn; they share terrain, mobs, items
 and storage. Progress survives reconnect and orderly server restart. The launcher
@@ -34,6 +34,16 @@ needs no model. See [agents and generated worlds](agents.md).
 Plans use existing blocks/mobs: local biome ambience changes appearance and
 spawning, rather than reshaping terrain. Waves are finite; structures need flat
 empty natural ground and fit 16×12. No newly generated mechanics/quests/bosses.
+
+## Independent co-op portal travel
+
+Nether/End portals now move only the interacting player. Friends can follow the
+same linked frame or remain in another dimension. Terrain, entities, hazards,
+boats and client streaming stay local to that dimension. Saved identities reopen
+in their own dimensions, and shared portal links/dragon completion survive restart.
+The End encounter is shared; credits and respawn remain individual. Late commands
+from a previous dimension cannot place/mine there after travel. Matching protocol-13
+builds are required. Server checkpoint v2 reads v1; native checkpoints remain v8.
 
 ## Faster rendering and clearer play
 
@@ -137,8 +147,8 @@ seeds and progression are rejected rather than silently regenerated. Failed
 writes remain dirty, unsafe dimension travel is cancelled, and fatal native-loop
 errors attempt a private **partial** recovery copy.
 
-**Back up saves before upgrading.** Progression v7 reads v1–6, then upgrades on
-save; older builds cannot reopen v7. Writes are atomic per file, not across a
+**Back up saves before upgrading.** Progression v8 reads v1–7, then upgrades on
+save; older builds cannot reopen v8. Portal links share the atomic checkpoint. Writes are atomic per file, not across a
 whole world. Mobs/loose items are session-only; recovery copies contain loaded
 chunks of the current dimension. [Save/recovery guide](world-format.md).
 
@@ -170,8 +180,8 @@ manifest and checksum; Rust is unnecessary at runtime. Linux extraction/launch
 are checked locally. Windows/macOS workflow outputs still need building and
 native qualification.
 
-Shared play supports eight connections, 64 saved identities and the Overworld.
-Protocol **12** requires matching builds. Classic survival through the dragon,
+Shared play supports eight connections, 64 saved identities and independent travel
+across all three dimensions. Protocol **13** requires matching builds. Classic survival through the dragon,
 sustained human co-op, remote SSH/WAN behavior, live model quality and all-platform
 terminals remain release gates. Automated results do not establish a completed
 human campaign or a viral release.

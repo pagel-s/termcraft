@@ -47,7 +47,8 @@ Nether frame block extinguishes all six tiles; removing a filled End frame block
 extinguishes its opening. Nether corners are optional. Portal surfaces resist
 mining, while breakable frames can be repaired and reactivated. Travel resets
 fall distance and jump/sprint state. The target panel explains manual travel and
-the two-second cooldown. Dimension travel remains a solo-world feature.
+the two-second cooldown. The subsequent co-op pass adds independent shared-world dimension travel; see
+[co-op portals](multiplayer.md#portals-and-shared-progression).
 
 `examples/portal_review.rs` executes actual glowstone placement, Flint and Steel
 ignition, Nether travel, a save/reload, return through the original underground
@@ -61,7 +62,7 @@ These scripted checks establish behavior, rather than human gameplay acceptance.
 ## Try the candidate
 
 Run the local development executable. Restart the co-op server and every client
-together: the updated movement rules use **network protocol 12**.
+together: the updated movement rules use **network protocol 13**.
 
 - Hold A/D or an arrow for one second, then release. In a terminal with key-release
   support, movement should stay continuous through the initial keyboard-repeat

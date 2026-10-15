@@ -96,8 +96,7 @@ impl GameState {
     pub(crate) fn director_near_player(&self, x: f64, distance: f64) -> bool {
         (self.player.x - x).abs() < distance
             || self
-                .cooperative_players
-                .values()
+                .other_players_here()
                 .any(|s| (s.player.x - x).abs() < distance)
     }
     pub(crate) fn cooperative(&self) -> bool {
@@ -120,8 +119,21 @@ impl GameState {
     }
     pub(crate) fn activate_peer(&mut self, id: u16) -> bool {
         if self.active_peer == Some(id) {
+            self.select_dimension(self.peer_dimension(id));
+            if !self.world.is_replica()
+                && (!self
+                    .world
+                    .is_chunk_loaded_at((self.player.x - 1.0).floor() as i32)
+                    || !self
+                        .world
+                        .is_chunk_loaded_at((self.player.x + 1.0).floor() as i32))
+            {
+                self.world
+                    .load_chunks_for_motion(self.player.x, self.player.vx);
+            }
             return true;
         }
+        let dimension = self.peer_dimension(id);
         let Some(mut next) = self.cooperative_players.remove(&id) else {
             return false;
         };
@@ -129,13 +141,34 @@ impl GameState {
         if let Some(old) = self.active_peer.replace(id) {
             self.cooperative_players.insert(old, next);
         }
+        self.select_dimension(dimension);
+        if !self.world.is_replica()
+            && (!self
+                .world
+                .is_chunk_loaded_at((self.player.x - 1.0).floor() as i32)
+                || !self
+                    .world
+                    .is_chunk_loaded_at((self.player.x + 1.0).floor() as i32))
+        {
+            self.world
+                .load_chunks_for_motion(self.player.x, self.player.vx);
+        }
         true
     }
     pub(crate) fn join_peer(&mut self, id: u16) {
         if self.peer_ids().contains(&id) {
             return;
         }
-        let (x, y) = self.multiplayer_join_spawn_near(self.player.x.floor() as i32);
+        let selected = self.current_dimension;
+        self.select_dimension(Dimension::Overworld);
+        let center = if selected == Dimension::Overworld {
+            self.player.x.floor() as i32
+        } else {
+            0
+        };
+        let (x, y) = self.multiplayer_join_spawn_near(center);
+        self.select_dimension(selected);
+        self.cooperative_dimensions.insert(id, Dimension::Overworld);
         let mut actor = PlayerSession::fresh(x, y);
         if self.trial.is_some() {
             for (item, n) in [
@@ -150,6 +183,7 @@ impl GameState {
             }
         }
         if self.active_peer.is_none() {
+            self.select_dimension(Dimension::Overworld);
             actor.apply(self);
             self.active_peer = Some(id);
         } else {
@@ -166,6 +200,7 @@ impl GameState {
             }
         }
         self.cooperative_players.remove(&id);
+        self.cooperative_dimensions.remove(&id);
     }
     pub(crate) fn select_nearest_peer(&mut self, x: f64, y: f64) {
         if !self.cooperative() {
@@ -178,6 +213,9 @@ impl GameState {
             None
         };
         for (&id, actor) in &self.cooperative_players {
+            if self.peer_dimension(id) != self.current_dimension {
+                continue;
+            }
             if actor.player.health <= 0.0 || actor.death_screen_active {
                 continue;
             }
@@ -196,6 +234,11 @@ impl GameState {
         }
     }
     pub(crate) fn tick_cooperative_player(&mut self, x: i32, y: i32) {
+        self.handle_portal_transition();
+        if self.credits_active {
+            self.update_completion_credits();
+            return;
+        }
         self.update_furnace();
         if self.death_screen_active {
             self.death_screen_ticks = self.death_screen_ticks.saturating_add(1);
@@ -325,6 +368,9 @@ impl GameState {
         session.release_inputs();
         if self.active_peer == Some(id) {
             session.apply(self);
+            if !self.world.is_replica() {
+                self.world.load_chunks_around(self.player.x.floor() as i32);
+            }
         } else {
             self.cooperative_players.insert(id, session);
         }
@@ -344,7 +390,7 @@ impl GameState {
     // Include the active actor exactly once, or the local player outside co-op.
     pub(super) fn each_player(&mut self, mut f: impl FnMut(&mut Self)) {
         let active = self.active_peer;
-        let ids = self.peer_ids();
+        let ids = self.peer_ids_here();
         if ids.is_empty() {
             f(self);
             return;

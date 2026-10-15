@@ -90,7 +90,7 @@ fn clear_remote_runtime_entities(state: &mut GameState) {
     state.left_click_down = false;
 }
 
-fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerSnapshot) {
+pub(crate) fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerSnapshot) {
     let target_dimension: Dimension = snapshot.dimension.into();
     if state.current_dimension != target_dimension {
         state.current_dimension = target_dimension;
@@ -166,7 +166,7 @@ fn is_jump_key(code: &KeyCode) -> bool {
         || matches!(code, KeyCode::Char(c) if c.eq_ignore_ascii_case(&'w'))
 }
 
-fn apply_chunk_delta_to_state(state: &mut GameState, delta: &ChunkDeltaPacket) {
+pub(crate) fn apply_chunk_delta_to_state(state: &mut GameState, delta: &ChunkDeltaPacket) {
     if state.current_dimension != Dimension::from(delta.dimension) {
         return;
     }

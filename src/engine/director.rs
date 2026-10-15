@@ -480,6 +480,7 @@ impl Director {
                 state.chat.mode = "request-only".into(); self.tell(state, "Proactive events paused. You can still request changes.");
             }
             "/undo" => {
+                if state.current_dimension != Dimension::Overworld { return Err("Return to the Overworld to undo its structure.".into()); }
                 if self.pending.is_some() { return Err("Cancel the pending request before undoing a structure.".into()); }
                 let edits = self.config.edits.last().ok_or("No structure to undo in this world.")?.clone();
                 state.world.load_chunks_for_spawn_search(edits[0].x, 32);
@@ -739,7 +740,9 @@ impl Director {
                 }
             }
         }
-        if let Some(event) = self.encounter {
+        if let Some(event) = self.encounter
+            && state.current_dimension == Dimension::Overworld
+        {
             let remaining = state
                 .zombies
                 .iter()

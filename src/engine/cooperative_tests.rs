@@ -6,13 +6,13 @@ use crate::world::{
 };
 use crate::worlds::WorldStore;
 
-struct Fixture(std::path::PathBuf);
+pub(super) struct Fixture(std::path::PathBuf);
 impl Drop for Fixture {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
-fn fixture() -> (Fixture, ServerSimulation) {
+pub(super) fn fixture() -> (Fixture, ServerSimulation) {
     let root = std::env::temp_dir().join(format!("termcraft-coop-{}", token()));
     let mut recipe = WorldRecipe::example();
     recipe.terrain = Terrain::Plains;
@@ -42,17 +42,19 @@ fn fixture() -> (Fixture, ServerSimulation) {
     sim.state.activate_peer(1);
     (Fixture(root), sim)
 }
-fn command(sim: &mut ServerSimulation, id: u16, cmd: ClientCommand) {
+pub(super) fn command(sim: &mut ServerSimulation, id: u16, cmd: ClientCommand) {
     let sequence = sim
         .last_applied_sequence_by_client
         .get(&id)
         .copied()
         .unwrap_or(0)
         + 1;
-    sim.enqueue_input(ClientInputFrame::new(id, sequence, sim.tick() + 1, cmd));
+    let mut input = ClientInputFrame::new(id, sequence, sim.tick() + 1, cmd);
+    input.dimension = sim.state.peer_dimension(id).into();
+    sim.enqueue_input(input);
     sim.step(0, 0);
 }
-fn count(sim: &ServerSimulation, id: u16, item: ItemType) -> u32 {
+pub(super) fn count(sim: &ServerSimulation, id: u16, item: ItemType) -> u32 {
     sim.state
         .peer_session(id)
         .unwrap()

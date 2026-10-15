@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 12;
+pub const NET_PROTOCOL_VERSION: u16 = 13;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;
@@ -35,6 +35,7 @@ pub struct ClientInputFrame {
     pub client_id: u16,
     pub sequence: u32,
     pub tick: u64,
+    pub dimension: SnapshotDimension,
     pub command: ClientCommand,
 }
 
@@ -45,6 +46,7 @@ impl ClientInputFrame {
             client_id,
             sequence,
             tick,
+            dimension: SnapshotDimension::Overworld,
             command,
         }
     }
@@ -508,12 +510,7 @@ impl ServerSimulation {
 
     pub fn with_state(mut state: GameState) -> Self {
         let director = super::director::Director::new(&mut state);
-        let saved = ServerSave {
-            version: 1,
-            id: token(),
-            settings: super::state::SharedSettings::capture(&state),
-            players: Default::default(),
-        };
+        let saved = ServerSave::fresh(&state);
         Self {
             director,
             saved,
@@ -532,6 +529,13 @@ impl ServerSimulation {
         let saved = ServerSave::read(&self.state)?;
         saved
             .settings
+            .apply(&mut self.state)
+            .map_err(io::Error::other)?;
+        self.state
+            .restore_dimension_settings(&saved.worlds)
+            .map_err(io::Error::other)?;
+        saved
+            .progression
             .apply(&mut self.state)
             .map_err(io::Error::other)?;
         self.saved = saved;
@@ -562,6 +566,14 @@ impl ServerSimulation {
         };
         self.register_client(id);
         if let Some(session) = self.saved.players.get(&identity) {
+            self.state.restore_peer_dimension(
+                id,
+                self.saved
+                    .dimensions
+                    .get(&identity)
+                    .copied()
+                    .unwrap_or(Dimension::Overworld),
+            );
             self.state.restore_peer(id, session.clone());
         }
         self.tokens.insert(id, identity.clone());
@@ -580,12 +592,21 @@ impl ServerSimulation {
         for (&id, token) in &self.tokens {
             if let Some(session) = self.state.peer_session(id) {
                 self.saved.players.insert(token.clone(), session);
+                self.saved
+                    .dimensions
+                    .insert(token.clone(), self.state.peer_dimension(id));
             }
         }
-        self.state.world.try_save_all()?;
+        self.saved.worlds = self.state.save_dimension_worlds()?;
+        self.saved.progression = super::state::SharedProgress::capture(&self.state);
         self.state.save_trial()?;
         self.director.save(&self.state).map_err(io::Error::other)?;
-        self.saved.settings = super::state::SharedSettings::capture(&self.state);
+        self.saved.settings = self
+            .saved
+            .worlds
+            .get(&Dimension::Overworld)
+            .cloned()
+            .unwrap_or_else(|| super::state::SharedSettings::capture(&self.state));
         self.saved.write(self.state.world.save_root())
     }
     pub fn tick(&self) -> u64 {
@@ -595,20 +616,23 @@ impl ServerSimulation {
     pub fn state(&self) -> &GameState {
         &self.state
     }
+    /// An isolated replica composed through the native client's actual handlers.
+    /// Useful for renderer review; this does not measure transport/presentation latency.
+    pub fn client_view(&mut self, id: u16) -> Option<GameState> {
+        let snapshot = self.snapshot_for_client(id)?;
+        let mut view = GameState::network_view();
+        super::network_client::sync_state_from_snapshot(&mut view, &snapshot);
+        let world = self.state.world_in_dimension(snapshot.dimension.into())?;
+        let mut revisions = HashMap::new();
+        while let Some(delta) =
+            build_world_chunk_delta_packet(world, snapshot.tick, snapshot.player.x, &mut revisions)
+        {
+            super::network_client::apply_chunk_delta_to_state(&mut view, &delta);
+        }
+        Some(view)
+    }
     pub fn maintain_chunk_cache(&mut self) -> io::Result<()> {
-        self.state.world.check_storage()?;
-        let viewers = self
-            .state
-            .peer_ids()
-            .into_iter()
-            .filter_map(|id| {
-                self.state
-                    .peer_session(id)
-                    .map(|s| s.player().x.floor() as i32)
-            })
-            .collect::<Vec<_>>();
-        self.state.world.trim_chunk_cache(&viewers, 1)?;
-        Ok(())
+        self.state.maintain_dimension_caches()
     }
 
     pub fn register_client(&mut self, client_id: u16) {
@@ -629,6 +653,9 @@ impl ServerSimulation {
         if let Some(session) = self.state.disconnect_peer_session(client_id)
             && let Some(token) = self.tokens.remove(&client_id)
         {
+            self.saved
+                .dimensions
+                .insert(token.clone(), self.state.peer_dimension(client_id));
             self.saved.players.insert(token, session);
         }
         self.state.leave_peer(client_id);
@@ -643,7 +670,11 @@ impl ServerSimulation {
             self.state.activate_peer(primary);
         }
     }
-    pub fn snapshot_for_client(&self, client_id: u16) -> Option<ServerSnapshot> {
+    pub fn snapshot_for_client(&mut self, client_id: u16) -> Option<ServerSnapshot> {
+        let selected = self.state.selected_peer_id();
+        if !self.state.activate_peer(client_id) {
+            return None;
+        }
         let session = self.state.peer_session(client_id)?;
         let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
         if self.primary_client_id != Some(client_id) {
@@ -670,6 +701,7 @@ impl ServerSimulation {
             .peer_ids()
             .into_iter()
             .filter(|id| *id != client_id)
+            .filter(|&id| self.state.peer_dimension(id) == self.state.current_dimension)
             .filter_map(|id| {
                 self.state.peer_session(id).map(|p| PeerPlayerSnapshot {
                     client_id: id,
@@ -677,6 +709,9 @@ impl ServerSimulation {
                 })
             })
             .collect();
+        if let Some(id) = selected {
+            self.state.activate_peer(id);
+        }
         Some(snapshot)
     }
 
@@ -727,11 +762,15 @@ impl ServerSimulation {
                 .unwrap_or((mouse_target_x, mouse_target_y));
             self.state.tick_cooperative_player(x, y);
         }
-        if let Some(primary) = self.primary_client_id {
-            self.state.activate_peer(primary);
+        let mut occupied = BTreeMap::new();
+        for &id in &ids {
+            occupied.entry(self.state.peer_dimension(id)).or_insert(id);
         }
-        self.state.tick_cooperative_boats();
-        self.state.update(mouse_target_x, mouse_target_y);
+        for id in occupied.values() {
+            self.state.activate_peer(*id);
+            self.state.tick_cooperative_boats();
+            self.state.update(mouse_target_x, mouse_target_y);
+        }
         for id in ids {
             self.state.activate_peer(id);
             self.state.finish_cooperative_damage();
@@ -754,7 +793,10 @@ impl ServerSimulation {
         self.director.submit(&mut self.state, text);
     }
 
-    pub fn snapshot(&self) -> ServerSnapshot {
+    pub fn snapshot(&mut self) -> ServerSnapshot {
+        if let Some(primary) = self.primary_client_id {
+            self.state.activate_peer(primary);
+        }
         let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
         snapshot.acknowledged_sequence = self
             .primary_client_id
@@ -785,6 +827,21 @@ impl ServerSimulation {
                 continue;
             }
             if self.state.activate_peer(frame.client_id) {
+                let release = matches!(
+                    frame.command,
+                    ClientCommand::SetMoveLeft(false)
+                        | ClientCommand::SetMoveRight(false)
+                        | ClientCommand::SetJumpHeld(false)
+                        | ClientCommand::SetSneakHeld(false)
+                        | ClientCommand::SetPrimaryAction(false)
+                        | ClientCommand::ClearDirectionalInput
+                );
+                if frame.dimension != self.state.current_dimension.into() && !release {
+                    self.last_applied_sequence_by_client
+                        .insert(frame.client_id, frame.sequence);
+                    continue;
+                }
+                let before = self.state.current_dimension;
                 match frame.command {
                     ClientCommand::AimAt(x, y) => {
                         if x.abs_diff(0) <= 100_000 && (0..128).contains(&y) {
@@ -807,6 +864,23 @@ impl ServerSimulation {
                     | ClientCommand::SettingsMoveDown
                     | ClientCommand::SettingsApply => {}
                     command => self.state.apply_client_command(command),
+                }
+                if self.state.current_dimension != before {
+                    for command in [
+                        ClientCommand::ClearDirectionalInput,
+                        ClientCommand::SetPrimaryAction(false),
+                        ClientCommand::SetJumpHeld(false),
+                        ClientCommand::SetSneakHeld(false),
+                    ] {
+                        self.state.apply_client_command(command);
+                    }
+                    self.targets.insert(
+                        frame.client_id,
+                        (
+                            self.state.player.x.floor() as i32,
+                            (self.state.player.y - 1.0).floor() as i32,
+                        ),
+                    );
                 }
             }
             self.last_applied_sequence_by_client
@@ -891,12 +965,16 @@ impl ClientPredictionState {
     }
 
     pub fn queue_local_command(&mut self, command: ClientCommand) -> ClientInputFrame {
-        let frame = ClientInputFrame::new(
+        let mut frame = ClientInputFrame::new(
             self.client_id,
             self.next_sequence,
             self.local_tick.saturating_add(1),
             command,
         );
+        frame.dimension = self
+            .authoritative_snapshot
+            .as_ref()
+            .map_or(SnapshotDimension::Overworld, |s| s.dimension);
         self.next_sequence = self.next_sequence.wrapping_add(1).max(1);
         self.pending_inputs.push(frame);
         self.outbound_inputs.push(frame);
@@ -932,14 +1010,17 @@ impl ClientPredictionState {
         {
             return;
         }
-        let dimension_changed = self
-            .authoritative_snapshot
-            .as_ref()
-            .is_some_and(|s| s.dimension != snapshot.dimension);
+        let dimension_changed = self.physics.current_dimension != snapshot.dimension.into();
         if dimension_changed {
             self.replicated_chunks.clear();
             self.physics.current_dimension = snapshot.dimension.into();
             self.physics.world = crate::world::World::network_replica(snapshot.dimension.into());
+            // Old coordinates and held presses must not predict actions into
+            // a different world while the transition acknowledgement arrives.
+            self.pending_inputs
+                .retain(|f| f.dimension == snapshot.dimension);
+            self.outbound_inputs
+                .retain(|f| f.dimension == snapshot.dimension);
         }
 
         let center = (snapshot.player.x.floor() as i32).div_euclid(CHUNK_WIDTH as i32);
@@ -1058,6 +1139,7 @@ impl ClientPredictionState {
 
 #[derive(Debug)]
 struct ConnectedClient {
+    known_dimension: Option<SnapshotDimension>,
     client_id: u16,
     writer: TcpStream,
     known_chunk_revisions: HashMap<i32, u64>,
@@ -1136,6 +1218,7 @@ fn accept_pending_clients(
                 }
                 spawn_client_reader_thread(id, reader, tx.clone());
                 clients.push(ConnectedClient {
+                    known_dimension: None,
                     client_id: id,
                     writer,
                     known_chunk_revisions: HashMap::new(),
@@ -1153,8 +1236,23 @@ fn center_chunk_x(player_x: f64) -> i32 {
     (player_x.floor() as i32).div_euclid(CHUNK_WIDTH as i32)
 }
 
+#[cfg(test)]
 fn build_chunk_delta_packet(
     state: &GameState,
+    snapshot_tick: u64,
+    center_player_x: f64,
+    known_chunk_revisions: &mut HashMap<i32, u64>,
+) -> Option<ChunkDeltaPacket> {
+    build_world_chunk_delta_packet(
+        &state.world,
+        snapshot_tick,
+        center_player_x,
+        known_chunk_revisions,
+    )
+}
+
+fn build_world_chunk_delta_packet(
+    world: &crate::world::World,
     snapshot_tick: u64,
     center_player_x: f64,
     known_chunk_revisions: &mut HashMap<i32, u64>,
@@ -1163,7 +1261,7 @@ fn build_chunk_delta_packet(
     let mut changed_candidates = Vec::new();
 
     for chunk_x in (center - CHUNK_STREAM_RADIUS)..=(center + CHUNK_STREAM_RADIUS) {
-        let Some((revision, blocks)) = state.world.chunk_column_snapshot(chunk_x) else {
+        let Some((revision, blocks)) = world.chunk_column_snapshot(chunk_x) else {
             known_chunk_revisions.remove(&chunk_x);
             continue;
         };
@@ -1174,11 +1272,7 @@ fn build_chunk_delta_packet(
             chunk_x,
             revision,
             biomes: (0..CHUNK_WIDTH)
-                .map(|x| {
-                    state
-                        .world
-                        .get_biome(chunk_x * CHUNK_WIDTH as i32 + x as i32)
-                })
+                .map(|x| world.get_biome(chunk_x * CHUNK_WIDTH as i32 + x as i32))
                 .collect(),
             blocks,
         });
@@ -1203,7 +1297,7 @@ fn build_chunk_delta_packet(
         Some(ChunkDeltaPacket {
             protocol: NET_PROTOCOL_VERSION,
             tick: snapshot_tick,
-            dimension: state.current_dimension.into(),
+            dimension: world.dimension.into(),
             center_chunk_x: center,
             chunks: changed_chunks,
         })
@@ -1216,10 +1310,17 @@ fn send_tick_messages_to_client(
     snapshot: &ServerSnapshot,
     snapshot_wire_payload: &[u8],
 ) -> io::Result<()> {
+    if client.known_dimension != Some(snapshot.dimension) {
+        client.known_chunk_revisions.clear();
+        client.known_dimension = Some(snapshot.dimension);
+    }
     write_framed_payload(&mut client.writer, snapshot_wire_payload)?;
 
-    if let Some(delta) = build_chunk_delta_packet(
-        state,
+    let world = state
+        .world_in_dimension(snapshot.dimension.into())
+        .ok_or_else(|| io::Error::other("missing dimension for client terrain"))?;
+    if let Some(delta) = build_world_chunk_delta_packet(
+        world,
         snapshot.tick,
         snapshot.player.x,
         &mut client.known_chunk_revisions,
@@ -1262,11 +1363,6 @@ pub fn run_headless_tcp_server(bind_addr: &str) -> io::Result<()> {
     run_headless_tcp_server_with_state(bind_addr, GameState::open_in_directory(&root)?)
 }
 pub fn run_headless_tcp_server_with_state(bind_addr: &str, state: GameState) -> io::Result<()> {
-    if state.current_dimension != Dimension::Overworld {
-        return Err(io::Error::other(
-            "co-op currently requires an Overworld save",
-        ));
-    }
     let mut simulation = ServerSimulation::with_state(state);
     simulation.load_persistent()?;
     let listener = TcpListener::bind(bind_addr)?;
@@ -1352,7 +1448,7 @@ pub fn run_headless_tcp_server_with_state(bind_addr: &str, state: GameState) -> 
             }
             simulation.step(0, 0);
             if let Err(e) = simulation.maintain_chunk_cache() {
-                if simulation.state.world.check_storage().is_err() {
+                if simulation.state.check_dimension_storage().is_err() {
                     return Err(e);
                 }
                 eprintln!("Chunk eviction save failed; terrain retained: {e}");
@@ -2117,6 +2213,34 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+#[path = "cooperative_dimensions_tests.rs"]
+mod cooperative_dimensions_tests;
+
+#[cfg(test)]
+mod dimension_prediction_tests {
+    use super::*;
+    #[test]
+    fn first_nether_snapshot_resets_the_replica_and_drops_source_world_presses() {
+        let mut client = ClientPredictionState::new(1);
+        client.queue_local_command(ClientCommand::SetMoveRight(true));
+        let mut state = GameState::network_view();
+        state.current_dimension = Dimension::Nether;
+        let mut snapshot = ServerSnapshot::from_state(1, &state);
+        snapshot.acknowledged_sequence = 0;
+        client.apply_server_message(ServerWireMessage::Snapshot(Box::new(snapshot)));
+        assert_eq!(client.physics.current_dimension, Dimension::Nether);
+        assert_eq!(client.physics.world.dimension, Dimension::Nether);
+        assert_eq!(client.pending_input_count(), 0);
+        assert!(client.take_outbound_inputs().is_empty());
+        assert_eq!(
+            client
+                .queue_local_command(ClientCommand::UseAt(0, 8))
+                .dimension,
+            SnapshotDimension::Nether
+        );
+    }
+}
 #[cfg(test)]
 #[path = "cooperative_tests.rs"]
 mod cooperative_tests;
