@@ -1,4 +1,5 @@
 mod attachments;
+mod portals;
 pub use attachments::{RoomMaterial, TorchAttachment};
 pub mod block;
 pub mod chunk;
@@ -653,6 +654,12 @@ impl World {
         chunk.set_block(local_x, local_y, block);
         if previous == block {
             return;
+        }
+        if matches!(previous, BlockType::Obsidian | BlockType::NetherPortal) {
+            self.prune_broken_nether_portals_near(world_x, world_y);
+        }
+        if previous == (BlockType::EndPortalFrame { filled: true }) {
+            self.prune_broken_end_portals_near(world_x, world_y);
         }
         if previous.is_fluid() || block.is_fluid() || self.has_adjacent_fluid(world_x, world_y) {
             self.activate_fluid_chunk_neighbors(chunk_x);

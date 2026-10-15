@@ -102,7 +102,7 @@ separate emergency recovery directory; see below.
 
 `player_progression.bin` is a separate versioned bincode payload.
 
-Current progression version: `7`
+Current progression version: `8`
 
 The progression payload currently contains:
 
@@ -118,11 +118,15 @@ The progression payload currently contains:
 - dragon defeat / credits state
 - movement profile
 - portal cooldown
+- paired Nether portal anchors, including their source dimension and destination
 - XP state
 - difficulty and gamerules
 
-Version 7 is a plain bincode envelope with its version, legacy progression/world
-metadata and the complete player session. Versions 1–6 remain readable and are
+Version 8 is a plain bincode envelope with its version, legacy progression/world
+metadata, the complete player session and a sorted list of portal links. Links
+share the atomic checkpoint write, so returning through an underground or elevated
+portal after reopening reuses its original frame. Version 7 had the complete
+session but did not persist portal links. Versions 1–7 remain readable and are
 upgraded on the next save. Held inputs, mining/bow actions and transient boat/
 fishing references are released on reopening. Invalid full sessions are rejected
 without replacing the original file. It does not use the chunk `MCCF` envelope.

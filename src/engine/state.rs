@@ -334,7 +334,8 @@ const SETTINGS_MENU_ROW_DAYLIGHT_CYCLE: u8 = 3;
 const SETTINGS_MENU_ROW_WEATHER_CYCLE: u8 = 4;
 const SETTINGS_MENU_ROW_KEEP_INVENTORY: u8 = 5;
 const SETTINGS_MENU_ROW_CLOSE: u8 = 6;
-const PLAYER_PROGRESS_VERSION: u16 = 7;
+const PLAYER_PROGRESS_VERSION: u16 = 8;
+const PLAYER_PROGRESS_VERSION_V7: u16 = 7;
 const PLAYER_PROGRESS_VERSION_V6: u16 = 6;
 const PLAYER_PROGRESS_VERSION_V5: u16 = 5;
 const PLAYER_PROGRESS_VERSION_V4: u16 = 4;
@@ -392,6 +393,8 @@ struct PlayerProgressSaveData {
     // Kept out of the legacy wire layout so versions 1–6 remain readable.
     #[serde(skip)]
     complete_session: Option<PlayerSession>,
+    #[serde(skip)]
+    portal_links: Vec<PortalLink>,
     version: u16,
     player_x: f64,
     player_y: f64,
@@ -439,6 +442,16 @@ struct PlayerCheckpointV7 {
     version: u16,
     progress: PlayerProgressSaveData,
     session: PlayerSession,
+}
+
+type PortalLink = ((u8, i32, i32), (i32, i32));
+
+#[derive(Serialize, Deserialize)]
+struct PlayerCheckpointV8 {
+    version: u16,
+    progress: PlayerProgressSaveData,
+    session: PlayerSession,
+    portal_links: Vec<PortalLink>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -627,6 +640,7 @@ impl From<PlayerProgressSaveDataV1> for PlayerProgressSaveData {
     fn from(v1: PlayerProgressSaveDataV1) -> Self {
         Self {
             complete_session: None,
+            portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION,
             player_x: v1.player_x,
             player_y: v1.player_y,
@@ -675,6 +689,7 @@ impl From<PlayerProgressSaveDataV5> for PlayerProgressSaveData {
     fn from(v5: PlayerProgressSaveDataV5) -> Self {
         Self {
             complete_session: None,
+            portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION,
             player_x: v5.player_x,
             player_y: v5.player_y,
@@ -723,6 +738,7 @@ impl From<PlayerProgressSaveDataV4> for PlayerProgressSaveData {
     fn from(v4: PlayerProgressSaveDataV4) -> Self {
         Self {
             complete_session: None,
+            portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION,
             player_x: v4.player_x,
             player_y: v4.player_y,
@@ -771,6 +787,7 @@ impl From<PlayerProgressSaveDataV3> for PlayerProgressSaveData {
     fn from(v3: PlayerProgressSaveDataV3) -> Self {
         Self {
             complete_session: None,
+            portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION,
             player_x: v3.player_x,
             player_y: v3.player_y,
@@ -825,6 +842,7 @@ impl From<PlayerProgressSaveDataV2> for PlayerProgressSaveData {
         };
         Self {
             complete_session: None,
+            portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION,
             player_x: v2.player_x,
             player_y: v2.player_y,
@@ -1433,27 +1451,57 @@ impl GameState {
         if encoded.len() > 1024 * 1024 {
             return None;
         }
-        if encoded.get(..2)? == PLAYER_PROGRESS_VERSION.to_le_bytes() {
+        let version = u16::from_le_bytes(encoded.get(..2)?.try_into().ok()?);
+        if matches!(
+            version,
+            PLAYER_PROGRESS_VERSION | PLAYER_PROGRESS_VERSION_V7
+        ) {
             use bincode::Options;
-            let checkpoint: PlayerCheckpointV7 = bincode::DefaultOptions::new()
+            let options = bincode::DefaultOptions::new()
                 .with_fixint_encoding()
                 .with_limit(1024 * 1024)
-                .reject_trailing_bytes()
-                .deserialize(&encoded)
-                .ok()?;
-            let mut data = checkpoint.progress;
-            checkpoint.session.validate().ok()?;
-            if checkpoint.version != PLAYER_PROGRESS_VERSION
-                || data.version != PLAYER_PROGRESS_VERSION
+                .reject_trailing_bytes();
+            let (checkpoint_version, mut data, session, links) =
+                if version == PLAYER_PROGRESS_VERSION {
+                    let checkpoint: PlayerCheckpointV8 = options.deserialize(&encoded).ok()?;
+                    (
+                        checkpoint.version,
+                        checkpoint.progress,
+                        checkpoint.session,
+                        checkpoint.portal_links,
+                    )
+                } else {
+                    let checkpoint: PlayerCheckpointV7 = options.deserialize(&encoded).ok()?;
+                    (
+                        checkpoint.version,
+                        checkpoint.progress,
+                        checkpoint.session,
+                        Vec::new(),
+                    )
+                };
+            session.validate().ok()?;
+            if checkpoint_version != version
+                || data.version != version
                 || Self::decode_dimension(data.current_dimension_code).is_none()
                 || !data.time_of_day.is_finite()
                 || !data.weather_rain_intensity.is_finite()
                 || !data.weather_wind_intensity.is_finite()
                 || !data.weather_thunder_intensity.is_finite()
+                || links
+                    .iter()
+                    .any(|&((dimension, x, y), (target_x, target_y))| {
+                        dimension > 1
+                            || !(3..CHUNK_HEIGHT as i32).contains(&y)
+                            || !(3..CHUNK_HEIGHT as i32).contains(&target_y)
+                            || x.checked_mul(8).is_none()
+                            || target_x.checked_mul(8).is_none()
+                    })
             {
                 return None;
             }
-            data.complete_session = Some(checkpoint.session);
+            data.version = PLAYER_PROGRESS_VERSION;
+            data.complete_session = Some(session);
+            data.portal_links = links;
             return Some(data);
         }
         if let Ok(mut data) = bincode::deserialize::<PlayerProgressSaveData>(&encoded) {
@@ -1535,6 +1583,15 @@ impl GameState {
     fn to_progression_save_data(&self) -> PlayerProgressSaveData {
         PlayerProgressSaveData {
             complete_session: Some(PlayerSession::capture(self)),
+            portal_links: {
+                let mut links: Vec<_> = self
+                    .portal_links
+                    .iter()
+                    .map(|(&source, &target)| (source, target))
+                    .collect();
+                links.sort_unstable();
+                links
+            },
             version: PLAYER_PROGRESS_VERSION,
             player_x: self.player.x,
             player_y: self.player.y,
@@ -1580,10 +1637,11 @@ impl GameState {
 
     fn encode_progression(data: &PlayerProgressSaveData) -> bincode::Result<Vec<u8>> {
         if let Some(session) = &data.complete_session {
-            bincode::serialize(&PlayerCheckpointV7 {
+            bincode::serialize(&PlayerCheckpointV8 {
                 version: PLAYER_PROGRESS_VERSION,
                 progress: data.clone(),
                 session: session.clone(),
+                portal_links: data.portal_links.clone(),
             })
         } else {
             // Legacy fixtures; new runtime checkpoints always contain a full session.
@@ -1899,6 +1957,7 @@ impl GameState {
                 .unwrap_or_else(|| Self::infer_game_rules_preset(state.game_rules));
             state.sync_game_rules_preset_from_rules();
 
+            state.portal_links = saved.portal_links.into_iter().collect();
             if let Some(mut session) = saved.complete_session {
                 session.release_inputs();
                 session.apply(&mut state);
@@ -4015,7 +4074,13 @@ impl GameState {
         }
         if is_break {
             let target_block = self.world.get_block(bx, by);
-            if target_block == BlockType::Air || target_block == BlockType::Bedrock {
+            if matches!(
+                target_block,
+                BlockType::Air
+                    | BlockType::Bedrock
+                    | BlockType::NetherPortal
+                    | BlockType::EndPortal
+            ) {
                 self.player.mining_timer = 0.0;
                 return;
             }
@@ -7136,37 +7201,7 @@ impl GameState {
     }
 
     fn is_valid_portal_frame_at(&self, inner_x: i32, inner_y: i32) -> bool {
-        let left = inner_x - 1;
-        let right = inner_x + 2;
-        let top = inner_y - 1;
-        let bottom = inner_y + 3;
-        if top < 0 || bottom >= 127 {
-            return false;
-        }
-
-        for x in left..=right {
-            if self.world.get_block(x, top) != BlockType::Obsidian
-                || self.world.get_block(x, bottom) != BlockType::Obsidian
-            {
-                return false;
-            }
-        }
-        for y in top..=bottom {
-            if self.world.get_block(left, y) != BlockType::Obsidian
-                || self.world.get_block(right, y) != BlockType::Obsidian
-            {
-                return false;
-            }
-        }
-        for x in inner_x..=(inner_x + 1) {
-            for y in inner_y..=(inner_y + 2) {
-                let b = self.world.get_block(x, y);
-                if b != BlockType::Air && b != BlockType::NetherPortal {
-                    return false;
-                }
-            }
-        }
-        true
+        self.world.nether_portal_frame_at(inner_x, inner_y)
     }
 
     fn fill_portal_interior(&mut self, inner_x: i32, inner_y: i32) {
@@ -7190,28 +7225,7 @@ impl GameState {
     }
 
     fn is_valid_end_portal_frame_at(&self, inner_x: i32, inner_y: i32) -> bool {
-        let left = inner_x - 1;
-        let right = inner_x + 2;
-        let top = inner_y - 1;
-        let bottom = inner_y + 2;
-        if top < 0 || bottom >= 127 {
-            return false;
-        }
-
-        for x in left..=right {
-            for y in top..=bottom {
-                let is_frame = x == left || x == right || y == top || y == bottom;
-                let block = self.world.get_block(x, y);
-                if is_frame {
-                    if block != (BlockType::EndPortalFrame { filled: true }) {
-                        return false;
-                    }
-                } else if block != BlockType::Air && block != BlockType::EndPortal {
-                    return false;
-                }
-            }
-        }
-        true
+        self.world.end_portal_frame_at(inner_x, inner_y)
     }
 
     fn fill_end_portal_interior(&mut self, inner_x: i32, inner_y: i32) {
@@ -7235,30 +7249,7 @@ impl GameState {
     }
 
     fn nether_portal_anchor_for_block(&self, block_x: i32, block_y: i32) -> Option<(i32, i32)> {
-        if self.world.get_block(block_x, block_y) != BlockType::NetherPortal {
-            return None;
-        }
-
-        let mut inner_x = block_x;
-        while self.world.get_block(inner_x - 1, block_y) == BlockType::NetherPortal {
-            inner_x -= 1;
-        }
-
-        let mut bottom_portal_y = block_y;
-        while self.world.get_block(block_x, bottom_portal_y + 1) == BlockType::NetherPortal {
-            bottom_portal_y += 1;
-        }
-
-        let inner_y = bottom_portal_y - 2;
-        if inner_y < 0 {
-            return None;
-        }
-
-        if self.is_valid_portal_frame_at(inner_x, inner_y) {
-            Some((inner_x, bottom_portal_y + 1))
-        } else {
-            None
-        }
+        self.world.nether_portal_anchor_at(block_x, block_y)
     }
 
     fn nether_portal_link_key(dimension: Dimension, inner_x: i32, base_y: i32) -> (u8, i32, i32) {
@@ -7276,11 +7267,11 @@ impl GameState {
     fn is_valid_nether_portal_anchor(&self, inner_x: i32, base_y: i32) -> bool {
         base_y >= 3
             && base_y < CHUNK_HEIGHT as i32
-            && self.is_valid_portal_frame_at(inner_x, base_y - 3)
+            && self.nether_portal_anchor_for_block(inner_x, base_y - 1) == Some((inner_x, base_y))
     }
 
     fn linked_nether_portal_anchor(
-        &self,
+        &mut self,
         source_dimension: Dimension,
         source_anchor: (i32, i32),
     ) -> Option<(i32, i32)> {
@@ -7289,6 +7280,7 @@ impl GameState {
             source_anchor.0,
             source_anchor.1,
         ))?;
+        self.world.load_chunks_around(target_anchor.0);
         if self.is_valid_nether_portal_anchor(target_anchor.0, target_anchor.1) {
             Some(target_anchor)
         } else {
@@ -7486,6 +7478,25 @@ impl GameState {
         self.portal_cooldown = 40;
     }
 
+    pub fn portal_interaction_hint(&self, bx: i32, by: i32) -> Option<&'static str> {
+        let target = self.portal_use_target_at(bx, by)?;
+        Some(if self.cooperative() {
+            "Travel: solo worlds"
+        } else if !self.has_portal_use_line_of_sight(
+            self.player.x,
+            self.player.y - 1.0,
+            bx,
+            by,
+            target,
+        ) {
+            "Blocked: move around"
+        } else if self.portal_cooldown > 0 {
+            "Portal recharging..."
+        } else {
+            "R-click / F: travel"
+        })
+    }
+
     fn find_existing_nether_portal_near(
         &mut self,
         approx_x: i32,
@@ -7612,6 +7623,11 @@ impl GameState {
             let median_ground_y = surrounding_ground[surrounding_ground.len() / 2];
             if base_y + 4 < median_ground_y {
                 return true;
+            }
+            // A complete portal below the surface belongs to a cave or a room,
+            // not a floating platform. This also lets pre-link saves rediscover it.
+            if base_y > median_ground_y + 4 && self.is_valid_nether_portal_anchor(inner_x, base_y) {
+                return false;
             }
         }
 
@@ -7764,6 +7780,19 @@ impl GameState {
 
         self.ensure_nether_portal_at(portal_x, base_y);
         (spawn_x, base_y as f64 - 0.1)
+    }
+
+    fn existing_portal_arrival(&self, portal_x: i32, base_y: i32) -> (f64, f64) {
+        // Reusing a frame must not bulldoze the player's lights, storage or home.
+        for offset in [3, -2, 4, -3, 5, -4, 6, -5, 7, -6] {
+            let x = portal_x + offset;
+            if Self::is_safe_spawn_column_base(&self.world, x, base_y, false) {
+                return (x as f64 + 0.5, base_y as f64 - 0.1);
+            }
+        }
+        // A valid opening is always two blocks wide and three high. If both
+        // exits were built over, arrive inside it rather than erasing the build.
+        (portal_x as f64 + 0.5, base_y as f64 - 0.1)
     }
 
     fn find_end_arrival_site(&mut self) -> (i32, i32) {
@@ -10005,29 +10034,30 @@ impl GameState {
         self.world.load_chunks_around(target_x);
         self.reset_weather_for_dimension();
 
+        // A saved link names the player's chosen frame, including cave homes and
+        // elevated builds. Surface heuristics apply only to automatic discovery.
         let linked_portal = resolved_source_anchor
-            .and_then(|anchor| self.linked_nether_portal_anchor(source_dimension, anchor))
-            .filter(|&(inner_x, base_y)| {
-                target_dimension != Dimension::Overworld
-                    || !self.overworld_portal_anchor_is_elevated(inner_x, base_y)
-            });
-        let (portal_x, base_y) = linked_portal
-            .or_else(|| {
-                self.find_existing_nether_portal_near(target_x, PORTAL_SEARCH_RADIUS)
-                    .filter(|&(inner_x, base_y)| {
-                        target_dimension != Dimension::Overworld
-                            || !self.overworld_portal_anchor_is_elevated(inner_x, base_y)
-                    })
-            })
-            .unwrap_or_else(|| {
-                if target_dimension == Dimension::Overworld {
-                    self.find_overworld_portal_arrival_site(target_x, 20)
-                } else {
-                    let base_y = self.find_walkable_surface(target_x);
-                    (target_x, base_y)
-                }
-            });
-        let (arrival_x, arrival_y) = self.build_portal_arrival_vestibule(portal_x, base_y);
+            .and_then(|anchor| self.linked_nether_portal_anchor(source_dimension, anchor));
+        let existing_portal = linked_portal.or_else(|| {
+            self.find_existing_nether_portal_near(target_x, PORTAL_SEARCH_RADIUS)
+                .filter(|&(inner_x, base_y)| {
+                    target_dimension != Dimension::Overworld
+                        || !self.overworld_portal_anchor_is_elevated(inner_x, base_y)
+                })
+        });
+        let (portal_x, base_y) = existing_portal.unwrap_or_else(|| {
+            if target_dimension == Dimension::Overworld {
+                self.find_overworld_portal_arrival_site(target_x, 20)
+            } else {
+                let base_y = self.find_walkable_surface(target_x);
+                (target_x, base_y)
+            }
+        });
+        let (arrival_x, arrival_y) = if existing_portal.is_some() {
+            self.existing_portal_arrival(portal_x, base_y)
+        } else {
+            self.build_portal_arrival_vestibule(portal_x, base_y)
+        };
         if let Some(source_anchor) = resolved_source_anchor {
             self.remember_nether_portal_link(source_dimension, source_anchor, (portal_x, base_y));
         }
@@ -10037,6 +10067,10 @@ impl GameState {
         self.player.vx = 0.0;
         self.player.vy = 0.0;
         self.player.grounded = false;
+        self.player.fall_distance = 0.0;
+        self.jump_held = false;
+        self.jump_buffer_ticks = 0;
+        self.stop_sprinting();
 
         self.clear_dimension_entities();
         self.eye_guidance_timer = 0;
@@ -10252,7 +10286,11 @@ impl GameState {
 
         let (arrival_x, arrival_y) = if target_dimension == Dimension::End {
             let (best_x, best_y) = self.find_end_arrival_site();
-            self.prepare_end_arrival_pad(best_x, best_y)
+            if Self::is_safe_spawn_column_base(&self.world, best_x, best_y, false) {
+                (best_x as f64 + 0.5, best_y as f64 - 0.1)
+            } else {
+                self.prepare_end_arrival_pad(best_x, best_y)
+            }
         } else {
             (
                 target_x as f64 + 0.5,
@@ -10264,6 +10302,10 @@ impl GameState {
         self.player.vx = 0.0;
         self.player.vy = 0.0;
         self.player.grounded = false;
+        self.player.fall_distance = 0.0;
+        self.jump_held = false;
+        self.jump_buffer_ticks = 0;
+        self.stop_sprinting();
         if target_dimension == Dimension::End {
             self.respawn_grace_ticks = self.respawn_grace_ticks.max(24);
         }
@@ -17957,6 +17999,248 @@ mod tests {
     }
 
     #[test]
+    fn test_portal_frame_break_extinguishes_the_whole_interior() {
+        let mut state = GameState::new();
+        configure_quiet_world(&mut state);
+        state.ensure_nether_portal_at(0, 12);
+        state.world.set_block(-1, 10, BlockType::Air);
+        for x in 0..=1 {
+            for y in 9..=11 {
+                assert_eq!(state.world.get_block(x, y), BlockType::Air);
+            }
+        }
+    }
+
+    #[test]
+    fn test_end_portal_frame_can_be_broken_repaired_and_reactivated() {
+        let mut state = GameState::new();
+        configure_quiet_world(&mut state);
+        for x in -1..=2 {
+            for y in 8..=11 {
+                state.world.set_block(
+                    x,
+                    y,
+                    if x == -1 || x == 2 || y == 8 || y == 11 {
+                        BlockType::EndPortalFrame { filled: true }
+                    } else {
+                        BlockType::Air
+                    },
+                );
+            }
+        }
+        assert!(state.try_activate_end_portal_from_frame(-1, 10));
+        state.world.set_block(-1, 10, BlockType::Air);
+        for x in 0..=1 {
+            for y in 9..=10 {
+                assert_eq!(state.world.get_block(x, y), BlockType::Air);
+            }
+        }
+        state
+            .world
+            .set_block(-1, 10, BlockType::EndPortalFrame { filled: true });
+        assert!(state.try_activate_end_portal_from_frame(-1, 10));
+        assert_eq!(state.world.get_block(1, 10), BlockType::EndPortal);
+    }
+
+    #[test]
+    fn test_cornerless_portal_ignites_and_shows_travel_and_cooldown_hints() {
+        let mut state = GameState::new();
+        configure_quiet_world(&mut state);
+        for x in -4..=4 {
+            for y in 0..12 {
+                state.world.set_block(x, y, BlockType::Air);
+            }
+        }
+        state.ensure_nether_portal_at(0, 12);
+        // Extinguish, remove optional corners, then ignite with the ordinary command.
+        state.world.set_block(-1, 10, BlockType::Air);
+        state.world.set_block(-1, 10, BlockType::Obsidian);
+        for (x, y) in [(-1, 8), (2, 8), (-1, 12), (2, 12)] {
+            state.world.set_block(x, y, BlockType::Air);
+        }
+        state.player.x = 0.5;
+        state.player.y = 12.0;
+        state.inventory.slots[0] = Some(GameState::fresh_item_stack(ItemType::FlintAndSteel, 1));
+        state.hotbar_index = 0;
+        state.apply_client_command(ClientCommand::UseAt(-1, 10));
+        assert_eq!(state.nether_portal_anchor_for_block(1, 9), Some((0, 12)));
+        assert_eq!(
+            state.portal_interaction_hint(0, 10),
+            Some("R-click / F: travel")
+        );
+        state.portal_cooldown = 40;
+        assert_eq!(
+            state.portal_interaction_hint(0, 10),
+            Some("Portal recharging...")
+        );
+    }
+
+    #[test]
+    fn test_portal_surface_cannot_be_mined_into_a_broken_half_portal() {
+        let mut state = GameState::new();
+        configure_quiet_world(&mut state);
+        for x in -4..=4 {
+            for y in 0..12 {
+                state.world.set_block(x, y, BlockType::Air);
+            }
+        }
+        state.ensure_nether_portal_at(0, 12);
+        state.player.x = 0.5;
+        state.player.y = 12.0;
+        state.interact_block(0, 10, true);
+        assert_eq!(state.world.get_block(0, 10), BlockType::NetherPortal);
+        state.world.set_block(0, 10, BlockType::EndPortal);
+        state.interact_block(0, 10, true);
+        assert_eq!(state.world.get_block(0, 10), BlockType::EndPortal);
+    }
+
+    #[test]
+    fn test_return_portal_preserves_workshop_and_glowstone() {
+        let mut state = GameState::new();
+        configure_quiet_world(&mut state);
+        for x in 8..=28 {
+            for y in 0..20 {
+                state.world.set_block(x, y, BlockType::Air);
+            }
+            state.world.set_block(x, 10, BlockType::Stone);
+        }
+        state.ensure_nether_portal_at(16, 10);
+        // A roof must not make an intentionally linked underground portal invalid.
+        for x in 8..=28 {
+            state.world.set_block(x, 4, BlockType::StoneBricks);
+        }
+        assert_eq!(
+            state.find_existing_nether_portal_near(16, 2),
+            Some((16, 10))
+        );
+        state.world.set_block(20, 9, BlockType::Glowstone);
+        state.world.set_block(21, 9, BlockType::Chest);
+        state
+            .world
+            .ensure_chest_inventory(21, 9, 27)
+            .unwrap()
+            .add_item(ItemType::Diamond, 3);
+        state.player.x = 16.5;
+        state.player.y = 10.0;
+        state.player.fall_distance = 100.0;
+        state.apply_client_command(ClientCommand::UseAt(16, 8));
+        assert_eq!(state.current_dimension, Dimension::Nether);
+        assert_eq!(state.player.fall_distance, 0.0);
+        let (x, y) = state.find_existing_nether_portal_near(2, 8).unwrap();
+        state.player.x = x as f64 + 0.5;
+        state.player.y = y as f64;
+        state.portal_cooldown = 0;
+        state.apply_client_command(ClientCommand::UseAt(x, y - 2));
+        assert_eq!(state.current_dimension, Dimension::Overworld);
+        assert!(
+            (state.player.y - 9.9).abs() < 0.01,
+            "return must use the original underground frame"
+        );
+        assert_eq!(state.world.get_block(20, 9), BlockType::Glowstone);
+        assert_eq!(state.world.get_block(21, 9), BlockType::Chest);
+        assert_eq!(
+            state.world.chest_inventory(21, 9).unwrap().slots[0]
+                .as_ref()
+                .unwrap()
+                .count,
+            3
+        );
+    }
+
+    #[test]
+    fn test_end_arrival_preserves_lights_and_storage_beside_a_safe_landing() {
+        let mut state = GameState::new();
+        configure_quiet_world(&mut state);
+        state.current_dimension = Dimension::End;
+        state.world = state.world.for_dimension(Dimension::End);
+        let (x, y) = state.find_end_arrival_site();
+        state.world.set_block(x - 2, y - 1, BlockType::Chest);
+        state.world.set_block(x + 2, y - 1, BlockType::Glowstone);
+        state.world.save_all();
+        state.current_dimension = Dimension::Overworld;
+        state.world = state.world.for_dimension(Dimension::Overworld);
+        state.world.load_chunks_around(0);
+
+        state.transfer_overworld_end_dimension(Dimension::End);
+
+        assert_eq!(state.current_dimension, Dimension::End);
+        assert_eq!(state.world.get_block(x - 2, y - 1), BlockType::Chest);
+        assert_eq!(state.world.get_block(x + 2, y - 1), BlockType::Glowstone);
+        assert!(GameState::is_safe_spawn_column_base(
+            &state.world,
+            state.player.x.floor() as i32,
+            state.player.y.ceil() as i32,
+            false
+        ));
+    }
+
+    #[test]
+    fn test_saved_portal_link_loads_a_frame_outside_the_mapped_chunk_radius() {
+        let mut state = GameState::new();
+        configure_quiet_world(&mut state);
+        state.world.load_chunks_around(1024);
+        state.ensure_nether_portal_at(1024, 12);
+        state.world.save_all();
+        state.world = state.world.for_dimension(Dimension::Overworld);
+        state.world.load_chunks_around(0);
+        state.remember_nether_portal_link(Dimension::Nether, (0, 12), (1024, 12));
+
+        assert_eq!(
+            state.linked_nether_portal_anchor(Dimension::Nether, (0, 12)),
+            Some((1024, 12))
+        );
+    }
+
+    #[test]
+    fn test_blocked_portal_arrival_uses_the_opening_without_erasing_surroundings() {
+        let mut state = GameState::new();
+        configure_quiet_world(&mut state);
+        for x in -8..=8 {
+            for y in 7..=13 {
+                state.world.set_block(x, y, BlockType::StoneBricks);
+            }
+        }
+        state.ensure_nether_portal_at(0, 12);
+        let arrival = state.existing_portal_arrival(0, 12);
+        assert_eq!(arrival, (0.5, 11.9));
+        assert_eq!(state.world.get_block(3, 10), BlockType::StoneBricks);
+        assert_eq!(state.world.get_block(-2, 10), BlockType::StoneBricks);
+    }
+
+    #[test]
+    fn test_glowstone_can_be_placed_and_mined_with_a_drop() {
+        let mut state = GameState::new();
+        configure_quiet_world(&mut state);
+        for x in -4..=4 {
+            for y in 0..10 {
+                state.world.set_block(x, y, BlockType::Air);
+            }
+            state.world.set_block(x, 10, BlockType::Stone);
+        }
+        state.player.x = 0.5;
+        state.player.y = 10.0;
+        state.inventory.slots[0] = Some(ItemStack {
+            item_type: ItemType::Glowstone,
+            count: 1,
+            durability: None,
+        });
+        state.hotbar_index = 0;
+        state.apply_client_command(ClientCommand::UseAt(1, 9));
+        assert_eq!(state.world.get_block(1, 9), BlockType::Glowstone);
+        assert!(state.inventory.slots[0].is_none());
+        for _ in 0..10 {
+            state.interact_block(1, 9, true);
+        }
+        assert_eq!(state.world.get_block(1, 9), BlockType::Air);
+        assert!(
+            state
+                .item_entities
+                .iter()
+                .any(|drop| drop.item_type == ItemType::Glowstone)
+        );
+    }
+
+    #[test]
     fn test_obsidian_frame_does_not_activate_without_flint_and_steel() {
         let mut state = GameState::new();
         state.world.load_chunks_around(0);
@@ -22250,6 +22534,7 @@ mod tests {
         state.game_rules = GameRulesPreset::Builder.rules();
         state.spawn_point = Some((12, 9));
         state.set_total_experience(321);
+        state.remember_nether_portal_link(Dimension::Overworld, (16, 36), (2, 58));
 
         let data = state.to_progression_save_data();
         let unique = SystemTime::now()
@@ -22264,6 +22549,8 @@ mod tests {
             GameState::load_progression_data_from_path(&path).expect("helper load should succeed");
 
         assert_eq!(loaded.version, PLAYER_PROGRESS_VERSION);
+        assert_eq!(loaded.portal_links, data.portal_links);
+        assert_eq!(loaded.portal_links.len(), 2);
         assert_eq!(loaded.player_x, 42.5);
         assert_eq!(loaded.player_y, 17.25);
         assert_eq!(loaded.player_health, 13.5);
@@ -22318,6 +22605,25 @@ mod tests {
         assert!(!temp_path.exists());
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_player_progression_loader_upgrades_v7_without_discarding_the_session() {
+        let state = GameState::new();
+        let mut progress = state.to_progression_save_data();
+        progress.version = PLAYER_PROGRESS_VERSION_V7;
+        let path = state.world.save_root().join("legacy-v7-checkpoint.bin");
+        let payload = bincode::serialize(&PlayerCheckpointV7 {
+            version: PLAYER_PROGRESS_VERSION_V7,
+            progress,
+            session: PlayerSession::capture(&state),
+        })
+        .unwrap();
+        GameState::write_progression_payload_atomically(&path, &payload).unwrap();
+        let upgraded = GameState::load_progression_data_from_path(&path).unwrap();
+        assert_eq!(upgraded.version, PLAYER_PROGRESS_VERSION);
+        assert_eq!(upgraded.complete_session.unwrap().player.x, state.player.x);
+        assert!(upgraded.portal_links.is_empty());
     }
 
     #[test]
@@ -22703,6 +23009,7 @@ mod tests {
 
         let data = PlayerProgressSaveData {
             complete_session: None,
+            portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION + 1,
             player_x: 0.5,
             player_y: 9.9,

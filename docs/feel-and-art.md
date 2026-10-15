@@ -33,6 +33,31 @@ preceding torch correction; F4 still selects different pixel/glyph resolutions.
 cover actual rendered motion, above-viewport roofs and combined native/co-op input.
 Human movement feel, emulator latency and visual acceptance remain open.
 
+## Glowstone and portal verification, 15 October
+
+Returning through a Nether portal rebuilt its arrival area and erased nearby
+player blocks. Reusing a complete frame now chooses an existing safe standing
+position, with the opening itself as a fallback when both exits are blocked.
+Safe End landings also avoid clearing nearby builds. Explicit saved portal links
+load and reuse the chosen frame, including underground and elevated homes;
+surface-placement heuristics are reserved for automatic portal discovery.
+
+Frame validation is shared by ignition, travel and destruction. Removing a required
+Nether frame block extinguishes all six tiles; removing a filled End frame block
+extinguishes its opening. Nether corners are optional. Portal surfaces resist
+mining, while breakable frames can be repaired and reactivated. Travel resets
+fall distance and jump/sprint state. The target panel explains manual travel and
+the two-second cooldown. Dimension travel remains a solo-world feature.
+
+`examples/portal_review.rs` executes actual glowstone placement, Flint and Steel
+ignition, Nether travel, a save/reload, return through the original underground
+frame, preservation of glowstone/chest contents, twelve Eye insertions and End
+travel/return. Its nine scenes each have three native view settings in the
+[gallery](design/world-atlas-2026-10-15/index.html#portal-ignition). Renderer tests
+compare a cave floor before lighting, with glowstone, and after removal in all
+three views. Frame lifecycle tests include negative coordinates and chunk seams.
+These scripted checks establish behavior, rather than human gameplay acceptance.
+
 ## Try the candidate
 
 Run the local development executable. Restart the co-op server and every client

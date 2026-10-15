@@ -78,6 +78,30 @@ The crafting grid changes based on context:
 - `F` is the keyboard fallback for hovered-block interaction when terminal mouse support is inconsistent.
 - Chests, furnaces, doors, portals, and other interactables use the same interaction path.
 
+### Glowstone and portals
+
+Glowstone is a solid, placeable light block. It lights nearby terrain and figures
+with a warm glow, remains bright in caves and drops glowstone when mined. Removing
+it removes its light on the next rendered frame.
+
+For a Nether portal, build a 4-block-wide, 5-block-high obsidian outline with a
+2×3 empty opening. The four corners are optional (ten obsidian blocks minimum).
+Hold Flint and Steel and right-click or press `F` on the frame to ignite it.
+Use the active opening or its obsidian frame within reach to travel; merely
+standing in it does not transfer you. The target hint displays `R-click / F: travel`
+or `Portal recharging...` during the two-second cooldown. Breaking a required frame
+block extinguishes the whole opening. Repair the frame and ignite it again.
+
+An End portal uses twelve frame blocks around a 2×2 opening. Fill each with an
+Eye of Ender, then use the opening or frame. The bedrock return portal uses the
+same interaction. Portal surfaces cannot be mined; their breakable frames can.
+Reusing a Nether portal preserves nearby buildings, lights and chest contents;
+safe End arrival sites are reused without clearing existing builds. Falling
+momentum and accumulated fall distance reset during travel.
+
+Dimension travel currently works in solo worlds. Co-op players share one dimension;
+portal use does not transfer that shared server between dimensions.
+
 ## Travel / Test Shortcuts
 
 These exist in the current build and are especially useful for testing:

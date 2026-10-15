@@ -4003,6 +4003,8 @@ impl Renderer {
                 )
             } else if dist > 4.5 {
                 "Move closer to target".into()
+            } else if let Some(hint) = state.portal_interaction_hint(hover_bx, hover_by) {
+                hint.into()
             } else if !state.can_see_block(state.player.x, state.player.y - 1.0, hover_bx, hover_by)
             {
                 "Blocked: move around".into()
@@ -6269,6 +6271,59 @@ mod tests {
         assert!(soul_r > soul_g && soul_g > soul_b);
         assert!(glow_r >= glow_g && glow_g > glow_b);
         assert!(portal_b > portal_r);
+    }
+
+    #[test]
+    fn glowstone_lights_a_cave_floor_and_removal_restores_darkness_in_every_view() {
+        let mut state = GameState::network_view();
+        state.dismiss_startup_splash();
+        state.player.x = 0.5;
+        state.player.y = 35.0;
+        state.time_of_day = 0.0;
+        let air = vec![BlockType::Air; crate::world::chunk::CHUNK_WIDTH * CHUNK_HEIGHT];
+        for chunk in -2..=2 {
+            state.world.apply_chunk_column_snapshot(chunk, &air);
+        }
+        for x in -64..=64 {
+            state.world.set_block(x, 25, BlockType::Stone);
+            state.world.set_block(x, 35, BlockType::Stone);
+        }
+        for zoom in 0..3 {
+            let mut renderer = Renderer::with_size(160, 48);
+            renderer.zoom = zoom;
+            let brightness = |r: &Renderer, state: &GameState| -> u64 {
+                let mut sum = 0;
+                for y in 1..44 {
+                    for x in 0..136 {
+                        if r.screen_to_world(state, x, y) == (4, 35) {
+                            let cell = r.back_buffer[y as usize * 160 + x as usize];
+                            for color in [cell.fg, cell.bg] {
+                                if let Some((r, g, b)) = Renderer::color_rgb(color) {
+                                    sum += r as u64 + g as u64 + b as u64;
+                                }
+                            }
+                        }
+                    }
+                }
+                sum
+            };
+            renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+            let dark = brightness(&renderer, &state);
+            state.world.set_block(3, 34, BlockType::Glowstone);
+            renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+            let lit = brightness(&renderer, &state);
+            state.world.set_block(3, 34, BlockType::Air);
+            renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+            assert!(
+                dark > 0 && lit > dark * 6 / 5,
+                "zoom {zoom}: {dark} -> {lit}"
+            );
+            assert_eq!(
+                brightness(&renderer, &state),
+                dark,
+                "stale glow at zoom {zoom}"
+            );
+        }
     }
 
     #[test]
