@@ -407,3 +407,19 @@ gravel, birch foliage, snow/ice, reeds, saplings, wool, ore inclusions and obsid
 have focused material refinements. Overview uses its authored small silhouettes;
 this also restores thin fixtures such as redstone torches that detail sampling
 could previously erase.
+
+## Gallery follow-up
+
+All three Nether route-landmark variants now spawn naturally; the old marker
+arithmetic selected only shrines. The gallery bridge/reliquary cards are native
+captures rather than hand-built studies. Usable doors, walking cutaways, supported
+loot, roof-mounted lights and short recessed masonry supports preserve the 2D
+route without leaving floating architectural caps. Existing chunks are preserved.
+
+The galleries have static cover grids and content-stamped image URLs. Serve both
+with `python3 scripts/serve_gallery.py --port 8774`, then check every delivered
+image with `python3 scripts/verify_gallery.py --base-url http://127.0.0.1:8774/`.
+The verifier checks returned bytes, content revisions, dimensions and every GIF
+frame. Return-portal functionality is covered by gameplay tests; earlier gallery
+wording that called it a scaffold has been corrected. End cities remain outside
+the currently implemented content.

@@ -48,7 +48,8 @@ def main():
             filename = f'block-{index:03}-{mode.lower()}.png'
             sample.save(args.output / filename)
             name = html.escape(block['name'])
-            samples.append(f'<figure><img loading="lazy" src="{filename}" alt="{name} · {mode}"><figcaption>{mode}</figcaption></figure>')
+            revision = hashlib.sha256((args.output / filename).read_bytes()).hexdigest()[:16]
+            samples.append(f'<figure><img src="{filename}?v={revision}" width="144" height="144" alt="{name} · {mode}"><figcaption>{mode}</figcaption></figure>')
         changed = block['name'] in refined
         cards.append(f'<article data-name="{name.lower()}" data-refined="{str(changed).lower()}"><h2>{name}</h2><span>{"Refined" if changed else "Reviewed · retained"}</span><div class="samples">{"".join(samples)}</div></article>')
     assert len(cards) == 97

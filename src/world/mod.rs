@@ -5509,6 +5509,41 @@ impl World {
         }
     }
 
+    fn nether_route_landmark_seed(cell: i32) -> u32 {
+        // Mix the global cell in u32 arithmetic. The previous modulus and both
+        // LCG constants were divisible by three, making every variant a shrine.
+        let mut seed = (cell as u32).wrapping_add(0x9E37_79B9);
+        seed = (seed ^ (seed >> 16)).wrapping_mul(0x85EB_CA6B);
+        seed = (seed ^ (seed >> 13)).wrapping_mul(0xC2B2_AE35);
+        seed ^ (seed >> 16)
+    }
+
+    fn prepare_nether_route_floor(
+        chunk: &mut Chunk,
+        c_start: i32,
+        c_end: i32,
+        left: i32,
+        right: i32,
+        floor_y: i32,
+    ) {
+        for x in left..=right {
+            for y in floor_y - 3..=floor_y + 1 {
+                Self::set_nether_fortress_block(
+                    chunk,
+                    c_start,
+                    c_end,
+                    x,
+                    y,
+                    if y < floor_y {
+                        BlockType::Air
+                    } else {
+                        BlockType::StoneBricks
+                    },
+                );
+            }
+        }
+    }
+
     fn carve_nether_route_shrine(
         chunk: &mut Chunk,
         c_start: i32,
@@ -5541,6 +5576,7 @@ impl World {
             };
         let chest_y = floor_y - 1;
 
+        Self::prepare_nether_route_floor(chunk, c_start, c_end, left, right, floor_y);
         for wx in left..=right {
             for wy in top_y..=chest_y {
                 let is_shell = wx == left || wx == right || wy == top_y;
@@ -5618,6 +5654,30 @@ impl World {
         for brazier_x in [left + 2, right - 2] {
             Self::carve_nether_lava_brazier(chunk, c_start, c_end, brazier_x, floor_y, 2);
         }
+        // Keep the lava below a continuous masonry walking/loot platform.
+        for x in left..=right {
+            Self::set_nether_fortress_block(
+                chunk,
+                c_start,
+                c_end,
+                x,
+                floor_y,
+                BlockType::StoneBricks,
+            );
+        }
+        // Side-view rooms need usable entrances through their solid side walls.
+        for door_x in [left, right] {
+            for y in floor_y - 2..floor_y {
+                Self::set_nether_fortress_block(
+                    chunk,
+                    c_start,
+                    c_end,
+                    door_x,
+                    y,
+                    BlockType::WoodDoor(false),
+                );
+            }
+        }
     }
 
     fn carve_nether_route_bridge(
@@ -5644,6 +5704,7 @@ impl World {
         let beam_y = top_y + 2;
         let bridge_y = floor_y - 1;
         let chest_y = bridge_y - 1;
+        Self::prepare_nether_route_floor(chunk, c_start, c_end, left, right, floor_y);
         for wx in left..=right {
             for wy in top_y..=bridge_y {
                 let is_outer_pylon =
@@ -5656,6 +5717,14 @@ impl World {
                     BlockType::Air
                 };
                 Self::set_nether_fortress_block(chunk, c_start, c_end, wx, wy, block);
+            }
+        }
+
+        // Leave a human-height cutaway through each pylon so this decorative
+        // bridge cannot become an eight-block wall across the only 2D route.
+        for x in [left, left + 1, right - 1, right] {
+            for y in floor_y - 3..floor_y {
+                Self::set_nether_fortress_block(chunk, c_start, c_end, x, y, BlockType::Air);
             }
         }
 
@@ -5734,8 +5803,9 @@ impl World {
 
         let chest_side = if (seed & 1) == 0 { 2 } else { -2 };
         let chest_x = center_x + chest_side;
-        let chest_y = floor_y - 2;
+        let chest_y = floor_y - 1;
 
+        Self::prepare_nether_route_floor(chunk, c_start, c_end, left, right, floor_y);
         for wx in left..=right {
             let dx = (wx - center_x).abs();
             let roof_y = top_y + (dx / 2).min(2);
@@ -5764,23 +5834,23 @@ impl World {
             }
         }
 
-        for brazier_x in [center_x - 3, center_x + 3] {
+        for light_x in [center_x - 3, center_x + 3] {
+            // Roof-mounted lights replace floating floor pedestals that also
+            // obstructed the narrow side-view walking lane.
             Self::set_nether_fortress_block(
                 chunk,
                 c_start,
                 c_end,
-                brazier_x,
-                chest_y,
-                BlockType::StoneBricks,
-            );
-            Self::set_nether_fortress_block(
-                chunk,
-                c_start,
-                c_end,
-                brazier_x,
-                chest_y - 1,
+                light_x,
+                top_y + 2,
                 BlockType::Glowstone,
             );
+        }
+
+        for x in [left, right] {
+            for y in floor_y - 3..floor_y {
+                Self::set_nether_fortress_block(chunk, c_start, c_end, x, y, BlockType::Air);
+            }
         }
 
         for stair_x in [center_x - 2, center_x + 2] {
@@ -5802,10 +5872,6 @@ impl World {
             chest_y as usize,
             seed ^ 0x9E37_79B9,
         );
-
-        for brazier_x in [left + 2, right - 2] {
-            Self::carve_nether_lava_brazier(chunk, c_start, c_end, brazier_x, floor_y, 2);
-        }
     }
 
     fn add_nether_route_landmarks(
@@ -5851,10 +5917,7 @@ impl World {
                 continue;
             }
 
-            let marker_seed = ((cell as i64)
-                .wrapping_mul(1_103_515_245)
-                .wrapping_add(12_345)
-                .rem_euclid(u32::MAX as i64)) as u32;
+            let marker_seed = Self::nether_route_landmark_seed(cell);
             Self::carve_nether_route_landmark(
                 chunk,
                 c_start,
@@ -7475,6 +7538,99 @@ mod tests {
     }
 
     #[test]
+    fn test_nether_route_variants_spawn_in_both_world_directions() {
+        let world =
+            deterministic_generated_world(Dimension::Nether, "all_nether_route_variants", -96, 96);
+        let mut found = [[false; 3]; 2];
+        for x in -3072..3072 {
+            for y in 12..96 {
+                if world.get_block(x, y) != BlockType::Chest || world.is_nether_fortress_zone(x, y)
+                {
+                    continue;
+                }
+                let variant = if world.get_block(x, y + 3) == BlockType::Lava(8)
+                    && world.get_block(x, y - 3) == BlockType::Glowstone
+                {
+                    Some(1)
+                } else if [-1, 1]
+                    .iter()
+                    .any(|dx| world.get_block(x + dx, y) == BlockType::StoneSlab)
+                {
+                    Some(0)
+                } else if [-2, 2].iter().any(|dx| {
+                    let center = x + dx;
+                    world.get_block(center - 3, y - 3) == BlockType::Glowstone
+                        && world.get_block(center + 3, y - 3) == BlockType::Glowstone
+                        && world.get_block(center, y - 5) == BlockType::StoneBricks
+                }) {
+                    Some(2)
+                } else {
+                    None
+                };
+                if let Some(variant) = variant {
+                    found[usize::from(x >= 0)][variant] = true;
+                }
+            }
+        }
+        assert_eq!(found, [[true; 3]; 2], "missing native landmark variants");
+    }
+
+    #[test]
+    fn test_nether_route_rooms_have_a_two_block_walking_route_and_supported_loot() {
+        use std::collections::VecDeque;
+        for seed in [0, 1, 2] {
+            let mut chunk = Chunk::new(0, "nether_landmark_route");
+            for x in 0..CHUNK_WIDTH {
+                for y in 72..CHUNK_HEIGHT {
+                    chunk.set_block(x, y, BlockType::Netherrack);
+                }
+            }
+            World::carve_nether_route_landmark(&mut chunk, 0, CHUNK_WIDTH as i32, 16, 46, 72, seed);
+            let clear = |x: usize, feet: usize| {
+                (1..=2).all(|dy| {
+                    let block = chunk.get_block(x, feet - dy);
+                    !block.is_solid() || matches!(block, BlockType::WoodDoor(_))
+                })
+            };
+            let mut seen = HashSet::from([(7usize, 72usize)]);
+            let mut queue = VecDeque::from([(7usize, 72usize)]);
+            while let Some((x, y)) = queue.pop_front() {
+                for nx in [x.saturating_sub(1), x + 1] {
+                    if !(7..=25).contains(&nx) {
+                        continue;
+                    }
+                    for ny in y.saturating_sub(1)..=(y + 1).min(72) {
+                        if clear(nx, ny)
+                            && chunk.get_block(nx, ny).is_solid()
+                            && seen.insert((nx, ny))
+                        {
+                            queue.push_back((nx, ny));
+                        }
+                    }
+                }
+            }
+            assert!(
+                seen.contains(&(25, 72)),
+                "landmark {seed} blocks the 2D route"
+            );
+            for x in 0..CHUNK_WIDTH {
+                for y in 46..72 {
+                    if chunk.get_block(x, y) == BlockType::Chest {
+                        assert!(
+                            chunk.get_block(x, y + 1).is_solid(),
+                            "floating loot in landmark {seed}"
+                        );
+                        assert!(
+                            chunk.chest_inventory(x, y).is_some(),
+                            "missing loot inventory"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_nether_route_landmark_variants_leave_distinct_signatures() {
         let center_x = (CHUNK_WIDTH / 2) as i32;
         let floor_y = 72;
@@ -7529,20 +7685,20 @@ mod tests {
             2,
         );
         assert_eq!(
-            reliquary_chunk.get_block((center_x + 2) as usize, (floor_y - 2) as usize),
+            reliquary_chunk.get_block((center_x + 2) as usize, (floor_y - 1) as usize),
             BlockType::Chest
         );
         assert_eq!(
-            reliquary_chunk.get_block((center_x - 3) as usize, (floor_y - 3) as usize),
+            reliquary_chunk.get_block((center_x - 3) as usize, (floor_y - 4) as usize),
             BlockType::Glowstone
         );
         assert_eq!(
-            reliquary_chunk.get_block((center_x + 3) as usize, (floor_y - 3) as usize),
+            reliquary_chunk.get_block((center_x + 3) as usize, (floor_y - 4) as usize),
             BlockType::Glowstone
         );
         assert_eq!(
-            reliquary_chunk.get_block((center_x - 3) as usize, (floor_y + 1) as usize),
-            BlockType::Lava(8)
+            reliquary_chunk.get_block((center_x - 3) as usize, floor_y as usize),
+            BlockType::StoneBricks
         );
     }
 

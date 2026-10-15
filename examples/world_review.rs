@@ -481,17 +481,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         position(&mut s, x, y)?;
         atlas.capture(&s,id,title,"Nether fortress","Generated","Native fortress geometry and contents at the fixed review seed, with unchanged walking lanes and support proportions.")?;
     }
-    let mut shrine = None;
+    let mut landmarks = [None; 3];
     let mut soul = None;
     let mut vent = None;
-    for chunk in -40..40 {
+    for chunk in -192..192 {
         let start = chunk * 32;
         s.world.load_chunks_for_spawn_search(start, 24);
         for x in start..start + 32 {
             for y in 15..90 {
                 let b = s.world.get_block(x, y);
-                if b == Chest && !s.world.is_nether_fortress_zone(x, y) && shrine.is_none() {
-                    shrine = Some((x, y + 1));
+                if b == Chest && !s.world.is_nether_fortress_zone(x, y) {
+                    let kind = if s.world.get_block(x, y + 3) == Lava(8)
+                        && s.world.get_block(x, y - 3) == Glowstone
+                    {
+                        Some(1)
+                    } else if [-1, 1]
+                        .iter()
+                        .any(|dx| s.world.get_block(x + dx, y) == StoneSlab)
+                    {
+                        Some(0)
+                    } else if [-2, 2].iter().any(|dx| {
+                        let center = x + dx;
+                        s.world.get_block(center - 3, y - 3) == Glowstone
+                            && s.world.get_block(center + 3, y - 3) == Glowstone
+                            && s.world.get_block(center, y - 5) == StoneBricks
+                    }) {
+                        Some(2)
+                    } else {
+                        None
+                    };
+                    if let Some(kind) = kind
+                        && landmarks[kind].is_none()
+                    {
+                        // Stand beside the loot, rather than letting the generic
+                        // floor search stage the player on top of the chest.
+                        landmarks[kind] = Some((x - if kind == 1 { 3 } else { 2 }, y + 1));
+                    }
                 }
                 if b == SoulSand && s.world.get_block(x, y - 1) == Air && soul.is_none() {
                     soul = Some((x, y));
@@ -505,12 +530,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        if shrine.is_some() && soul.is_some() && vent.is_some() {
+        if landmarks.iter().all(Option::is_some) && soul.is_some() && vent.is_some() {
             break;
         }
     }
     for (id, title, group, point) in [
-        ("nether-shrine", "Route shrine", "Nether landmarks", shrine),
+        (
+            "nether-shrine",
+            "Route shrine",
+            "Nether landmarks",
+            landmarks[0],
+        ),
+        // Keep the original card anchors while replacing the staged studies.
+        (
+            "bridge-study",
+            "Route bridge",
+            "Nether landmarks",
+            landmarks[1],
+        ),
+        (
+            "reliquary-study",
+            "Route reliquary",
+            "Nether landmarks",
+            landmarks[2],
+        ),
         ("soul-sand", "Soul-sand floor", "Nether terrain", soul),
         (
             "lava-vent-roof",
@@ -525,70 +568,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             missing.push(title.into());
         }
-    }
-    // Presentation-only studies: native seed selection currently reaches only Shrine.
-    for bridge in [true, false] {
-        let study_root = root.join(if bridge {
-            "bridge-study"
-        } else {
-            "reliquary-study"
-        });
-        let mut study = seeded(&study_root)?;
-        switch(&mut study, Dimension::Nether, &study_root)?;
-        study.world.load_chunks_for_spawn_search(0, 64);
-        for x in -35i32..=35 {
-            for y in 5..80 {
-                study
-                    .world
-                    .set_block(x, y, if y >= 60 { Netherrack } else { Air });
-            }
-        }
-        if bridge {
-            for x in -6i32..=6 {
-                for y in 52..=59 {
-                    study.world.set_block(
-                        x,
-                        y,
-                        if x.abs() >= 5 || y == 54 && x.abs() < 5 || y == 59 && x.abs() <= 3 {
-                            StoneBricks
-                        } else {
-                            Air
-                        },
-                    );
-                }
-            }
-            for x in -2..=2 {
-                study.world.set_block(x, 60, Air);
-                study.world.set_block(x, 61, Lava(8));
-                study.world.set_block(x, 62, StoneBricks);
-            }
-            for x in [-5, 0, 5] {
-                study.world.set_block(x, 55, Glowstone);
-            }
-            study.world.set_block(0, 58, Chest);
-        } else {
-            for x in -5i32..=5 {
-                let roof = 54 + (x.abs() / 2).min(2);
-                for y in roof..=58 {
-                    study.world.set_block(
-                        x,
-                        y,
-                        if x.abs() == 5 || y == roof {
-                            StoneBricks
-                        } else {
-                            Air
-                        },
-                    );
-                }
-            }
-            for x in [-3, 3] {
-                study.world.set_block(x, 58, StoneBricks);
-                study.world.set_block(x, 57, Glowstone);
-            }
-            study.world.set_block(2, 58, Chest);
-        }
-        position(&mut study, -1, if bridge { 59 } else { 60 })?;
-        atlas.capture(&study,if bridge{"bridge-study"}else{"reliquary-study"},if bridge{"Route bridge — structure study"}else{"Reliquary — structure study"},"Nether landmarks","Structure study","Source-derived staged block study, not a natural spawn. The current marker-seed formula always selects Shrine; see the coverage notes.")?;
     }
     // The generated lava sea is an underground layer, not an open surface coast.
     position(&mut s, 0, 60)?;
@@ -620,7 +599,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(|y| (x, y))
     }) {
         position(&mut s, x, y)?;
-        atlas.capture(&s,"end-outer","Outer End island scaffold","End","Generated","Sparse outer-island terrain in the current generator; this is a scaffold, not an End-city feature.")?;
+        atlas.capture(&s,"end-outer","Outer End island","End","Generated","A naturally generated small outer End island. These islands are currently limited to the outskirts of the central arena; End cities are not implemented.")?;
     } else {
         missing.push("Outer End island: no island found for this fixed seed".into());
     }
@@ -638,7 +617,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(
         atlas.out.join("catalog.json"),
         serde_json::to_vec_pretty(
-            &json!({"native_seed":[1337,7331,9917,4444],"recipe_seed":42,"scenes":atlas.records,"missing":missing,"generation_issue":"Nether marker multiplier, offset and modulus are all divisible by 3; generated route variants therefore select only Shrine. Bridge/reliquary cards are source-derived staged studies."}),
+            &json!({"native_seed":[1337,7331,9917,4444],"recipe_seed":42,"scenes":atlas.records,"missing":missing,"generation_issue":null,"resolved_findings":["All three Nether route variants spawn naturally; gallery examples are discovered in native chunks.","Surface biome framing, swamp vegetation, frontal dragon combat and thin overview fixtures are corrected."]}),
         )?,
     )?;
     eprintln!(

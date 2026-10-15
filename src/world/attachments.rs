@@ -46,6 +46,20 @@ impl World {
         self.room_enclosure(x, y).map(|_| TorchAttachment::BackWall)
     }
     pub fn room_enclosure(&self, x: i32, y: i32) -> Option<RoomMaterial> {
+        // Short masonry passages are a deliberate cutaway beneath Nether
+        // pylons/arches. Recessed supports connect their caps to foundations
+        // visually while leaving the side-view walking lane open.
+        if self.dimension == crate::world::Dimension::Nether {
+            let roof = (1..=3).find(|dy| self.get_block(x, y - dy) != BlockType::Air);
+            let floor = (1..=3).find(|dy| self.get_block(x, y + dy) != BlockType::Air);
+            if let (Some(roof), Some(floor)) = (roof, floor)
+                && roof + floor <= 4
+                && self.get_block(x, y - roof) == BlockType::StoneBricks
+                && self.get_block(x, y + floor) == BlockType::StoneBricks
+            {
+                return Some(RoomMaterial::Masonry);
+            }
+        }
         // End tunnels deliberately use their own short obsidian recess.
         if self.dimension == crate::world::Dimension::End {
             let roof = (1..=6).find(|dy| self.get_block(x, y - dy) != BlockType::Air)?;
@@ -143,6 +157,30 @@ mod tests {
         }
         world
     }
+    #[test]
+    fn nether_cutaway_supports_are_bounded_by_real_masonry() {
+        let mut w = empty();
+        w.dimension = Dimension::Nether;
+        w.set_block(2, 16, BlockType::StoneBricks);
+        w.set_block(2, 20, BlockType::StoneBricks);
+        for y in 17..20 {
+            assert_eq!(w.room_enclosure(2, y), Some(RoomMaterial::Masonry));
+            assert!(
+                !w.get_block(2, y).is_solid(),
+                "cutaway must remain walkable"
+            );
+        }
+        assert_eq!(w.room_enclosure(3, 18), None);
+        w.set_block(2, 20, BlockType::Air);
+        assert_eq!(w.room_enclosure(2, 18), None, "unsupported floating prop");
+        w.set_block(2, 22, BlockType::StoneBricks);
+        assert_eq!(
+            w.room_enclosure(2, 19),
+            None,
+            "must not paint tall sky columns"
+        );
+    }
+
     #[test]
     fn floor_slab_and_real_side_faces_define_attachment() {
         let mut w = empty();
