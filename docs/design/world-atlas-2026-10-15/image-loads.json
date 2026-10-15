@@ -1,9 +1,9 @@
 {
   "status": "passed",
   "transport": "HTTP",
-  "resources": 477,
-  "images": 467,
-  "decoded_frames": 568,
+  "resources": 504,
+  "images": 494,
+  "decoded_frames": 595,
   "checks": [
     {
       "url": "world-atlas-2026-10-15/biome-desert-00.png?v=4851c96833d29877",
@@ -117,7 +117,7 @@
     },
     {
       "url": "world-atlas-2026-10-15/catalog.json",
-      "sha256": "10465efe00db53dee15b5577639c5e83e6924f1738f5f0a5fd382eeb3f007832",
+      "sha256": "3f8a0fa78e4733a635e72650e39dad906dbbc1b44df1439760c6f59d32132aa8",
       "image_frames": 0
     },
     {
@@ -387,7 +387,7 @@
     },
     {
       "url": "world-atlas-2026-10-15/evidence.json",
-      "sha256": "c592037401f45924e9504fccfb01dacff60c3b464448b087b98643383135a496",
+      "sha256": "f7b8fdc7d71566cfaf4ce057db9468c8f5e2fcdd422799bdea211f3219e8556f",
       "image_frames": 0
     },
     {
@@ -466,8 +466,38 @@
       "image_frames": 1
     },
     {
+      "url": "world-atlas-2026-10-15/glowstone-dark-00.png?v=b4c83ddb756ad695",
+      "sha256": "b4c83ddb756ad695ed1c67246419d2b4a1629e66d6e404ac0057b9ed2266b484",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/glowstone-dark-01.png?v=060be431f24a22e6",
+      "sha256": "060be431f24a22e684a661b6299eaeaf74f7c54da730ace91e59e6af556952b8",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/glowstone-dark-02.png?v=c1bffc363040cfde",
+      "sha256": "c1bffc363040cfded81896537cda85be7127e663e4216f180db214cb22bfa673",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/glowstone-lit-00.png?v=758ec264b916dd0f",
+      "sha256": "758ec264b916dd0f603359721e2f1d811dd535c44528b8e7a6149f272d4f5ca6",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/glowstone-lit-01.png?v=e5ca2a4a241fb99d",
+      "sha256": "e5ca2a4a241fb99d33698f9d9c338ff89035a55e1c391a413b5e28d0e9b51d07",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/glowstone-lit-02.png?v=421c647fcec5426d",
+      "sha256": "421c647fcec5426d2ed8fbb01477e4e77c8b1c30aad3828238155f68d019ec2e",
+      "image_frames": 1
+    },
+    {
       "url": "world-atlas-2026-10-15/index.html",
-      "sha256": "5ff9da011fde6438e69fe51d5069bd3ee513c684075e6c726978af9329a4fe53",
+      "sha256": "b2a635ab1e6ed3b63871d72addd7bf42878918c91951f8ed8104e77f86d901c3",
       "image_frames": 0
     },
     {
@@ -581,6 +611,111 @@
       "image_frames": 1
     },
     {
+      "url": "world-atlas-2026-10-15/portal-end-activation-00.png?v=ef2d0cabadd3938c",
+      "sha256": "ef2d0cabadd3938cf1b6a7edf8bb642d797db333f5f47ccdd8cc4207385b6fe5",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-end-activation-01.png?v=af5ac37101490e26",
+      "sha256": "af5ac37101490e2654d64a5c2cf0d0f204429de7cce71634b7fe829c74405217",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-end-activation-02.png?v=1fbcb9654a1a3cdf",
+      "sha256": "1fbcb9654a1a3cdf112be58a1038c73f436d817998169fbd261299c33a5a25f9",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-end-arrival-00.png?v=4b9cba93dbe2a58a",
+      "sha256": "4b9cba93dbe2a58aa5185ff630dc4fea598e747c3fa0187cebf267e164e98a3b",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-end-arrival-01.png?v=b5a51a70463bd885",
+      "sha256": "b5a51a70463bd88532271e907ddd1783347b42bac82ba1d7a6fed19ffe5af749",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-end-arrival-02.png?v=c3c7e8efdbb724ba",
+      "sha256": "c3c7e8efdbb724ba2bf10a5f60fdd873c72bc76c168021832bd8025f4177da8b",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-end-return-00.png?v=ef4904227487cd85",
+      "sha256": "ef4904227487cd855b9702bf3bd597da7d6b01c3dbf6d9622c0efea4d4c14f38",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-end-return-01.png?v=d94a9cd727b2ab4f",
+      "sha256": "d94a9cd727b2ab4f2079b7e893a4392da020fc6e959e1d97d8b0cc16c6e9e5df",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-end-return-02.png?v=522953d79dad39b5",
+      "sha256": "522953d79dad39b5b763e5ae5730ca655bed0f6c7bc0d31984e11f06bf8244db",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-extinguished-00.png?v=fdea178e10348833",
+      "sha256": "fdea178e103488333987779dd17d8ace30ce4b1e7da88c83561ee4313b7d9249",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-extinguished-01.png?v=5b602dc9f10c6551",
+      "sha256": "5b602dc9f10c6551728ea90f47e81f020655b391c7ed4a4584475a1541a8accd",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-extinguished-02.png?v=c49d585eabc3b61c",
+      "sha256": "c49d585eabc3b61cedda992ab2c21585cec3f5cb5f98583fb07e76919e7a8ee4",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-ignition-00.png?v=235245119a7c5367",
+      "sha256": "235245119a7c53676458864130fb2ce2bf8afc9439bbe76a191e5b2f0d6cad26",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-ignition-01.png?v=dc1df6b2af1cd86d",
+      "sha256": "dc1df6b2af1cd86d69bb6a877d9696e0c71c256f577f5aca75f003be360ede37",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-ignition-02.png?v=797b58238b09258f",
+      "sha256": "797b58238b09258f1cc5e1f0de747fc1e84d648bc94548ae0d44bd6638924186",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-nether-arrival-00.png?v=13f804a33652e6d1",
+      "sha256": "13f804a33652e6d1c1e0ac093f368ee2cab0e4612159814ba014b52bf83fc0ac",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-nether-arrival-01.png?v=1e19ff9fd94b313b",
+      "sha256": "1e19ff9fd94b313b3372b0e218a923fd986d1469a2833d2b9a288948ad134530",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-nether-arrival-02.png?v=9636a39bc0b72344",
+      "sha256": "9636a39bc0b72344ce85b5c6e905b3824c8091a6cdaf628d695b38eadec9821d",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-return-workshop-00.png?v=5bbb8a7b65554cc4",
+      "sha256": "5bbb8a7b65554cc46afddfddbbf7300a5d7dac6a64e619262adff42e0a77cd66",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-return-workshop-01.png?v=92ab7fa8e827ee2f",
+      "sha256": "92ab7fa8e827ee2fc81ba2f3c837b0c4857b3ea8dc2385d47a36c878a61b5bf5",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/portal-return-workshop-02.png?v=f44aa548fbada174",
+      "sha256": "f44aa548fbada1741020ac2fc7f8cdb7bad8c8b1b0bc23ccf60c23160dcee8d6",
+      "image_frames": 1
+    },
+    {
       "url": "world-atlas-2026-10-15/portal-workshop-00.png?v=35e8c5c617613506",
       "sha256": "35e8c5c617613506e779864071562af9580403f33e5204874457728cb096a90e",
       "image_frames": 1
@@ -592,7 +727,7 @@
     },
     {
       "url": "world-atlas-2026-10-15/provenance.md",
-      "sha256": "692fd5e08c0de63c5c9bfaf510ee986a12f682c38b971a5b778eec064ba9f2d8",
+      "sha256": "bb0af18dd8e0e5fa213efd4e9a8afe78d775a763d3d72387d794dfec6d26c757",
       "image_frames": 0
     },
     {

@@ -1570,6 +1570,339 @@
       "y": 65.0
     },
     {
+      "caption": "A roofed, unlit review room at night. Compare the next scene at the same zoom.",
+      "category": "Play scenarios",
+      "dimension": "Overworld",
+      "id": "glowstone-dark",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "glowstone-dark-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "b4c83ddb756ad695"
+        },
+        {
+          "mode": "glyphs",
+          "label": "Glyphs",
+          "file": "glowstone-dark-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "060be431f24a22e6"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "glowstone-dark-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "c1bffc363040cfde"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/portal_review.rs",
+      "title": "Glowstone \u00b7 before placement",
+      "x": 0.5,
+      "y": 36.0
+    },
+    {
+      "caption": "Glowstone placed through the ordinary use command under a supported ceiling. The warm light comes from the live renderer.",
+      "category": "Play scenarios",
+      "dimension": "Overworld",
+      "id": "glowstone-lit",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "glowstone-lit-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "758ec264b916dd0f"
+        },
+        {
+          "mode": "glyphs",
+          "label": "Glyphs",
+          "file": "glowstone-lit-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "e5ca2a4a241fb99d"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "glowstone-lit-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "421c647fcec5426d"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/portal_review.rs",
+      "title": "Glowstone \u00b7 placed and lighting the room",
+      "x": 0.5,
+      "y": 36.0
+    },
+    {
+      "caption": "A staged obsidian frame ignited with Flint and Steel through the real use command; six active tiles, not a painted portal.",
+      "category": "Play scenarios",
+      "dimension": "Overworld",
+      "id": "portal-ignition",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "portal-ignition-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "235245119a7c5367"
+        },
+        {
+          "mode": "glyphs",
+          "label": "Glyphs",
+          "file": "portal-ignition-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "dc1df6b2af1cd86d"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "portal-ignition-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "797b58238b09258f"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/portal_review.rs",
+      "title": "Nether portal \u00b7 actual ignition",
+      "x": 5.5,
+      "y": 36.0
+    },
+    {
+      "caption": "Actual portal travel generated and linked this arrival portal in the Nether. No travel shortcut was used.",
+      "category": "Play scenarios",
+      "dimension": "Nether",
+      "id": "portal-nether-arrival",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "portal-nether-arrival-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "13f804a33652e6d1"
+        },
+        {
+          "mode": "glyphs",
+          "label": "Glyphs",
+          "file": "portal-nether-arrival-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "1e19ff9fd94b313b"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "portal-nether-arrival-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "9636a39bc0b72344"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/portal_review.rs",
+      "title": "Nether portal \u00b7 destination",
+      "x": 7.5,
+      "y": 59.9
+    },
+    {
+      "caption": "Return through the linked portal after saving and reopening in the Nether. Glowstone, the roof, the chest and its three diamonds survive the round trip.",
+      "category": "Play scenarios",
+      "dimension": "Overworld",
+      "id": "portal-return-workshop",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "portal-return-workshop-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "5bbb8a7b65554cc4"
+        },
+        {
+          "mode": "glyphs",
+          "label": "Glyphs",
+          "file": "portal-return-workshop-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "92ab7fa8e827ee2f"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "portal-return-workshop-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "f44aa548fbada174"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/portal_review.rs",
+      "title": "Nether portal \u00b7 workshop preserved",
+      "x": 10.5,
+      "y": 35.9
+    },
+    {
+      "caption": "One side of the frame was removed through the world-edit path. All six portal tiles extinguished together; the glowstone still lights the room.",
+      "category": "Play scenarios",
+      "dimension": "Overworld",
+      "id": "portal-extinguished",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "portal-extinguished-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "fdea178e10348833"
+        },
+        {
+          "mode": "glyphs",
+          "label": "Glyphs",
+          "file": "portal-extinguished-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "5b602dc9f10c6551"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "portal-extinguished-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "c49d585eabc3b61c"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/portal_review.rs",
+      "title": "Nether portal \u00b7 broken frame extinguished",
+      "x": 10.5,
+      "y": 35.9
+    },
+    {
+      "caption": "A staged empty frame filled through twelve real use commands. The game consumed the Eyes and activated the complete opening.",
+      "category": "Play scenarios",
+      "dimension": "Overworld",
+      "id": "portal-end-activation",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "portal-end-activation-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "ef2d0cabadd3938c"
+        },
+        {
+          "mode": "glyphs",
+          "label": "Glyphs",
+          "file": "portal-end-activation-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "af5ac37101490e26"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "portal-end-activation-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "1fbcb9654a1a3cdf"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/portal_review.rs",
+      "title": "End portal \u00b7 twelve Eyes of Ender",
+      "x": 0.5,
+      "y": 35.0
+    },
+    {
+      "caption": "Actual travel through the activated End portal, landing on the generated island with cleared headroom. This capture precedes the dragon encounter update.",
+      "category": "Play scenarios",
+      "dimension": "End",
+      "id": "portal-end-arrival",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "portal-end-arrival-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "4b9cba93dbe2a58a"
+        },
+        {
+          "mode": "glyphs",
+          "label": "Glyphs",
+          "file": "portal-end-arrival-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "b5a51a70463bd885"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "portal-end-arrival-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "c3c7e8efdbb724ba"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/portal_review.rs",
+      "title": "End portal \u00b7 safe arrival",
+      "x": 8.5,
+      "y": 33.9
+    },
+    {
+      "caption": "Actual interaction with the generated bedrock return portal, returning to the Overworld stronghold. The boss was not defeated in this scripted travel check.",
+      "category": "Play scenarios",
+      "dimension": "Overworld",
+      "id": "portal-end-return",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "portal-end-return-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "ef4904227487cd85"
+        },
+        {
+          "mode": "glyphs",
+          "label": "Glyphs",
+          "file": "portal-end-return-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "d94a9cd727b2ab4f"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "portal-end-return-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "522953d79dad39b5"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/portal_review.rs",
+      "title": "End portal \u00b7 stronghold return",
+      "x": 640.5,
+      "y": 90.9
+    },
+    {
       "id": "village-cottage",
       "title": "Village cottage",
       "dimension": "Overworld",

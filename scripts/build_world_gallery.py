@@ -53,6 +53,15 @@ def main():
         images.sort(key=lambda v: v[0] != preferred)
         add(record, 'worlds', images)
 
+    # These fixtures use the real placement/ignition/travel commands and assert
+    # their state transitions, including a save/reload between portal journeys.
+    portal_review = json.loads((args.raw / 'portals/catalog.json').read_text())
+    assert all(portal_review['checks'].values()), 'Portal behavior checks failed'
+    for record in portal_review['scenes']:
+        images = [(v['view'], v['view'].title(), v['ansi'], v['width'], v['height'])
+                  for v in record['images']]
+        add(record, 'portals', images)
+
     def extra(id_, title, dimension, category, origin, caption, group, files):
         source = {'villages': 'village_review', 'entities': 'entity_review', 'trial': 'lantern_review',
                   'weather': 'weather_review', 'pixel': 'pixel_review', 'nether': 'nether_review'}[group]

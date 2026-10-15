@@ -1,6 +1,6 @@
 # Termcraft world gallery
 
-78 scenes and 170 views. Open a section to browse; select a view link for the original image.
+87 scenes and 197 views. Open a section to browse; select a view link for the original image.
 
 [All 97 block/state comparisons](../world-refinement-2026-10-15/README.md) · [Capture notes](provenance.md)
 
@@ -185,7 +185,7 @@ Supported roof and torch fixture with staged weather. Precipitation is rendered 
 </details>
 
 <details>
-<summary>Play scenarios · 10 scenes</summary>
+<summary>Play scenarios · 19 scenes</summary>
 
 ### Building with friends
 
@@ -236,6 +236,96 @@ Overworld · Staged action
 Actual cave terrain with a supported inspection torch and a staged pickaxe/mining pose. This is an art inspection, not a recorded mining session.
 
 [Overview](mining-00.png) · [Detail](mining-01.png)
+
+### Glowstone · before placement
+
+Overworld · Scripted gameplay
+
+![Glowstone · before placement](glowstone-dark-00.png)
+
+A roofed, unlit review room at night. Compare the next scene at the same zoom.
+
+[Overview](glowstone-dark-00.png) · [Glyphs](glowstone-dark-01.png) · [Detail](glowstone-dark-02.png)
+
+### Glowstone · placed and lighting the room
+
+Overworld · Scripted gameplay
+
+![Glowstone · placed and lighting the room](glowstone-lit-00.png)
+
+Glowstone placed through the ordinary use command under a supported ceiling. The warm light comes from the live renderer.
+
+[Overview](glowstone-lit-00.png) · [Glyphs](glowstone-lit-01.png) · [Detail](glowstone-lit-02.png)
+
+### Nether portal · actual ignition
+
+Overworld · Scripted gameplay
+
+![Nether portal · actual ignition](portal-ignition-00.png)
+
+A staged obsidian frame ignited with Flint and Steel through the real use command; six active tiles, not a painted portal.
+
+[Overview](portal-ignition-00.png) · [Glyphs](portal-ignition-01.png) · [Detail](portal-ignition-02.png)
+
+### Nether portal · destination
+
+Nether · Scripted gameplay
+
+![Nether portal · destination](portal-nether-arrival-00.png)
+
+Actual portal travel generated and linked this arrival portal in the Nether. No travel shortcut was used.
+
+[Overview](portal-nether-arrival-00.png) · [Glyphs](portal-nether-arrival-01.png) · [Detail](portal-nether-arrival-02.png)
+
+### Nether portal · workshop preserved
+
+Overworld · Scripted gameplay
+
+![Nether portal · workshop preserved](portal-return-workshop-00.png)
+
+Return through the linked portal after saving and reopening in the Nether. Glowstone, the roof, the chest and its three diamonds survive the round trip.
+
+[Overview](portal-return-workshop-00.png) · [Glyphs](portal-return-workshop-01.png) · [Detail](portal-return-workshop-02.png)
+
+### Nether portal · broken frame extinguished
+
+Overworld · Scripted gameplay
+
+![Nether portal · broken frame extinguished](portal-extinguished-00.png)
+
+One side of the frame was removed through the world-edit path. All six portal tiles extinguished together; the glowstone still lights the room.
+
+[Overview](portal-extinguished-00.png) · [Glyphs](portal-extinguished-01.png) · [Detail](portal-extinguished-02.png)
+
+### End portal · twelve Eyes of Ender
+
+Overworld · Scripted gameplay
+
+![End portal · twelve Eyes of Ender](portal-end-activation-00.png)
+
+A staged empty frame filled through twelve real use commands. The game consumed the Eyes and activated the complete opening.
+
+[Overview](portal-end-activation-00.png) · [Glyphs](portal-end-activation-01.png) · [Detail](portal-end-activation-02.png)
+
+### End portal · safe arrival
+
+End · Scripted gameplay
+
+![End portal · safe arrival](portal-end-arrival-00.png)
+
+Actual travel through the activated End portal, landing on the generated island with cleared headroom. This capture precedes the dragon encounter update.
+
+[Overview](portal-end-arrival-00.png) · [Glyphs](portal-end-arrival-01.png) · [Detail](portal-end-arrival-02.png)
+
+### End portal · stronghold return
+
+Overworld · Scripted gameplay
+
+![End portal · stronghold return](portal-end-return-00.png)
+
+Actual interaction with the generated bedrock return portal, returning to the Overworld stronghold. The boss was not defeated in this scripted travel check.
+
+[Overview](portal-end-return-00.png) · [Glyphs](portal-end-return-01.png) · [Detail](portal-end-return-02.png)
 
 ### Lantern Run · starting camp
 

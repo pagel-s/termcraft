@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "binary_sha256": "5dcca3b6a17d55665ee9e951f11ec67960f7d1e8688f89c8e25a64c1acd7bc4b",
+  "temporary_world_create": true,
+  "native_pty_render_and_quit": true,
+  "terminal_restored": true,
+  "limits": "Disposable Unix PTY; no human input-latency or enjoyment measurement."
+}

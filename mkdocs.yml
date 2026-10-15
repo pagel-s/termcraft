@@ -7,6 +7,11 @@ repo_name: pagel-s/termcraft
 docs_dir: docs
 site_dir: site
 
+# These are GitHub's image-gallery fallbacks; the site serves each index.html.
+exclude_docs: |
+  design/world-atlas-2026-10-15/README.md
+  design/world-refinement-2026-10-15/README.md
+
 nav:
   - Home: index.md
   - Installation: installation.md
