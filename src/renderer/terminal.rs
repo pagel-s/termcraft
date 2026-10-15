@@ -1598,6 +1598,10 @@ impl Renderer {
             }
         }
 
+        if scale == 1 && self.pixel_colors {
+            self.render_wide_torches(state, &light, (min_bx, min_by, width_b, height_b));
+        }
+
         for bolt in &state.lightning_bolts {
             let base_sx = (bolt.x * 2) - view_char_x + screen_center_x;
             for y in bolt.y_top..=bolt.y_bottom {

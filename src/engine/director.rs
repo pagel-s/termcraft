@@ -815,7 +815,19 @@ impl Director {
             environment::write(state.world.save_root(), &prepared.environments)?;
             state.world.environments = prepared.environments;
         }
-        for edit in &prepared.edits {
+        // Attachments are applied after their room/floor surfaces, independent
+        // of the model's rectangle order or the coordinate-sorted journal.
+        for edit in prepared
+            .edits
+            .iter()
+            .filter(|e| e.after != BlockType::Torch)
+            .chain(
+                prepared
+                    .edits
+                    .iter()
+                    .filter(|e| e.after == BlockType::Torch),
+            )
+        {
             state.world.set_block(edit.x, edit.y, edit.after);
         }
         let event = self
@@ -1292,6 +1304,47 @@ mod tests {
             director.config.edits[0]
                 .iter()
                 .all(|e| (e.x as f64 - 25.0).abs() >= 4.0)
+        );
+        finish(root, state, director);
+    }
+
+    #[test]
+    fn structure_torches_are_applied_after_their_new_loft_support() {
+        let (root, mut state, mut director) = fixture();
+        let mut action = tower();
+        if let Action::Structure { blocks, .. } = &mut action {
+            blocks.push(BlockRect {
+                x: 2,
+                y: -4,
+                width: 1,
+                height: 1,
+                block: BlueprintBlock::Torch,
+            });
+            blocks.push(BlockRect {
+                x: 2,
+                y: -3,
+                width: 1,
+                height: 1,
+                block: BlueprintBlock::Planks,
+            });
+        }
+        let plan = Plan {
+            message: "A supported light".into(),
+            actions: vec![action],
+        };
+        director.apply(&mut state, &plan, 0, "loft light").unwrap();
+        let torch = director.config.edits[0]
+            .iter()
+            .find(|e| e.after == BlockType::Torch)
+            .unwrap();
+        assert_eq!(state.world.get_block(torch.x, torch.y), BlockType::Torch);
+        assert!(state.world.torch_attachment(torch.x, torch.y).is_some());
+        assert!(
+            !state
+                .world
+                .recent_environment_drops
+                .iter()
+                .any(|e| e.2 == crate::world::item::ItemType::Torch)
         );
         finish(root, state, director);
     }

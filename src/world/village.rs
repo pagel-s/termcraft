@@ -239,7 +239,7 @@ fn building(
         put(chunk, start, left - 2, roof + 1, BlockType::StoneSlab);
         put(chunk, start, left - 1, roof + 1, BlockType::Planks);
     }
-    put(chunk, start, left + 3, g - 2, BlockType::Torch);
+    put(chunk, start, left + 3, g - 1, BlockType::Torch);
 }
 impl World {
     /// Fresh-generation sites for review tooling; does not modify or claim saved terrain.
@@ -339,7 +339,7 @@ impl World {
             for x in center + 4..=center + 6 {
                 put(chunk, start, x, g - 5, BlockType::Wool);
             }
-            put(chunk, start, center + 3, g - 2, BlockType::Torch);
+            put(chunk, start, center + 3, g - 1, BlockType::Torch);
             for x in center + 35..=center + 43 {
                 put(chunk, start, x, g, BlockType::Farmland(7));
                 put(

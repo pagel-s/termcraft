@@ -186,6 +186,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let x = [-9, -6, -3, 0, 3, 6][i % 6];
             let y = 28 + (i / 6) as i32 * 3;
             let support = match block {
+                Torch => Some(Stone),
                 Cactus | DeadBush | SugarCane => Some(Sand),
                 Crops(_) => Some(Farmland(7)),
                 NetherWart(_) => Some(SoulSand),

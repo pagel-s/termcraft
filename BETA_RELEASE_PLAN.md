@@ -1,6 +1,6 @@
 # Termcraft beta: implementation and qualification
 
-Updated 12 October 2026. Proposed release: `v0.2.0-beta.1`.
+Updated 15 October 2026. Proposed release: `v0.2.0-beta.1`.
 
 **The foundation is implemented, but the gameplay and visual quality target has
 been reopened after playtest feedback. Beta qualification and publication are
@@ -48,6 +48,15 @@ acceptance gate for the art or game feel.
 Current fixes and reproducible checks are documented in `docs/feel-and-art.md`.
 The art prototype is a review candidate, not a claim that the final visual or
 gameplay quality gate has been met.
+
+The 15 October torch correction shares attachment rules between placement,
+support removal and rendering. Floor/slab/stair lights meet their actual surface;
+side and enclosed-room lights have visible mounts in every color view. Fresh
+village/stronghold generation uses supported positions. Loaded unsupported legacy
+torches become dropped items after neighboring chunk data is available. See
+`docs/design/torch-attachments-2026-10-15/provenance.md` and the matching evidence
+report. This addresses the floating-torch feedback; overall human art/feel
+acceptance remains open.
 
 The headline is **“Survive and build with friends over SSH.”** The distinguishing
 feature is a player-directed AI game master: ask in the running game for a battle,

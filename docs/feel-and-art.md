@@ -59,7 +59,27 @@ keyboard support but first sends plain taps; it also drops a release deliberatel
 and opens/drags/walks through doors in all three views. These checks do not establish
 your emulator's latency, real WAN feel or overall human visual/gameplay acceptance.
 
-## Connected villages: the latest refinement
+## Torch attachment correction, 15 October
+
+Ordinary torches now share support rules between the world and renderer. Their
+shafts meet full blocks, slabs and stair treads; side mounts lean into a visible
+bracket, and enclosed cutaway rooms show a back-wall mounting plate. The color
+wide view preserves the flame and shaft instead of losing the stem when shrinking
+the art. Monochrome retains its glyph fallback.
+
+Unsupported placement keeps the inventory item. Removing or replacing support
+drops one torch. Fresh villages and strongholds place lights at actual surfaces;
+supported lights in existing rooms remain mounted. Unsupported old torches become
+items after a one-time loaded-chunk check with neighboring data present. No save
+format or protocol change is required. Redstone torches retain their existing rules.
+
+[Captures, reproduction and limits](design/torch-attachments-2026-10-15/provenance.md)
+show staged attachment fixtures and fresh generated village interiors. Check the
+floor, both wall directions and slabs after restarting the executable, then remove
+their support and confirm that each drops once. The inferred cutaway back wall is
+bounded to small enclosed rooms; this is not a general saved background-wall system.
+
+## Connected villages
 
 Fresh ordinary Overworld chunks now contain three distinct buildings around a
 covered market gate and irrigated garden. Furniture sits in reachable lofts above

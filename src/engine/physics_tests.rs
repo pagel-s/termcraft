@@ -701,3 +701,34 @@ fn generated_loft_storage_and_beds_are_reachable_after_normal_climbing() {
     drop(s);
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn torch_placement_needs_a_surface_and_rejection_keeps_the_item() {
+    let mut s = GameState::network_view();
+    s.world.apply_chunk_column_snapshot(
+        0,
+        &vec![BlockType::Air; crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT],
+    );
+    s.player = Player::new(0.5, 20.0);
+    s.player.grounded = true;
+    s.world.set_block(0, 20, BlockType::Stone);
+    s.world.set_block(2, 17, BlockType::Stone); // Ceiling adjacency alone is insufficient.
+    s.inventory.slots[0] = Some(ItemStack {
+        item_type: ItemType::Torch,
+        count: 2,
+        durability: None,
+    });
+    s.interact_block(2, 18, false);
+    assert_eq!(s.world.get_block(2, 18), BlockType::Air);
+    assert_eq!(s.inventory.slots[0].as_ref().unwrap().count, 2);
+    s.world.set_block(3, 18, BlockType::Stone);
+    s.interact_block(2, 18, false);
+    assert_eq!(s.world.get_block(2, 18), BlockType::Torch);
+    assert_eq!(s.inventory.slots[0].as_ref().unwrap().count, 1);
+    s.world.set_block(3, 18, BlockType::Air);
+    assert_eq!(s.world.get_block(2, 18), BlockType::Air);
+    assert_eq!(
+        s.world.recent_environment_drops,
+        vec![(2, 18, ItemType::Torch)]
+    );
+}

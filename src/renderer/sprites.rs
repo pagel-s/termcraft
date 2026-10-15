@@ -617,6 +617,64 @@ fn palette(
 }
 
 impl Renderer {
+    // Keep wide color views on the same support-aware torch art as the detailed
+    // views, while preserving classic glyph rendering when color is disabled.
+    pub(super) fn render_wide_torches(
+        &mut self,
+        state: &GameState,
+        light: &[u8],
+        region: (i32, i32, usize, usize),
+    ) {
+        let Some((vx, vy, cx, cy, scale)) = self.world_view else {
+            return;
+        };
+        if scale != 1 || !self.pixel_colors {
+            return;
+        }
+        let left = (vx - cx).div_euclid(2);
+        let right = (vx - cx + i32::from(self.width)).div_euclid(2);
+        // Include a clipped torch above the viewport whose shaft can extend
+        // into the visible upper half of a lower slab.
+        let top = vy - cy - 1;
+        let bottom = vy - cy + i32::from(self.height.saturating_sub(4));
+        let mut torches = Vec::new();
+        for by in top..=bottom {
+            for bx in left..=right {
+                if state.world.get_block(bx, by) == super::BlockType::Torch {
+                    torches.push((bx, by, state.world.torch_attachment(bx, by)));
+                }
+            }
+        }
+        if torches.is_empty() {
+            return;
+        }
+        for &(bx, by, _) in &torches {
+            let sx = bx * 2 - vx + cx;
+            let sy = by - vy + cy;
+            for x in sx..sx + 2 {
+                if x >= 0
+                    && x < i32::from(self.width)
+                    && sy >= 0
+                    && sy < i32::from(self.height.saturating_sub(4))
+                {
+                    let cell =
+                        &mut self.back_buffer[sy as usize * self.width as usize + x as usize];
+                    *cell = RenderCell {
+                        ch: ' ',
+                        fg: cell.bg,
+                        bg: cell.bg,
+                    };
+                }
+            }
+        }
+        let lighting = super::shading::SceneLighting::new(state, light, region);
+        for (bx, by, attachment) in torches {
+            if let Some(attachment) = attachment {
+                self.render_attached_torch(bx, by, attachment, &lighting);
+            }
+        }
+    }
+
     pub(super) fn finish_world_view(
         &mut self,
         physical: (u16, u16),
@@ -1382,8 +1440,51 @@ mod tests {
         let y = 9 * scale * 2 - vy * 2 - actual.vertical_pixel_offset + cy * 2;
         for dx in 0..scale * 2 {
             let i = y.div_euclid(2) as usize * 160 + (x + dx) as usize;
-            assert!(actual.back_buffer[i] == baseline.back_buffer[i]);
+            // The top half-pixel is transparent even when the flame occupies
+            // the lower half of this terminal cell in the compact view.
+            assert_eq!(
+                Renderer::cell_pixels(actual.back_buffer[i]).0,
+                Renderer::cell_pixels(baseline.back_buffer[i]).0
+            );
         }
+    }
+
+    #[test]
+    fn wide_color_view_keeps_torch_flame_and_support_distinct_without_legacy_glyphs() {
+        let mut state = fixture();
+        state.world.set_block(2, 9, super::super::BlockType::Torch);
+        let mut renderer = Renderer::with_size(160, 48);
+        renderer.zoom = 1;
+        renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        let (vx, vy, cx, cy, scale) = renderer.world_view.unwrap();
+        assert_eq!(scale, 1);
+        let x = 2 * 2 - vx + cx;
+        let y = 9 - vy + cy;
+        let torch = renderer.back_buffer[y as usize * 160 + x as usize + 1];
+        assert_eq!(torch.ch, '▀');
+        assert_eq!(torch.fg, Renderer::rgb((255, 221, 130)));
+        assert_ne!(torch.bg, torch.fg);
+        for dx in 0..2 {
+            assert_ne!(
+                renderer.back_buffer[y as usize * 160 + (x + dx) as usize].ch,
+                '!'
+            );
+        }
+    }
+
+    #[test]
+    fn monochrome_view_retains_the_classic_torch_glyph() {
+        let mut state = fixture();
+        state.world.set_block(2, 9, super::super::BlockType::Torch);
+        let mut renderer = Renderer::with_size(160, 48);
+        renderer.pixel_colors = false;
+        renderer.zoom = 1;
+        renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        let (vx, vy, cx, cy, scale) = renderer.world_view.unwrap();
+        assert_eq!(scale, 1);
+        let x = 2 * 2 - vx + cx;
+        let y = 9 - vy + cy;
+        assert_eq!(renderer.back_buffer[y as usize * 160 + x as usize].ch, '!');
     }
 
     #[test]

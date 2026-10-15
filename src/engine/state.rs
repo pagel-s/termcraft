@@ -4488,6 +4488,11 @@ impl GameState {
                 {
                     return;
                 }
+                if block_type == BlockType::Torch
+                    && self.world.torch_attachment(place_x, place_y).is_none()
+                {
+                    return;
+                }
                 if !self.has_valid_bottom_support_for_block(place_x, place_y, block_type) {
                     return;
                 }
@@ -8295,8 +8300,11 @@ impl GameState {
         best.map(|(_, x, y)| (x, y))
     }
 
-    fn should_villager_seek_shelter(&self, x: f64, y: f64, is_day: bool) -> bool {
-        !is_day || self.is_weather_wet_at(x, y - 1.0)
+    fn should_villager_seek_shelter(&self, x: f64, _y: f64, is_day: bool) -> bool {
+        // Reaching a roof makes the actor dry, not the weather clear. Keep
+        // shelter intent while local precipitation lasts instead of walking
+        // straight back outside after entering.
+        !is_day || self.precipitation_at(x.floor() as i32) != PrecipitationType::None
     }
 
     fn try_open_wood_door_for_entity(&mut self, x: f64, y: f64, vx: f64) -> bool {
@@ -20709,9 +20717,24 @@ mod tests {
         assert!(!state.is_exposed_to_sky(1.5, shelter.1 - 1.0));
     }
 
+    fn isolated_villager_behavior_fixture() -> GameState {
+        let mut state = GameState::network_view();
+        for chunk in -2..=2 {
+            state.world.apply_chunk_column_snapshot(
+                chunk,
+                &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT],
+            );
+        }
+        state.game_rules.do_mob_spawning = false;
+        state.game_rules.do_daylight_cycle = false;
+        state.game_rules.do_weather_cycle = false;
+        state.weather = WeatherType::Clear;
+        state
+    }
+
     #[test]
     fn test_night_villager_moves_toward_shelter_and_settles() {
-        let mut state = GameState::new();
+        let mut state = isolated_villager_behavior_fixture();
         state.current_dimension = Dimension::Overworld;
         state.game_rules.do_mob_spawning = false;
         state.world.load_chunks_around(0);
@@ -20737,7 +20760,7 @@ mod tests {
 
     #[test]
     fn test_day_villager_bias_keeps_them_closer_to_home_band() {
-        let mut state = GameState::new();
+        let mut state = isolated_villager_behavior_fixture();
         state.current_dimension = Dimension::Overworld;
         state.game_rules.do_mob_spawning = false;
         state.world.load_chunks_around(0);
@@ -20761,7 +20784,7 @@ mod tests {
 
     #[test]
     fn test_day_villager_grouping_reduces_same_village_spread() {
-        let mut state = GameState::new();
+        let mut state = isolated_villager_behavior_fixture();
         state.current_dimension = Dimension::Overworld;
         state.game_rules.do_mob_spawning = false;
         state.world.load_chunks_around(0);
@@ -20794,15 +20817,14 @@ mod tests {
 
     #[test]
     fn test_day_rain_villager_seeks_shelter_even_in_daylight() {
-        let mut state = GameState::new();
+        let mut state = isolated_villager_behavior_fixture();
         state.current_dimension = Dimension::Overworld;
         state.game_rules.do_mob_spawning = false;
         state.game_rules.do_weather_cycle = false;
         state.weather = WeatherType::Rain;
 
-        let rain_x = (-32768..=32768)
-            .find(|&x| (-4..=1).all(|dx| state.precipitation_at(x + dx) == PrecipitationType::Rain))
-            .expect("expected a rain-capable biome band");
+        let rain_x = 0; // Replica fixtures use the known Plains biome.
+        assert_eq!(state.precipitation_at(rain_x), PrecipitationType::Rain);
         state.world.load_chunks_around(rain_x);
         state.villagers.clear();
         for x in (rain_x - 12)..=(rain_x + 12) {
@@ -20823,6 +20845,7 @@ mod tests {
         state.player.y = 9.9;
         state.time_of_day = 6000.0;
 
+        assert!(state.should_villager_seek_shelter(home_x as f64 + 0.5, 9.9, true));
         let start_x = state.villagers[0].x;
         for _ in 0..100 {
             state.update(home_x, 9);
@@ -20836,6 +20859,7 @@ mod tests {
         );
         let home_dx = (villager.x - (home_x as f64 + 0.5)).abs();
         assert!(home_dx < 1.6);
+        assert!(state.should_villager_seek_shelter(villager.x, villager.y, true));
         assert!(
             !state.is_exposed_to_sky(villager.x, villager.y - 1.0)
                 || !state.is_weather_wet_at(villager.x, villager.y - 1.0)

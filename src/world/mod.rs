@@ -1,3 +1,5 @@
+mod attachments;
+pub use attachments::{RoomMaterial, TorchAttachment};
 pub mod block;
 pub mod chunk;
 pub mod environment;
@@ -269,6 +271,7 @@ pub struct World {
     simulation_centers: Vec<i32>,
     replica_biomes: HashMap<i32, BiomeType>,
     chunks: HashMap<i32, Chunk>,
+    pending_torch_checks: HashSet<(i32, i32)>,
     pub newly_generated_chunks: Vec<i32>,
     pub dimension: Dimension,
     save_key: String,
@@ -483,6 +486,7 @@ impl World {
             simulation_centers: Vec::new(),
             replica_biomes: HashMap::new(),
             chunks: HashMap::new(),
+            pending_torch_checks: HashSet::new(),
             newly_generated_chunks: Vec::new(),
             dimension,
             save_key,
@@ -654,10 +658,32 @@ impl World {
             self.activate_fluid_chunk_neighbors(chunk_x);
         }
         self.prune_unsupported_blocks_near(world_x, world_y, true);
+        // An inferred room wall can support a sconce farther from the edited
+        // cell. Recheck when structure is removed or replaced: a solid material
+        // can still stop qualifying as an enclosing roof or wall.
+        if previous.is_solid()
+            && !matches!(
+                (previous, block),
+                (BlockType::WoodDoor(_), BlockType::WoodDoor(_))
+                    | (BlockType::IronDoor(_), BlockType::IronDoor(_))
+            )
+        {
+            for y in world_y - 8..=world_y + 8 {
+                for x in world_x - 16..=world_x + 16 {
+                    if self.get_block(x, y) == BlockType::Torch {
+                        self.prune_unsupported_block_at(x, y, true);
+                    }
+                }
+            }
+        }
     }
 
     fn drop_items_for_support_break(&mut self, world_x: i32, world_y: i32, block: BlockType) {
         match block {
+            BlockType::Torch => {
+                self.recent_environment_drops
+                    .push((world_x, world_y, ItemType::Torch));
+            }
             BlockType::RedFlower => {
                 self.recent_environment_drops
                     .push((world_x, world_y, ItemType::RedFlower));
@@ -713,11 +739,13 @@ impl World {
 
     fn prune_unsupported_block_at(&mut self, world_x: i32, world_y: i32, drop_items: bool) {
         let block = self.get_block(world_x, world_y);
-        if !block.needs_bottom_support() {
+        if block != BlockType::Torch && !block.needs_bottom_support() {
             return;
         }
         let ground = self.get_block(world_x, world_y + 1);
-        let supported = if block == BlockType::SugarCane {
+        let supported = if block == BlockType::Torch {
+            self.torch_attachment(world_x, world_y).is_some()
+        } else if block == BlockType::SugarCane {
             self.can_support_sugar_cane_at(world_x, world_y)
         } else {
             block.can_stay_on(ground)
@@ -734,6 +762,11 @@ impl World {
     fn prune_unsupported_blocks_near(&mut self, world_x: i32, world_y: i32, drop_items: bool) {
         self.prune_unsupported_block_at(world_x, world_y, drop_items);
         self.prune_unsupported_block_at(world_x, world_y - 1, drop_items);
+        for x in [world_x - 1, world_x + 1] {
+            if self.get_block(x, world_y) == BlockType::Torch {
+                self.prune_unsupported_block_at(x, world_y, drop_items);
+            }
+        }
     }
 
     pub fn chest_inventory(&self, world_x: i32, world_y: i32) -> Option<&Inventory> {
@@ -1124,6 +1157,7 @@ impl World {
         self.simulation_centers.clear();
     }
     pub fn update(&mut self, center_x: i32) {
+        self.check_loaded_torch_attachments();
         self.tick_counter += 1;
         self.recent_explosions.clear();
         self.recent_explosion_block_losses.clear();
@@ -3963,6 +3997,41 @@ impl World {
                 self.chunk_metrics.async_loaded += 1;
             }
             self.chunks.insert(chunk_x, chunk);
+            self.queue_loaded_torch_checks(chunk_x);
+        }
+    }
+
+    fn queue_loaded_torch_checks(&mut self, chunk_x: i32) {
+        let Some(chunk) = self.chunks.get(&chunk_x) else {
+            return;
+        };
+        for y in 0..CHUNK_HEIGHT {
+            for x in 0..CHUNK_WIDTH {
+                if chunk.get_block(x, y) == BlockType::Torch {
+                    self.pending_torch_checks
+                        .insert((chunk_x * CHUNK_WIDTH as i32 + x as i32, y as i32));
+                }
+            }
+        }
+    }
+
+    fn check_loaded_torch_attachments(&mut self) {
+        // Legacy/chunk-blueprint torches are checked once, after neighboring
+        // chunk data is available. Never mistake an unloaded wall for open air.
+        for (x, y) in std::mem::take(&mut self.pending_torch_checks) {
+            if !self.chunks.contains_key(&x.div_euclid(CHUNK_WIDTH as i32)) {
+                continue;
+            }
+            if [x - 16, x + 16]
+                .into_iter()
+                .any(|px| !self.chunks.contains_key(&px.div_euclid(CHUNK_WIDTH as i32)))
+            {
+                self.pending_torch_checks.insert((x, y));
+                continue;
+            }
+            if self.get_block(x, y) == BlockType::Torch {
+                self.prune_unsupported_block_at(x, y, true);
+            }
         }
     }
 
@@ -3979,6 +4048,7 @@ impl World {
                     self.activate_fluid_chunk_neighbors(chunk_x);
                 }
                 self.chunks.insert(chunk_x, loaded_chunk);
+                self.queue_loaded_torch_checks(chunk_x);
                 self.chunk_metrics.sync_loaded += 1;
                 return;
             }
@@ -4008,6 +4078,7 @@ impl World {
             self.activate_fluid_chunk_neighbors(chunk_x);
         }
         self.chunks.insert(chunk_x, generated_chunk);
+        self.queue_loaded_torch_checks(chunk_x);
         self.newly_generated_chunks.push(chunk_x);
         self.chunk_metrics.sync_generated += 1;
     }
@@ -4491,6 +4562,24 @@ impl World {
         }
     }
 
+    fn place_stronghold_torch(chunk: &mut Chunk, c_start: i32, c_end: i32, x: i32, floor: i32) {
+        if x < c_start || x >= c_end {
+            return;
+        }
+        let lx = (x - c_start) as usize;
+        // Overlapping rooms can replace a corridor's nominal floor with air.
+        // Find the actual local surface before putting a light above it.
+        if let Some(y) = (floor..=(floor + 6).min(CHUNK_HEIGHT as i32 - 1))
+            .find(|&y| !chunk.get_block(lx, y as usize).collision_boxes().is_empty())
+            && matches!(
+                chunk.get_block(lx, (y - 1) as usize),
+                BlockType::Air | BlockType::Torch
+            )
+        {
+            Self::set_stronghold_block(chunk, c_start, c_end, x, y - 1, BlockType::Torch);
+        }
+    }
+
     fn build_overworld_stronghold(chunk: &mut Chunk, chunk_x: i32) {
         let c_start = chunk_x * CHUNK_WIDTH as i32;
         let c_end = c_start + CHUNK_WIDTH as i32;
@@ -4641,26 +4730,12 @@ impl World {
         // Guidance lights and pillars make the approach to the portal room read clearly in 2D.
         let mut hall_light_x = west_hall_left + 3;
         while hall_light_x <= east_hall_right - 3 {
-            Self::set_stronghold_block(
-                chunk,
-                c_start,
-                c_end,
-                hall_light_x,
-                hall_top + 1,
-                BlockType::Torch,
-            );
+            Self::place_stronghold_torch(chunk, c_start, c_end, hall_light_x, hall_floor);
             hall_light_x += 5;
         }
         let mut upper_light_x = upper_left + 3;
         while upper_light_x <= upper_right - 3 {
-            Self::set_stronghold_block(
-                chunk,
-                c_start,
-                c_end,
-                upper_light_x,
-                upper_top + 1,
-                BlockType::Torch,
-            );
+            Self::place_stronghold_torch(chunk, c_start, c_end, upper_light_x, upper_floor);
             upper_light_x += 6;
         }
         for pillar_x in [room_left + 3, room_right - 3] {
@@ -4720,18 +4795,11 @@ impl World {
             }
         }
         for torch_x in [
-            library_room_left + 5,
+            library_room_left + 6,
             (library_room_left + library_room_right) / 2,
-            library_room_right - 5,
+            library_room_right - 6,
         ] {
-            Self::set_stronghold_block(
-                chunk,
-                c_start,
-                c_end,
-                torch_x,
-                library_room_top + 1,
-                BlockType::Torch,
-            );
+            Self::place_stronghold_torch(chunk, c_start, c_end, torch_x, library_room_floor);
         }
 
         // The staging room gives a clear pre-portal supply stop on the main route.
@@ -4762,14 +4830,7 @@ impl World {
             BlockType::Furnace,
         );
         for torch_x in [staging_room_left + 2, staging_room_right - 2] {
-            Self::set_stronghold_block(
-                chunk,
-                c_start,
-                c_end,
-                torch_x,
-                staging_room_top + 1,
-                BlockType::Torch,
-            );
+            Self::place_stronghold_torch(chunk, c_start, c_end, torch_x, staging_room_floor);
         }
 
         // Iron doors on branch transitions.

@@ -1,5 +1,6 @@
 //! Four-by-four, world-anchored material pixels. The same atlas serves every world.
 use super::{BlockType, GameState, Renderer};
+use crate::world::{RoomMaterial, TorchAttachment};
 
 type Rgb = (u8, u8, u8);
 pub(super) struct Tile {
@@ -631,11 +632,22 @@ impl Renderer {
         let bottom = (vy * 2 + self.vertical_pixel_offset - cy * 2
             + i32::from(self.height - 4) * 2)
             .div_euclid(unit);
+        let mut torches = Vec::new();
         for by in top..=bottom {
             for bx in left..=right {
                 let block = state.world.get_block(bx, by);
                 let above = state.world.get_block(bx, by - 1);
-                let tile = Tile::for_block(block, state.current_dimension, above);
+                // Supports, rather than a free-standing atlas stamp, define ordinary
+                // torches. Defer their art so a shaft can reach a lower slab without
+                // the following terrain row painting over it.
+                let tile = if block == BlockType::Torch {
+                    if let Some(attachment) = state.world.torch_attachment(bx, by) {
+                        torches.push((bx, by, attachment));
+                    }
+                    None
+                } else {
+                    Tile::for_block(block, state.current_dimension, above)
+                };
                 let backdrop = if !block.is_solid() {
                     Self::room_backdrop(state, bx, by)
                 } else {
@@ -770,86 +782,158 @@ impl Renderer {
                 }
             }
         }
+        for (bx, by, attachment) in torches {
+            self.render_attached_torch(bx, by, attachment, lighting);
+        }
+    }
+
+    pub(super) fn render_attached_torch(
+        &mut self,
+        bx: i32,
+        by: i32,
+        attachment: TorchAttachment,
+        lighting: &super::shading::SceneLighting,
+    ) {
+        let (vx, vy, cx, cy, scale) = self.world_view.unwrap();
+        let unit = scale * 2;
+        let sx = bx * unit - vx + cx;
+        let sy = by * unit - vy * 2 - self.vertical_pixel_offset + cy * 2;
+        let extension = match attachment {
+            TorchAttachment::Floor { offset } => {
+                (offset.clamp(0.0, 0.5) * unit as f64).round() as i32
+            }
+            _ => 0,
+        };
+        for py in 0..unit + extension {
+            for px in 0..unit {
+                let Some((color, emissive)) = Self::attached_torch_pixel(attachment, unit, px, py)
+                else {
+                    continue;
+                };
+                self.put_pixel(
+                    sx + px,
+                    sy + py,
+                    lighting.shade(
+                        Self::rgb(color),
+                        bx as f64 + (px as f64 + 0.5) / unit as f64,
+                        by as f64 + (py as f64 + 0.5) / unit as f64,
+                        0.96,
+                        emissive,
+                    ),
+                );
+            }
+        }
+    }
+
+    // These small silhouettes are rasterized at the active scale. Sampling a
+    // one-pixel-wide eight-pixel atlas can otherwise lose the entire shaft at
+    // the wider view, leaving an apparently floating flame.
+    fn attached_torch_pixel(
+        attachment: TorchAttachment,
+        unit: i32,
+        px: i32,
+        py: i32,
+    ) -> Option<(Rgb, bool)> {
+        if unit == 2 {
+            // The wide view has only two vertical pixels per block. Preserve
+            // the flame/support distinction rather than downsampling it away.
+            return match attachment {
+                TorchAttachment::Floor { offset } => {
+                    if px == 1 && py == 0 {
+                        Some(((255, 221, 130), true))
+                    } else if px == 1
+                        && py > 0
+                        && py < unit + (offset.clamp(0.0, 0.5) * unit as f64).round() as i32
+                    {
+                        Some(((119, 82, 45), false))
+                    } else {
+                        None
+                    }
+                }
+                TorchAttachment::LeftWall | TorchAttachment::RightWall => {
+                    let wall = i32::from(matches!(attachment, TorchAttachment::RightWall));
+                    if px == 1 - wall && py == 0 {
+                        Some(((255, 221, 130), true))
+                    } else if px == wall && py == 1 {
+                        Some(((119, 82, 45), false))
+                    } else if px == 1 - wall && py == 1 {
+                        Some(((63, 68, 68), false))
+                    } else {
+                        None
+                    }
+                }
+                TorchAttachment::BackWall => match (px, py) {
+                    (1, 0) => Some(((255, 221, 130), true)),
+                    (1, 1) => Some(((119, 82, 45), false)),
+                    (0, 1) => Some(((63, 68, 68), false)),
+                    _ => None,
+                },
+            };
+        }
+        // The positive center pixel contacts the upper tread of right-facing
+        // stairs, whose collision surface begins exactly at x = 0.5.
+        let middle = if matches!(attachment, TorchAttachment::Floor { .. }) {
+            unit / 2
+        } else {
+            (unit - 1) / 2
+        };
+        let flame_top = unit / 4;
+        let flame_bottom = unit / 2;
+        let right_wall = matches!(attachment, TorchAttachment::RightWall);
+        let x = if right_wall { unit - 1 - px } else { px };
+        let flame = py >= flame_top
+            && py <= flame_bottom
+            && (x == middle || (unit >= 6 && py == flame_top + 1 && (x - middle).abs() == 1));
+        if flame {
+            return Some((
+                if x == middle && py == flame_top {
+                    (255, 221, 130)
+                } else {
+                    (251, 175, 72)
+                },
+                true,
+            ));
+        }
+        let wood = ((119, 82, 45), false);
+        let metal = ((63, 68, 68), false);
+        match attachment {
+            TorchAttachment::Floor { offset } => {
+                let base = unit + (offset.clamp(0.0, 0.5) * unit as f64).round() as i32;
+                (x == middle && py > flame_bottom && py < base).then_some(wood)
+            }
+            TorchAttachment::LeftWall | TorchAttachment::RightWall => {
+                let base = unit - 1;
+                if py > flame_bottom && py <= base {
+                    let shaft = middle * (base - py) / (base - flame_bottom).max(1);
+                    if x == shaft {
+                        return Some(wood);
+                    }
+                }
+                // A short metal foot meets the neighboring wall at the block
+                // boundary; the wooden shaft leans outward from that bracket.
+                (py == base && x <= (unit / 4).max(1)).then_some(metal)
+            }
+            TorchAttachment::BackWall => {
+                let top = flame_bottom + 1;
+                let bottom = (unit - 2).max(top);
+                if x == middle && py >= top && py <= bottom {
+                    Some(wood)
+                } else if py >= top && py <= bottom && (x - middle).abs() <= 1 {
+                    Some(metal)
+                } else {
+                    None
+                }
+            }
+        }
     }
 
     // A bounded, visual-only cutaway back wall. It has no collision or saved blocks.
     fn room_backdrop(state: &GameState, x: i32, y: i32) -> Option<Rgb> {
-        // End tunnels deliberately use their own short obsidian recess.
-        if state.current_dimension == crate::world::Dimension::End {
-            let roof = (1..=6).find(|dy| state.world.get_block(x, y - dy) != BlockType::Air)?;
-            if roof <= 3
-                && state.world.get_block(x, y - roof) == BlockType::Obsidian
-                && (1..=3).any(|dy| state.world.get_block(x, y + dy) == BlockType::Obsidian)
-            {
-                return Some((31, 27, 43));
-            }
+        match state.world.room_enclosure(x, y)? {
+            RoomMaterial::Wood => Some((132, 119, 98)),
+            RoomMaterial::Masonry => Some((103, 112, 116)),
+            RoomMaterial::Obsidian => Some((31, 27, 43)),
         }
-        let roof_material = |b| {
-            matches!(
-                b,
-                BlockType::Planks
-                    | BlockType::Wood
-                    | BlockType::BirchWood
-                    | BlockType::StoneBricks
-                    | BlockType::Cobblestone
-                    | BlockType::StoneSlab
-                    | BlockType::StoneStairs
-                    | BlockType::Glass
-            )
-        };
-        let wall_material =
-            |b| roof_material(b) || matches!(b, BlockType::WoodDoor(_) | BlockType::IronDoor(_));
-        let furnishing = |b| {
-            matches!(
-                b,
-                BlockType::Chest
-                    | BlockType::CraftingTable
-                    | BlockType::Furnace
-                    | BlockType::Bed
-                    | BlockType::Anvil
-                    | BlockType::EnchantingTable
-                    | BlockType::BrewingStand
-            )
-        };
-        let floor = (1..=6).find(|dy| {
-            let b = state.world.get_block(x, y + dy);
-            b.is_solid() && !furnishing(b)
-        })?;
-        let ground = y + floor;
-        // A partial loft is not the room's ceiling. Try each structural candidate
-        // until a complete enclosing roof is found; furnishings never define it.
-        for roof in 1..=6 {
-            let ceiling = y - roof;
-            let material = state.world.get_block(x, ceiling);
-            if material == BlockType::Glass || !roof_material(material) || roof + floor > 8 {
-                continue;
-            }
-            let side = |direction| {
-                (1..=16).any(|dx| {
-                    let bx = x + dx * direction;
-                    (ceiling + 1..ground).all(|by| wall_material(state.world.get_block(bx, by)))
-                        && (x.min(bx)..=x.max(bx))
-                            .all(|rx| roof_material(state.world.get_block(rx, ceiling)))
-                })
-            };
-            if !side(-1) || !side(1) {
-                continue;
-            }
-            return Some(
-                if matches!(
-                    material,
-                    BlockType::StoneBricks
-                        | BlockType::Cobblestone
-                        | BlockType::StoneSlab
-                        | BlockType::StoneStairs
-                ) {
-                    (103, 112, 116)
-                } else {
-                    (132, 119, 98)
-                },
-            );
-        }
-        None
     }
 }
 
@@ -915,6 +999,131 @@ mod tests {
         }
         s
     }
+
+    fn render_attachment_fixture(
+        state: &GameState,
+        scale: i32,
+        lighting: &super::super::shading::SceneLighting,
+    ) -> Renderer {
+        let mut renderer = Renderer::with_size(160, 48);
+        renderer.world_view = Some((0, 16 * scale, 0, 0, scale));
+        renderer.render_pixel_sky(state, lighting);
+        renderer.render_pixel_materials(state, lighting);
+        renderer
+    }
+
+    fn attachment_pixel(renderer: &Renderer, x: i32, y: i32) -> super::super::Color {
+        let cell = renderer.back_buffer[y as usize / 2 * 160 + x as usize];
+        assert_eq!(cell.ch, '▀');
+        if y % 2 == 0 { cell.fg } else { cell.bg }
+    }
+
+    #[test]
+    fn floor_torch_shafts_reach_full_blocks_and_lower_slabs_at_every_view_scale() {
+        for scale in [1, 2, 4] {
+            let unit = scale * 2;
+            for (support, offset) in [
+                (BlockType::Stone, 0.0),
+                (BlockType::StoneSlab, 0.5),
+                (BlockType::StoneStairs, 0.0),
+            ] {
+                let mut state = enclosed_room();
+                state.world.set_block(4, 18, BlockType::Torch);
+                state.world.set_block(4, 19, support);
+                assert!(matches!(
+                    state.world.torch_attachment(4, 18),
+                    Some(TorchAttachment::Floor { offset: actual }) if actual == offset
+                ));
+                let lighting = super::super::shading::SceneLighting::new(
+                    &state,
+                    &[15; 32 * 32],
+                    (0, 0, 32, 32),
+                );
+                let torch = render_attachment_fixture(&state, scale, &lighting);
+                state.world.set_block(4, 18, BlockType::Air);
+                let bare = render_attachment_fixture(&state, scale, &lighting);
+                let shaft_x = 4 * unit + unit / 2;
+                let support_top = 3 * unit + (offset * unit as f64) as i32;
+                assert_ne!(
+                    attachment_pixel(&torch, shaft_x, support_top - 1),
+                    attachment_pixel(&bare, shaft_x, support_top - 1),
+                    "shaft stops above {support:?} at scale {scale}"
+                );
+                assert_eq!(
+                    attachment_pixel(&torch, shaft_x, support_top),
+                    attachment_pixel(&bare, shaft_x, support_top),
+                    "shaft must meet the support without painting over it"
+                );
+                assert_ne!(
+                    attachment_pixel(&torch, shaft_x, 2 * unit + unit / 4),
+                    attachment_pixel(&bare, shaft_x, 2 * unit + unit / 4),
+                    "flame disappears at scale {scale}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn side_wall_torches_have_visible_brackets_meeting_the_actual_wall() {
+        for scale in [1, 2, 4] {
+            let unit = scale * 2;
+            for (wall_x, right) in [(3, false), (5, true)] {
+                let mut state = enclosed_room();
+                state.world.set_block(4, 18, BlockType::Torch);
+                state.world.set_block(wall_x, 18, BlockType::StoneBricks);
+                assert!(matches!(
+                    (state.world.torch_attachment(4, 18), right),
+                    (Some(TorchAttachment::LeftWall), false)
+                        | (Some(TorchAttachment::RightWall), true)
+                ));
+                let lighting = super::super::shading::SceneLighting::new(
+                    &state,
+                    &[15; 32 * 32],
+                    (0, 0, 32, 32),
+                );
+                let torch = render_attachment_fixture(&state, scale, &lighting);
+                state.world.set_block(4, 18, BlockType::Air);
+                let bare = render_attachment_fixture(&state, scale, &lighting);
+                let boundary = 4 * unit + if right { unit - 1 } else { 0 };
+                let adjacent = boundary + if right { 1 } else { -1 };
+                let bracket_y = 3 * unit - 1;
+                assert_ne!(
+                    attachment_pixel(&torch, boundary, bracket_y),
+                    attachment_pixel(&bare, boundary, bracket_y),
+                    "wall bracket is disconnected at scale {scale}"
+                );
+                assert_eq!(
+                    attachment_pixel(&torch, adjacent, bracket_y),
+                    attachment_pixel(&bare, adjacent, bracket_y),
+                    "wall art must stay inside the targeted torch block"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn back_wall_torches_show_a_plate_instead_of_an_unattached_stem() {
+        for scale in [1, 2, 4] {
+            let unit = scale * 2;
+            let mut state = enclosed_room();
+            state.world.set_block(4, 18, BlockType::Torch);
+            assert!(matches!(
+                state.world.torch_attachment(4, 18),
+                Some(TorchAttachment::BackWall)
+            ));
+            let lighting =
+                super::super::shading::SceneLighting::new(&state, &[15; 32 * 32], (0, 0, 32, 32));
+            let torch = render_attachment_fixture(&state, scale, &lighting);
+            state.world.set_block(4, 18, BlockType::Air);
+            let bare = render_attachment_fixture(&state, scale, &lighting);
+            let shaft_x = 4 * unit + if unit == 2 { 1 } else { (unit - 1) / 2 };
+            let plate_x = shaft_x + if unit == 2 { -1 } else { 1 };
+            let plate_y = 2 * unit + (unit / 2 + 1).min(unit - 1);
+            let plate = attachment_pixel(&torch, plate_x, plate_y);
+            assert_ne!(plate, attachment_pixel(&bare, plate_x, plate_y));
+            assert_ne!(plate, attachment_pixel(&torch, shaft_x, plate_y));
+        }
+    }
     #[test]
     fn partial_lofts_do_not_cut_sky_holes_in_room_backgrounds() {
         let mut s = enclosed_room();
@@ -975,6 +1184,7 @@ mod tests {
     fn end_tunnels_retain_their_obsidian_recess() {
         let mut s = enclosed_room();
         s.current_dimension = crate::world::Dimension::End;
+        s.world.dimension = crate::world::Dimension::End;
         s.world.set_block(4, 16, BlockType::Obsidian);
         s.world.set_block(4, 20, BlockType::Obsidian);
         assert_eq!(Renderer::room_backdrop(&s, 4, 18), Some((31, 27, 43)));

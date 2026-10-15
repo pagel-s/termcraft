@@ -162,6 +162,7 @@ mod tests {
             crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
         ];
         state.world.apply_chunk_column_snapshot(0, &blocks);
+        state.world.set_block(3, 6, BlockType::Stone);
         state.world.set_block(3, 5, BlockType::Torch);
         for y in 0..12 {
             state.world.set_block(5, y, BlockType::Stone);

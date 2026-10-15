@@ -234,6 +234,19 @@ these CPU timings exclude terminal emulator and WAN latency.
 
 ## Terminal compatibility and moving output
 
+For ordinary torch attachment review, build the examples, then run:
+
+```sh
+env -u NO_COLOR target/release/examples/torch_review /tmp/torch-ansi
+python3 scripts/capture_terminal_art.py /tmp/torch-ansi /tmp/torch-png
+```
+
+The disposable fixture covers floor, lower slab, both side walls and an inferred
+back wall at all three color views, day and night. World/renderer regressions
+also cover stairs, support removal/replacement, chunk seams, deferred legacy
+checks and generated village/stronghold lights. The attachment code is runtime
+only; `BlockType` serialization and network protocol 12 are unchanged.
+
 ```sh
 cargo build --release --locked --bins --examples
 python3 scripts/test_terminal_input.py --binary target/release/termcraft --village-example target/release/examples/village_review --report /tmp/terminal-input.json --keep-artifacts

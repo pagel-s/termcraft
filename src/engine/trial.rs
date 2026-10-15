@@ -222,7 +222,9 @@ impl GameState {
             s.world.set_block(x, 64, BlockType::StoneBricks);
         }
         for x in [-4, 3, 11, 16, 23, 29, 35, 42, 47, 61, 68] {
-            s.world.set_block(x, 63, BlockType::Torch);
+            if s.world.torch_attachment(x, 63).is_some() {
+                s.world.set_block(x, 63, BlockType::Torch);
+            }
         }
         s.player.x = 0.5;
         s.player.y = 64.0;

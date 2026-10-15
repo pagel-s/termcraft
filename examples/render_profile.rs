@@ -78,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         if scene == "torch_cave" {
             for x in (-96..=96).step_by(8) {
-                state.world.set_block(x, 62, BlockType::Torch);
+                state.world.set_block(x, 63, BlockType::Torch);
             }
         }
         if scene == "rooms" {
