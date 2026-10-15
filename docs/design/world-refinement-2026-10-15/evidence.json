@@ -1,31 +1,31 @@
 {
   "date": "2026-10-15",
   "branch": "beta/terminal-reborn",
-  "implementation_commit": "13249167957875298fcb8d18922e63343a94086e",
+  "implementation_commit": "846ea2e",
   "baseline_commit": "40f3e11",
-  "installed_binary_sha256": "f79a1cb740d3c48b955c9a10a96ce5cebe4ea86248ffca73c7f6e63cf29453b0",
+  "installed_binary_sha256": "1dfc4fe6645221989f00789ae490bf15e405e4dec7a165ec2c04ee9bc7b20e89",
   "checks": {
     "tests-stable.log": {
-      "sha256": "4ab61ee28abf7411f8b5debd5bff60d1e4aedac1534de1431836070912a56702",
-      "result": "659 passed; 3 opt-in integration tests ignored"
+      "sha256": "e0c4e4eb5332623daf032e7a4e9bbe2cdd36a517c6e4569d2c696cb1370c94f0",
+      "result": "662 passed; 3 opt-in integration tests ignored"
     },
     "clippy-stable.log": {
-      "sha256": "1b0d2684bc118515fd80ee12edacea13bfef5d41983b21f2f4e31564ffc1ea1c",
+      "sha256": "ab0fb6cdaf753bf8d611c9ea075a5e528436b5ca3db9a748f6cfecec55c75d50",
       "result": "all targets, -D warnings, passed"
     },
     "tests-msrv.log": {
-      "sha256": "871957cb66c00309dcdcf8af462dde0fdd5f8f8e12f77377a3170401e5b71f70",
-      "result": "659 passed; 3 opt-in integration tests ignored"
+      "sha256": "be253d5b9c16133ba020dcc45ac517b8d108919a2d32e1c064ea9bc32f6a90b8",
+      "result": "662 passed; 3 opt-in integration tests ignored"
     },
     "clippy-msrv.log": {
-      "sha256": "4a60e41e9de6e83e4904761a560c05cd548d3b938390ff5781ea785e765478d3",
+      "sha256": "8909bb2ca6fd8e0797eb7f148905119f51d28a191795752e14fb294806c7efac",
       "result": "all targets, -D warnings, passed"
     }
   },
   "fmt": "stable and Rust 1.88 passed",
   "native_runtime": {
     "status": "passed",
-    "binary_sha256": "f79a1cb740d3c48b955c9a10a96ce5cebe4ea86248ffca73c7f6e63cf29453b0",
+    "binary_sha256": "1dfc4fe6645221989f00789ae490bf15e405e4dec7a165ec2c04ee9bc7b20e89",
     "temporary_world_create": true,
     "native_pty_render_and_quit": true,
     "terminal_restored": true,
@@ -48,10 +48,12 @@
     "examples/translation_review.rs": "e016104bd0531ef612be421c0e9c0e4b0f7d3a4ef4fe5a6cd9aff44ed89ee991",
     "examples/village_review.rs": "fa0d814a03d3dcb0a4e4c5608c5b32f9bd1df67f547a750448ec38f4ff979eba",
     "examples/weather_review.rs": "cace6e098309fe29c10d6cd44f8ae364fba32edaf9c857a5aff73105eaee4b42",
-    "examples/world_review.rs": "6e88a00d2ecfc428b0410ba6d56370b8727ee1adb0d17815da5d9dd0c08db0de",
-    "scripts/build_material_gallery.py": "7e392eb79611c81472f2d28a6c31ee15f3b2a50238d6a7f8058f26de5887e97f",
-    "scripts/build_world_gallery.py": "940a422392357b8a5e1db182d8817a0d720c9a78e03aedc9145b709e6f7588d7",
+    "examples/world_review.rs": "bf136a8cf76183b99c0bab21868646d0acffd151ea2235a5958d97022f1953c3",
+    "scripts/build_material_gallery.py": "c4c89bbecdb4e8d617b76687c6e9ae8fd3f8e8629c7a795d12d2b37fcb606700",
+    "scripts/build_world_gallery.py": "1ec9138d8cdd6ed5bcca2545b8f9e8a7d29302d1a0b0cfee77fa2a3cf5d1067d",
     "scripts/capture_terminal_art.py": "209defdfb233006e60e7ac60e0d3bc543833c6eda26b0fa0691b8b87d95cea63",
+    "scripts/serve_gallery.py": "67a98342b242207a05c915ab69c9f688fc8a0b460065012ea4a9619b96907e75",
+    "scripts/verify_gallery.py": "fa55cd7871b1b0f99fb9651a14921ec4195dedbe90aee959ca4950bd243bf6aa",
     "src/engine/actors.rs": "d97d62de71c433ba12f488669fb20d340e7e72695e08a1c9c75f8ee80ba4c4d4",
     "src/engine/agent.rs": "7fd607c6aef01a313e82f67487f029435f22fe1484dae6fc8f994030baeb3b81",
     "src/engine/client_identity.rs": "f933ead5814571e06990b1240a64990c501f2ccf3f49d2692e85df4081a47ff7",
@@ -115,18 +117,18 @@
     "src/renderer/terminal.rs": "b32cea65116ef5671d734677540c3e2e77b04f0bd7ae939fb5917e6e25a87e90",
     "src/renderer/weather.rs": "facf26be0650bb45e225def82110ba967ceecc9fec9e735667dd2734963d965e",
     "src/save_path.rs": "1fc474160c75cbc95ab2ce6b853f19c465bb967619c597747651750f14b91366",
-    "src/world/attachments.rs": "9d623e58bc0fc53ec1b44e953365af6a2d378b02f912aac07364b7964dfffa43",
+    "src/world/attachments.rs": "2fab1b867e558d4def00713a8bccbc018af50752254877030afee91f97c7e4a3",
     "src/world/block.rs": "c2c12428ee38ac196a9c8d4e2633c294bd8f983d64b69fce07ebcc8d107986ea",
     "src/world/chunk.rs": "9bedfbf3bb5add64b8ad870be9823393260a5c29db9221ecb3f68ff90d5a2188",
     "src/world/environment.rs": "545d69216b383b65f904fa79f824a7f8ee880ac5e869a4edddd655ba023e5b70",
     "src/world/item.rs": "4936863fb68e388518f8f00c3fe8a3fdca454961ecb72aa91a7972cafb32a01f",
-    "src/world/mod.rs": "4d316666f71582bf0afbb524983715dd6b70bccd9d391d8ce40cc6f946a43808",
+    "src/world/mod.rs": "050613bd1a82bafae8449ca57e2776b65896559536350a6082afc49825453b06",
     "src/world/recipe.rs": "9002eea8be4fcb41a1f6c016f92097ed3edfac5f1147d8e30712d88762f1dbda",
     "src/world/village.rs": "8b4b7386513c921d876d4745e9892cfb379ef5fba60165a9e7312942fd4d10da",
     "src/worlds.rs": "398b506316ce006fac7c4873e7f2588259dd861609d12f66f37b08cd2cd5a715"
   },
   "limits": "Software ANSI rasterization and automated checks; no interactive browser QA or human gameplay qualification.",
-  "scope": "Swamp land/water vegetation, surface-anchored biome captures, frontal dragon rendering/combat, bounded ores and block refinement/overview visibility.",
+  "scope": "Natural Nether route variants and side-view routes/supports; native gallery discoveries, static covers, fresh image revisions and complete HTTP resource/image/GIF validation.",
   "artifacts_sha256": {
     "biome-extremehills-before.png": "7d34f8490e46c90d01976e199d8a56681dd5d49f685b7cd71b5774ba93961f9d",
     "biome-extremehills-now.png": "3a3802e928ec9f1b16bdf9b5d64d53d0319eeab0509f06ad8c4460ea67f04e2c",
@@ -426,13 +428,13 @@
     "blocks.json": "5495679d35833619b450234fd91f8836df65fb5d125aacb4f6e89eef85f710a9",
     "end-dragon-before.png": "d027dbf2f354ec4928483ea06d7819f06b6c5eaf287406bfeb556d3495c7f9ba",
     "end-dragon-now.png": "43f326b641ab86e658406c28e1e946c4e11150ece29ef0df82f4e4981143c6b8",
-    "index.html": "6b7d73f0d1764f8e93e45e8c5787078004f333e1d8faa0e4c381062ee6ff66ee",
+    "index.html": "1e1a4aca2064fa777c44db431e24c9b9de5a6cb212f9939fc36421752f52f8ad",
     "material-inputs.json": "f6d277bd8b487f4ed868ca4fada58ce06b27ab5ab2547c9958b16516ea841c52",
     "ores-after.json": "47703fb373cafb3d981e7d4883e6231e2a16efbcc593087bcca4d01bd6a6ff61",
     "ores-before.json": "ba169a877016d203ca5c1351dee2de3496f709dcea22d1006699426b00ec5f96",
-    "provenance.md": "17188447d66ed0039adafb451b62aa227e3ed0a35cbb925d1715e78bc1116fd5",
+    "provenance.md": "e6728a78963d9a3c6973cef6620346fb1fcb24e8e3806536f246f8939d47cd54",
     "render-profile.json": "53bcd7ddb8385224356d5f4e444f073b036736022b5b259b811aa49b38135934",
-    "runtime-smoke.json": "2a247efdf9d807293b1c7ee217f23a9d0b5cec84599da3a2f693ee5e8d81577d"
+    "runtime-smoke.json": "d6a0d6b1980917861b7ab415409074323f93ddb91a5290e52899e96c02c958fa"
   },
   "block_state_count": 97,
   "block_images": 291,
@@ -443,5 +445,13 @@
   "visual_review_rounds": [
     "Native environment and full block/state capture review; found missing swamp vegetation, underground biome framing, and erased overview redstone torches.",
     "Recaptured native environments and all 97 blocks/states after corrections; inspected overview/detail captures and validated all image/catalog resources."
-  ]
+  ],
+  "image_delivery": {
+    "report": "../world-atlas-2026-10-15/image-loads.json",
+    "images": 467,
+    "resources": 477,
+    "checks": "HTTP 200; bytes match disk; revisions/dimensions match; every GIF frame decodes",
+    "limits": "No enabled browser was available for interactive browser QA."
+  },
+  "attestation_note": "HTTP report is independent and excluded from artifact hashes to avoid a self-referential evidence/report hash cycle."
 }

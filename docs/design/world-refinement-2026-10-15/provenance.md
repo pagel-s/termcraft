@@ -3,8 +3,10 @@
 [Open all 97 labelled block/state comparisons](index.html) ·
 [Updated world gallery](../world-atlas-2026-10-15/index.html).
 
-Implementation: [`1324916`](https://github.com/pagel-s/termcraft/commit/13249167957875298fcb8d18922e63343a94086e).
+Material/wetland/frontal implementation: [`1324916`](https://github.com/pagel-s/termcraft/commit/13249167957875298fcb8d18922e63343a94086e).
 Baseline: `40f3e11` (same game renderer/generation as `3181b09`).
+Nether/gallery delivery follow-up: `846ea2e`. Overworld ore generation and this
+block artwork are unchanged by that follow-up. [HTTP image check](../world-atlas-2026-10-15/image-loads.json).
 
 ## Findings and changes
 
@@ -87,12 +89,12 @@ are not externally painted assets.
 
 ## Verification and reproduction
 
-- Stable Rust and MSRV 1.88: **659 tests passed** each. Three opt-in integration
+- Stable Rust and MSRV 1.88: **662 tests passed** each. Three opt-in integration
   tests remain ignored by their existing configuration.
 - `cargo fmt --all --check` and strict Clippy for all targets passed on both.
 - Release binary built; disposable world creation and native Unix PTY
   render/quit/terminal restoration passed. [Runtime record](runtime-smoke.json).
-- Current renderer counting-writer profile: [full measurements](render-profile.json).
+- Historical material-pass (`1324916`) counting-writer profile: [full measurements](render-profile.json).
   At 200×60, p95 was about 2.13 ms for daylight, 1.16 ms for Nether and 0.86 ms
   for the dragon fixture. This excludes emulator presentation, simulation,
   networking and input latency; it is not a human play-feel claim.

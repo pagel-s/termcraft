@@ -2,7 +2,7 @@
 
 [Open the gallery](index.html). It contains **78 scenes and 170 views**, including
 three animations, refreshed after the swamp, frontal-dragon, ore and material
-refinements in `1324916` on `beta/terminal-reborn`.
+refinements and the Nether/gallery follow-up in `846ea2e` on `beta/terminal-reborn`.
 
 The original gallery checkpoint is preserved in Git at `40f3e11`. This refresh
 captures current gameplay/art: Swamp hummocks/trees/reeds, bounded ore deposits,
@@ -29,9 +29,9 @@ is available as a separate labelled audit, with ore census and verification.
 - Nether cavern/roof context, soul sand, lava vents, underground lava-layer cutaway,
   complete fortress panorama, gatehouse, watchtower, blaze bastion, loot chapel,
   corridors/supports and a generated route shrine.
-- Bridge and reliquary structure studies, with the generation limitation below.
+- Naturally generated route shrines, bridges and reliquaries, with usable side-view entrances and supported loot.
 - Generated End island, all four towers, walking cutaways, crystal anchors, return
-  portal, island edge/void and an outer island scaffold. The playable frontal dragon has
+  portal, island edge/void and a small outer island. The playable frontal dragon has
   overview and detailed encounter cards over real terrain.
 - Representative creatures/props and variants, trial camp/combat/jump/ravine,
   co-op composition, inventory, unsent game-master chat, a built portal/workshop,
@@ -59,21 +59,29 @@ Native captures use seed data `[1337,7331,9917,4444]`; creature lineups use
 `[42,73,99,44]`. The existing trial, weather and staged cave fixture examples define
 their own scene setup. Their exact source files and capture inputs are hashed.
 
-## Confirmed Nether generation finding
+## Resolved gallery findings
 
-The route marker seed uses the multiplier `1_103_515_245`, offset `12_345` and
-modulus `u32::MAX` (`4_294_967_295`). **All three are divisible by 3.** The marker
-therefore always has remainder zero modulo 3, and the variant selector always
-chooses Shrine, for positive and negative cells alike.
+The previous marker seed used a multiplier, offset and modulus divisible by three,
+so every generated route landmark was a Shrine. The marker now uses mixed u32
+arithmetic. A native-generation regression locates all three structures in both
+positive and negative world directions. Bridge and reliquary cards now show
+**actual generated structures**, replacing the simplified hand-built studies;
+the original card identifiers are retained for existing links.
 
-Sources: [marker construction](https://github.com/pagel-s/termcraft/blob/3181b0930db2d66ec6040dfc45565ad56372147e/src/world/mod.rs#L5803)
-and [variant selection](https://github.com/pagel-s/termcraft/blob/3181b0930db2d66ec6040dfc45565ad56372147e/src/world/mod.rs#L5453).
-The gallery records this issue without changing generation. Bridge/reliquary
-cards are **source-derived staged block studies**, with simplified decoration,
-based on the private builder footprints. They are not exact private-builder
-replays or naturally generated discoveries.
+Enabling the variants also exposed side-view layout problems. Bridge pylons now
+have walking cutaways, shrines have usable doors, and reliquaries have supported
+floor-level loot and lights attached to the roof. Foundations provide a continuous
+walking surface; shrine lava remains below the masonry platform. Short recessed
+masonry back walls keep arch/pylon caps visually connected to their foundations
+without adding collision to the cutaway. Geometry and
+loot-support checks cover all three builders.
 
-The End outer islands and return portal retain their current scaffold behavior.
+The return portal is functional, including clicking its bedrock frame and returning
+to the Overworld; existing gameplay regressions cover that behavior. Calling it a
+scaffold in earlier gallery notes was inaccurate. Small outer End islands remain
+limited to the outskirts of the arena. End cities are not implemented; no gallery
+card claims otherwise.
+
 The frontal dragon is the playable default, with frontal melee/arrow/contact
 regions and regression coverage. This gallery stages the encounter; it is not a
 complete human boss-fight playthrough. The lava-layer cutaway puts the camera/player inside the
@@ -96,10 +104,13 @@ env -u NO_COLOR target/release/examples/lantern_review "$atlas_raw/trial"
 env -u NO_COLOR target/release/examples/pixel_review "$atlas_raw/pixel"
 env -u NO_COLOR target/release/examples/nether_review "$atlas_raw/nether" --creatures --animate
 python3 scripts/build_world_gallery.py "$atlas_raw" /tmp/termcraft-world-gallery
-python3 -m http.server 8774 --bind 127.0.0.1 --directory /tmp/termcraft-world-gallery
+# For the checked-in world and block galleries together:
+python3 scripts/serve_gallery.py --port 8774
+# Fetch and decode every gallery image/animation through that HTTP server:
+python3 scripts/verify_gallery.py --base-url http://127.0.0.1:8774/ --report /tmp/gallery-images.json
 ```
 
-The gallery embeds its catalog and uses no external JavaScript/fonts or backend;
+The gallery embeds its catalog and static covers, with no external JavaScript/fonts or backend;
 the HTML can also be opened locally. The builder emits contact sheets next to the
 raw capture directory for visual review. Incremental animation frames are decoded
 in order. The Nether clip has 72 samples at 60 Hz with a 20/10/20 ms GIF timing
@@ -108,3 +119,14 @@ FPS, input latency, network behavior or human gameplay acceptance.
 
 [Build/source/capture evidence](evidence.json) and [raw ANSI input hashes](capture-inputs.json)
 identify the reviewed artifacts. This gallery alone does not qualify a beta release.
+
+## Image delivery verification
+
+Every world view, GIF frame and all 291 block-comparison images are decoded by
+`scripts/verify_gallery.py`. HTTP mode requests every linked resource, requires
+HTTP 200, compares returned bytes with the local artifact and checks each content
+revision and expected image size. The world HTML's embedded catalog must match
+the JSON catalog, and every scene must have a static cover. Covers load without
+JavaScript; filters and the modal are progressive enhancements. Content-stamped
+image URLs and the local server's cache headers refresh existing tabs after an
+update. [HTTP verification record](image-loads.json).

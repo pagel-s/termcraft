@@ -11,14 +11,16 @@
           "label": "Overview",
           "file": "biome-plains-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "64353fdbaf11bc42"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "biome-plains-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "98a482e29bbde012"
         }
       ],
       "origin": "Generated",
@@ -38,14 +40,16 @@
           "label": "Overview",
           "file": "biome-forest-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "9ac1308b7084a7a3"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "biome-forest-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "bad79f3973d89695"
         }
       ],
       "origin": "Generated",
@@ -65,14 +69,16 @@
           "label": "Overview",
           "file": "biome-desert-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "4851c96833d29877"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "biome-desert-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "9a39354503d60085"
         }
       ],
       "origin": "Generated",
@@ -92,14 +98,16 @@
           "label": "Overview",
           "file": "biome-tundra-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "452a1c9189af3378"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "biome-tundra-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "35e3b496b886d5f5"
         }
       ],
       "origin": "Generated",
@@ -119,14 +127,16 @@
           "label": "Overview",
           "file": "biome-taiga-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "897019afca010a0c"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "biome-taiga-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "564376336c91e2df"
         }
       ],
       "origin": "Generated",
@@ -146,14 +156,16 @@
           "label": "Overview",
           "file": "biome-swamp-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "9329875537179cdc"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "biome-swamp-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "868a664228e31af8"
         }
       ],
       "origin": "Generated",
@@ -173,14 +185,16 @@
           "label": "Overview",
           "file": "biome-jungle-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "59b51e95322fda21"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "biome-jungle-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "d88df4de5dec5406"
         }
       ],
       "origin": "Generated",
@@ -200,14 +214,16 @@
           "label": "Overview",
           "file": "biome-extremehills-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "3a3802e928ec9f1b"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "biome-extremehills-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "95822e8457c79181"
         }
       ],
       "origin": "Generated",
@@ -227,14 +243,16 @@
           "label": "Overview",
           "file": "biome-ocean-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "ccc2f7a5859aad9d"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "biome-ocean-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "bc3468c50462749c"
         }
       ],
       "origin": "Generated",
@@ -254,14 +272,16 @@
           "label": "Overview",
           "file": "biome-river-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "c4e1c7559fa8bc33"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "biome-river-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "55e13a803e037ddf"
         }
       ],
       "origin": "Generated",
@@ -281,14 +301,16 @@
           "label": "Overview",
           "file": "dawn-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "742490333caa50f7"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "dawn-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "d5c7fe1ae431f5e5"
         }
       ],
       "origin": "Generated",
@@ -308,14 +330,16 @@
           "label": "Overview",
           "file": "sunset-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "e909ba18ad89c732"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "sunset-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "580201bccb2633fe"
         }
       ],
       "origin": "Generated",
@@ -335,14 +359,16 @@
           "label": "Overview",
           "file": "moonlight-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "dc7f383ab1a76d1a"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "moonlight-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "0af4f48c287576fd"
         }
       ],
       "origin": "Generated",
@@ -362,14 +388,16 @@
           "label": "Overview",
           "file": "thunderstorm-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "82c33b11c333d022"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "thunderstorm-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "905d655abbfdbea4"
         }
       ],
       "origin": "Staged weather",
@@ -389,14 +417,16 @@
           "label": "Overview",
           "file": "tundra-snow-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "f0629d219c3399dc"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "tundra-snow-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "e16c1f2862ac9a22"
         }
       ],
       "origin": "Staged weather",
@@ -416,14 +446,16 @@
           "label": "Overview",
           "file": "coop-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "7131b2ccd9376ec9"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "coop-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "fc454a94bbfdb1c6"
         }
       ],
       "origin": "Staged actors",
@@ -443,14 +475,16 @@
           "label": "Overview",
           "file": "inventory-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "4b94bbf9b0a2e58b"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "inventory-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "694aa7b97482c8ff"
         }
       ],
       "origin": "Staged UI",
@@ -470,14 +504,16 @@
           "label": "Overview",
           "file": "game-master-chat-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "a985d2e69be659af"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "game-master-chat-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "f481342740c29b6e"
         }
       ],
       "origin": "Staged UI",
@@ -497,14 +533,16 @@
           "label": "Overview",
           "file": "portal-workshop-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "35e8c5c617613506"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "portal-workshop-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "3503ee21a0a70f0c"
         }
       ],
       "origin": "Staged build",
@@ -524,14 +562,16 @@
           "label": "Overview",
           "file": "ore-cave-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "08682d77485dc480"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "ore-cave-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "dddcacbb5de059a3"
         }
       ],
       "origin": "Generated + light",
@@ -551,14 +591,16 @@
           "label": "Overview",
           "file": "mining-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "dff4315f705f4024"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "mining-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "d4f3ca1fb983368a"
         }
       ],
       "origin": "Staged action",
@@ -578,14 +620,16 @@
           "label": "Overview",
           "file": "deep-cave-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "3bcd3380d39e9e96"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "deep-cave-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "77631fcd6c8a324b"
         }
       ],
       "origin": "Generated + light",
@@ -605,14 +649,16 @@
           "label": "Overview",
           "file": "ravine-cave-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "4e5930bbe9741b62"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "ravine-cave-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "ef946ae1411f0b2d"
         }
       ],
       "origin": "Generated + light",
@@ -632,14 +678,16 @@
           "label": "Overview",
           "file": "dungeon-skeleton-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "1bfd3df3dcdf3b34"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "dungeon-skeleton-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "0b224641f3c46fcf"
         }
       ],
       "origin": "Generated + light",
@@ -659,14 +707,16 @@
           "label": "Overview",
           "file": "dungeon-zombie-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "f258c272a16061ab"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "dungeon-zombie-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "ca4a013f6b6a7850"
         }
       ],
       "origin": "Generated + light",
@@ -686,21 +736,24 @@
           "label": "Panorama",
           "file": "stronghold-panorama-00.png",
           "columns": 400,
-          "rows": 80
+          "rows": 80,
+          "revision": "a673e1dbc4805ae5"
         },
         {
           "mode": "overview",
           "label": "Overview",
           "file": "stronghold-panorama-01.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "63dee1050bc2c370"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "stronghold-panorama-02.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "989042aa68c5d1d9"
         }
       ],
       "origin": "Generated",
@@ -720,14 +773,16 @@
           "label": "Overview",
           "file": "stronghold-portal-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "3676a0360216bf22"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "stronghold-portal-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "29a5e0ab0a128190"
         }
       ],
       "origin": "Generated",
@@ -747,14 +802,16 @@
           "label": "Overview",
           "file": "stronghold-library-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "e02fc8652a4efa12"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "stronghold-library-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "9a548fb2170d3387"
         }
       ],
       "origin": "Generated",
@@ -774,14 +831,16 @@
           "label": "Overview",
           "file": "stronghold-silverfish-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "2891f55284ed8d82"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "stronghold-silverfish-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "d07f3b99bc661f3c"
         }
       ],
       "origin": "Generated",
@@ -801,14 +860,16 @@
           "label": "Overview",
           "file": "stronghold-staging-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "7980b0b2c2c789a7"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "stronghold-staging-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "1d047d8b5b48778d"
         }
       ],
       "origin": "Generated",
@@ -828,14 +889,16 @@
           "label": "Overview",
           "file": "stronghold-upper-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "6a6cc96328e4361a"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "stronghold-upper-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "74598560e3a6e0bc"
         }
       ],
       "origin": "Generated",
@@ -855,14 +918,16 @@
           "label": "Overview",
           "file": "stronghold-active-portal-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "cd2c48acb03c064f"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "stronghold-active-portal-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "7a3caf09f59e27c8"
         }
       ],
       "origin": "Staged progression",
@@ -882,21 +947,24 @@
           "label": "Tall",
           "file": "nether-vault-00.png",
           "columns": 200,
-          "rows": 128
+          "rows": 128,
+          "revision": "aa9ff6adedbc3f30"
         },
         {
           "mode": "overview",
           "label": "Overview",
           "file": "nether-vault-01.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "13ebc296698682c7"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "nether-vault-02.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "b47e72756762108d"
         }
       ],
       "origin": "Generated",
@@ -916,21 +984,24 @@
           "label": "Panorama",
           "file": "fortress-panorama-00.png",
           "columns": 400,
-          "rows": 80
+          "rows": 80,
+          "revision": "5099a70ad4524041"
         },
         {
           "mode": "overview",
           "label": "Overview",
           "file": "fortress-panorama-01.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "4eba6d9f42c21449"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "fortress-panorama-02.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "4f577ee264980b7a"
         }
       ],
       "origin": "Generated",
@@ -950,14 +1021,16 @@
           "label": "Overview",
           "file": "fortress-gate-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "4eba6d9f42c21449"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "fortress-gate-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "4f577ee264980b7a"
         }
       ],
       "origin": "Generated",
@@ -977,14 +1050,16 @@
           "label": "Overview",
           "file": "fortress-watchtower-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "169d2fdab172726e"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "fortress-watchtower-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "6f20577406a2d051"
         }
       ],
       "origin": "Generated",
@@ -1004,14 +1079,16 @@
           "label": "Overview",
           "file": "fortress-bastion-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "ec2a5a4e21cd3b33"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "fortress-bastion-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "3a4e0ebf739f39f2"
         }
       ],
       "origin": "Generated",
@@ -1031,14 +1108,16 @@
           "label": "Overview",
           "file": "fortress-chapel-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "7d1fcd700e416847"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "fortress-chapel-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "5bc015835aaaf8de"
         }
       ],
       "origin": "Generated",
@@ -1058,14 +1137,16 @@
           "label": "Overview",
           "file": "fortress-corridor-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "c0a9a338aef85315"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "fortress-corridor-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "f822ce9d9a6b0a46"
         }
       ],
       "origin": "Generated",
@@ -1085,21 +1166,81 @@
           "label": "Overview",
           "file": "nether-shrine-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "681ee2da8b921ee1"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "nether-shrine-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "a65eb7677b7f5a4c"
         }
       ],
       "origin": "Generated",
       "source": "examples/world_review.rs",
       "title": "Route shrine",
-      "x": -944.5,
-      "y": 50.0
+      "x": -4690.5,
+      "y": 60.0
+    },
+    {
+      "caption": "Located in actual seeded chunks, outside the fortress. Tall context is available for the roof and vent scene.",
+      "category": "Nether landmarks",
+      "dimension": "Nether",
+      "id": "bridge-study",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "bridge-study-00.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "3e54b9090dfb8937"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "bridge-study-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "caf0041eaec7cf48"
+        }
+      ],
+      "origin": "Generated",
+      "source": "examples/world_review.rs",
+      "title": "Route bridge",
+      "x": -4953.5,
+      "y": 55.0
+    },
+    {
+      "caption": "Located in actual seeded chunks, outside the fortress. Tall context is available for the roof and vent scene.",
+      "category": "Nether landmarks",
+      "dimension": "Nether",
+      "id": "reliquary-study",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "reliquary-study-00.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "42eba4d24116d9c2"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "reliquary-study-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "97dc9e45f9541dd5"
+        }
+      ],
+      "origin": "Generated",
+      "source": "examples/world_review.rs",
+      "title": "Route reliquary",
+      "x": -5746.5,
+      "y": 59.0
     },
     {
       "caption": "Located in actual seeded chunks, outside the fortress. Tall context is available for the roof and vent scene.",
@@ -1112,21 +1253,23 @@
           "label": "Overview",
           "file": "soul-sand-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "5b92fd5095697ae5"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "soul-sand-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "e43776c55f1dba1d"
         }
       ],
       "origin": "Generated",
       "source": "examples/world_review.rs",
       "title": "Soul-sand floor",
-      "x": -1255.5,
-      "y": 59.0
+      "x": -6136.5,
+      "y": 60.0
     },
     {
       "caption": "Located in actual seeded chunks, outside the fortress. Tall context is available for the roof and vent scene.",
@@ -1139,82 +1282,31 @@
           "label": "Tall",
           "file": "lava-vent-roof-00.png",
           "columns": 200,
-          "rows": 128
+          "rows": 128,
+          "revision": "262a15dfcb2f867d"
         },
         {
           "mode": "overview",
           "label": "Overview",
           "file": "lava-vent-roof-01.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "97d4aef0d31b9a7d"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "lava-vent-roof-02.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "0ff727148831676a"
         }
       ],
       "origin": "Generated",
       "source": "examples/world_review.rs",
       "title": "Lava vent and cavern roof",
-      "x": -1268.5,
-      "y": 59.0
-    },
-    {
-      "caption": "Source-derived staged block study, not a natural spawn. The current marker-seed formula always selects Shrine; see the coverage notes.",
-      "category": "Nether landmarks",
-      "dimension": "Nether",
-      "id": "bridge-study",
-      "images": [
-        {
-          "mode": "overview",
-          "label": "Overview",
-          "file": "bridge-study-00.png",
-          "columns": 200,
-          "rows": 60
-        },
-        {
-          "mode": "detail",
-          "label": "Detail",
-          "file": "bridge-study-01.png",
-          "columns": 160,
-          "rows": 48
-        }
-      ],
-      "origin": "Structure study",
-      "source": "examples/world_review.rs",
-      "title": "Route bridge \u2014 structure study",
-      "x": -0.5,
-      "y": 59.0
-    },
-    {
-      "caption": "Source-derived staged block study, not a natural spawn. The current marker-seed formula always selects Shrine; see the coverage notes.",
-      "category": "Nether landmarks",
-      "dimension": "Nether",
-      "id": "reliquary-study",
-      "images": [
-        {
-          "mode": "overview",
-          "label": "Overview",
-          "file": "reliquary-study-00.png",
-          "columns": 200,
-          "rows": 60
-        },
-        {
-          "mode": "detail",
-          "label": "Detail",
-          "file": "reliquary-study-01.png",
-          "columns": 160,
-          "rows": 48
-        }
-      ],
-      "origin": "Structure study",
-      "source": "examples/world_review.rs",
-      "title": "Reliquary \u2014 structure study",
-      "x": -0.5,
-      "y": 60.0
+      "x": -6098.5,
+      "y": 63.0
     },
     {
       "caption": "Camera/player placed inside the generated deep lava layer. This is a world cutaway, not a safe playable spawn or an open lava coastline.",
@@ -1227,14 +1319,16 @@
           "label": "Overview",
           "file": "nether-lava-cutaway-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "d959fb5a406b104f"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "nether-lava-cutaway-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "98d261fed5a1e010"
         }
       ],
       "origin": "Inspection",
@@ -1254,21 +1348,24 @@
           "label": "Panorama",
           "file": "end-panorama-00.png",
           "columns": 400,
-          "rows": 80
+          "rows": 80,
+          "revision": "4949a53e6a996e66"
         },
         {
           "mode": "overview",
           "label": "Overview",
           "file": "end-panorama-01.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "010d5ce593d6aafc"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "end-panorama-02.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "82f63e994de46abe"
         }
       ],
       "origin": "Generated",
@@ -1288,14 +1385,16 @@
           "label": "Overview",
           "file": "end-tower-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "8904bb21f5c2d2e9"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "end-tower-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "7d8a10bc40624b7c"
         }
       ],
       "origin": "Generated",
@@ -1315,14 +1414,16 @@
           "label": "Overview",
           "file": "end-return-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "ad66108ca84e7bf0"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "end-return-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "fb50ea68d47b52be"
         }
       ],
       "origin": "Generated",
@@ -1342,14 +1443,16 @@
           "label": "Overview",
           "file": "end-edge-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "500ea7a0a5a4d20f"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "end-edge-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "b84e365c0d8a9c79"
         }
       ],
       "origin": "Generated",
@@ -1359,7 +1462,7 @@
       "y": 33.0
     },
     {
-      "caption": "Sparse outer-island terrain in the current generator; this is a scaffold, not an End-city feature.",
+      "caption": "A naturally generated small outer End island. These islands are currently limited to the outskirts of the central arena; End cities are not implemented.",
       "category": "End",
       "dimension": "End",
       "id": "end-outer",
@@ -1369,19 +1472,21 @@
           "label": "Overview",
           "file": "end-outer-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "1967ed63c8585860"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "end-outer-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "cb08202fa9ccb461"
         }
       ],
       "origin": "Generated",
       "source": "examples/world_review.rs",
-      "title": "Outer End island scaffold",
+      "title": "Outer End island",
       "x": 51.5,
       "y": 46.0
     },
@@ -1396,7 +1501,8 @@
           "label": "Overview",
           "file": "end-dragon-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "43f326b641ab86e6"
         }
       ],
       "origin": "Staged actors",
@@ -1416,14 +1522,16 @@
           "label": "Overview",
           "file": "end-front-preview-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "43f326b641ab86e6"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "end-front-preview-01.png",
           "columns": 200,
-          "rows": 100
+          "rows": 100,
+          "revision": "4fc0cb0299adf0e3"
         }
       ],
       "origin": "Staged actors",
@@ -1443,14 +1551,16 @@
           "label": "Overview",
           "file": "recipe-tower-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "d7ac47c1c9df4a19"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "recipe-tower-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "647b8fa90e793200"
         }
       ],
       "origin": "Recipe world",
@@ -1473,21 +1583,24 @@
           "label": "Day \u00b7 160\u00d748",
           "file": "village-cottage-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "c538958ecd0ff198"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "village-cottage-01.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "820f0320413c2f61"
         },
         {
           "mode": "night",
           "label": "Night \u00b7 160\u00d748",
           "file": "village-cottage-02.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "00d59027d9d92461"
         }
       ]
     },
@@ -1505,21 +1618,24 @@
           "label": "Day \u00b7 160\u00d748",
           "file": "village-workshop-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "4f11979598ee24f9"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "village-workshop-01.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "14eabcab0bf1fdec"
         },
         {
           "mode": "night",
           "label": "Night \u00b7 160\u00d748",
           "file": "village-workshop-02.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "73583737cac0f15b"
         }
       ]
     },
@@ -1537,21 +1653,24 @@
           "label": "Day \u00b7 160\u00d748",
           "file": "village-farmhouse-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "768a669bdc6f35ad"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "village-farmhouse-01.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "23bb83a9ceb6911d"
         },
         {
           "mode": "night",
           "label": "Night \u00b7 160\u00d748",
           "file": "village-farmhouse-02.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "4832b950d4c5ca83"
         }
       ]
     },
@@ -1569,7 +1688,8 @@
           "label": "Full settlement",
           "file": "village-panorama-00.png",
           "columns": 480,
-          "rows": 32
+          "rows": 32,
+          "revision": "4a2732d59e98d311"
         }
       ]
     },
@@ -1587,7 +1707,8 @@
           "label": "Overview",
           "file": "village-square-00.png",
           "columns": 200,
-          "rows": 40
+          "rows": 40,
+          "revision": "8c3ab18e7901913e"
         }
       ]
     },
@@ -1605,7 +1726,8 @@
           "label": "Overview",
           "file": "village-garden-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "3b3690a8cd8e4f92"
         }
       ]
     },
@@ -1623,7 +1745,8 @@
           "label": "Full settlement",
           "file": "desert-village-00.png",
           "columns": 480,
-          "rows": 32
+          "rows": 32,
+          "revision": "09403b8df640bd68"
         }
       ]
     },
@@ -1641,7 +1764,8 @@
           "label": "Overview",
           "file": "desert-cottage-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "08739bf0df6787e2"
         }
       ]
     },
@@ -1659,21 +1783,24 @@
           "label": "Overview \u00b7 200\u00d760",
           "file": "entities-humanoids-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "ec3e4e0e00807c61"
         },
         {
           "mode": "normal",
           "label": "Overview \u00b7 160\u00d748",
           "file": "entities-humanoids-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "b19aa5b68ad6e85c"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "entities-humanoids-02.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "8e58122108bed908"
         }
       ]
     },
@@ -1691,21 +1818,24 @@
           "label": "Overview \u00b7 200\u00d760",
           "file": "entities-farm-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "68800fb533e5209b"
         },
         {
           "mode": "normal",
           "label": "Overview \u00b7 160\u00d748",
           "file": "entities-farm-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "824dae9b45666e53"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "entities-farm-02.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "9ce358aac77b9e5d"
         }
       ]
     },
@@ -1723,21 +1853,24 @@
           "label": "Overview \u00b7 200\u00d760",
           "file": "entities-small-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "974599f2d5ac09bd"
         },
         {
           "mode": "normal",
           "label": "Overview \u00b7 160\u00d748",
           "file": "entities-small-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "505ffae09f44ed90"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "entities-small-02.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "9ca2442d92292755"
         }
       ]
     },
@@ -1755,21 +1888,24 @@
           "label": "Overview \u00b7 200\u00d760",
           "file": "entities-nether-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "0921ba5a247dd6cf"
         },
         {
           "mode": "normal",
           "label": "Overview \u00b7 160\u00d748",
           "file": "entities-nether-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "304dfa9663bb0c86"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "entities-nether-02.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "f9081f967d9c1c34"
         }
       ]
     },
@@ -1787,21 +1923,24 @@
           "label": "Overview \u00b7 200\u00d760",
           "file": "entities-props-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "c7bb37c7775425a8"
         },
         {
           "mode": "normal",
           "label": "Overview \u00b7 160\u00d748",
           "file": "entities-props-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "a730d78a2d00d897"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "entities-props-02.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "7eab4e7aa4071c88"
         }
       ]
     },
@@ -1819,21 +1958,24 @@
           "label": "Overview \u00b7 200\u00d760",
           "file": "entities-cave-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "c5437ec720ab7e49"
         },
         {
           "mode": "normal",
           "label": "Overview \u00b7 160\u00d748",
           "file": "entities-cave-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "45b98b5d105a36bf"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "entities-cave-02.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "966b217090ab49eb"
         }
       ]
     },
@@ -1851,21 +1993,24 @@
           "label": "Overview \u00b7 200\u00d760",
           "file": "entities-night-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "f61e71d834262c0e"
         },
         {
           "mode": "normal",
           "label": "Overview \u00b7 160\u00d748",
           "file": "entities-night-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "6a6a8813894a419f"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "entities-night-02.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "afe2669af5b59777"
         }
       ]
     },
@@ -1883,21 +2028,24 @@
           "label": "Overview \u00b7 200\u00d760",
           "file": "entities-poses-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "2af7af9c89d3152e"
         },
         {
           "mode": "normal",
           "label": "Overview \u00b7 160\u00d748",
           "file": "entities-poses-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "d53988c094a920d7"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "entities-poses-02.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "972943267319a318"
         }
       ]
     },
@@ -1915,21 +2063,24 @@
           "label": "Overview \u00b7 200\u00d760",
           "file": "entities-farm_states-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "362389970072e42a"
         },
         {
           "mode": "normal",
           "label": "Overview \u00b7 160\u00d748",
           "file": "entities-farm_states-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "9cdf11eb5c07658a"
         },
         {
           "mode": "small",
           "label": "Small \u00b7 120\u00d740",
           "file": "entities-farm_states-02.png",
           "columns": 120,
-          "rows": 40
+          "rows": 40,
+          "revision": "07b6173965664c6d"
         }
       ]
     },
@@ -1947,7 +2098,8 @@
           "label": "Camp",
           "file": "trial-camp-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "40f31ee621b1330d"
         }
       ]
     },
@@ -1965,35 +2117,40 @@
           "label": "Windup",
           "file": "trial-combat-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "29300848a83b235f"
         },
         {
           "mode": "hurt",
           "label": "Hurt",
           "file": "trial-combat-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "229c4e05f59f50be"
         },
         {
           "mode": "strike",
           "label": "Strike",
           "file": "trial-combat-02.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "4358c8ac26da1989"
         },
         {
           "mode": "follow-through",
           "label": "Follow Through",
           "file": "trial-combat-03.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "256dbf90c1794c57"
         },
         {
           "mode": "recovery",
           "label": "Recovery",
           "file": "trial-combat-04.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "08963d09f418a86b"
         }
       ]
     },
@@ -2011,14 +2168,16 @@
           "label": "Ascent",
           "file": "trial-jump-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "4d602dfd73bf5da4"
         },
         {
           "mode": "descent",
           "label": "Descent",
           "file": "trial-jump-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "af66aaee6b7015c8"
         }
       ]
     },
@@ -2036,7 +2195,8 @@
           "label": "Ravine",
           "file": "trial-ravine-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "2ca44d9e315a56e6"
         }
       ]
     },
@@ -2054,21 +2214,24 @@
           "label": "Overview",
           "file": "shelter-rain-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "95b973beb45f7a83"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "shelter-rain-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "e17d139b3a9a8d61"
         },
         {
           "mode": "animation",
           "label": "Motion",
           "file": "shelter-rain.gif",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "9e066cfcc95ce43d"
         }
       ]
     },
@@ -2086,21 +2249,24 @@
           "label": "Overview",
           "file": "shelter-snow-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "22a6807fe52ec21c"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "shelter-snow-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "ff612328bc0f9a58"
         },
         {
           "mode": "animation",
           "label": "Motion",
           "file": "shelter-snow.gif",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "a8ab9aa9ae64250b"
         }
       ]
     },
@@ -2118,7 +2284,8 @@
           "label": "Overview",
           "file": "mining-materials-00.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "98d75375138b097b"
         }
       ]
     },
@@ -2136,21 +2303,24 @@
           "label": "Overview",
           "file": "nether-encounter-00.png",
           "columns": 200,
-          "rows": 60
+          "rows": 60,
+          "revision": "d43d6626a9a870d6"
         },
         {
           "mode": "detail",
           "label": "Detail",
           "file": "nether-encounter-01.png",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "87de1652e60f316b"
         },
         {
           "mode": "animation",
           "label": "Motion",
           "file": "nether-creatures.gif",
           "columns": 160,
-          "rows": 48
+          "rows": 48,
+          "revision": "8d7dbb02b78cecaf"
         }
       ]
     }
@@ -2163,7 +2333,11 @@
       "End"
     ],
     "native_scene_gaps": [],
-    "generation_issue": "Nether marker multiplier, offset and modulus are all divisible by 3; generated route variants therefore select only Shrine. Bridge/reliquary cards are source-derived staged studies.",
+    "generation_issue": null,
+    "resolved_findings": [
+      "All three Nether route variants spawn naturally; gallery examples are discovered in native chunks.",
+      "Surface biome framing, swamp vegetation, frontal dragon combat and thin overview fixtures are corrected."
+    ],
     "animations": [
       {
         "file": "nether-creatures.gif",
@@ -2181,7 +2355,7 @@
         "limits": "Staged renderer samples, not achieved FPS or an emulator recording."
       }
     ],
-    "limits": "Coverage follows the current generator and representative gameplay systems; structure studies and art previews are explicitly marked."
+    "limits": "Generated terrain, staged actors, inspection cutaways and progression fixtures are explicitly labelled."
   },
   "native_seed": [
     1337,
