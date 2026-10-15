@@ -66,6 +66,184 @@ pub(super) fn count(sim: &ServerSimulation, id: u16, item: ItemType) -> u32 {
         .map(|s| s.count)
         .sum()
 }
+
+#[test]
+fn obstacle_routes_match_native_motion_for_every_tick_in_shared_play() {
+    use crate::entities::boat::Boat;
+    for course in [
+        "run_jump",
+        "steps",
+        "ceiling",
+        "ladder",
+        "water",
+        "boat",
+        "ledge",
+        "knockback",
+    ] {
+        let (_root, mut sim) = fixture();
+        let mut native = GameState::new();
+        native.dismiss_startup_splash();
+        native.world.load_chunks_for_spawn_search(0, 64);
+        for state in [&mut native, &mut sim.state] {
+            state.dismiss_startup_splash();
+            let (mobs, daylight, weather, _) = state.game_rule_flags();
+            for (enabled, command) in [
+                (mobs, ClientCommand::ToggleRuleMobSpawning),
+                (daylight, ClientCommand::ToggleRuleDaylightCycle),
+                (weather, ClientCommand::ToggleRuleWeatherCycle),
+            ] {
+                if enabled {
+                    state.apply_client_command(command);
+                }
+            }
+            state.player = Player::new(0.5, 80.0);
+            state.player.grounded = true;
+            for x in -16..=48 {
+                for y in 0..=84 {
+                    state.world.set_block(
+                        x,
+                        y,
+                        if y >= 80 {
+                            BlockType::Stone
+                        } else {
+                            BlockType::Air
+                        },
+                    );
+                }
+            }
+            match course {
+                "steps" => {
+                    for x in [3, 4, 8, 9] {
+                        state.world.set_block(x, 79, BlockType::StoneSlab);
+                    }
+                    state.world.set_block(5, 79, BlockType::StoneStairs);
+                    for x in 6..=7 {
+                        state.world.set_block(x, 79, BlockType::Stone);
+                    }
+                }
+                "ceiling" => {
+                    for x in 2..=9 {
+                        state.world.set_block(x, 77, BlockType::Stone);
+                    }
+                }
+                "ladder" => {
+                    for y in 70..80 {
+                        state.world.set_block(0, y, BlockType::Ladder);
+                    }
+                }
+                "water" | "boat" => {
+                    for x in -8..=24 {
+                        for y in 78..=81 {
+                            state.world.set_block(x, y, BlockType::Water(8));
+                        }
+                    }
+                    state.player.y = if course == "boat" { 78.0 } else { 79.5 };
+                    state.player.grounded = false;
+                    if course == "boat" {
+                        state.boats.push(Boat::new(0.5, 78.0));
+                    }
+                }
+                "ledge" => {
+                    for x in 4..=24 {
+                        for y in 80..=84 {
+                            state.world.set_block(x, y, BlockType::Air);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut sequence = 0;
+        let mut highest = native.player.y;
+        let mut max_x = native.player.x;
+        for tick in 0..100 {
+            let mut actions = vec![ClientCommand::AimAt(0, 79)];
+            if tick == 0 {
+                if course == "boat" {
+                    actions.push(ClientCommand::UseAt(0, 78));
+                }
+                if course == "ledge" {
+                    actions.push(ClientCommand::SetSneakHeld(true));
+                }
+                if course == "ladder" || course == "water" {
+                    actions.push(ClientCommand::SetJumpHeld(true));
+                } else {
+                    actions.push(ClientCommand::SetMoveRight(true));
+                }
+            }
+            if matches!(course, "run_jump" | "ceiling") && tick == 8 {
+                actions.extend([ClientCommand::SetJumpHeld(true), ClientCommand::QueueJump]);
+            }
+            if (tick == 14 && matches!(course, "run_jump" | "ceiling"))
+                || (tick == 35 && course == "water")
+            {
+                actions.push(ClientCommand::SetJumpHeld(false));
+            }
+            if tick == 25 && course == "ladder" {
+                actions.push(ClientCommand::SetSneakHeld(true));
+            }
+            if tick == 35 && course == "knockback" {
+                sim.state.activate_peer(1);
+                for state in [&mut native, &mut sim.state] {
+                    state.player.vx = -0.8;
+                    state.player.vy = -0.3;
+                    state.player.grounded = false;
+                }
+            }
+            if tick == 45 {
+                actions.push(ClientCommand::SetMoveLeft(true));
+            }
+            if tick == 65 {
+                actions.extend([
+                    ClientCommand::ClearDirectionalInput,
+                    ClientCommand::SetJumpHeld(false),
+                ]);
+            }
+            for action in actions {
+                native.apply_client_command(action);
+                sequence += 1;
+                sim.enqueue_input(ClientInputFrame::new(1, sequence, sim.tick() + 1, action));
+            }
+            native.update(0, 79);
+            let shared = sim.step(0, 79);
+            for (field, a, b) in [
+                ("x", native.player.x, shared.player.x),
+                ("y", native.player.y, shared.player.y),
+                ("vx", native.player.vx, shared.player.vx),
+                ("vy", native.player.vy, shared.player.vy),
+            ] {
+                assert!(
+                    (a - b).abs() < 1e-9,
+                    "{course} tick {tick} {field}: native {a}, shared {b}"
+                );
+            }
+            assert_eq!(
+                native.player.grounded, shared.player.grounded,
+                "{course} tick {tick}"
+            );
+            if course == "boat" {
+                assert!((native.player.x - native.boats[0].x).abs() < 0.001);
+                assert!((native.boats[0].x - sim.state.boats[0].x).abs() < 1e-9);
+            }
+            highest = highest.min(native.player.y);
+            max_x = max_x.max(native.player.x);
+        }
+        match course {
+            "run_jump" => assert!(highest < 79.0 && native.player.grounded),
+            "steps" => assert!(highest <= 79.0 && max_x > 10.0),
+            "ceiling" => assert!(highest >= 78.79),
+            "ladder" => assert!(highest < 76.0),
+            "water" => assert!(
+                native.player.health > 0.0 && highest < 79.0,
+                "water highest {highest}, final {:?}",
+                native.player
+            ),
+            "boat" => assert!(max_x > 3.0),
+            "ledge" => assert!(max_x <= 4.251),
+            _ => {}
+        }
+    }
+}
 #[test]
 fn joining_and_promotion_never_copy_another_inventory() {
     let (_root, mut sim) = fixture();

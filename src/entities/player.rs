@@ -93,7 +93,9 @@ impl Player {
             let (rise, ceiling, horizontal_drag) = if water_submersion >= 0.82 {
                 (0.04, -0.25, 0.985)
             } else if water_submersion >= 0.42 {
-                (0.03, -0.19, 0.96)
+                // Lift must survive water drag followed by gravity. With 0.03
+                // a partly submerged player stalls or sinks while holding up.
+                (0.04, -0.19, 0.96)
             } else {
                 (0.018, -0.12, 0.92)
             };

@@ -6,6 +6,7 @@ checks executable/configuration and stepped MCP, leaving real terminal input to
 native qualification. All game saves are temporary and removed on exit.
 """
 import argparse
+import errno
 import hashlib
 import json
 import os
@@ -49,8 +50,19 @@ def terminal_smoke(command, env, cwd):
                 os.write(master, b"q")
                 sent = True
         assert process.poll() == 0, "extracted native terminal did not exit cleanly"
-        while select.select([master], [], [], 0)[0]:
-            output.extend(os.read(master, 65536))
+        drain_until = time.monotonic() + 1
+        while time.monotonic() < drain_until and select.select([master], [], [], 0)[0]:
+            # macOS can keep a closed PTY readable while read() returns EOF.
+            # Linux may instead report EIO. Neither is another frame to drain.
+            try:
+                data = os.read(master, 65536)
+            except OSError as error:
+                if error.errno != errno.EIO:
+                    raise
+                break
+            if not data:
+                break
+            output.extend(data)
         assert b"Termcraft |" in re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"", output) and b"\x1b[?1049l" in output
         assert before == termios.tcgetattr(slave), "terminal settings not restored"
     finally:

@@ -280,14 +280,21 @@ impl Tile {
             }
             Glowstone => {
                 colors = [
-                    (176, 108, 52),
-                    (255, 219, 129),
-                    (112, 64, 45),
-                    (255, 174, 68),
+                    (214, 156, 73),
+                    (255, 231, 155),
+                    (124, 82, 47),
+                    (244, 193, 99),
                 ];
-                ["-a+-", "a++a", "+a+a", "-a+-"]
+                ["+a-a", "a.+a", "-aa-", "+a.a"]
             }
-            NetherPortal | EndPortal => ["a..a", ".aa.", "a..a", ".aa."],
+            NetherPortal => {
+                colors = [(55, 20, 83), (157, 69, 197), (34, 13, 57), (102, 35, 148)];
+                [".a+.", "a+..", "+..a", ".a+."]
+            }
+            EndPortal => {
+                colors = [(9, 22, 31), (160, 217, 201), (5, 12, 24), (34, 73, 76)];
+                ["-..-", ".+..", "...a", "..-."]
+            }
             EndPortalFrame { filled } => {
                 colors = [
                     (66, 91, 76),
@@ -417,6 +424,10 @@ impl Tile {
                 "........", "....aa..", "...a....", "..a.....", "........", ".-......", "..-...+.",
                 "........",
             ]),
+            Glowstone => Some([
+                "++aa-aaa", "+aaa-a++", "aa.-aa++", "---aaa-a", "a++aa---", "++++-aa+", "a++a-aa+",
+                "aaa--aaa",
+            ]),
             IronOre | GoldOre | DiamondOre | CoalOre | RedstoneOre => Some([
                 "........", ".+......", "..aa....", "..aa..a.", ".....aa.", ".a......", "...-....",
                 "........",
@@ -469,6 +480,44 @@ impl Tile {
             colors,
             detail,
         })
+    }
+}
+
+// World coordinates keep the membrane continuous across block boundaries and
+// stable while the camera moves. Eight authored pixels span one world block in
+// both close and overview views; no frame-dependent noise or bright flicker.
+fn portal_pixel(block: BlockType, x: i64, y: i64) -> Option<Rgb> {
+    match block {
+        BlockType::NetherPortal => {
+            const WAVE: [i64; 24] = [
+                0, 0, 1, 1, 2, 3, 4, 4, 5, 5, 4, 4, 3, 2, 1, 1, 0, -1, -2, -2, -3, -2, -1, 0,
+            ];
+            let ribbon = (x + WAVE[y.rem_euclid(24) as usize]).rem_euclid(13);
+            Some(match ribbon {
+                0 => (157, 69, 197),
+                1 => (121, 43, 167),
+                2 | 12 => (83, 26, 123),
+                6..=8 => (34, 13, 57),
+                _ => (55, 20, 83),
+            })
+        }
+        BlockType::EndPortal => {
+            let hash = (x.div_euclid(7) * 71 + y.div_euclid(7) * 137).rem_euclid(101);
+            let star_x = hash.rem_euclid(5) + 1;
+            let star_y = (hash / 5).rem_euclid(5) + 1;
+            let dx = (x.rem_euclid(7) - star_x).abs();
+            let dy = (y.rem_euclid(7) - star_y).abs();
+            Some(if dx == 0 && dy == 0 {
+                (160, 217, 201)
+            } else if hash % 4 == 0 && dx + dy == 1 {
+                (48, 99, 100)
+            } else if (x * 3 + y * 2).rem_euclid(29) < 7 {
+                (13, 34, 43)
+            } else {
+                (5, 14, 26)
+            })
+        }
+        _ => None,
     }
 }
 
@@ -839,7 +888,12 @@ impl Renderer {
                                     continue;
                                 }
                             };
-                            let mut rgb = tile.colors[index];
+                            let mut rgb = portal_pixel(
+                                block,
+                                i64::from(bx) * 8 + (px * 8 / unit as usize) as i64,
+                                i64::from(by) * 8 + (py * 8 / unit as usize) as i64,
+                            )
+                            .unwrap_or(tile.colors[index]);
                             if block.is_solid() && !matches!(block, BlockType::Glass) {
                                 if py == 0
                                     && !above.is_solid()

@@ -23,6 +23,7 @@ permissions:
 
 jobs:
   build:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -65,6 +66,7 @@ jobs:
         if: runner.os == 'Windows'
         run: python scripts/package_release.py --binary target/${{ matrix.target }}/release/termcraft.exe --target ${{ matrix.target }} --output dist
       - name: Extract and run archive without Rust in PATH
+        timeout-minutes: 3
         run: python scripts/test_native_archive.py --directory dist --report native-qualification.json
       - uses: actions/upload-artifact@v4
         with:

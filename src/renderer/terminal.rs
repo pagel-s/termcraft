@@ -909,7 +909,7 @@ impl Renderer {
                 let c = if filled { 'O' } else { 'o' };
                 textured(c, (98, 146, 98), (38, 70, 42))
             }
-            BlockType::EndPortal => textured('~', (56, 26, 98), (16, 10, 32)),
+            BlockType::EndPortal => textured('~', (97, 166, 158), (5, 14, 26)),
             BlockType::EndStone => textured('▓', (220, 214, 156), (148, 142, 92)),
             BlockType::IronDoor(open) => {
                 let c = if open { '/' } else { '|' };
