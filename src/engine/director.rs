@@ -374,6 +374,7 @@ struct ExternalRequest {
 
 pub struct Director {
     bridge: Option<super::director_bridge::Host>,
+    bridge_activity: Option<Instant>,
     external: Option<ExternalRequest>,
     bridge_result: Value,
     program: Option<PathBuf>,
@@ -404,6 +405,7 @@ impl Director {
             .unwrap_or_else(|| "request-only".into());
         Self {
             bridge: None,
+            bridge_activity: None,
             external: None,
             bridge_result: Value::Null,
             program: std::env::var_os("TERMCRAFT_DIRECTOR")
@@ -449,7 +451,7 @@ impl Director {
         }
     }
     fn command(&mut self, state: &mut GameState, request: &str) -> Result<(), String> {
-        if !self.config_valid && !matches!(request, "/help" | "/cancel" | "/reset") {
+        if !self.config_valid && !matches!(request, "/help" | "/status" | "/cancel" | "/reset") {
             return Err("Existing director preferences are unreadable. /reset backs them up and starts fresh.".into());
         }
         match request {
@@ -466,13 +468,40 @@ impl Director {
             "/connect" => {
                 self.cancel(state);
                 self.bridge=Some(super::director_bridge::Host::start(state.world.save_root())?);
+                self.bridge_activity=None;
                 self.tell(state,"Live game-master editing enabled for your local LLM client. Use director_connect in Codex/Claude, then ask here or there. /disconnect revokes access.");
             }
             "/disconnect" => {
                 self.cancel(state);self.bridge=None;
+                self.bridge_activity=None;
                 self.tell(state,"Live game-master access disconnected.");
             }
-            "/help" => self.tell(state, "Ask for battles, mobs, weather, local ambience or structures. /auto exploration|combat|building, /pause, /cancel, /undo. T: chat; Enter: send; Esc: close."),
+            "/help" => self.tell(state, "Ask for battles, mobs, weather, local ambience or structures. /connect, /status, /auto exploration|combat|building, /pause, /cancel, /undo. T: chat; Enter: send; Esc: close."),
+            "/status" => {
+                let connection = if self.bridge.is_some() {
+                    self.bridge_activity.map_or_else(
+                        || "Live bridge enabled; no client contact yet. Keep your LLM task actively waiting with director_wait.".into(),
+                        |at| format!("Live bridge enabled; last client contact {}s ago. An idle chat is not awakened automatically.", at.elapsed().as_secs()),
+                    )
+                } else if self.program.is_some() {
+                    "Provider runner configured; it starts when a request is sent.".into()
+                } else {
+                    "No game master connected. Use /connect and director_connect in your LLM client.".into()
+                };
+                let progress = self.pending.as_ref().map_or_else(
+                    || "No pending request.".into(),
+                    |p| format!("{}; {}s elapsed, {}s until timeout. Close chat/inventory to apply; /cancel stops it.",
+                        self.pending_phase(), p.started.elapsed().as_secs(),
+                        90u64.saturating_sub(p.started.elapsed().as_secs())),
+                );
+                let scope = if state.current_dimension == Dimension::Overworld {
+                    "Current dimension supports requests."
+                } else {
+                    "Return to the Overworld to request changes."
+                };
+                let preferences = if self.config_valid { "" } else { " Preferences unreadable; /reset backs them up." };
+                self.tell(state, format!("{connection} {progress} {scope}{preferences}"));
+            }
             "/cancel" => self.cancel(state),
             "/pause" | "/request-only" => {
                 let mut next = self.config.clone(); next.proactive = None; next.write(state.world.save_root())?; self.config = next;
@@ -597,6 +626,7 @@ impl Director {
     pub(crate) fn host_left(&mut self, state: &mut GameState) {
         self.cancel(state);
         self.bridge = None;
+        self.bridge_activity = None;
         self.config.proactive = None;
         self.config_dirty = true;
         state.chat.mode = "request-only".into();
@@ -608,7 +638,10 @@ impl Director {
             "player":{"x":state.player.x,"y":state.player.y,"health":state.player.health,"hunger":state.player.hunger},
             "weather":format!("{:?}",state.weather),"nearby_mobs":mob_count(state),
             "terrain":(-12..=12).map(|i| {let px=x+i*4;json!({"x":px,"ground_y":surface(&state.world,px)})}).collect::<Vec<_>>()},
-            "schema":schema(),"example":example(),"pending":self.external.as_ref().map(|e|json!({"request_id":e.id,"request":e.data,"submitted":e.sender.is_none()})),
+            "schema":schema(),"example":example(),"pending":self.external.as_ref().map(|e|json!({"request_id":e.id,"request":e.data,"submitted":e.sender.is_none(),
+                "phase":self.pending_phase(),
+                "elapsed_seconds":self.pending.as_ref().map(|p|p.started.elapsed().as_secs()),
+                "timeout_seconds":90})),
             "last_result":self.bridge_result,
             "workflow":"Read pending.request.prompt/context. Submit the supported plan with its exact request_id. For a direct intention, director_request first. Plans apply after modal UI closes. Observe the result. /disconnect revokes access."})
     }
@@ -620,6 +653,7 @@ impl Director {
         {
             self.cancel(state);
             self.bridge = None;
+            self.bridge_activity = None;
             self.tell(state,"Live game-master access disconnected after changing worlds. /connect here to re-enable.");
         }
         for _ in 0..4 {
@@ -630,6 +664,7 @@ impl Director {
             else {
                 break;
             };
+            self.bridge_activity = Some(Instant::now());
             use super::director_bridge::Command;
             let result = (|| -> Result<Value, String> {
                 match request.command {
@@ -673,6 +708,13 @@ impl Director {
             let _ = request.reply.send(result);
         }
     }
+    fn pending_phase(&self) -> &'static str {
+        match &self.external {
+            Some(external) if external.sender.is_some() => "Waiting for your LLM client",
+            Some(_) => "Plan received; waiting to apply",
+            None => "Provider is planning",
+        }
+    }
     pub fn poll(&mut self, state: &mut GameState, now: Instant) {
         if self.external.is_some()
             && self
@@ -696,7 +738,8 @@ impl Director {
         }
         if let Some(pending) = &self.pending {
             state.chat.status = format!(
-                "Game master: planning… {:.0}s (T: chat, /cancel)",
+                "{}… {:.0}s (T: chat, /status, /cancel)",
+                self.pending_phase(),
                 pending.started.elapsed().as_secs_f32()
             );
             if state.chat.open || state.inventory_open || state.is_settings_menu_open() {
@@ -1268,6 +1311,53 @@ mod tests {
         drop(director);
         drop(state);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn status_distinguishes_missing_client_and_submitted_plan_without_cancelling() {
+        let (root, mut state, mut director) = fixture();
+        director.program = None;
+        director.command(&mut state, "/status").unwrap();
+        assert!(state.chat.status.contains("No game master connected"));
+        let (sender, receiver) = mpsc::channel();
+        director.pending = Some(Pending {
+            receiver,
+            cancelled: Arc::new(AtomicBool::new(false)),
+            root: state.world.save_root().to_path_buf(),
+            dimension: Dimension::Overworld,
+            x: 0,
+            request: "A challenge".into(),
+            started: Instant::now() - Duration::from_secs(11),
+            proactive: false,
+        });
+        director.external = Some(ExternalRequest {
+            id: "status-fixture".into(),
+            data: json!({}),
+            sender: Some(sender),
+        });
+        director.command(&mut state, "/status").unwrap();
+        assert!(state.chat.status.contains("Waiting for your LLM client"));
+        assert!(state.chat.status.contains("s elapsed,"));
+        assert!(state.chat.status.contains("s until timeout"));
+        assert!(director.pending.is_some());
+        let observation = director.bridge_observation(&state);
+        assert_eq!(observation["pending"]["submitted"], false);
+        director.external.as_mut().unwrap().sender.take();
+        director.command(&mut state, "/status").unwrap();
+        assert!(
+            state
+                .chat
+                .status
+                .contains("Plan received; waiting to apply")
+        );
+        assert_eq!(
+            director.bridge_observation(&state)["pending"]["submitted"],
+            true
+        );
+        director.config_valid = false;
+        director.command(&mut state, "/status").unwrap();
+        assert!(state.chat.status.contains("Preferences unreadable"));
+        finish(root, state, director);
     }
 
     #[test]

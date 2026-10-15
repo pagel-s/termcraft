@@ -506,9 +506,17 @@ impl Client {
         let mut reader = writer.try_clone().unwrap();
         let (tx, incoming) = mpsc::channel();
         thread::spawn(move || {
-            while let Ok(message) = read_framed_server_message(&mut reader) {
-                if tx.send(message).is_err() {
-                    break;
+            loop {
+                match read_framed_server_message(&mut reader) {
+                    Ok(message) => {
+                        if tx.send(message).is_err() {
+                            break;
+                        }
+                    }
+                    Err(error) => {
+                        eprintln!("Client snapshot reader stopped: {error}");
+                        break;
+                    }
                 }
             }
         });

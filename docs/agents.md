@@ -150,6 +150,13 @@ an idle Codex/Claude chat. Tell it to keep waiting, or resume it when you submit
 request. Each request expires after 90 seconds. The game continues while waiting.
 Client tool approval prompts and model latency can consume that deadline.
 
+In game, `/status` reports whether the bridge or provider is configured, the last
+client contact, and the pending request's elapsed time/deadline. It distinguishes
+waiting for an LLM client from a submitted plan waiting to apply. A recent contact
+does not prove the model is still working; keep the client task waiting. Close
+chat/inventory/settings so a received plan can apply. The live observation also
+includes the request phase, elapsed seconds and timeout.
+
 Submission returns `accepted`, not proof of application. Observe `last_result`
 for `applied`, `failed` or `cancelled`; modal UI and stale-area checks still apply.
 Invalid plans can be repaired before the deadline. Duplicate/cancelled request IDs

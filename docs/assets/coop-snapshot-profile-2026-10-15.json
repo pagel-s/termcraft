@@ -1,0 +1,102 @@
+{
+  "baseline_commit": "d748e37361d6d6a6aad38a6257e9b157264ffae9",
+  "limits": "Accelerated eight-player flat-terrain exploration. Weather and other random simulation are not seeded: these timings are indicative, not an exact output-parity benchmark or human latency measurement. One trial exited unsuccessfully without retained stderr and was retried; no cause inferred.",
+  "runs": [
+    {
+      "variant": "before",
+      "result": {
+        "actors": 8,
+        "elapsed_seconds": 15.875506092,
+        "limits": "Accelerated fixed-terrain exploration with eight normal actors in two opposing groups, spawning disabled, budgeted cache writes and snapshot encoding. Not a wall-clock soak, network latency measurement or full survival campaign.",
+        "max_ms": 3.3398529999999997,
+        "p95_ms": 0.24682600000000002,
+        "p99_ms": 0.262736,
+        "peak_resident_chunks": 22,
+        "peak_sampled_rss_kib": 6868,
+        "simulated_minutes": 60.0,
+        "snapshot_bytes": 583128000,
+        "ticks": 72000
+      }
+    },
+    {
+      "variant": "after",
+      "result": {
+        "actors": 8,
+        "elapsed_seconds": 15.60509252,
+        "limits": "Accelerated fixed-terrain exploration with eight normal actors in two opposing groups, spawning disabled, budgeted cache writes and snapshot encoding. Not a wall-clock soak, network latency measurement or full survival campaign.",
+        "max_ms": 3.265891,
+        "p95_ms": 0.23921399999999998,
+        "p99_ms": 0.25418199999999996,
+        "peak_resident_chunks": 22,
+        "peak_sampled_rss_kib": 6696,
+        "simulated_minutes": 60.0,
+        "snapshot_bytes": 583128000,
+        "ticks": 72000
+      }
+    },
+    {
+      "variant": "before",
+      "result": {
+        "actors": 8,
+        "elapsed_seconds": 15.721857235,
+        "limits": "Accelerated fixed-terrain exploration with eight normal actors in two opposing groups, spawning disabled, budgeted cache writes and snapshot encoding. Not a wall-clock soak, network latency measurement or full survival campaign.",
+        "max_ms": 3.203172,
+        "p95_ms": 0.244206,
+        "p99_ms": 0.260659,
+        "peak_resident_chunks": 22,
+        "peak_sampled_rss_kib": 6808,
+        "simulated_minutes": 60.0,
+        "snapshot_bytes": 583128000,
+        "ticks": 72000
+      }
+    },
+    {
+      "variant": "after",
+      "result": {
+        "actors": 8,
+        "elapsed_seconds": 15.640400264,
+        "limits": "Accelerated fixed-terrain exploration with eight normal actors in two opposing groups, spawning disabled, budgeted cache writes and snapshot encoding. Not a wall-clock soak, network latency measurement or full survival campaign.",
+        "max_ms": 3.304754,
+        "p95_ms": 0.238511,
+        "p99_ms": 0.254384,
+        "peak_resident_chunks": 22,
+        "peak_sampled_rss_kib": 6848,
+        "simulated_minutes": 60.0,
+        "snapshot_bytes": 583128000,
+        "ticks": 72000
+      }
+    },
+    {
+      "variant": "before",
+      "result": {
+        "actors": 8,
+        "elapsed_seconds": 15.868813081,
+        "limits": "Accelerated fixed-terrain exploration with eight normal actors in two opposing groups, spawning disabled, budgeted cache writes and snapshot encoding. Not a wall-clock soak, network latency measurement or full survival campaign.",
+        "max_ms": 4.296065,
+        "p95_ms": 0.246002,
+        "p99_ms": 0.26344999999999996,
+        "peak_resident_chunks": 22,
+        "peak_sampled_rss_kib": 6704,
+        "simulated_minutes": 60.0,
+        "snapshot_bytes": 583128000,
+        "ticks": 72000
+      }
+    },
+    {
+      "variant": "after",
+      "result": {
+        "actors": 8,
+        "elapsed_seconds": 15.449097712,
+        "limits": "Accelerated fixed-terrain exploration with eight normal actors in two opposing groups, spawning disabled, budgeted cache writes and snapshot encoding. Not a wall-clock soak, network latency measurement or full survival campaign.",
+        "max_ms": 3.245196,
+        "p95_ms": 0.236845,
+        "p99_ms": 0.25208400000000003,
+        "peak_resident_chunks": 22,
+        "peak_sampled_rss_kib": 6676,
+        "simulated_minutes": 60.0,
+        "snapshot_bytes": 583129456,
+        "ticks": 72000
+      }
+    }
+  ]
+}

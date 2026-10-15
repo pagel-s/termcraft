@@ -1,109 +1,83 @@
 # Installation
 
-> Version: `0.1.0`
->
-> Status: early alpha. The recommended way to play right now is local single-player.
+This branch is an unreleased development candidate for the next beta. Its binary
+still reports `0.1.0`; crates.io `0.1.0` is the older alpha and does not contain
+these changes. Ordinary play needs no LLM.
 
-## Requirements
+## Play a native development build
 
-You need:
+Download the archive for your computer from the latest successful
+[Native development artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
+on `beta/terminal-reborn`. Open the run, then its `termcraft-dev-TARGET` artifact.
+GitHub may require sign-in to download artifacts. Extract the downloaded artifact,
+then extract the contained game archive with all its files.
 
-- Rust stable toolchain
-- a terminal with raw input support
-- mouse support for the best local experience
+| Computer | Target | Start Lantern Run from the extracted folder |
+| --- | --- | --- |
+| Linux, Intel/AMD 64-bit | `x86_64-unknown-linux-gnu` | `./play.sh` |
+| Windows, Intel/AMD 64-bit | `x86_64-pc-windows-msvc` | `.\PLAY.cmd` in Windows Terminal |
+| Mac, Apple silicon | `aarch64-apple-darwin` | `./PLAY.command` in Terminal |
+| Mac, Intel | `x86_64-apple-darwin` | `./PLAY.command` in Terminal |
 
-Install Rust via:
+Rust and Cargo are unnecessary for these archives. Launchers start the separate
+**Lantern Run** combat/building route by default, and forward any arguments:
+`./play.sh --help`, for example. Start classic survival with `./termcraft` on
+Linux/Mac or `.\termcraft.exe` on Windows. Mac development builds are unsigned;
+use your system's normal controls for a downloaded executable you trust. These
+are development artifacts, with native human qualification still open.
 
-- [rustup.rs](https://rustup.rs/)
+Use a terminal with raw input, a monospace font and preferably true color,
+keyboard release events and mouse support. Start at **120×40** or larger; **F4**
+changes the view and **F3** shows timing/input diagnostics.
 
-Confirm your toolchain:
+## Build from source
 
-```bash
-rustc --version
-cargo --version
-```
+Rust **1.88 or newer** is required only to build. Install it from
+[rustup.rs](https://rustup.rs/), then:
 
-## Install From Crates.io
-
-```bash
-cargo install termcraft
-termcraft
-```
-
-Cargo installs the binary into your local Cargo bin directory, typically `~/.cargo/bin`.
-
-## Clone The Repository
-
-```bash
-git clone https://github.com/pagel-s/termcraft.git
+```sh
+git clone --branch beta/terminal-reborn https://github.com/pagel-s/termcraft.git
 cd termcraft
+cargo build --release --locked
+./target/release/termcraft trial
 ```
 
-## Run From Source
+On Windows use `.\target\release\termcraft.exe trial`. To install this checkout
+into your Cargo bin directory, run `cargo install --path . --locked`.
 
-From the repo root:
+## First play
 
-```bash
-cargo run --release
+- **A/D** or arrow keys: move; **W/Up/Space**: jump or climb.
+- **E**: inventory; **Left Click**: mine/attack; **Right Click**: place/interact.
+- **F**: interact with the hovered block if right-click is unreliable.
+- **T**: game-master chat; `/help` lists commands. **Q**: save and quit.
+
+Lantern Run provides an encounter, supplies and a bridge/signal goal. Classic
+survival is a separate save. Back up existing saves before upgrading; new
+checkpoint formats cannot be opened by older builds.
+
+## Save location
+
+- Linux: `$XDG_DATA_HOME/termcraft/saves`, or `~/.local/share/termcraft/saves`.
+- macOS: `~/Library/Application Support/termcraft/saves`.
+- Windows: `%APPDATA%\termcraft\saves`.
+
+`TERMCRAFT_SAVE_DIR` overrides the location. Existing repo-local `./saves` files
+are copied into the default user data directory on first run. See
+[save formats and recovery](world-format.md).
+
+## Play with friends
+
+Use matching builds. Start a local server and two clients in separate terminals:
+
+```sh
+./termcraft server
+./termcraft client --player alice
+./termcraft client --player bob
 ```
 
-This is the simplest way to test local source changes.
-
-## Build A Reusable Binary
-
-If you want the optimized binary directly:
-
-```bash
-cargo build --release
-./target/release/termcraft
-```
-
-## Install From A Local Checkout
-
-If you want to run `termcraft` directly from your shell after cloning locally:
-
-```bash
-cargo install --path .
-termcraft
-```
-
-Cargo installs that binary into your local Cargo bin directory, typically `~/.cargo/bin`.
-
-## First Launch
-
-- start the game
-- press any key at the splash screen
-- use `A` / `D` or arrow keys to move
-- use `W`, `Up`, or `Space` to jump
-- use `E` to open inventory
-- use `Left Click` to mine or attack
-- use `Right Click` to place or interact
-
-If right-click is unreliable in your terminal, use `F` as the explicit hovered-block interaction fallback.
-
-## Save Location
-
-Saves are written to the per-user data directory:
-
-- Linux: `$XDG_DATA_HOME/termcraft/saves`, or `~/.local/share/termcraft/saves` when `XDG_DATA_HOME` is unset
-- macOS: `~/Library/Application Support/termcraft/saves`
-- Windows: `%APPDATA%\termcraft\saves`
-
-Set `TERMCRAFT_SAVE_DIR` to override this location. Existing repo-local `./saves` files are copied into the default user data directory on first run.
-
-## Experimental Networking
-
-An authoritative local Overworld co-op slice is available for development testing.
-Use three terminals with matching builds:
-
-```bash
-cargo run --release -- server
-cargo run --release -- client --player alice
-cargo run --release -- client --player bob
-```
-
-See [Experimental Local Co-op](multiplayer.md) for named worlds, controls,
-reconnect/save checks and remaining limits. Shared game-master chat and existing-client live authoring are available.
-For SSH joining and native development archives see [Distribution](distribution.md).
-Public hosting and cross-platform qualification are unfinished. Local single-player remains the
-primary supported mode.
+For a remote machine with an existing SSH account:
+`./termcraft join user@host --player alice`. The server supports independent
+Overworld/Nether/End travel. See [co-op](multiplayer.md) and
+[SSH and native archives](distribution.md) for named worlds, saved identities,
+requirements and current qualification limits.

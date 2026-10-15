@@ -95,6 +95,16 @@ The test uses staged frames/starting tools; it is not a complete survival campai
 End return now finds supported clear space when a generated recipe lacks the usual
 stronghold landing. Human feel/art, long sessions and clean-platform checks remain open.
 
+The follow-up removes repeated session/entity snapshot captures, adds game-master
+`/status` (client contact, request phase and deadline), and supplies no-Rust
+launchers that default to Lantern Run. Archive checks exercise launcher argument
+forwarding from a path with spaces and another working directory. The first real
+four-platform workflow passed Linux but exposed inherited nonblocking sockets on
+Mac and a Windows-only strict-lint failure; both have source fixes awaiting fresh
+platform results. Accepted game/director sockets now explicitly use blocking
+reads with their existing deadlines. See `docs/performance.md`,
+`docs/installation.md` and the native workflow results for the exact qualification.
+
 ## Assessment baseline
 
 Source baseline: main commit

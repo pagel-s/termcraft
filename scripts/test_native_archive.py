@@ -21,7 +21,7 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def terminal_smoke(binary, env):
+def terminal_smoke(command, env, cwd):
     import fcntl
     import pty
     import select
@@ -37,7 +37,7 @@ def terminal_smoke(binary, env):
         os.setsid()
         fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
 
-    process = subprocess.Popen([str(binary), "world", "play", "archive"], env=env,
+    process = subprocess.Popen(command, env=env, cwd=cwd,
                                stdin=slave, stdout=slave, stderr=slave, preexec_fn=setup)
     output = bytearray()
     started, sent = time.monotonic(), False
@@ -86,7 +86,8 @@ def main():
                 assert entry.isfile() and entry.name not in contents, "unexpected archive member"
                 contents[entry.name] = source.extractfile(entry).read()
                 executable_modes[entry.name] = entry.mode
-    with tempfile.TemporaryDirectory(prefix="termcraft-native-archive-") as temporary:
+    # Spaces and a different working directory catch launcher path mistakes.
+    with tempfile.TemporaryDirectory(prefix="termcraft native archive ") as temporary:
         root = Path(temporary)
         prefixes = set()
         for name, data in contents.items():
@@ -109,11 +110,16 @@ def main():
             assert digest(contents[f"{prefix}/{path}"]) == expected, path
         binary_name = "termcraft.exe" if os.name == "nt" else "termcraft"
         binary = bundle / binary_name
+        launcher_name = "PLAY.cmd" if os.name == "nt" else (
+            "PLAY.command" if "apple-darwin" in manifest["target"] else "play.sh")
+        launcher = bundle / launcher_name
         assert binary.is_file(), "archive does not match this native platform"
+        assert launcher.is_file(), "missing native launcher"
         assert (bundle / "LICENSE").is_file() and (bundle / "START_HERE.txt").is_file()
         assert (bundle / "docs" / "agents.md").is_file()
         if os.name != "nt":
             assert binary.stat().st_mode & 0o111
+            assert launcher.stat().st_mode & 0o111
             assert (bundle / "scripts" / "demo_director.py").stat().st_mode & 0o111
         empty = root / "empty-path"
         empty.mkdir()
@@ -122,6 +128,13 @@ def main():
         env.pop("TERMCRAFT_WORLD_GENERATOR", None)
         version = subprocess.check_output([str(binary), "--version"], env=env, text=True, timeout=10).strip()
         assert version == f"termcraft {manifest['version']}"
+        if os.name == "nt":
+            command_shell = env.get("COMSPEC", r"C:\Windows\System32\cmd.exe")
+            launcher_command = f'"{command_shell}" /d /s /c ""{launcher}" --version"'
+        else:
+            launcher_command = [str(launcher), "--version"]
+        assert subprocess.check_output(launcher_command, cwd=root, env=env, text=True,
+                                       timeout=10).strip() == version
         assert "join" in subprocess.check_output([str(binary), "--help"], env=env, text=True, timeout=10)
         config = json.loads(subprocess.check_output([str(binary), "mcp", "config"], env=env, timeout=10))
         assert Path(config["mcpServers"]["termcraft"]["command"]) == binary
@@ -147,12 +160,15 @@ def main():
         assert responses[2]["structuredContent"]["player"]["x"] > 0.5
         assert responses[6]["structuredContent"]["player"]["x"] == responses[2]["structuredContent"]["player"]["x"]
         if os.name != "nt":
-            terminal_smoke(binary, env)
+            terminal_smoke([str(binary), "world", "play", "archive"], env, root)
+            terminal_smoke([str(launcher)], env, root)
         assert not (root / "saves" / "worlds" / "world-archive" / ".session.lock").exists()
         report = dict(status="passed", archive=archive.name, target=manifest["target"],
                       archive_sha256=archive_hash, binary_sha256=digest(binary.read_bytes()),
                       manifest_files_verified=len(manifest["files"]), empty_path_runtime=True,
                       absolute_mcp_config=True, stepped_mcp_save_reopen=True,
+                      launcher_arguments_from_spaced_path=True,
+                      unix_launcher_default_trial=os.name != "nt",
                       unix_native_terminal_restore=os.name != "nt",
                       limits="Automated archive/runtime check; real terminal input, clean OS compatibility and human gameplay remain separate.")
         if args.report:

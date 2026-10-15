@@ -178,6 +178,8 @@ pub struct ServerSnapshot {
 
 impl ServerSnapshot {
     pub fn from_state(tick: u64, state: &GameState) -> Self {
+        let session = PlayerSession::capture(state);
+        let chest = session.chest(state);
         Self {
             protocol: NET_PROTOCOL_VERSION,
             acknowledged_sequence: 0,
@@ -188,8 +190,8 @@ impl ServerSnapshot {
             player: PlayerSnapshot::from_state(state),
             chat: state.chat.clone(),
             settings: super::state::SharedSettings::capture(state),
-            session: PlayerSession::capture(state),
-            chest: PlayerSession::capture(state).chest(state),
+            session,
+            chest,
             entities: RuntimeEntities::capture(state, state.player.x),
             trial: state.trial.clone(),
             thunder_flash: state.thunder_flash_timer,
@@ -675,7 +677,6 @@ impl ServerSimulation {
         if !self.state.activate_peer(client_id) {
             return None;
         }
-        let session = self.state.peer_session(client_id)?;
         let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
         if self.primary_client_id != Some(client_id) {
             snapshot.chat.mode = "host-only".into();
@@ -685,17 +686,6 @@ impl ServerSimulation {
             .get(&client_id)
             .copied()
             .unwrap_or(0);
-        snapshot.player = PlayerSnapshot::from_player(session.player());
-        snapshot.hotbar_index = session.hotbar_index();
-        snapshot.selected_hotbar_item = session.inventory().slots[snapshot.hotbar_index as usize]
-            .as_ref()
-            .map(|s| s.item_type);
-        snapshot.inventory_open = session.inventory_open();
-        snapshot.death_screen_active = session.dead();
-        snapshot.credits_active = session.credits();
-        snapshot.entities = RuntimeEntities::capture(&self.state, session.player().x);
-        snapshot.chest = session.chest(&self.state);
-        snapshot.session = session;
         snapshot.remote_players = self
             .state
             .peer_ids()
@@ -1208,6 +1198,10 @@ fn accept_pending_clients(
                     let _ = writer.shutdown(std::net::Shutdown::Both);
                     continue;
                 }
+                // BSD/macOS may inherit the listener's nonblocking flag. The
+                // framed reader needs a blocking stream, with bounded writes;
+                // otherwise a quiet connection is dropped on WouldBlock.
+                writer.set_nonblocking(false)?;
                 writer.set_nodelay(true)?;
                 writer.set_write_timeout(Some(Duration::from_millis(16)))?;
                 let reader = writer.try_clone()?;

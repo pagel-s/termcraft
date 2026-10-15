@@ -111,6 +111,10 @@ impl Host {
                     }
                     Err(_) => break,
                 };
+                // Accepted sockets can inherit nonblocking mode on BSD/macOS.
+                if stream.set_nonblocking(false).is_err() {
+                    continue;
+                }
                 let _ = stream.set_read_timeout(Some(Duration::from_millis(500)));
                 let _ = stream.set_write_timeout(Some(Duration::from_millis(500)));
                 let result = (|| -> Result<Value, String> {

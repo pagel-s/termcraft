@@ -5,8 +5,8 @@ qualified or published. Ordinary local play and co-op require no model service.
 
 ## Native archives
 
-A development archive contains one optimized executable, license, documentation,
-launch instructions, a file-hash manifest and an archive SHA-256 checksum. It runs
+A development archive contains one optimized executable, a native launcher,
+license, documentation, launch instructions, a file-hash manifest and an archive SHA-256 checksum. It runs
 without Cargo or a Rust installation. Build and package the current machine's
 binary with Python 3.11 or newer:
 
@@ -20,8 +20,10 @@ Use the actual binary/target for your platform; on Windows the binary ends in
 `.exe`. The packager checks the binary's version against Cargo.toml, labels output
 as a development build and refuses to replace an existing archive. It does not
 publish or upload anything. Extract the complete archive, open a terminal there,
-and run `./termcraft` on Linux/macOS or `.\termcraft.exe` in Windows PowerShell.
-Use `--help` for commands. The repeatable local archive check is:
+and start `./play.sh` on Linux, `./PLAY.command` on Mac or `.\PLAY.cmd` on Windows.
+The launcher starts Lantern Run by default; supplied arguments are forwarded.
+Run `./termcraft` or `.\termcraft.exe` for classic survival. Use `--help` for
+commands. The repeatable local archive check is:
 
 ```sh
 python3 scripts/test_native_archive.py --directory /tmp/termcraft-dist \
@@ -31,13 +33,16 @@ python3 scripts/test_native_archive.py --directory /tmp/termcraft-dist \
 Use a directory containing exactly one archive and its checksum. Saves live in the per-user data directory; copying the
 executable does not copy saves. See [Installation](installation.md).
 
-`.github/workflows/native-artifacts.yml` adds a **manually dispatched** build/test/
+`.github/workflows/native-artifacts.yml` runs on beta source pushes and can also
+be manually dispatched. It provides a build/test/
 Clippy/package matrix for Linux x86_64, Windows x86_64 and macOS ARM64/x86_64. It
 uploads development workflow artifacts only. Every target also extracts its
 archive, verifies all hashes and runs the binary/MCP without Rust in PATH; Unix
-checks a PTY launch and terminal restoration. Linux additionally runs the real
-OpenSSH fixture. These definitions alone do not establish a passing platform run. It has not been run or published
-from this checkout. Runner availability and native input/runtime checks must
+checks PTY launches, the launcher's default route and terminal restoration.
+Launchers are exercised from paths with spaces and another working directory.
+Linux additionally runs the real OpenSSH fixture. Consult the
+[workflow results](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
+for the exact commit being downloaded. Passing automation and native human input/runtime checks must
 pass before distributing a beta. A Linux binary built on this workstation is
 not proof of compatibility with older Linux/glibc systems.
 

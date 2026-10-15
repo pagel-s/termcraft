@@ -49,15 +49,35 @@ def main():
     for script in ("demo_director.py", "generate_world.py", "test_lantern_trial.py"):
         files[f"scripts/{script}"] = (root / "scripts" / script).read_bytes()
     launch = ".\\termcraft.exe" if binary_name.endswith(".exe") else "./termcraft"
+    if binary_name.endswith(".exe"):
+        launcher = "PLAY.cmd"
+        files[launcher] = (
+            '@echo off\r\nsetlocal\r\n'
+            'if "%~1"=="" (\r\n'
+            '  "%~dp0termcraft.exe" trial\r\n'
+            ') else (\r\n'
+            '  "%~dp0termcraft.exe" %*\r\n'
+            ')\r\nexit /b %errorlevel%\r\n'
+        ).encode()
+    else:
+        launcher = "PLAY.command" if "apple-darwin" in args.target else "play.sh"
+        files[launcher] = (
+            '#!/bin/sh\n'
+            'case "$0" in */*) launch_dir=${0%/*} ;; *) launch_dir=. ;; esac\n'
+            'if [ "$#" -eq 0 ]; then set -- trial; fi\n'
+            'exec "$launch_dir/termcraft" "$@"\n'
+        ).encode()
+    launcher_command = f".\\{launcher}" if binary_name.endswith(".exe") else f"./{launcher}"
     files["START_HERE.txt"] = (
         f"Termcraft {version} development build. Beta qualification is unfinished.\n\n"
-        "No Rust installation required. Extract all files, open a terminal here,\n"
-        f"and run {launch}.\n\n"
-        "Local play: termcraft\n"
-        "Focused combat/building route: termcraft trial\n"
-        "Host trusted local co-op: termcraft server\n"
-        "Join locally: termcraft client --player alice\n"
-        "Join through an existing SSH account: termcraft join user@host --player alice\n"
+        "No Rust installation required. Extract all files and open a terminal here.\n"
+        f"Start the focused combat/building route: {launcher_command}\n"
+        "The launcher forwards arguments; without arguments it starts Lantern Run.\n"
+        f"Classic survival: {launch}\n"
+        f"Focused combat/building route: {launch} trial\n"
+        f"Host trusted local co-op: {launch} server\n"
+        f"Join locally: {launch} client --player alice\n"
+        f"Join through an existing SSH account: {launch} join user@host --player alice\n"
         "Game master: press T, enter /connect, then connect your LLM using\n"
         "the entry printed by termcraft mcp config. See docs/agents.md.\n\n"
         "See docs/installation.md and docs/multiplayer.md for saves and limits.\n"
@@ -80,7 +100,7 @@ def main():
             for path, data in files.items():
                 info = tarfile.TarInfo(f"{name}/{path}")
                 info.size = len(data)
-                info.mode = 0o755 if path == binary_name or path.startswith("scripts/") else 0o644
+                info.mode = 0o755 if path in {binary_name, launcher} or path.startswith("scripts/") else 0o644
                 output.addfile(info, io.BytesIO(data))
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     archive.with_name(archive.name + ".sha256").write_text(f"{digest}  {archive.name}\n")

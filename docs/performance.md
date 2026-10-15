@@ -138,6 +138,15 @@ fixture. It is **not** a 60-minute wall-clock soak, delayed-network test, full
 survival session or peak process-memory bound. The runtime never calls a model
 from physics or chunk generation.
 
+The 15 October co-op follow-up removes duplicate player-session/entity captures
+while constructing each snapshot. Three local runs before and after show p95
+work times of **0.244–0.247 ms** and **0.237–0.239 ms** respectively for the same
+eight-player terrain/encoding workload. This is a small CPU saving, not a claim
+of visibly smoother play. Random simulation/weather are not seeded and output
+sizes vary slightly; it is not an exact output-parity benchmark. One trial failed
+without retained stderr and was retried; its cause is unknown. The
+[raw runs](assets/coop-snapshot-profile-2026-10-15.json) preserve these limits.
+
 Further qualification remains: slow/full storage, actual terminals and SSH links,
 a wall-clock co-op soak, natural entity populations, fluids/redstone, complete
 progression and model latency/task quality. Unit regressions cover ladder holding,
