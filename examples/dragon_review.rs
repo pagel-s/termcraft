@@ -12,6 +12,12 @@ use termcraft::{
     world::{Dimension, World, block::BlockType},
 };
 
+#[derive(Clone, Copy)]
+struct Review {
+    front: bool,
+    detail: bool,
+}
+
 fn capture(
     state: &GameState,
     output: &Path,
@@ -19,8 +25,14 @@ fn capture(
     width: u16,
     height: u16,
     alpha: f64,
+    review: Review,
 ) -> std::io::Result<()> {
     let mut renderer = Renderer::with_size(width, height);
+    renderer.set_dragon_front_preview(review.front);
+    if review.detail {
+        renderer.toggle_zoom();
+        renderer.toggle_zoom();
+    }
     let mut ansi = Vec::new();
     renderer.render_to(state, alpha, &mut ansi)?;
     fs::write(output.join(format!("{name}-{width}x{height}.ansi")), ansi)
@@ -30,6 +42,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output =
         std::path::PathBuf::from(std::env::args().nth(1).ok_or("output directory required")?);
     fs::create_dir_all(&output)?;
+    let flags: Vec<_> = std::env::args().skip(2).collect();
+    let review = Review {
+        front: flags.iter().any(|arg| arg == "--front"),
+        detail: flags.iter().any(|arg| arg == "--detail"),
+    };
     let root = std::env::temp_dir().join(format!(
         "termcraft-dragon-review-{}-{}",
         std::process::id(),
@@ -79,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         state.ender_dragon = Some(dragon);
         for (width, height) in [(120, 40), (160, 48), (200, 60)] {
-            capture(&state, &output, pose, width, height, 0.0)?;
+            capture(&state, &output, pose, width, height, 0.0, review)?;
         }
     }
     for frame in 0..66 {
@@ -93,6 +110,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             160,
             48,
             (frame % 3) as f64 / 3.0,
+            review,
         )?;
     }
     drop(state);

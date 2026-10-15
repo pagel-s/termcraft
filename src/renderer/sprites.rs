@@ -241,7 +241,11 @@ impl ActorSprite {
 
     fn pixels(&self) -> SpritePixels {
         if matches!(self.kind, SpriteKind::Dragon) {
-            return SpritePixels::Dragon(dragon::frame(self.animation_time, self.alert));
+            return SpritePixels::Dragon(if self.variant {
+                dragon::front_frame(self.animation_time, self.alert)
+            } else {
+                dragon::frame(self.animation_time, self.alert)
+            });
         }
         SpritePixels::Rows(match self.kind {
             SpriteKind::Player => &[
@@ -571,6 +575,13 @@ impl ActorSprite {
             b'z' if matches!(self.kind, Dragon) => Renderer::rgb((127, 116, 158)),
             b'j' if matches!(self.kind, Dragon) => Renderer::rgb((68, 50, 91)),
             b'w' if matches!(self.kind, Dragon) => Renderer::rgb((229, 219, 231)),
+            b'Q' if matches!(self.kind, Dragon) => Renderer::rgb((82, 88, 109)),
+            b'K' if matches!(self.kind, Dragon) => Renderer::rgb((153, 150, 179)),
+            b'M' if matches!(self.kind, Dragon) => Renderer::rgb((105, 48, 132)),
+            b'D' if matches!(self.kind, Dragon) => Renderer::rgb((163, 86, 192)),
+            b'U' if matches!(self.kind, Dragon) => Renderer::rgb((38, 28, 57)),
+            b'X' if matches!(self.kind, Dragon) => Renderer::rgb((14, 11, 22)),
+            b'V' if matches!(self.kind, Dragon) => Renderer::rgb((134, 79, 161)),
             b't' => {
                 if matches!(self.kind, Blaze) {
                     accent
@@ -1539,35 +1550,42 @@ mod tests {
         let mut state = fixture();
         state.current_dimension = crate::world::Dimension::End;
         let eye = Renderer::rgb((244, 132, 246));
-        for (w, h) in [(120, 40), (160, 48), (200, 60)] {
-            for facing_right in [false, true] {
-                for age in [0, 6, 11] {
-                    for x in [0.5, 6.0] {
-                        let mut dragon = crate::entities::ender_dragon::EnderDragon::new(x, 7.0);
-                        dragon.facing_right = facing_right;
-                        dragon.age = age;
-                        state.ender_dragon = Some(dragon);
-                        let mut renderer = Renderer::with_size(w, h);
-                        renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
-                        assert!(
-                            renderer
-                                .back_buffer
-                                .iter()
-                                .any(|cell| cell.fg == eye || cell.bg == eye),
-                            "dragon eyes lost at {w}x{h}, facing right {facing_right}, age {age}, x {x}"
-                        );
-                        let row = |y: usize| {
-                            renderer.back_buffer[y * w as usize..(y + 1) * w as usize]
-                                .iter()
-                                .map(|c| c.ch)
-                                .collect::<String>()
-                        };
-                        assert!(row(1).contains("Ender Dragon"));
-                        assert!(row(3).contains("Armor"));
-                        assert!(
-                            !row(h as usize - 10).contains("Too Far"),
-                            "idle pointer must not cover boss airspace"
-                        );
+        for front in [false, true] {
+            for zoom in [0, 2] {
+                for (w, h) in [(120, 40), (160, 48), (200, 60)] {
+                    for facing_right in [false, true] {
+                        for age in [0, 6, 11] {
+                            for x in [0.5, 6.0] {
+                                let mut dragon =
+                                    crate::entities::ender_dragon::EnderDragon::new(x, 7.0);
+                                dragon.facing_right = facing_right;
+                                dragon.age = age;
+                                state.ender_dragon = Some(dragon);
+                                let mut renderer = Renderer::with_size(w, h);
+                                renderer.set_dragon_front_preview(front);
+                                renderer.zoom = zoom;
+                                renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+                                assert!(
+                                    renderer
+                                        .back_buffer
+                                        .iter()
+                                        .any(|cell| cell.fg == eye || cell.bg == eye),
+                                    "dragon eyes lost (front={front}, zoom={zoom}) at {w}x{h}, facing right {facing_right}, age {age}, x {x}"
+                                );
+                                let row = |y: usize| {
+                                    renderer.back_buffer[y * w as usize..(y + 1) * w as usize]
+                                        .iter()
+                                        .map(|c| c.ch)
+                                        .collect::<String>()
+                                };
+                                assert!(row(1).contains("Ender Dragon"));
+                                assert!(row(3).contains("Armor"));
+                                assert!(
+                                    !row(h as usize - 10).contains("Too Far"),
+                                    "idle pointer must not cover boss airspace"
+                                );
+                            }
+                        }
                     }
                 }
             }

@@ -311,6 +311,11 @@ HUD refinement and finer furniture/stair/slab collision still need work.
 
 ## Ender Dragon follow-up
 
+A [front-facing comparison](design/dragon-front-2026-10-15/index.html) now places
+the current side view beside a horned, fanged front candidate in the same End scene.
+It includes matching overview/detail poses and wing loops. This is an art preview
+for selection; the playable default and side-oriented combat geometry are retained.
+
 The dragon has a larger authored canvas with separate wing ribs/membranes,
 curved tail, horned jaw, visible eyes and seven wing poses. Its body remains fixed
 while wings flap; swooping changes the flap rate. A separate boss health/phase

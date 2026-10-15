@@ -69,6 +69,7 @@ pub struct Renderer {
     world_view: Option<(i32, i32, i32, i32, i32)>,
     zoom: u8,
     pixel_colors: bool,
+    dragon_art_preview: Option<bool>,
     actor_sprites: Vec<ActorSprite>,
     motion: motion::MotionHistory,
     player_preview: Option<Box<motion::PlayerPreview>>,
@@ -79,6 +80,12 @@ pub struct Renderer {
 }
 
 impl Renderer {
+    /// Select side/front art for comparison and allow the detailed review zoom.
+    /// Ordinary rendering and boss combat geometry retain the live side view.
+    pub fn set_dragon_front_preview(&mut self, enabled: bool) {
+        self.dragon_art_preview = Some(enabled);
+    }
+
     pub fn new() -> std::io::Result<Self> {
         let (cols, rows) = size()?;
         Ok(Self::with_size(cols, rows))
@@ -106,6 +113,7 @@ impl Renderer {
             world_view: None,
             zoom: 0,
             pixel_colors: true,
+            dragon_art_preview: None,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
             player_preview: None,
@@ -1182,7 +1190,11 @@ impl Renderer {
         // rather than automatically halving world context on a larger terminal.
         let scale = if self.pixel_colors && self.zoom != 1 && self.width >= 100 && self.height >= 32
         {
-            if self.zoom == 2 && !boss_view && self.width >= 140 && self.height >= 44 {
+            if self.zoom == 2
+                && (!boss_view || self.dragon_art_preview.is_some())
+                && self.width >= 140
+                && self.height >= 44
+            {
                 4
             } else {
                 2
@@ -1770,7 +1782,7 @@ impl Renderer {
                                 d_sx,
                                 d_sy,
                                 SpriteKind::Dragon,
-                                dragon.facing_right,
+                                dragon.facing_right || self.dragon_art_preview.unwrap_or(false),
                                 dragon.vx,
                                 dragon.age,
                                 d_fg,
@@ -1781,6 +1793,7 @@ impl Renderer {
                                 dragon.phase,
                                 crate::entities::ender_dragon::DragonPhase::Swoop
                             ))
+                            .with_variant(self.dragon_art_preview.unwrap_or(false))
                             .with_animation_time(dragon.age as f64 + frame_alpha),
                         );
                     } else {
@@ -6397,6 +6410,7 @@ mod tests {
             world_view: None,
             zoom: 0,
             pixel_colors: true,
+            dragon_art_preview: None,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
             player_preview: None,
@@ -6461,6 +6475,7 @@ mod tests {
             world_view: None,
             zoom: 0,
             pixel_colors: true,
+            dragon_art_preview: None,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
             player_preview: None,
@@ -6510,6 +6525,7 @@ mod tests {
             world_view: None,
             zoom: 0,
             pixel_colors: true,
+            dragon_art_preview: None,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
             player_preview: None,
@@ -6559,6 +6575,7 @@ mod tests {
             world_view: None,
             zoom: 0,
             pixel_colors: true,
+            dragon_art_preview: None,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
             player_preview: None,
@@ -6605,6 +6622,7 @@ mod tests {
             world_view: None,
             zoom: 0,
             pixel_colors: true,
+            dragon_art_preview: None,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
             player_preview: None,
@@ -6651,6 +6669,7 @@ mod tests {
             world_view: None,
             zoom: 0,
             pixel_colors: true,
+            dragon_art_preview: None,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
             player_preview: None,
@@ -6701,6 +6720,7 @@ mod tests {
             world_view: None,
             zoom: 0,
             pixel_colors: true,
+            dragon_art_preview: None,
             actor_sprites: Vec::new(),
             motion: motion::MotionHistory::default(),
             player_preview: None,
