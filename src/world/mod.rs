@@ -2676,7 +2676,12 @@ impl World {
                     + (channel_noise * 2.0) as i32
             }
             BiomeType::River => OVERWORLD_SEA_LEVEL + 2 + (channel_noise * 2.0) as i32,
-            BiomeType::Swamp => OVERWORLD_SEA_LEVEL + 2 + (wetland_noise * 2.0) as i32,
+            // A wetland needs dry hummocks as well as shallow pools. Keeping
+            // every column below sea level suppressed all its trees and reeds.
+            BiomeType::Swamp => {
+                OVERWORLD_SEA_LEVEL
+                    + (perlin.get([world_x as f64 * 0.028, 620.0]) * 6.0).round() as i32
+            }
             BiomeType::Jungle => base - 2 + (jagged * 2.0) as i32,
             BiomeType::ExtremeHills => base - 8 - (jagged * 10.0) as i32,
             _ => base,
@@ -2810,7 +2815,7 @@ impl World {
     }
 
     fn column_has_surface_water(
-        _perlin: &Perlin,
+        perlin: &Perlin,
         temp_perlin: &Perlin,
         moist_perlin: &Perlin,
         world_x: i32,
@@ -2838,6 +2843,17 @@ impl World {
         }
 
         distance <= 1
+            && [world_x - 1, world_x + 1].into_iter().any(|x| {
+                let neighbor = Self::biome_for_x(temp_perlin, moist_perlin, x);
+                Self::is_surface_water_biome(neighbor)
+                    && Self::blended_overworld_surface_y(
+                        perlin,
+                        temp_perlin,
+                        moist_perlin,
+                        x,
+                        neighbor,
+                    ) > OVERWORLD_SEA_LEVEL
+            })
     }
 
     fn column_touches_surface_water(
@@ -3153,9 +3169,9 @@ impl World {
                 + common_exposure_bonus
                 - Self::overworld_ore_breakup_score(perlin, world_x, current_y, 0.12, 100.0) * 0.05;
 
-        if current_y > 104 && diamond_score > 0.65 {
+        let ore = if current_y > 104 && diamond_score > 0.62 {
             Some(BlockType::DiamondOre)
-        } else if current_y > 82 && gold_score > 0.65 {
+        } else if current_y > 82 && gold_score > 0.63 {
             Some(BlockType::GoldOre)
         } else if current_y >= REDSTONE_ORE_MIN_Y
             && redstone_score > (0.68 - redstone_depth_t * 0.12)
@@ -3170,7 +3186,37 @@ impl World {
             Some(BlockType::CoalOre)
         } else {
             None
+        };
+        ore.filter(|&block| Self::overworld_ore_pocket(block, world_x, current_y))
+    }
+
+    fn overworld_ore_pocket(block: BlockType, world_x: i32, y: i32) -> bool {
+        // Noise supplies seed-dependent rarity/depth; these rounded pockets
+        // prevent a noise lobe becoming dozens of exposed blocks in 2D.
+        // Coordinates are global so deposits have the same limits at chunk seams.
+        let (width, height, salt) = match block {
+            BlockType::CoalOre => (9, 7, 11u32),
+            BlockType::IronOre => (7, 6, 29),
+            BlockType::DiamondOre => (5, 5, 71),
+            _ => (6, 5, 43),
+        };
+        let px = (world_x + salt as i32).rem_euclid(width);
+        let py = (y + salt as i32 / 3).rem_euclid(height);
+        if px == 0 || py == 0 {
+            return false;
         }
+        let cell_x = (world_x + salt as i32).div_euclid(width);
+        let cell_y = (y + salt as i32 / 3).div_euclid(height);
+        let hash = (cell_x as u32).wrapping_mul(73_856_093)
+            ^ (cell_y as u32).wrapping_mul(19_349_663)
+            ^ salt;
+        let offset_x = f64::from(hash % 3) * 0.3 - 0.3;
+        let offset_y = f64::from((hash / 3) % 3) * 0.3 - 0.3;
+        let dx =
+            (f64::from(px) - f64::from(width) * 0.5 - offset_x) / (f64::from(width - 1) * 0.55);
+        let dy =
+            (f64::from(py) - f64::from(height) * 0.5 - offset_y) / (f64::from(height - 1) * 0.55);
+        dx * dx + dy * dy <= 1.0
     }
 
     fn refine_overworld_exposed_ores(
@@ -4285,7 +4331,7 @@ impl World {
         Self::refine_overworld_ore_runs(&mut chunk);
 
         let c_end = c_start + CHUNK_WIDTH as i32;
-        for wx in (c_start - 2)..(c_end + 2) {
+        for wx in (c_start - 3)..(c_end + 3) {
             let b = Self::biome_for_x(temp_perlin, moist_perlin, wx);
             let sy = Self::blended_overworld_surface_y(perlin, temp_perlin, moist_perlin, wx, b);
             let beach_column = Self::is_beach_column(temp_perlin, moist_perlin, wx, b, sy);
@@ -4339,7 +4385,10 @@ impl World {
                 }
                 BiomeType::Ocean | BiomeType::River => {}
                 _ => {
-                    if beach_column || water_edge_column {
+                    if beach_column
+                        || (water_edge_column && b != BiomeType::Swamp)
+                        || (b == BiomeType::Swamp && sy > OVERWORLD_SEA_LEVEL)
+                    {
                         continue;
                     }
                     let t_c = match b {
@@ -4356,7 +4405,7 @@ impl World {
                         let t_h = match b {
                             BiomeType::Jungle => 5 + (h % 4) as usize,
                             BiomeType::Taiga => 4 + (h % 3) as usize,
-                            BiomeType::Swamp => 3 + (h % 2) as usize,
+                            BiomeType::Swamp => 4 + (h % 2) as usize,
                             BiomeType::ExtremeHills => 4 + (h % 2) as usize,
                             BiomeType::Tundra => 3 + (h % 2) as usize,
                             _ => 3 + (h % 3) as usize,
@@ -4395,6 +4444,8 @@ impl World {
                             let u_ly = ly as usize;
                             let wd = if b == BiomeType::Taiga {
                                 if ly == (b_ly as i32 - 2) { 0 } else { 1 }
+                            } else if b == BiomeType::Swamp {
+                                if ly == b_ly as i32 - 2 { 2 } else { 3 }
                             } else if ly == (b_ly as i32 - 2) {
                                 1
                             } else {
@@ -7790,7 +7841,7 @@ mod tests {
                 }
                 BiomeType::Swamp => {
                     assert!(
-                        (OVERWORLD_SEA_LEVEL + 2..=OVERWORLD_SEA_LEVEL + 4).contains(&surface_y)
+                        (OVERWORLD_SEA_LEVEL - 6..=OVERWORLD_SEA_LEVEL + 6).contains(&surface_y)
                     );
                     found_swamp = true;
                 }
@@ -7805,6 +7856,69 @@ mod tests {
         assert!(found_ocean);
         assert!(found_river);
         assert!(found_swamp);
+    }
+
+    #[test]
+    fn test_swamps_have_walkable_hummocks_pools_trees_and_reeds() {
+        let perlin = Perlin::new(1337);
+        let temp = Perlin::new(7331);
+        let moist = Perlin::new(9917);
+        let cave = Perlin::new(17_711);
+        let mut dry = 0;
+        let mut wet = 0;
+        let mut trees = 0;
+        let mut reeds = 0;
+        for cx in -128..=128 {
+            if !(0..CHUNK_WIDTH).any(|lx| {
+                World::biome_for_x(&temp, &moist, cx * CHUNK_WIDTH as i32 + lx as i32)
+                    == BiomeType::Swamp
+            }) {
+                continue;
+            }
+            let chunk = World::build_chunk_with_noise(
+                cx,
+                Dimension::Overworld,
+                "swamp_features",
+                &perlin,
+                &temp,
+                &moist,
+                &cave,
+            );
+            for lx in 0..CHUNK_WIDTH {
+                let x = cx * CHUNK_WIDTH as i32 + lx as i32;
+                if World::biome_for_x(&temp, &moist, x) != BiomeType::Swamp {
+                    continue;
+                }
+                let sy =
+                    World::blended_overworld_surface_y(&perlin, &temp, &moist, x, BiomeType::Swamp);
+                if sy <= OVERWORLD_SEA_LEVEL {
+                    dry += 1;
+                } else {
+                    wet += 1;
+                }
+                for y in 0..sy as usize {
+                    match chunk.get_block(lx, y) {
+                        BlockType::Wood => {
+                            assert!(sy <= OVERWORLD_SEA_LEVEL, "submerged tree root");
+                            trees += 1;
+                        }
+                        BlockType::SugarCane => {
+                            assert!(sy <= OVERWORLD_SEA_LEVEL, "submerged reeds");
+                            reeds += 1;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        assert!(
+            dry > 40 && wet > 40,
+            "wetland must mix land and water: {dry}/{wet}"
+        );
+        assert!(
+            trees > 10 && reeds > 5,
+            "missing wetland features: trees={trees}, reeds={reeds}"
+        );
     }
 
     #[test]
@@ -8750,6 +8864,100 @@ mod tests {
         }
 
         assert!(found_cluster);
+    }
+
+    #[test]
+    fn test_overworld_ore_pockets_remain_bounded_across_chunk_seams() {
+        use std::collections::VecDeque;
+        let ores = [
+            BlockType::CoalOre,
+            BlockType::IronOre,
+            BlockType::RedstoneOre,
+            BlockType::GoldOre,
+            BlockType::DiamondOre,
+        ];
+        let mut totals = [0; 5];
+        for seed in [1337, 42, 9182] {
+            let perlin = Perlin::new(seed);
+            let temp = Perlin::new(7331);
+            let moist = Perlin::new(9917);
+            let cave = Perlin::new(17_711);
+            let width = 65 * CHUNK_WIDTH;
+            let mut blocks = vec![BlockType::Air; width * CHUNK_HEIGHT];
+            for cx in -32..=32 {
+                let chunk = World::build_chunk_with_noise(
+                    cx,
+                    Dimension::Overworld,
+                    "bounded_ore_pockets",
+                    &perlin,
+                    &temp,
+                    &moist,
+                    &cave,
+                );
+                for lx in 0..CHUNK_WIDTH {
+                    for y in 0..CHUNK_HEIGHT {
+                        let x = (cx + 32) as usize * CHUNK_WIDTH + lx;
+                        blocks[x * CHUNK_HEIGHT + y] = chunk.get_block(lx, y);
+                    }
+                }
+            }
+            let mut counts = [0; 5];
+            for p in 0..blocks.len() {
+                let block = blocks[p];
+                let Some(o) = ores.iter().position(|&v| v == block) else {
+                    continue;
+                };
+                let mut queue = VecDeque::from([p]);
+                blocks[p] = BlockType::Air;
+                let mut size = 0;
+                while let Some(p) = queue.pop_front() {
+                    size += 1;
+                    counts[o] += 1;
+                    let (x, y) = (p / CHUNK_HEIGHT, p % CHUNK_HEIGHT);
+                    assert!(y >= [0, 38, 68, 83, 105][o], "shallow {block:?} at {y}");
+                    for (nx, ny) in [
+                        (x as i32 - 1, y as i32),
+                        (x as i32 + 1, y as i32),
+                        (x as i32, y as i32 - 1),
+                        (x as i32, y as i32 + 1),
+                    ] {
+                        if !(0..width as i32).contains(&nx)
+                            || !(0..CHUNK_HEIGHT as i32).contains(&ny)
+                        {
+                            continue;
+                        }
+                        let n = nx as usize * CHUNK_HEIGHT + ny as usize;
+                        if blocks[n] == block {
+                            blocks[n] = BlockType::Air;
+                            queue.push_back(n);
+                        }
+                    }
+                }
+                assert!(
+                    size <= [48, 30, 20, 20, 16][o],
+                    "oversized {block:?} pocket: {size}, seed={seed}"
+                );
+            }
+            assert!(
+                counts.iter().all(|&n| n >= 10),
+                "ores missing: seed={seed}, counts={counts:?}"
+            );
+            assert!(
+                counts[0] > counts[1]
+                    && counts[1] > counts[2]
+                    && counts[1] > counts[3]
+                    && counts[1] > counts[4],
+                "broken rarity: {counts:?}"
+            );
+            for o in 0..5 {
+                totals[o] += counts[o];
+            }
+        }
+        // Individual regions may be unusually gold- or diamond-rich.
+        assert!(
+            totals[3] > totals[4],
+            "diamond should be rarer in aggregate: {totals:?}"
+        );
     }
 
     #[test]

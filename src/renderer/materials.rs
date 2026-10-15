@@ -48,7 +48,7 @@ impl Tile {
                 };
                 ["+-+-", ".-.-", "....", "..-."]
             }
-            Stone | Bedrock => {
+            Stone => {
                 colors = [
                     (99, 105, 111),
                     (111, 118, 123),
@@ -56,6 +56,10 @@ impl Tile {
                     (105, 111, 116),
                 ];
                 ["....", ".+..", "...-", "-..."]
+            }
+            Bedrock => {
+                colors = [(59, 63, 70), (88, 91, 97), (37, 42, 49), (72, 76, 82)];
+                ["a-..", "-..+", ".a--", "+-a."]
             }
             Cobblestone => {
                 colors = [
@@ -93,7 +97,11 @@ impl Tile {
                 ["++++", ".-..", "...-", "..+."]
             }
             Leaves | BirchLeaves => {
-                colors = [(58, 104, 58), (78, 130, 68), (43, 83, 49), (67, 116, 61)];
+                colors = if block == BirchLeaves {
+                    [(100, 127, 61), (126, 151, 75), (72, 97, 48), (109, 138, 63)]
+                } else {
+                    [(58, 104, 58), (78, 130, 68), (43, 83, 49), (67, 116, 61)]
+                };
                 ["a++a", "+..+", "..-.", "-..a"]
             }
             IronOre | GoldOre | DiamondOre | CoalOre | RedstoneOre => {
@@ -107,7 +115,24 @@ impl Tile {
                 colors = [(99, 105, 111), (115, 121, 124), (82, 88, 95), accent];
                 ["....", ".aa.", "a..a", ".-.."]
             }
-            Sand | Gravel => ["..+.", ".-..", "....", "..-."],
+            Sand => {
+                colors = [
+                    (194, 169, 111),
+                    (210, 188, 133),
+                    (179, 150, 93),
+                    (201, 177, 119),
+                ];
+                ["....", "..+.", "....", ".-.."]
+            }
+            Gravel => {
+                colors = [
+                    (117, 116, 113),
+                    (143, 139, 129),
+                    (89, 92, 96),
+                    (126, 125, 119),
+                ];
+                ["+.a.", ".--+", "a.+.", "-..a"]
+            }
             SoulSand => {
                 colors = [(116, 85, 71), (147, 110, 85), (65, 48, 49), (98, 66, 61)];
                 ["+..+", ".--.", ".aa.", "-..-"]
@@ -142,7 +167,33 @@ impl Tile {
                 ["++++", "a.+a", "----", "+a.+"]
             }
             Glass => ["+  +", " a  ", "  a ", "+  +"],
-            Wool | Snow | Ice => ["++++", "....", ".+..", "..-."],
+            Wool => {
+                colors = [
+                    (187, 181, 162),
+                    (202, 195, 176),
+                    (167, 162, 149),
+                    (193, 187, 169),
+                ];
+                [".+.+", "+.+.", ".+.+", "+.+."]
+            }
+            Snow => {
+                colors = [
+                    (208, 225, 227),
+                    (238, 245, 237),
+                    (175, 199, 211),
+                    (218, 233, 232),
+                ];
+                ["++++", "aa.a", "....", "..-."]
+            }
+            Ice => {
+                colors = [
+                    (111, 169, 192),
+                    (186, 224, 230),
+                    (79, 131, 165),
+                    (145, 198, 215),
+                ];
+                ["++++", "..a+", ".a.+", "a..-"]
+            }
             StoneSlab => ["    ", "    ", "++++", "...."],
             StoneStairs => ["  ++", "  ..", "++..", "...."],
             EnchantingTable => {
@@ -189,7 +240,15 @@ impl Tile {
                 colors[0] = (74, 132, 65);
                 [" aa ", "aaa ", " .+ ", "+.  "]
             }
-            TallGrass | Sapling | BirchSapling | SugarCane => [" + +", "+. +", " .+.", "+.. "],
+            TallGrass => [" + +", "+. +", " .+.", "+.. "],
+            Sapling | BirchSapling => {
+                colors = [(119, 85, 55), (109, 159, 72), (67, 101, 46), (77, 131, 58)];
+                [" ++ ", "+aa+", " .a ", " .  "]
+            }
+            SugarCane => {
+                colors = [(91, 143, 68), (153, 184, 92), (65, 111, 58), (119, 163, 76)];
+                [" + +", " a a", " + +", " a a"]
+            }
             Water(_) => {
                 colors = [(42, 98, 145), (99, 186, 208), (31, 72, 118), (56, 132, 177)];
                 if matches!(above, Water(_)) {
@@ -212,8 +271,8 @@ impl Tile {
                 }
             }
             Obsidian => {
-                colors = [(76, 65, 94), (107, 91, 127), (43, 37, 58), (86, 72, 105)];
-                ["+..-", ".a.-", ".-..", "..a-"]
+                colors = [(66, 58, 80), (84, 73, 101), (48, 43, 62), (74, 63, 89)];
+                ["....", ".a..", "..-.", "+..."]
             }
             Netherrack => {
                 colors = [(138, 66, 60), (165, 83, 70), (112, 49, 51), (151, 73, 61)];
@@ -334,6 +393,38 @@ impl Tile {
             }
         };
         let detail = match block {
+            Sand => Some([
+                "........", "..a.....", "......+.", "........", "...-....", "........", ".+......",
+                ".....a..",
+            ]),
+            Gravel => Some([
+                ".++...a.", "+..-..a+", "a..-....", "..-..++.", ".a...+.-", ".a.-..a.", "+..-.aa.",
+                "..a....-",
+            ]),
+            Snow => Some([
+                "++++++++", "aaa+aaaa", "..a...a.", "........", ".....a..", "........", "..-.....",
+                "........",
+            ]),
+            Ice => Some([
+                "++++++++", "a......+", ".....a.+", "....a..+", "...a...a", "..a....a", ".a......",
+                "a......-",
+            ]),
+            Wool => Some([
+                ".a.a.a.a", "+.+.+.+.", ".a.a.a.a", "+.+.+.+.", ".a.a.a.a", "+.+.+.+.", ".a.a.a.a",
+                "+.+.+.+.",
+            ]),
+            Obsidian => Some([
+                "........", "....aa..", "...a....", "..a.....", "........", ".-......", "..-...+.",
+                "........",
+            ]),
+            IronOre | GoldOre | DiamondOre | CoalOre | RedstoneOre => Some([
+                "........", ".+......", "..aa....", "..aa..a.", ".....aa.", ".a......", "...-....",
+                "........",
+            ]),
+            SugarCane => Some([
+                "  +   + ", "  .   . ", "  a   a ", "  +   + ", "  .   . ", "  a   a ", "  +   + ",
+                "  .   . ",
+            ]),
             Torch | RedstoneTorch(_) => Some([
                 "        ", "        ", "   a    ", "  a+a   ", "   +    ", "   .    ", "   .    ",
                 "   .    ",
@@ -724,7 +815,10 @@ impl Renderer {
                 for py in 0..unit as usize {
                     for px in 0..unit as usize {
                         let color = if let Some(tile) = &tile {
-                            let token = if let Some(detail) = tile.detail {
+                            // The 4px silhouettes are authored for overview.
+                            // Sampling an 8px fixture at every other pixel can
+                            // erase a thin stem, both ladder rails or a latch.
+                            let token = if let Some(detail) = tile.detail.filter(|_| unit >= 8) {
                                 detail[py * 8 / unit as usize].as_bytes()[px * 8 / unit as usize]
                             } else {
                                 tile.pixels[py * 4 / unit as usize].as_bytes()[if mirror {
@@ -1321,6 +1415,47 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn overview_preserves_thin_fixture_silhouettes() {
+        let mut s = GameState::network_view();
+        s.dismiss_startup_splash();
+        s.world.apply_chunk_column_snapshot(
+            0,
+            &vec![
+                BlockType::Air;
+                crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+            ],
+        );
+        s.world.set_block(2, 20, BlockType::Stone);
+        s.player.x = 0.5;
+        s.player.y = 20.0;
+        s.time_of_day = 12000.0;
+        let sample = |s: &GameState| {
+            let mut r = Renderer::with_size(160, 48);
+            r.render_to(s, 0.0, &mut Vec::new()).unwrap();
+            let mut cells = Vec::new();
+            for y in 1..44 {
+                for x in 0..160 {
+                    if r.screen_to_world(s, x, y) == (2, 19) {
+                        let cell = r.back_buffer[y as usize * 160 + x as usize];
+                        cells.push((cell.ch, cell.fg, cell.bg));
+                    }
+                }
+            }
+            assert!(!cells.is_empty());
+            cells
+        };
+        let air = sample(&s);
+        for block in [
+            BlockType::RedstoneTorch(false),
+            BlockType::RedstoneTorch(true),
+            BlockType::Ladder,
+        ] {
+            s.world.set_block(2, 19, block);
+            assert_ne!(sample(&s), air, "invisible overview fixture: {block:?}");
+        }
+    }
+
     #[test]
     fn crop_growth_hydration_and_spawner_species_have_visible_distinctions() {
         let tile =

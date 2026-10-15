@@ -83,7 +83,7 @@ pub struct Renderer {
 
 impl Renderer {
     /// Select side/front art for comparison and allow the detailed review zoom.
-    /// Ordinary rendering and boss combat geometry retain the live side view.
+    /// The live default is frontal; `false` retains the historical art comparison.
     pub fn set_dragon_front_preview(&mut self, enabled: bool) {
         self.dragon_art_preview = Some(enabled);
     }
@@ -1784,7 +1784,7 @@ impl Renderer {
                                 d_sx,
                                 d_sy,
                                 SpriteKind::Dragon,
-                                dragon.facing_right || self.dragon_art_preview.unwrap_or(false),
+                                dragon.facing_right || self.dragon_art_preview.unwrap_or(true),
                                 dragon.vx,
                                 dragon.age,
                                 d_fg,
@@ -1795,7 +1795,7 @@ impl Renderer {
                                 dragon.phase,
                                 crate::entities::ender_dragon::DragonPhase::Swoop
                             ))
-                            .with_variant(self.dragon_art_preview.unwrap_or(false))
+                            .with_variant(self.dragon_art_preview.unwrap_or(true))
                             .with_animation_time(dragon.age as f64 + frame_alpha),
                         );
                     } else {
@@ -5672,6 +5672,34 @@ mod tests {
             assert!(output.starts_with(b"\x1b[?2026h"));
             assert!(output.ends_with(b"\x1b[?2026l"));
             renderer.toggle_zoom();
+        }
+    }
+
+    #[test]
+    fn surface_view_keeps_the_horizon_above_the_player_at_each_elevation() {
+        let mut state = GameState::network_view();
+        state.dismiss_startup_splash();
+        for (width, height) in [(100, 32), (120, 40), (160, 48), (200, 60)] {
+            for y in [18.0, 36.0, 110.0] {
+                state.player.y = y;
+                state.player.grounded = true;
+                let mut r = Renderer::with_size(width, height);
+                r.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+                let (_, top) = r.screen_to_world(&state, width / 2, 2);
+                let (_, bottom) = r.screen_to_world(&state, width / 2, height - 6);
+                assert!(
+                    top <= y as i32 - 4,
+                    "surface/sky hidden at {width}x{height}"
+                );
+                assert!(
+                    bottom > y as i32,
+                    "landing ground hidden at {width}x{height}"
+                );
+                assert!(
+                    y as i32 - top > bottom - y as i32,
+                    "view favors caves over sky"
+                );
+            }
         }
     }
 

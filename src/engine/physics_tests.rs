@@ -63,11 +63,13 @@ fn visible_dragon_head_takes_hits_on_both_facings_and_wing_air_does_not() {
     for right in [false, true] {
         let mut dragon = EnderDragon::new(0.5, 18.0);
         dragon.facing_right = right;
-        let head_x = if right { 3.5 } else { -2.5 };
         s.ender_dragon = Some(dragon);
-        assert!(s.try_apply_player_arrow_hit(head_x, 15.9, 0.3, 0.0, 5.0));
+        assert!(s.try_apply_player_arrow_hit(0.5, 15.1, 0.3, 0.0, 5.0));
         assert_eq!(s.ender_dragon.as_ref().unwrap().health, 196.0);
-        assert!(!s.try_apply_player_arrow_hit(0.5, 13.5, 0.3, 0.0, 5.0));
+        assert!(!s.try_apply_player_arrow_hit(3.5, 14.5, 0.3, 0.0, 5.0));
+        // The old side-view snout must not leave an invisible target beside it.
+        assert!(!s.try_apply_player_arrow_hit(3.5, 15.9, 0.3, 0.0, 5.0));
+        assert_eq!(s.focused_entity(0, 15).map(|v| v.0), Some("Ender Dragon"));
     }
 }
 

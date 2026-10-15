@@ -9,6 +9,35 @@ use termcraft::{
         item::{ItemStack, ItemType},
     },
 };
+fn record_bounds(
+    records: &mut [serde_json::Value],
+    renderer: &Renderer,
+    state: &GameState,
+    page: usize,
+    width: u16,
+    height: u16,
+    file: &str,
+) {
+    for record in records.iter_mut().filter(|r| r["page"] == page) {
+        let bx = record["x"].as_i64().unwrap() as i32;
+        let by = record["y"].as_i64().unwrap() as i32;
+        let xs: Vec<_> = (0..width)
+            .filter(|&x| renderer.screen_to_world(state, x, 0).0 == bx)
+            .collect();
+        let ys: Vec<_> = (1..height - 4)
+            .filter(|&y| renderer.screen_to_world(state, 0, y).1 == by)
+            .collect();
+        assert!(
+            !xs.is_empty() && !ys.is_empty(),
+            "catalog block outside view"
+        );
+        if record.get("views").is_none() {
+            record["views"] = serde_json::json!({});
+        }
+        record["views"][file] =
+            serde_json::json!([xs[0], ys[0], xs[xs.len() - 1] + 1, ys[ys.len() - 1] + 1]);
+    }
+}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use BlockType::*;
     let output = PathBuf::from(std::env::args().nth(1).ok_or("output directory required")?);
@@ -209,8 +238,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut renderer = Renderer::with_size(w, h);
             let mut ansi = Vec::new();
             renderer.render_to(&state, 0.0, &mut ansi)?;
-            fs::write(output.join(format!("blocks-{page:02}-{w}x{h}.ansi")), ansi)?;
+            let file = format!("blocks-{page:02}-{w}x{h}.ansi");
+            fs::write(output.join(&file), ansi)?;
+            record_bounds(&mut records, &renderer, &state, page, w, h, &file);
         }
+        let mut renderer = Renderer::with_size(200, 72);
+        renderer.toggle_zoom();
+        renderer.toggle_zoom();
+        let mut ansi = Vec::new();
+        renderer.render_to(&state, 0.0, &mut ansi)?;
+        let file = format!("blocks-{page:02}-detail-200x72.ansi");
+        fs::write(output.join(&file), ansi)?;
+        record_bounds(&mut records, &renderer, &state, page, 200, 72, &file);
     }
     for x in -24..=24 {
         for y in 0..42 {

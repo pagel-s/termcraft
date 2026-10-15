@@ -327,9 +327,11 @@ interiors share the brick palette, and the backdrop moves with the terrain.
 ## Ender Dragon follow-up
 
 A [front-facing comparison](design/dragon-front-2026-10-15/index.html) now places
-the current side view beside a horned, fanged front candidate in the same End scene.
-It includes matching overview/detail poses and wing loops. This is an art preview
-for selection; the playable default and side-oriented combat geometry are retained.
+the historical side view beside the horned, fanged front design in the same End scene.
+The front design is now the playable default. Melee picking, arrow intersections
+and contact damage use frontal head/torso/haunch regions independent of flight
+direction; decorative wing space does not extend its attack reach. The comparison
+page remains a record of the earlier selection preview.
 
 The dragon has a larger authored canvas with separate wing ribs/membranes,
 curved tail, horned jaw, visible eyes and seven wing poses. Its body remains fixed
@@ -386,3 +388,22 @@ remain open. Actual remote SSH/WAN correction feel, clean Windows/macOS terminal
 boats, fluids and full survival progression still need qualification.
 The earlier material pass retained full-tile stair/slab collision. The 12 October
 shape pass above replaces it; new fluid/boat physics still need separate work.
+
+## Wetlands, framing and material audit
+
+The Swamp now mixes shallow pools with walkable hummocks, broad trees and bank
+reeds. Adjacent land fills with water only beside a genuinely wet column. These
+generation changes apply to new chunks; existing saved chunks are preserved.
+
+Biome portraits now find the actual surface instead of selecting a cave floor
+near sea level. The live camera retains its jump dead zone and above-player
+framing, checked at several elevations and terminal sizes.
+
+Ore noise retains depth-dependent rarity, with smaller rounded deposits whose
+limits also hold across chunk seams. A reproducible three-seed, 12,288-column
+[census and complete block audit](design/world-refinement-2026-10-15/index.html)
+records the before/after distribution and all 97 block/state samples. Bedrock,
+gravel, birch foliage, snow/ice, reeds, saplings, wool, ore inclusions and obsidian
+have focused material refinements. Overview uses its authored small silhouettes;
+this also restores thin fixtures such as redstone torches that detail sampling
+could previously erase.

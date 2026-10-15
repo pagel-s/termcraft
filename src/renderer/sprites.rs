@@ -1606,11 +1606,28 @@ mod tests {
     }
 
     #[test]
+    fn playable_dragon_uses_the_adopted_front_art() {
+        let mut state = fixture();
+        state.current_dimension = crate::world::Dimension::End;
+        state.ender_dragon = Some(crate::entities::ender_dragon::EnderDragon::new(0.5, 7.0));
+        let mut live = Renderer::with_size(160, 48);
+        live.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        let mut front = Renderer::with_size(160, 48);
+        front.set_dragon_front_preview(true);
+        front.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        let mut side = Renderer::with_size(160, 48);
+        side.set_dragon_front_preview(false);
+        side.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        assert!(live.back_buffer == front.back_buffer);
+        assert!(live.back_buffer != side.back_buffer);
+    }
+
+    #[test]
     fn dragon_eyes_survive_facing_and_wing_changes_in_each_pixel_view() {
         let mut state = fixture();
         state.current_dimension = crate::world::Dimension::End;
         let eye = Renderer::rgb((244, 132, 246));
-        for front in [false, true] {
+        for front in [None, Some(false), Some(true)] {
             for zoom in [0, 2] {
                 for (w, h) in [(120, 40), (160, 48), (200, 60)] {
                     for facing_right in [false, true] {
@@ -1622,7 +1639,9 @@ mod tests {
                                 dragon.age = age;
                                 state.ender_dragon = Some(dragon);
                                 let mut renderer = Renderer::with_size(w, h);
-                                renderer.set_dragon_front_preview(front);
+                                if let Some(front) = front {
+                                    renderer.set_dragon_front_preview(front);
+                                }
                                 renderer.zoom = zoom;
                                 renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
                                 assert!(
@@ -1630,7 +1649,7 @@ mod tests {
                                         .back_buffer
                                         .iter()
                                         .any(|cell| cell.fg == eye || cell.bg == eye),
-                                    "dragon eyes lost (front={front}, zoom={zoom}) at {w}x{h}, facing right {facing_right}, age {age}, x {x}"
+                                    "dragon eyes lost (front={front:?}, zoom={zoom}) at {w}x{h}, facing right {facing_right}, age {age}, x {x}"
                                 );
                                 let row = |y: usize| {
                                     renderer.back_buffer[y * w as usize..(y + 1) * w as usize]

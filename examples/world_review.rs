@@ -109,6 +109,42 @@ fn position(s: &mut GameState, x: i32, target: i32) -> Result<(), Box<dyn std::e
     s.player.grounded = true;
     Ok(())
 }
+fn surface_position(s: &mut GameState, x: i32) -> Result<(), Box<dyn std::error::Error>> {
+    // A biome portrait belongs on its actual surface, never the cave floor
+    // nearest an arbitrary sea-level target. Leaves/props are not terrain.
+    let (x, y) = (-8i32..=8)
+        .filter_map(|dx| {
+            let bx = x + dx;
+            let y = (3..125).find(|&y| {
+                matches!(
+                    s.world.get_block(bx, y),
+                    BlockType::Grass
+                        | BlockType::Dirt
+                        | BlockType::Stone
+                        | BlockType::Sand
+                        | BlockType::Gravel
+                        | BlockType::Snow
+                        | BlockType::Ice
+                )
+            })?;
+            ((1..=2).all(|dy| {
+                let b = s.world.get_block(bx, y - dy);
+                !b.is_solid()
+                    && !b.is_fluid()
+                    && !matches!(b, BlockType::Leaves | BlockType::BirchLeaves)
+            }))
+            .then_some((bx, y, dx.abs()))
+        })
+        .min_by_key(|v| v.2)
+        .map(|(x, y, _)| (x, y))
+        .ok_or("no clear surface camera/player position")?;
+    s.player.x = f64::from(x) + 0.5;
+    s.player.y = f64::from(y);
+    s.player.vx = 0.0;
+    s.player.vy = 0.0;
+    s.player.grounded = true;
+    Ok(())
+}
 fn light(s: &mut GameState) -> bool {
     let x = s.player.x.floor() as i32;
     for dx in [3, -3, 2, -2] {
@@ -197,7 +233,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             s.player.grounded = false;
             s.boats = vec![Boat::new(s.player.x, s.player.y + 0.4)];
         } else {
-            position(&mut s, x, 36)?;
+            surface_position(&mut s, x)?;
         }
         if biome == BiomeType::Plains {
             plains = (s.player.x.floor() as i32, s.player.y as i32);
@@ -591,8 +627,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     position(&mut s, 7, 34)?;
     s.endermen = vec![Enderman::new(s.player.x + 3.0, s.player.y)];
     s.ender_dragon = Some(EnderDragon::new(5.5, 25.0));
-    atlas.capture(&s,"end-dragon","Dragon encounter — current art","End","Staged actors","Current playable side-view dragon over the real generated arena; creature positions and phase are staged for inspection.")?;
-    atlas.capture(&s,"end-front-preview","Dragon encounter — front art preview","End","Art preview","Opt-in front-facing candidate over the actual generated arena. This is not the playable default, and frontal combat is not qualified.")?;
+    atlas.capture(&s,"end-dragon","Dragon encounter — frontal dragon","End","Staged actors","Playable front-facing dragon over the real generated arena. Head/torso targeting matches this projection; creature positions and phase are staged for inspection.")?;
+    atlas.capture(&s,"end-front-preview","Frontal dragon — detailed inspection","End","Staged actors","The adopted frontal artwork, with an extra tall detail view for inspection. The normal encounter keeps the wider overview for arena visibility.")?;
     let store = WorldStore::new(root.join("recipe"));
     let path = store.create("gallery", "Frostbound ruins", &WorldRecipe::example())?;
     let mut custom = GameState::open_in_directory(&path)?;
