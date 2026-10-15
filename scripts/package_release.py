@@ -40,6 +40,9 @@ def main():
             root / "docs/design/dragon-front-2026-10-15/side-flight.gif",
             root / "docs/design/dragon-front-2026-10-15/front-flight.gif",
             root / "docs/design/nether-refinement-2026-10-15/creatures.gif",
+            root / "docs/design/world-atlas-2026-10-15/nether-creatures.gif",
+            root / "docs/design/world-atlas-2026-10-15/shelter-rain.gif",
+            root / "docs/design/world-atlas-2026-10-15/shelter-snow.gif",
         }
         if path.is_file() and (path.suffix in {".md", ".json", ".html", ".png"} or review_clip):
             files[path.relative_to(root).as_posix()] = path.read_bytes()

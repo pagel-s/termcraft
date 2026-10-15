@@ -309,6 +309,14 @@ output; human art acceptance remains open. This pass adds bounded contact shadow
 not general projected sunlight. Bespoke creature animations, larger villages,
 HUD refinement and finer furniture/stair/slab collision still need work.
 
+## World gallery
+
+The [world atlas](design/world-atlas-2026-10-15/index.html) has 78 scenes and 170
+views across the Overworld, Nether and End. Filter environments, structures,
+landmarks and gameplay scenarios, then open a scene for detail, panoramas or motion.
+Every scene labels generated content, staging and art previews. Its coverage notes
+record the Nether route-variant seed issue without changing generation.
+
 ## Nether follow-up
 
 The [Nether refinement review](design/nether-refinement-2026-10-15/index.html)
