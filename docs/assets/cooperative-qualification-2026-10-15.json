@@ -1,0 +1,190 @@
+{
+  "implementation_commit": "d48fe93f8d4f384e73e17ceed42c616a3b0f6cc6",
+  "branch": "beta/terminal-reborn",
+  "installed_binary_sha256": "973447ff6c922dcde1dbaac4bb6a738500bc1556a563262f18199e06dacbb1bc",
+  "unit_checks": {
+    "stable": 684,
+    "rust_1_88": 684,
+    "strict_clippy": "both passed",
+    "formatting": "passed",
+    "final_material_tests": 14,
+    "note": "Full suites precede the final End star-density adjustment; focused material tests and strict all-target Clippy pass after it."
+  },
+  "engine_obstacle_routes": {
+    "status": "passed",
+    "ticks_each": 100,
+    "native_vs_shared_each_tick": true,
+    "courses": [
+      "stop/reverse/run+jump",
+      "slabs/stairs",
+      "low ceiling",
+      "ladder",
+      "water ascent/release",
+      "boat",
+      "sneak ledge",
+      "injected impulse"
+    ]
+  },
+  "terminal_input": {
+    "status": "passed",
+    "binary_sha256": "b2ae83fc26632a5fc8f5ceb35626b70b50ad89570bbca233143a4e1957c1ff62",
+    "input": [
+      {
+        "mode": "native",
+        "status": "passed",
+        "capability_positive_ascii_tap_delta": 1.03791133056,
+        "tap_rest_drift": 0.025199680665599855,
+        "unrelated_release_rest_drift": -0.025199680665599966,
+        "confirmed_hold_delta": 3.7835294117720366,
+        "key_up_drift": 0.058554777598859076,
+        "legacy_run_jump_delta": 2.4780968622578183,
+        "run_jump_repeat_delta": 15.913704498397545,
+        "run_after_jump_release_delta": 4.800000000000001,
+        "quiet_left_run_jump_delta": 16.23370449839754,
+        "focus_loss_cleared": true,
+        "terminal_restored": true,
+        "keyboard_queries": 1,
+        "bytes": 10513752,
+        "synchronized_frames_started": 421,
+        "synchronized_frames_finished": 422
+      },
+      {
+        "mode": "coop",
+        "status": "passed",
+        "capability_positive_ascii_tap_delta": 1.0631110112256,
+        "tap_rest_drift": 0.0,
+        "unrelated_release_rest_drift": 0.0,
+        "confirmed_hold_delta": 4.151529411764875,
+        "key_up_drift": 0.025285017599925297,
+        "legacy_run_jump_delta": 2.4780968622578183,
+        "run_jump_repeat_delta": 16.233866498397546,
+        "run_after_jump_release_delta": 4.800000000000001,
+        "quiet_left_run_jump_delta": 16.553866498397543,
+        "focus_loss_cleared": true,
+        "terminal_restored": true,
+        "keyboard_queries": 1,
+        "bytes": 12210895,
+        "synchronized_frames_started": 603,
+        "synchronized_frames_finished": 604
+      }
+    ],
+    "doors": [],
+    "limits": "Disposable Unix PTYs with synthetic capability/keypress/mouse streams and read-only director observations. Excludes emulator presentation latency, WANs, Windows native input, and human feel/art approval."
+  },
+  "terminal_input_source_note": "Input report predates only the final End portal star-density adjustment. Final binary identity is separately recorded by the native archive, trial and village checks.",
+  "native_archive": {
+    "status": "passed",
+    "archive": "termcraft-0.1.0-dev-x86_64-unknown-linux-gnu.tar.gz",
+    "target": "x86_64-unknown-linux-gnu",
+    "archive_sha256": "2e618b1515f48d66b2471af2e8e575c0cfb9f8ff83fadfd655a12c7e9e7178bd",
+    "binary_sha256": "973447ff6c922dcde1dbaac4bb6a738500bc1556a563262f18199e06dacbb1bc",
+    "manifest_files_verified": 1153,
+    "empty_path_runtime": true,
+    "absolute_mcp_config": true,
+    "stepped_mcp_save_reopen": true,
+    "launcher_arguments_from_spaced_path": true,
+    "unix_launcher_default_trial": true,
+    "unix_native_terminal_restore": true,
+    "limits": "Automated archive/runtime check; real terminal input, clean OS compatibility and human gameplay remain separate."
+  },
+  "lantern_run": {
+    "status": "passed",
+    "binary_sha256": "973447ff6c922dcde1dbaac4bb6a738500bc1556a563262f18199e06dacbb1bc",
+    "calls": 208,
+    "simulated_ticks": 506,
+    "stage": "complete",
+    "player": {
+      "experience": 1,
+      "grounded": true,
+      "health": 18.280006408691406,
+      "hunger": 15.110848426818848,
+      "x": 62.6229738294578,
+      "y": 64.0
+    },
+    "normal_inventory_and_placement_rules": true,
+    "save_reopen": true,
+    "limits": "Deterministic scripted actions with known map coordinates through real stdio MCP. No teleport/loadout or state edits. Excludes human enjoyment and emulator/WAN latency."
+  },
+  "generated_village_walk": {
+    "status": "passed",
+    "binary_sha256": "973447ff6c922dcde1dbaac4bb6a738500bc1556a563262f18199e06dacbb1bc",
+    "start": {
+      "health": 20.0,
+      "hunger": 19.934986114501953,
+      "x": -8268.5,
+      "y": 31.0
+    },
+    "end": {
+      "health": 20.0,
+      "hunger": 18.828460693359375,
+      "x": -8177.518894144456,
+      "y": 31.0
+    },
+    "walked_blocks": 90.98110585554423,
+    "doors_opened_with_mouse": [
+      -8263,
+      -8251,
+      -8240,
+      -8226,
+      -8207,
+      -8195
+    ],
+    "jump_events": 0,
+    "pauses_to_aim_at_doors": true,
+    "max_feet_deviation": 0.0,
+    "terminal_restored": true,
+    "artifacts": "/tmp/termcraft-village-native-o64y2q29",
+    "limits": "Local PTY with enhanced held-key and actual SGR mouse input. Read-only director observations. Copied generated review save, spawning/daylight disabled. Excludes emulator/WAN latency and human enjoyment."
+  },
+  "portal_commands": {
+    "broken_frame_extinguished": true,
+    "end_travel_and_return": true,
+    "fall_distance_reset": true,
+    "flint_and_steel_ignition": true,
+    "glowstone_placed": true,
+    "nether_travel": true,
+    "original_portal_reused": true,
+    "save_reload_roundtrip": true,
+    "twelve_eyes_consumed": true,
+    "workshop_and_chest_contents_preserved": true
+  },
+  "cooperative_replica_journey": {
+    "actual_glowstone_placement": true,
+    "dimension_filtered_peers": true,
+    "independent_return": true,
+    "independent_travel": true,
+    "native_client_replica_handlers": true,
+    "normal_portal_ignition": true,
+    "shared_arrival": true
+  },
+  "network_soak_source": "d748e37361d6d6a6aad38a6257e9b157264ffae9",
+  "network_soak": {
+    "delayed_snapshot_gap_p95_ms": 72.63639500000001,
+    "direct_snapshot_gap_p95_ms": 51.994769000000005,
+    "limits": "Automated normal-inventory movement on flat terrain with spawning disabled. Ordered delayed TCP buffers, no packet loss or terminal rendering. Not a human co-op session or survival campaign.",
+    "players": 8,
+    "reconnect_after_restart": true,
+    "relay_delay_per_direction_ms": [
+      80,
+      100,
+      120
+    ],
+    "snapshots_per_player": [
+      2401,
+      2401,
+      2401,
+      2401,
+      2401,
+      2401,
+      2401,
+      2400
+    ],
+    "stalled_reader_phase_seconds": 11.391794914,
+    "stalled_readers_evicted": 7,
+    "status": "passed",
+    "wall_clock_soak_seconds": 120,
+    "worst_healthy_snapshot_gap_during_stall_ms": 155.01628300000002
+  },
+  "native_platform_run": "https://github.com/pagel-s/termcraft/actions/runs/38795587109",
+  "limits": "Automated engine, PTY, transport and software-rasterized evidence. Human art/feel acceptance, sustained human co-op, full classic survival, real WANs and interactive native OS terminal checks remain separate."
+}

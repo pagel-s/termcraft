@@ -1,9 +1,10 @@
 # Termcraft world atlas, 15 October 2026
 
-[Open the gallery](index.html). It contains **87 scenes and 197 views**, including
+[Open the gallery](index.html). It contains **95 scenes and 213 views**, including
 three animations, refreshed after the swamp, frontal-dragon, ore and material
 refinements, the Nether/gallery follow-up in `846ea2e`, and the portal/glowstone
-behavior checks on `beta/terminal-reborn`.
+behavior checks on `beta/terminal-reborn`. All 95 scenes were recaptured from
+[`d48fe93`](https://github.com/pagel-s/termcraft/commit/d48fe93f8d4f384e73e17ceed42c616a3b0f6cc6), including the new crystal/portal materials and eight independent co-op scenes.
 
 The original gallery checkpoint is preserved in Git at `40f3e11`. This refresh
 captures current gameplay/art: Swamp hummocks/trees/reeds, bounded ore deposits,
@@ -66,6 +67,13 @@ Native captures use seed data `[1337,7331,9917,4444]`; creature lineups use
 `[42,73,99,44]`. The existing trial, weather and staged cave fixture examples define
 their own scene setup. Their exact source files and capture inputs are hashed.
 
+The new **Co-op** category shows both players before travel, one travelling while
+the other stays behind, their shared Nether arrival and independent return. These
+replicas run through the actual native snapshot/terrain handlers. Tools, positions
+and the source frame are staged; walking, ignition and portal use are ordinary
+commands. Socket/reconnect behavior is tested separately. They are not recordings
+of two humans or a WAN.
+
 ## Resolved gallery findings
 
 The previous marker seed used a multiplier, offset and modulus divisible by three,
@@ -100,7 +108,7 @@ Requires Rust, Python with Pillow, and the DejaVu Sans Mono font used by the ras
 helper. Use a fresh output directory and unset `NO_COLOR` for each capture.
 
 ```sh
-cargo build --release --locked --example world_review --example village_review --example entity_review --example weather_review --example lantern_review --example pixel_review --example nether_review --example portal_review
+cargo build --release --locked --example world_review --example village_review --example entity_review --example weather_review --example lantern_review --example pixel_review --example nether_review --example portal_review --example cooperative_review
 export atlas_raw=/tmp/termcraft-world-atlas
 mkdir -p "$atlas_raw"
 env -u NO_COLOR target/release/examples/world_review "$atlas_raw/worlds"
@@ -111,6 +119,7 @@ env -u NO_COLOR target/release/examples/lantern_review "$atlas_raw/trial"
 env -u NO_COLOR target/release/examples/pixel_review "$atlas_raw/pixel"
 env -u NO_COLOR target/release/examples/nether_review "$atlas_raw/nether" --creatures --animate
 env -u NO_COLOR target/release/examples/portal_review "$atlas_raw/portals"
+env -u NO_COLOR target/release/examples/cooperative_review "$atlas_raw/cooperative"
 python3 scripts/build_world_gallery.py "$atlas_raw" /tmp/termcraft-world-gallery
 # For the checked-in world and block galleries together:
 python3 scripts/serve_gallery.py --port 8774

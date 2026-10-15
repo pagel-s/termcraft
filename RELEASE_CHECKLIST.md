@@ -1,6 +1,6 @@
 # Beta qualification and release handoff
 
-Updated 12 October 2026. Candidate: `0.2.0-beta.1`; current development
+Updated 15 October 2026. Candidate: `0.2.0-beta.1`; current development
 manifest/executable: `0.1.0`. Nothing here authorizes publication or public hosting.
 See [BETA_RELEASE_PLAN.md](BETA_RELEASE_PLAN.md) for results and limitations and
 [development release notes](docs/beta-release-notes.md) for player-facing changes.
@@ -48,6 +48,21 @@ python3 -m venv /tmp/termcraft-ssh-tests
 This uses the real OpenSSH client, temporary keys/known-hosts/config, an encrypted
 loopback Paramiko endpoint and isolated saves. It changes no host account/service
 and exposes no public listener. It does not qualify remote account administration.
+
+## Latest automated follow-up
+
+The independent-dimension and portal-material candidate is `d48fe93`, protocol 13,
+native checkpoint v8 and server checkpoint v2. The local executable is updated.
+684 unit checks pass on stable/Rust 1.88; strict Clippy passes on both. The
+eight-course native/shared movement comparison, actual terminal run+jump/stop
+streams, normal-rule Lantern Run completion, generated-village door route and
+Linux no-Rust launcher/archive checks pass. Source identities and limits are in
+[the follow-up evidence](docs/assets/cooperative-qualification-2026-10-15.json).
+
+Native CI now builds/tests/packages Linux, Windows and both Mac architectures on
+beta source pushes. Download and judge only the exact successful run you test;
+[the candidate's run](https://github.com/pagel-s/termcraft/actions/runs/38795587109)
+is separate from human terminal qualification. No tag, crate or release was published.
 
 ## Human, model and platform gates
 

@@ -6,7 +6,10 @@
 Material/wetland/frontal implementation: [`1324916`](https://github.com/pagel-s/termcraft/commit/13249167957875298fcb8d18922e63343a94086e).
 Baseline: `40f3e11` (same game renderer/generation as `3181b09`).
 Nether/gallery delivery follow-up: `846ea2e`. Overworld ore generation and this
-block artwork are unchanged by that follow-up. [HTTP image check](../world-atlas-2026-10-15/image-loads.json).
+block artwork were unchanged by that follow-up. The current Now/Detail block
+captures were refreshed from `d48fe93`: glowstone now has a full crystalline
+silhouette, Nether portals continuous violet ribbons and End portals a dark teal
+stellar surface. The original Before samples and ore census are retained. [HTTP image check](../world-atlas-2026-10-15/image-loads.json).
 
 ## Findings and changes
 

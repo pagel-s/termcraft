@@ -62,6 +62,13 @@ def main():
                   for v in record['images']]
         add(record, 'portals', images)
 
+    cooperative_review = json.loads((args.raw / 'cooperative/catalog.json').read_text())
+    assert all(cooperative_review['checks'].values()), 'Co-op behavior checks failed'
+    for record in cooperative_review['scenes']:
+        images = [(v['view'], v['view'].title(), v['ansi'], v['width'], v['height'])
+                  for v in record['images']]
+        add(record, 'cooperative', images)
+
     def extra(id_, title, dimension, category, origin, caption, group, files):
         source = {'villages': 'village_review', 'entities': 'entity_review', 'trial': 'lantern_review',
                   'weather': 'weather_review', 'pixel': 'pixel_review', 'nether': 'nether_review'}[group]

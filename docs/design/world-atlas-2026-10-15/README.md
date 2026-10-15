@@ -1,6 +1,6 @@
 # Termcraft world gallery
 
-87 scenes and 197 views. Open a section to browse; select a view link for the original image.
+95 scenes and 213 views. Open a section to browse; select a view link for the original image.
 
 [All 97 block/state comparisons](../world-refinement-2026-10-15/README.md) · [Capture notes](provenance.md)
 
@@ -741,6 +741,91 @@ Overworld · Recipe world
 The built-in declarative world recipe, with its authored tower and regional terrain. No LLM was called to create this gallery.
 
 [Overview](recipe-tower-00.png) · [Detail](recipe-tower-01.png)
+
+</details>
+
+<details>
+<summary>Co-op · 8 scenes</summary>
+
+### Shared Overworld workshop · player 1
+
+Overworld · Scripted replicated gameplay
+
+![Shared Overworld workshop · player 1](coop-together-player-1-00.png)
+
+Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.
+
+[Overview](coop-together-player-1-00.png) · [Detail](coop-together-player-1-01.png)
+
+### Shared Overworld workshop · player 2
+
+Overworld · Scripted replicated gameplay
+
+![Shared Overworld workshop · player 2](coop-together-player-2-00.png)
+
+Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.
+
+[Overview](coop-together-player-2-00.png) · [Detail](coop-together-player-2-01.png)
+
+### One travels; their friend stays · player 1
+
+Nether · Scripted replicated gameplay
+
+![One travels; their friend stays · player 1](coop-apart-player-1-00.png)
+
+Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.
+
+[Overview](coop-apart-player-1-00.png) · [Detail](coop-apart-player-1-01.png)
+
+### One travels; their friend stays · player 2
+
+Overworld · Scripted replicated gameplay
+
+![One travels; their friend stays · player 2](coop-apart-player-2-00.png)
+
+Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.
+
+[Overview](coop-apart-player-2-00.png) · [Detail](coop-apart-player-2-01.png)
+
+### Friends reunited in the Nether · player 1
+
+Nether · Scripted replicated gameplay
+
+![Friends reunited in the Nether · player 1](coop-nether-player-1-00.png)
+
+Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.
+
+[Overview](coop-nether-player-1-00.png) · [Detail](coop-nether-player-1-01.png)
+
+### Friends reunited in the Nether · player 2
+
+Nether · Scripted replicated gameplay
+
+![Friends reunited in the Nether · player 2](coop-nether-player-2-00.png)
+
+Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.
+
+[Overview](coop-nether-player-2-00.png) · [Detail](coop-nether-player-2-01.png)
+
+### One returns; their friend keeps exploring · player 1
+
+Overworld · Scripted replicated gameplay
+
+![One returns; their friend keeps exploring · player 1](coop-return-player-1-00.png)
+
+Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.
+
+[Overview](coop-return-player-1-00.png) · [Detail](coop-return-player-1-01.png)
+
+### One returns; their friend keeps exploring · player 2
+
+Nether · Scripted replicated gameplay
+
+![One returns; their friend keeps exploring · player 2](coop-return-player-2-00.png)
+
+Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.
+
+[Overview](coop-return-player-2-00.png) · [Detail](coop-return-player-2-01.png)
 
 </details>
 

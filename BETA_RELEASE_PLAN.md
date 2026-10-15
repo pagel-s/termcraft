@@ -144,7 +144,7 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 | Shared director | Host-only requests and `/connect`, shared messages, no pause while typing; cancel/revoke/pause on host departure before promotion | `src/engine/network_client.rs`, `src/engine/net.rs`, real TCP/MCP and two-rendered-client checks |
 | Optional LLM play | 16 stepped world/player tools plus six live director tools; absolute-path JSON/TOML client config; normal game rules, bounded observations/actions, no developer loadout/teleport | `src/engine/agent.rs`, `src/engine/mcp.rs`, `docs/agents.md` |
 | New worlds | Typed deterministic recipes, validation/repair, retained prompt, named isolated saves and writer leases, native entry; optional trusted provider executable | `src/world/recipe.rs`, `src/worlds.rs`, `src/generator.rs`, `scripts/generate_world.py` |
-| Join/distribute | `termcraft join user@host --player NAME` manages a local SSH tunnel and stable reconnect identity; native archive packager with license/docs/manifest/checksum; manual four-platform artifact workflow | `src/engine/ssh.rs`, `scripts/package_release.py`, `.github/workflows/native-artifacts.yml`, `docs/distribution.md` |
+| Join/distribute | `termcraft join user@host --player NAME` manages a local SSH tunnel and stable reconnect identity; native archive packager with license/docs/manifest/checksum; four-platform development artifact workflow | `src/engine/ssh.rs`, `scripts/package_release.py`, `.github/workflows/native-artifacts.yml`, `docs/distribution.md` |
 
 The local executable is `/home/sebastian/projects/termcraft/termcraft`.
 The package version remains `0.1.0`; generated archives are explicitly development
@@ -501,3 +501,26 @@ AUR guidance, finalize `docs/beta-release-notes.md` and obtain separate publicat
 authorization. No beta tag, public SSH endpoint, announcement or release has been
 created. These external qualification gates remain open; the implementation work
 above must not be described as a fully qualified beta.
+
+
+## Final automated follow-up, 15 October
+
+`d48fe93` adds native/shared tick-by-tick obstacle routes and corrects a demonstrated
+partial-submersion swimming stall. Glowstone becomes a full crystal block; Nether
+and End portals have distinct world-anchored membranes. All 95 world-gallery
+scenes/213 views were recaptured, including eight client-replica co-op scenes,
+and all 97 block/state comparisons refreshed. The local optimized executable is
+updated; start with `./termcraft trial`.
+
+Both Rust versions pass 684 unit checks and strict Clippy. Actual native/co-op
+terminal run+jump/stop/focus-loss checks pass. Lantern Run completes through normal
+CLI/MCP rules and survives reopen; the generated village route walks through six
+doors without jumping or floor jitter. The Linux archive launches from a path
+with spaces without Rust in PATH. See `docs/assets/cooperative-qualification-2026-10-15.json`.
+
+Human art/feel acceptance, a sustained human co-op session, classic survival through
+the dragon, real WAN links, interactive Windows/Mac terminals and live model quality
+remain release gates. Entity/loose-item restart persistence, larger authoring/terrain
+changes and architectural variety remain unimplemented follow-ups; these checks
+do not silently expand the game master's bounded Overworld contract. No release
+version bump, tag, crate publication or merge has been performed.

@@ -534,7 +534,7 @@
           "file": "portal-workshop-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "35e8c5c617613506"
+          "revision": "d8e0104cbd56e1f3"
         },
         {
           "mode": "detail",
@@ -542,7 +542,7 @@
           "file": "portal-workshop-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "3503ee21a0a70f0c"
+          "revision": "0b09a277554ac838"
         }
       ],
       "origin": "Staged build",
@@ -737,7 +737,7 @@
           "file": "stronghold-panorama-00.png",
           "columns": 400,
           "rows": 80,
-          "revision": "a673e1dbc4805ae5"
+          "revision": "a017d7586350c89c"
         },
         {
           "mode": "overview",
@@ -745,7 +745,7 @@
           "file": "stronghold-panorama-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "63dee1050bc2c370"
+          "revision": "561199ea8698c350"
         },
         {
           "mode": "detail",
@@ -753,7 +753,7 @@
           "file": "stronghold-panorama-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "989042aa68c5d1d9"
+          "revision": "0970a363db05ff7e"
         }
       ],
       "origin": "Generated",
@@ -774,7 +774,7 @@
           "file": "stronghold-portal-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "3676a0360216bf22"
+          "revision": "a43660c504ce3191"
         },
         {
           "mode": "detail",
@@ -782,7 +782,7 @@
           "file": "stronghold-portal-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "29a5e0ab0a128190"
+          "revision": "39fe1983d4e6306b"
         }
       ],
       "origin": "Generated",
@@ -803,7 +803,7 @@
           "file": "stronghold-library-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "e02fc8652a4efa12"
+          "revision": "f37f4040ded9d11e"
         },
         {
           "mode": "detail",
@@ -832,7 +832,7 @@
           "file": "stronghold-silverfish-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "2891f55284ed8d82"
+          "revision": "226feb29d385eb49"
         },
         {
           "mode": "detail",
@@ -840,7 +840,7 @@
           "file": "stronghold-silverfish-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "d07f3b99bc661f3c"
+          "revision": "090e3456ccf961af"
         }
       ],
       "origin": "Generated",
@@ -861,7 +861,7 @@
           "file": "stronghold-staging-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "7980b0b2c2c789a7"
+          "revision": "138c26c1d21363d2"
         },
         {
           "mode": "detail",
@@ -869,7 +869,7 @@
           "file": "stronghold-staging-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "1d047d8b5b48778d"
+          "revision": "df0fa02ec35888ae"
         }
       ],
       "origin": "Generated",
@@ -890,7 +890,7 @@
           "file": "stronghold-upper-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "6a6cc96328e4361a"
+          "revision": "dbfc9a0a3f480586"
         },
         {
           "mode": "detail",
@@ -919,7 +919,7 @@
           "file": "stronghold-active-portal-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "cd2c48acb03c064f"
+          "revision": "85f6b3c8b9b620e7"
         },
         {
           "mode": "detail",
@@ -927,7 +927,7 @@
           "file": "stronghold-active-portal-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "7a3caf09f59e27c8"
+          "revision": "3b1ac496f821b646"
         }
       ],
       "origin": "Staged progression",
@@ -985,7 +985,7 @@
           "file": "fortress-panorama-00.png",
           "columns": 400,
           "rows": 80,
-          "revision": "5099a70ad4524041"
+          "revision": "bcaa7537541cb66d"
         },
         {
           "mode": "overview",
@@ -993,7 +993,7 @@
           "file": "fortress-panorama-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "4eba6d9f42c21449"
+          "revision": "3d43bed758814601"
         },
         {
           "mode": "detail",
@@ -1001,7 +1001,7 @@
           "file": "fortress-panorama-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "4f577ee264980b7a"
+          "revision": "9eab5ac29e2b4770"
         }
       ],
       "origin": "Generated",
@@ -1022,7 +1022,7 @@
           "file": "fortress-gate-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "4eba6d9f42c21449"
+          "revision": "3d43bed758814601"
         },
         {
           "mode": "detail",
@@ -1030,7 +1030,7 @@
           "file": "fortress-gate-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "4f577ee264980b7a"
+          "revision": "9eab5ac29e2b4770"
         }
       ],
       "origin": "Generated",
@@ -1051,7 +1051,7 @@
           "file": "fortress-watchtower-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "169d2fdab172726e"
+          "revision": "f05bafa82bbcb688"
         },
         {
           "mode": "detail",
@@ -1059,7 +1059,7 @@
           "file": "fortress-watchtower-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "6f20577406a2d051"
+          "revision": "b551eadec89a599a"
         }
       ],
       "origin": "Generated",
@@ -1080,7 +1080,7 @@
           "file": "fortress-bastion-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "ec2a5a4e21cd3b33"
+          "revision": "7f45ec9f6cb13c86"
         },
         {
           "mode": "detail",
@@ -1088,7 +1088,7 @@
           "file": "fortress-bastion-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "3a4e0ebf739f39f2"
+          "revision": "ba6e0b883ab223c4"
         }
       ],
       "origin": "Generated",
@@ -1109,7 +1109,7 @@
           "file": "fortress-chapel-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "7d1fcd700e416847"
+          "revision": "063ffe4afcb87c54"
         },
         {
           "mode": "detail",
@@ -1117,7 +1117,7 @@
           "file": "fortress-chapel-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "5bc015835aaaf8de"
+          "revision": "a5c5e81ccf85520d"
         }
       ],
       "origin": "Generated",
@@ -1138,7 +1138,7 @@
           "file": "fortress-corridor-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "c0a9a338aef85315"
+          "revision": "c4f940535ca602f0"
         },
         {
           "mode": "detail",
@@ -1167,7 +1167,7 @@
           "file": "nether-shrine-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "681ee2da8b921ee1"
+          "revision": "eedbc727baaa84b7"
         },
         {
           "mode": "detail",
@@ -1175,7 +1175,7 @@
           "file": "nether-shrine-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "a65eb7677b7f5a4c"
+          "revision": "fcef238d03940ca6"
         }
       ],
       "origin": "Generated",
@@ -1196,7 +1196,7 @@
           "file": "bridge-study-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "3e54b9090dfb8937"
+          "revision": "405d9b9ae54f3e31"
         },
         {
           "mode": "detail",
@@ -1204,7 +1204,7 @@
           "file": "bridge-study-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "caf0041eaec7cf48"
+          "revision": "58112ec412416a97"
         }
       ],
       "origin": "Generated",
@@ -1225,7 +1225,7 @@
           "file": "reliquary-study-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "42eba4d24116d9c2"
+          "revision": "ba2aa73d79f6acde"
         },
         {
           "mode": "detail",
@@ -1233,7 +1233,7 @@
           "file": "reliquary-study-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "97dc9e45f9541dd5"
+          "revision": "6daa0f37a0329f9c"
         }
       ],
       "origin": "Generated",
@@ -1349,7 +1349,7 @@
           "file": "end-panorama-00.png",
           "columns": 400,
           "rows": 80,
-          "revision": "4949a53e6a996e66"
+          "revision": "ec3704e42b237fcf"
         },
         {
           "mode": "overview",
@@ -1357,7 +1357,7 @@
           "file": "end-panorama-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "010d5ce593d6aafc"
+          "revision": "7e1d2d67aa73e1ff"
         },
         {
           "mode": "detail",
@@ -1365,7 +1365,7 @@
           "file": "end-panorama-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "82f63e994de46abe"
+          "revision": "9df49772ee3cc793"
         }
       ],
       "origin": "Generated",
@@ -1386,7 +1386,7 @@
           "file": "end-tower-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "8904bb21f5c2d2e9"
+          "revision": "2dda7c792f10fdf3"
         },
         {
           "mode": "detail",
@@ -1394,7 +1394,7 @@
           "file": "end-tower-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "7d8a10bc40624b7c"
+          "revision": "03ab582aab608d79"
         }
       ],
       "origin": "Generated",
@@ -1415,7 +1415,7 @@
           "file": "end-return-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "ad66108ca84e7bf0"
+          "revision": "6ae7d0a2a97359a3"
         },
         {
           "mode": "detail",
@@ -1423,7 +1423,7 @@
           "file": "end-return-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "fb50ea68d47b52be"
+          "revision": "fdfcf3bd9a45f836"
         }
       ],
       "origin": "Generated",
@@ -1444,7 +1444,7 @@
           "file": "end-edge-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "500ea7a0a5a4d20f"
+          "revision": "2ec9924553ee3c22"
         },
         {
           "mode": "detail",
@@ -1502,7 +1502,7 @@
           "file": "end-dragon-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "43f326b641ab86e6"
+          "revision": "6bfcd5201daea0de"
         }
       ],
       "origin": "Staged actors",
@@ -1523,7 +1523,7 @@
           "file": "end-front-preview-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "43f326b641ab86e6"
+          "revision": "6bfcd5201daea0de"
         },
         {
           "mode": "detail",
@@ -1531,7 +1531,7 @@
           "file": "end-front-preview-01.png",
           "columns": 200,
           "rows": 100,
-          "revision": "4fc0cb0299adf0e3"
+          "revision": "1b00e8e0f8e9df6b"
         }
       ],
       "origin": "Staged actors",
@@ -1618,7 +1618,7 @@
           "file": "glowstone-lit-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "758ec264b916dd0f"
+          "revision": "c931630346109789"
         },
         {
           "mode": "glyphs",
@@ -1634,7 +1634,7 @@
           "file": "glowstone-lit-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "421c647fcec5426d"
+          "revision": "ec506a0cedca6300"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1655,7 +1655,7 @@
           "file": "portal-ignition-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "235245119a7c5367"
+          "revision": "9ecdfa04165e68ef"
         },
         {
           "mode": "glyphs",
@@ -1671,7 +1671,7 @@
           "file": "portal-ignition-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "797b58238b09258f"
+          "revision": "107502310ca3cc49"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1692,7 +1692,7 @@
           "file": "portal-nether-arrival-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "13f804a33652e6d1"
+          "revision": "1aa854c048806e30"
         },
         {
           "mode": "glyphs",
@@ -1708,7 +1708,7 @@
           "file": "portal-nether-arrival-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "9636a39bc0b72344"
+          "revision": "69185bbc9821d003"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1729,7 +1729,7 @@
           "file": "portal-return-workshop-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "5bbb8a7b65554cc4"
+          "revision": "980fc4af31f06a62"
         },
         {
           "mode": "glyphs",
@@ -1745,7 +1745,7 @@
           "file": "portal-return-workshop-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "f44aa548fbada174"
+          "revision": "ffedc631ea88442b"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1766,7 +1766,7 @@
           "file": "portal-extinguished-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "fdea178e10348833"
+          "revision": "a40c76387c5f48f6"
         },
         {
           "mode": "glyphs",
@@ -1782,7 +1782,7 @@
           "file": "portal-extinguished-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "c49d585eabc3b61c"
+          "revision": "35b45173d99f682e"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1803,7 +1803,7 @@
           "file": "portal-end-activation-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "ef2d0cabadd3938c"
+          "revision": "675e082b5a563082"
         },
         {
           "mode": "glyphs",
@@ -1811,7 +1811,7 @@
           "file": "portal-end-activation-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "af5ac37101490e26"
+          "revision": "a388e4a7f57a1e2a"
         },
         {
           "mode": "detail",
@@ -1819,7 +1819,7 @@
           "file": "portal-end-activation-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "1fbcb9654a1a3cdf"
+          "revision": "3391764d2198b35e"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1840,7 +1840,7 @@
           "file": "portal-end-arrival-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "4b9cba93dbe2a58a"
+          "revision": "5195870640c566c6"
         },
         {
           "mode": "glyphs",
@@ -1848,7 +1848,7 @@
           "file": "portal-end-arrival-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "b5a51a70463bd885"
+          "revision": "0c37a2b59c33a396"
         },
         {
           "mode": "detail",
@@ -1856,7 +1856,7 @@
           "file": "portal-end-arrival-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "c3c7e8efdbb724ba"
+          "revision": "7a569c2634e647ac"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1877,7 +1877,7 @@
           "file": "portal-end-return-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "ef4904227487cd85"
+          "revision": "035d825b6fc864c5"
         },
         {
           "mode": "glyphs",
@@ -1893,7 +1893,7 @@
           "file": "portal-end-return-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "522953d79dad39b5"
+          "revision": "fd40be468bb43852"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1901,6 +1901,238 @@
       "title": "End portal \u00b7 stronghold return",
       "x": 640.5,
       "y": 90.9
+    },
+    {
+      "caption": "Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.",
+      "category": "Co-op",
+      "dimension": "Overworld",
+      "id": "coop-together-player-1",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "coop-together-player-1-00.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "92fea6fec905a75b"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "coop-together-player-1-01.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "c972a7e470b11f7f"
+        }
+      ],
+      "origin": "Scripted replicated gameplay",
+      "source": "examples/cooperative_review.rs",
+      "title": "Shared Overworld workshop \u00b7 player 1",
+      "x": 3.5,
+      "y": 36.0
+    },
+    {
+      "caption": "Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.",
+      "category": "Co-op",
+      "dimension": "Overworld",
+      "id": "coop-together-player-2",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "coop-together-player-2-00.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "46f425cb3ab0e546"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "coop-together-player-2-01.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "9276e45191de84fd"
+        }
+      ],
+      "origin": "Scripted replicated gameplay",
+      "source": "examples/cooperative_review.rs",
+      "title": "Shared Overworld workshop \u00b7 player 2",
+      "x": 1.5,
+      "y": 36.0
+    },
+    {
+      "caption": "Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.",
+      "category": "Co-op",
+      "dimension": "Nether",
+      "id": "coop-apart-player-1",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "coop-apart-player-1-00.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "3ca4fa84456e198e"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "coop-apart-player-1-01.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "d879b3dcb0348092"
+        }
+      ],
+      "origin": "Scripted replicated gameplay",
+      "source": "examples/cooperative_review.rs",
+      "title": "One travels; their friend stays \u00b7 player 1",
+      "x": 7.5,
+      "y": 60.0
+    },
+    {
+      "caption": "Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.",
+      "category": "Co-op",
+      "dimension": "Overworld",
+      "id": "coop-apart-player-2",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "coop-apart-player-2-00.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "91a90f0b62197d53"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "coop-apart-player-2-01.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "4f69bf2bde5c3132"
+        }
+      ],
+      "origin": "Scripted replicated gameplay",
+      "source": "examples/cooperative_review.rs",
+      "title": "One travels; their friend stays \u00b7 player 2",
+      "x": 1.5,
+      "y": 36.0
+    },
+    {
+      "caption": "Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.",
+      "category": "Co-op",
+      "dimension": "Nether",
+      "id": "coop-nether-player-1",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "coop-nether-player-1-00.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "993edaa5cb062c91"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "coop-nether-player-1-01.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "6b85d09e1726a6c8"
+        }
+      ],
+      "origin": "Scripted replicated gameplay",
+      "source": "examples/cooperative_review.rs",
+      "title": "Friends reunited in the Nether \u00b7 player 1",
+      "x": 5.535095099736,
+      "y": 60.0
+    },
+    {
+      "caption": "Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.",
+      "category": "Co-op",
+      "dimension": "Nether",
+      "id": "coop-nether-player-2",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "coop-nether-player-2-00.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "d76ca305b456359f"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "coop-nether-player-2-01.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "2df472d38740b480"
+        }
+      ],
+      "origin": "Scripted replicated gameplay",
+      "source": "examples/cooperative_review.rs",
+      "title": "Friends reunited in the Nether \u00b7 player 2",
+      "x": 3.5,
+      "y": 60.0
+    },
+    {
+      "caption": "Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.",
+      "category": "Co-op",
+      "dimension": "Overworld",
+      "id": "coop-return-player-1",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "coop-return-player-1-00.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "9f8cb8771fa2d1e3"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "coop-return-player-1-01.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "0341b1771c4daef2"
+        }
+      ],
+      "origin": "Scripted replicated gameplay",
+      "source": "examples/cooperative_review.rs",
+      "title": "One returns; their friend keeps exploring \u00b7 player 1",
+      "x": 8.5,
+      "y": 36.0
+    },
+    {
+      "caption": "Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.",
+      "category": "Co-op",
+      "dimension": "Nether",
+      "id": "coop-return-player-2",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "coop-return-player-2-00.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "cbedbfa094d04a92"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "coop-return-player-2-01.png",
+          "columns": 200,
+          "rows": 60,
+          "revision": "c0173be7c436abc0"
+        }
+      ],
+      "origin": "Scripted replicated gameplay",
+      "source": "examples/cooperative_review.rs",
+      "title": "One returns; their friend keeps exploring \u00b7 player 2",
+      "x": 3.5,
+      "y": 60.0
     },
     {
       "id": "village-cottage",

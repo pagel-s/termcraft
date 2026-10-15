@@ -449,3 +449,26 @@ The verifier checks returned bytes, content revisions, dimensions and every GIF
 frame. Return-portal functionality is covered by gameplay tests; earlier gallery
 wording that called it a scaffold has been corrected. End cities remain outside
 the currently implemented content.
+
+
+## Co-op movement course and portal materials, 15 October
+
+An eight-course regression compares every local/co-op player position, velocity
+and grounded state for 100 ticks per course: stop/reverse and run+jump, slabs/stairs,
+low ceilings, ladders, water ascent/release, boats, sneak ledges and an injected
+knockback impulse. The water course exposed a partial-submersion dead zone:
+held upward lift was cancelled by drag/gravity. The corrected lift rises through
+that range; releasing still permits sinking. These are engine traces, not a human
+feel judgment or a network-latency measurement.
+
+The full crystal silhouette makes glowstone read as a block rather than a flame.
+Nether portals use continuous violet ribbons; End portals use a dark teal stellar
+surface. Coordinates are anchored to the world across adjacent blocks and zooms,
+with no frame-dependent noise. Emission strength and collision/activation rules
+are unchanged. The complete block audit includes the updated materials.
+
+Eight additional world-gallery cards show two native client replicas together,
+in separate dimensions, reunited in the Nether, and returning independently.
+Starting tools/frames are staged; placement, ignition, travel and walking use
+ordinary commands. The replicas use the actual snapshot/terrain handlers; real
+socket transport is checked separately. [Review the gallery](design/world-atlas-2026-10-15/index.html).

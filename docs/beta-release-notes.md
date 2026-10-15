@@ -24,6 +24,7 @@ building. Your model plans a bounded change while play continues. The engine
 validates the whole plan, protects existing builds/players, and rejects stale or
 cancelled requests. Shared requests are host-controlled and visible to everyone.
 
+Use `/status` for client contact, request phase and deadline.
 Connect an existing MCP-capable Codex/Claude client with `/connect` and
 `termcraft mcp config`; Termcraft needs no second API key. Keep that client task
 actively waiting: connecting does not wake an idle chat. An optional provider
@@ -136,7 +137,8 @@ it does not establish human enjoyment or a polished full survival campaign.
 
 ## More predictable movement and safer saves
 
-Release braking preserves later knockback, ladders support held climbing and
+Partial-water swimming no longer stalls while holding up. Eight obstacle routes
+compare local and shared motion at every tick. Release braking preserves later knockback, ladders support held climbing and
 sneak holding, sneaking protects ledges during residual movement, and fall damage
 includes the final landing tick. Swept collision covers fast walls/ceilings.
 Actual terminal/network input feel still needs playtesting.
@@ -176,9 +178,10 @@ Simultaneous human/LLM player entry remains deferred.
 ## Installation and current limits
 
 Native development archives include an executable, documentation, license,
-manifest and checksum; Rust is unnecessary at runtime. Linux extraction/launch
-are checked locally. Windows/macOS workflow outputs still need building and
-native qualification.
+manifest and checksum; Rust is unnecessary at runtime. Linux extraction/launch and default Lantern Run launchers
+are checked locally, including paths with spaces and no Rust in PATH. The
+four-platform workflow builds development artifacts; interactive OS/terminal
+qualification remains a separate release gate.
 
 Shared play supports eight connections, 64 saved identities and independent travel
 across all three dimensions. Protocol **13** requires matching builds. Classic survival through the dragon,
