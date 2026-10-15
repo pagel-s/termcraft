@@ -13,6 +13,7 @@ import os
 import re
 from pathlib import Path, PurePosixPath
 import subprocess
+import sys
 import tarfile
 import tempfile
 import zipfile
@@ -26,19 +27,33 @@ def terminal_smoke(command, env, cwd):
     import fcntl
     import pty
     import select
+    import signal
     import struct
     import termios
     import time
 
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
-    before = termios.tcgetattr(slave)
+    report_path = cwd / "terminal-state.json"
+    report_path.unlink(missing_ok=True)
 
     def setup():
         os.setsid()
         fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
 
-    process = subprocess.Popen(command, env=env, cwd=cwd,
+    # Keep a session owner alive after the game exits. macOS revokes the slave
+    # when its session leader exits, so a parent-side tcgetattr then gets ENOTTY.
+    # This observer never changes settings; it verifies the game's restoration
+    # before allowing the controlling session to close.
+    observer = """
+import json, pathlib, subprocess, sys, termios
+before = termios.tcgetattr(0)
+code = subprocess.call(sys.argv[2:])
+after = termios.tcgetattr(0)
+pathlib.Path(sys.argv[1]).write_text(json.dumps({"restored": before == after, "exit_code": code}))
+sys.exit(code)
+"""
+    process = subprocess.Popen([sys.executable, "-c", observer, str(report_path), *command], env=env, cwd=cwd,
                                stdin=slave, stdout=slave, stderr=slave, preexec_fn=setup)
     output = bytearray()
     started, sent = time.monotonic(), False
@@ -64,10 +79,11 @@ def terminal_smoke(command, env, cwd):
                 break
             output.extend(data)
         assert b"Termcraft |" in re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"", output) and b"\x1b[?1049l" in output
-        assert before == termios.tcgetattr(slave), "terminal settings not restored"
+        observed = json.loads(report_path.read_text())
+        assert observed == {"restored": True, "exit_code": 0}, "terminal settings not restored"
     finally:
         if process.poll() is None:
-            process.kill()
+            os.killpg(process.pid, signal.SIGKILL)
         process.wait(timeout=3)
         os.close(master)
         os.close(slave)
