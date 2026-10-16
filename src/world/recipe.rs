@@ -359,16 +359,7 @@ impl WorldRecipe {
                     if x.abs() > 7 && wy > surface + 7 && n > 0.48 {
                         BlockType::Air
                     } else {
-                        let hash = (x as u32).wrapping_mul(1_103_515_245)
-                            ^ (y as u32).wrapping_mul(12_345)
-                            ^ self.seed;
-                        match hash % 137 {
-                            0 if wy > 108 => BlockType::DiamondOre,
-                            1 if wy > 90 => BlockType::GoldOre,
-                            2..=5 => BlockType::IronOre,
-                            6..=13 => BlockType::CoalOre,
-                            _ => BlockType::Stone,
-                        }
+                        super::ores::at(self.seed, x, wy, false).unwrap_or(BlockType::Stone)
                     }
                 };
                 // A deterministic nearby tree makes the survival start viable in every theme.
@@ -385,6 +376,10 @@ impl WorldRecipe {
                 chunk.set_block(lx, y, block);
             }
         }
+        let surfaces = std::array::from_fn(|x| {
+            self.surface_with_noise(chunk_x * CHUNK_WIDTH as i32 + x as i32, &height_noise)
+        });
+        super::ores::expose_cave_walls(&mut chunk, self.seed, &surfaces, &[false; CHUNK_WIDTH]);
         let chunk_start = chunk_x * CHUNK_WIDTH as i32;
         for landmark in &self.landmarks {
             let surface = self.surface_at(landmark.x);

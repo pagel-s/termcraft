@@ -1,6 +1,7 @@
 mod attachments;
 mod fluids;
 mod lighting;
+mod ores;
 mod portals;
 pub use attachments::{RoomMaterial, TorchAttachment};
 pub mod block;
@@ -74,10 +75,6 @@ const CHUNK_PIPELINE_MAX_IN_FLIGHT: usize = 12;
 const REDSTONE_MAX_POWER: u8 = 15;
 const REDSTONE_TICK_INTERVAL: u64 = 2;
 const OVERWORLD_VISIBLE_ORE_MIN_Y: i32 = 40;
-const OVERWORLD_IRON_ORE_MIN_Y: i32 = 38;
-const OVERWORLD_IRON_ORE_RICH_Y: i32 = 118;
-const REDSTONE_ORE_MIN_Y: i32 = 68;
-const REDSTONE_ORE_RICH_Y: i32 = 118;
 const OVERWORLD_SEA_LEVEL: i32 = 36;
 // In a 2D slice, cave openings read much larger than they do in 3D, so keep
 // a thicker surface cap and lower the near-surface carve rate.
@@ -2815,216 +2812,6 @@ impl World {
         false
     }
 
-    fn overworld_ore_blob_score(
-        perlin: &Perlin,
-        world_x: i32,
-        current_y: i32,
-        coarse_scale: f64,
-        detail_scale: f64,
-        coarse_seed: f64,
-        detail_seed: f64,
-    ) -> f64 {
-        let coarse = perlin.get([
-            world_x as f64 * coarse_scale,
-            current_y as f64 * coarse_scale,
-            coarse_seed,
-        ]);
-        let detail = perlin.get([
-            world_x as f64 * detail_scale,
-            current_y as f64 * detail_scale,
-            detail_seed,
-        ]);
-        coarse * 0.72 + detail * 0.28
-    }
-
-    fn overworld_ore_breakup_score(
-        perlin: &Perlin,
-        world_x: i32,
-        current_y: i32,
-        scale: f64,
-        seed: f64,
-    ) -> f64 {
-        perlin
-            .get([world_x as f64 * scale, current_y as f64 * scale, seed])
-            .abs()
-    }
-
-    fn overworld_ore_density_bonus(
-        current_y: i32,
-        start_y: i32,
-        rich_y: i32,
-        max_bonus: f64,
-    ) -> f64 {
-        if rich_y <= start_y {
-            return 0.0;
-        }
-        (((current_y - start_y) as f64) / (rich_y - start_y) as f64).clamp(0.0, 1.0) * max_bonus
-    }
-
-    fn overworld_ore_block(
-        perlin: &Perlin,
-        world_x: i32,
-        current_y: i32,
-        exposed_to_cave: bool,
-    ) -> Option<BlockType> {
-        let iron_depth_t = ((current_y - OVERWORLD_IRON_ORE_MIN_Y) as f64
-            / (OVERWORLD_IRON_ORE_RICH_Y - OVERWORLD_IRON_ORE_MIN_Y) as f64)
-            .clamp(0.0, 1.0);
-        let redstone_depth_t = ((current_y - REDSTONE_ORE_MIN_Y) as f64
-            / (REDSTONE_ORE_RICH_Y - REDSTONE_ORE_MIN_Y) as f64)
-            .clamp(0.0, 1.0);
-        let exposure_bonus = if exposed_to_cave { 0.06 } else { 0.0 };
-        let common_exposure_bonus = if exposed_to_cave { 0.08 } else { 0.0 };
-        let iron_exposure_bonus = if exposed_to_cave { 0.08 } else { 0.02 };
-        let diamond_exposure_bonus = if exposed_to_cave { 0.13 } else { 0.0 };
-        let diamond_score =
-            Self::overworld_ore_blob_score(perlin, world_x, current_y, 0.048, 0.16, 30.0, 31.0)
-                + Self::overworld_ore_density_bonus(current_y, 108, 150, 0.085)
-                + diamond_exposure_bonus
-                - Self::overworld_ore_breakup_score(perlin, world_x, current_y, 0.13, 130.0) * 0.07;
-        let gold_score =
-            Self::overworld_ore_blob_score(perlin, world_x, current_y, 0.047, 0.15, 20.0, 21.0)
-                + Self::overworld_ore_density_bonus(current_y, 86, 144, 0.06)
-                + exposure_bonus
-                - Self::overworld_ore_breakup_score(perlin, world_x, current_y, 0.12, 120.0) * 0.06;
-        let redstone_score =
-            Self::overworld_ore_blob_score(perlin, world_x, current_y, 0.058, 0.19, 15.0, 16.0)
-                + exposure_bonus
-                - Self::overworld_ore_breakup_score(perlin, world_x, current_y, 0.14, 115.0) * 0.07;
-        let iron_score =
-            Self::overworld_ore_blob_score(perlin, world_x, current_y, 0.045, 0.15, 10.0, 11.0)
-                + Self::overworld_ore_density_bonus(
-                    current_y,
-                    OVERWORLD_IRON_ORE_MIN_Y,
-                    OVERWORLD_IRON_ORE_RICH_Y,
-                    0.14,
-                )
-                + iron_exposure_bonus
-                - Self::overworld_ore_breakup_score(perlin, world_x, current_y, 0.16, 110.0) * 0.16;
-        let iron_gate = perlin.get([world_x as f64 * 0.31, current_y as f64 * 0.31, 112.0]);
-        let coal_score =
-            Self::overworld_ore_blob_score(perlin, world_x, current_y, 0.05, 0.17, 0.0, 1.0)
-                + Self::overworld_ore_density_bonus(current_y, 36, 98, 0.08)
-                + common_exposure_bonus
-                - Self::overworld_ore_breakup_score(perlin, world_x, current_y, 0.12, 100.0) * 0.05;
-
-        let ore = if current_y > 104 && diamond_score > 0.60 {
-            Some(BlockType::DiamondOre)
-        } else if current_y > 82 && gold_score > 0.61 {
-            Some(BlockType::GoldOre)
-        } else if current_y >= REDSTONE_ORE_MIN_Y
-            && redstone_score > (0.66 - redstone_depth_t * 0.12)
-        {
-            Some(BlockType::RedstoneOre)
-        } else if current_y >= OVERWORLD_IRON_ORE_MIN_Y
-            && iron_score > (0.50 - iron_depth_t * 0.05)
-            && iron_gate > 0.0
-        {
-            Some(BlockType::IronOre)
-        } else if coal_score > 0.46 {
-            Some(BlockType::CoalOre)
-        } else {
-            None
-        };
-        ore.filter(|&block| Self::overworld_ore_pocket(block, world_x, current_y))
-    }
-
-    fn overworld_ore_pocket(block: BlockType, world_x: i32, y: i32) -> bool {
-        // Noise supplies seed-dependent rarity/depth; these rounded pockets
-        // prevent a noise lobe becoming dozens of exposed blocks in 2D.
-        // Coordinates are global so deposits have the same limits at chunk seams.
-        let (width, height, salt) = match block {
-            BlockType::CoalOre => (5, 4, 11u32),
-            BlockType::IronOre => (6, 5, 29),
-            BlockType::DiamondOre => (5, 4, 71),
-            _ => (5, 4, 43),
-        };
-        let px = (world_x + salt as i32).rem_euclid(width);
-        let py = (y + salt as i32 / 3).rem_euclid(height);
-        if px == 0 || py == 0 {
-            return false;
-        }
-        let cell_x = (world_x + salt as i32).div_euclid(width);
-        let cell_y = (y + salt as i32 / 3).div_euclid(height);
-        let hash = (cell_x as u32).wrapping_mul(73_856_093)
-            ^ (cell_y as u32).wrapping_mul(19_349_663)
-            ^ salt;
-        let offset_x = f64::from(hash % 3) * 0.3 - 0.3;
-        let offset_y = f64::from((hash / 3) % 3) * 0.3 - 0.3;
-        let dx =
-            (f64::from(px) - f64::from(width) * 0.5 - offset_x) / (f64::from(width - 1) * 0.55);
-        let dy =
-            (f64::from(py) - f64::from(height) * 0.5 - offset_y) / (f64::from(height - 1) * 0.55);
-        dx * dx + dy * dy <= 1.0
-    }
-
-    fn refine_overworld_exposed_ores(
-        chunk: &mut Chunk,
-        chunk_x: i32,
-        perlin: &Perlin,
-        surface_y_by_x: &[i32; CHUNK_WIDTH],
-        surface_water_by_x: &[bool; CHUNK_WIDTH],
-    ) {
-        let c_start = chunk_x * CHUNK_WIDTH as i32;
-
-        for x in 1..(CHUNK_WIDTH - 1) {
-            if surface_water_by_x[x] {
-                continue;
-            }
-
-            let min_depth_y = (surface_y_by_x[x] + 7).max(OVERWORLD_VISIBLE_ORE_MIN_Y) as usize;
-            for y in min_depth_y..(CHUNK_HEIGHT - 8) {
-                if chunk.get_block(x, y) != BlockType::Stone {
-                    continue;
-                }
-
-                let cave_exposed = [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]
-                    .into_iter()
-                    .any(|(nx, ny)| chunk.get_block(nx, ny) == BlockType::Air);
-                if !cave_exposed {
-                    continue;
-                }
-
-                let world_x = c_start + x as i32;
-                let current_y = y as i32;
-                if let Some(ore_block) = Self::overworld_ore_block(perlin, world_x, current_y, true)
-                {
-                    chunk.set_block(x, y, ore_block);
-                }
-            }
-        }
-    }
-
-    fn refine_overworld_ore_runs(chunk: &mut Chunk) {
-        const MAX_IRON_RUN: usize = 6;
-
-        for y in OVERWORLD_VISIBLE_ORE_MIN_Y as usize..(CHUNK_HEIGHT - 8) {
-            let mut x = 0usize;
-            while x < CHUNK_WIDTH {
-                if chunk.get_block(x, y) != BlockType::IronOre {
-                    x += 1;
-                    continue;
-                }
-
-                let run_start = x;
-                while x < CHUNK_WIDTH && chunk.get_block(x, y) == BlockType::IronOre {
-                    x += 1;
-                }
-
-                let run_len = x - run_start;
-                if run_len <= MAX_IRON_RUN {
-                    continue;
-                }
-
-                let mut carve_x = run_start + (MAX_IRON_RUN / 2);
-                while carve_x < x {
-                    chunk.set_block(carve_x, y, BlockType::Stone);
-                    carve_x += MAX_IRON_RUN;
-                }
-            }
-        }
-    }
-
     fn is_overworld_dry_cave_air(
         chunk: &Chunk,
         surface_y_by_x: &[i32; CHUNK_WIDTH],
@@ -4019,9 +3806,7 @@ impl World {
                 }
                 if current_y > surface_y + 4 {
                     let mut block = BlockType::Stone;
-                    if let Some(ore_block) =
-                        Self::overworld_ore_block(perlin, world_x, current_y, false)
-                    {
+                    if let Some(ore_block) = ores::at(perlin.seed(), world_x, current_y, false) {
                         block = ore_block;
                     } else if cave_depth >= OVERWORLD_GRAVEL_MIN_SURFACE_DEPTH
                         && perlin.get([world_x as f64 * 0.15, current_y as f64 * 0.15, 40.0]) > 0.75
@@ -4060,14 +3845,12 @@ impl World {
             &surface_water_by_x,
         );
         Self::refine_overworld_cave_pacing(&mut chunk, &surface_y_by_x, &surface_water_by_x);
-        Self::refine_overworld_exposed_ores(
+        ores::expose_cave_walls(
             &mut chunk,
-            chunk_x,
-            perlin,
+            perlin.seed(),
             &surface_y_by_x,
             &surface_water_by_x,
         );
-        Self::refine_overworld_ore_runs(&mut chunk);
 
         let c_end = c_start + CHUNK_WIDTH as i32;
         for wx in (c_start - 3)..(c_end + 3) {
@@ -8812,6 +8595,25 @@ mod tests {
         assert!(found_cluster);
     }
 
+    fn ore_test_chunk(seed: u32, chunk_x: i32, recipe_mode: bool) -> Chunk {
+        if recipe_mode {
+            let mut recipe = recipe::WorldRecipe::example();
+            recipe.seed = seed;
+            recipe.landmarks.clear();
+            recipe.build_chunk(chunk_x, "ore_recipe_test")
+        } else {
+            World::build_chunk_with_noise(
+                chunk_x,
+                Dimension::Overworld,
+                "ore_distribution_test",
+                &Perlin::new(seed),
+                &Perlin::new(7331),
+                &Perlin::new(9917),
+                &Perlin::new(4444),
+            )
+        }
+    }
+
     #[test]
     fn test_overworld_ore_pockets_remain_bounded_across_chunk_seams() {
         use std::collections::VecDeque;
@@ -8823,23 +8625,14 @@ mod tests {
             BlockType::DiamondOre,
         ];
         let mut totals = [0; 5];
-        for seed in [1337, 42, 9182] {
-            let perlin = Perlin::new(seed);
-            let temp = Perlin::new(7331);
-            let moist = Perlin::new(9917);
-            let cave = Perlin::new(17_711);
+        for (seed, recipe_mode) in [1337, 42, 9182]
+            .into_iter()
+            .flat_map(|s| [(s, false), (s, true)])
+        {
             let width = 65 * CHUNK_WIDTH;
             let mut blocks = vec![BlockType::Air; width * CHUNK_HEIGHT];
             for cx in -32..=32 {
-                let chunk = World::build_chunk_with_noise(
-                    cx,
-                    Dimension::Overworld,
-                    "bounded_ore_pockets",
-                    &perlin,
-                    &temp,
-                    &moist,
-                    &cave,
-                );
+                let chunk = ore_test_chunk(seed, cx, recipe_mode);
                 for lx in 0..CHUNK_WIDTH {
                     for y in 0..CHUNK_HEIGHT {
                         let x = (cx + 32) as usize * CHUNK_WIDTH + lx;
@@ -8880,8 +8673,8 @@ mod tests {
                     }
                 }
                 assert!(
-                    size <= [12, 30, 20, 20, 16][o],
-                    "oversized {block:?} pocket: {size}, seed={seed}"
+                    size <= [12, 8, 6, 5, 4][o],
+                    "oversized {block:?} pocket: {size}, seed={seed}, recipe={recipe_mode}"
                 );
             }
             assert!(
@@ -8904,6 +8697,89 @@ mod tests {
             totals[3] > totals[4],
             "diamond should be rarer in aggregate: {totals:?}"
         );
+    }
+
+    #[test]
+    fn deepest_regions_do_not_aggregate_many_pockets_of_the_same_ore() {
+        let ores = [
+            BlockType::CoalOre,
+            BlockType::IronOre,
+            BlockType::RedstoneOre,
+            BlockType::GoldOre,
+            BlockType::DiamondOre,
+        ];
+        for (seed, recipe_mode) in [1337, 42, 9182]
+            .into_iter()
+            .flat_map(|s| [(s, false), (s, true)])
+        {
+            for chunk_x in -32..=32 {
+                let chunk = ore_test_chunk(seed, chunk_x, recipe_mode);
+                let mut counts = [0; 5];
+                for x in 0..CHUNK_WIDTH {
+                    for y in 112..CHUNK_HEIGHT - 1 {
+                        if let Some(i) = ores.iter().position(|&ore| ore == chunk.get_block(x, y)) {
+                            counts[i] += 1;
+                        }
+                    }
+                }
+                // A 32-column bottom screen must not become a field of one ore,
+                // even if each individual connected pocket is already small.
+                for (i, count) in counts.into_iter().enumerate() {
+                    assert!(
+                        count <= 32,
+                        "aggregated {:?}: {count} at chunk {chunk_x}, seed {seed}, recipe={recipe_mode}",
+                        ores[i]
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn common_ores_taper_in_the_bottom_layers_instead_of_continuing_to_richen() {
+        for (seed, recipe_mode) in [1337, 42, 9182]
+            .into_iter()
+            .flat_map(|s| [(s, false), (s, true)])
+        {
+            let mut rock = [0usize; 2];
+            let mut counts = [[0usize; 2]; 2];
+            for chunk_x in -32..=32 {
+                let chunk = ore_test_chunk(seed, chunk_x, recipe_mode);
+                for (band, range) in [64..96, 112..127].into_iter().enumerate() {
+                    for x in 0..CHUNK_WIDTH {
+                        for y in range.clone() {
+                            let block = chunk.get_block(x, y);
+                            if matches!(
+                                block,
+                                BlockType::Stone
+                                    | BlockType::CoalOre
+                                    | BlockType::IronOre
+                                    | BlockType::RedstoneOre
+                                    | BlockType::GoldOre
+                                    | BlockType::DiamondOre
+                            ) {
+                                rock[band] += 1;
+                            }
+                            if block == BlockType::CoalOre {
+                                counts[band][0] += 1;
+                            }
+                            if block == BlockType::IronOre {
+                                counts[band][1] += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            for ore in 0..2 {
+                let middle = counts[0][ore] as f64 / rock[0] as f64;
+                let bottom = counts[1][ore] as f64 / rock[1] as f64;
+                assert!(middle > 0.004, "mid-depth supplies missing: {counts:?}");
+                assert!(
+                    bottom < middle * 0.7,
+                    "common ore {ore} floods bottom, seed {seed}, recipe={recipe_mode}: mid={middle}, bottom={bottom}"
+                );
+            }
+        }
     }
 
     #[test]
