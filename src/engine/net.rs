@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 14;
+pub const NET_PROTOCOL_VERSION: u16 = 15;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;

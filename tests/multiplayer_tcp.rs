@@ -591,6 +591,103 @@ fn count(s: &ServerSnapshot, item: ItemType) -> u32 {
 
 #[test]
 #[ignore = "requires local TCP sockets and Unix process signals"]
+fn source_height_pool_replicates_reopens_and_drains_for_both_players() -> io::Result<()> {
+    use termcraft::{
+        engine::{
+            server_save::{ServerSave, token},
+            state::PlayerSession,
+        },
+        world::{
+            block::BlockType,
+            chunk::{CHUNK_HEIGHT, CHUNK_WIDTH},
+            item::ItemStack,
+        },
+    };
+    let root = std::env::temp_dir().join(format!("termcraft-water-tcp-{}", token()));
+    std::fs::create_dir_all(&root)?;
+    let mut recipe = WorldRecipe::example();
+    recipe.terrain = Terrain::Plains;
+    recipe.relief = 0;
+    recipe.regions.clear();
+    recipe.landmarks.clear();
+    let world = WorldStore::new(root.join("worlds"))
+        .create("tcp", "Water transport fixture", &recipe)
+        .unwrap();
+    let mut state = GameState::open_in_directory(&world)?;
+    state.apply_client_command(ClientCommand::ToggleRuleMobSpawning);
+    for cx in 0..=1 {
+        state
+            .world
+            .apply_chunk_column_snapshot(cx, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
+    }
+    for x in 28..=38 {
+        state.world.set_block(x, 30, BlockType::Stone);
+    }
+    for y in 21..30 {
+        for x in [28, 38] {
+            state.world.set_block(x, y, BlockType::Stone);
+        }
+    }
+    state.world.set_block(29, 26, BlockType::Water(8));
+    state.player.x = 29.5;
+    state.player.y = 30.0;
+    state.inventory.slots.fill(None);
+    state.inventory.slots[0] = Some(ItemStack {
+        item_type: ItemType::Bucket,
+        count: 1,
+        durability: None,
+    });
+    let mut saved = ServerSave::read(&state)?;
+    let (token_a, token_b) = (token(), token());
+    saved
+        .players
+        .insert(token_a.clone(), PlayerSession::capture(&state));
+    state.player.x = 35.5;
+    saved
+        .players
+        .insert(token_b.clone(), PlayerSession::capture(&state));
+    state.try_persist_world_and_progress()?;
+    saved.write(&world)?;
+    drop(state);
+    let probe = TcpListener::bind("127.0.0.1:0")?;
+    let addr = probe.local_addr()?.to_string();
+    drop(probe);
+    let at = |packet: &ChunkDeltaPacket, expected| {
+        packet
+            .chunks
+            .iter()
+            .any(|c| c.chunk_x == 1 && c.blocks[26 * CHUNK_WIDTH + 2] == expected)
+    };
+    let mut server = Server::start(&root, &addr);
+    let a = Client::connect(&addr, Some(token_a.clone()));
+    let b = Client::connect(&addr, Some(token_b.clone()));
+    a.terrain_until(|p| at(p, BlockType::Water(9)));
+    b.terrain_until(|p| at(p, BlockType::Water(9)));
+    drop((a, b));
+    server.stop();
+    let reopened = GameState::open_in_directory(&world)?;
+    assert_eq!(reopened.world.get_block(34, 26), BlockType::Water(9));
+    drop(reopened);
+    let mut server = Server::start(&root, &addr);
+    let mut a = Client::connect(&addr, Some(token_a));
+    let b = Client::connect(&addr, Some(token_b));
+    a.terrain_until(|p| at(p, BlockType::Water(9)));
+    b.terrain_until(|p| at(p, BlockType::Water(9)));
+    a.send(ClientCommand::UseAt(29, 26));
+    a.until(|s| count(s, ItemType::WaterBucket) == 1);
+    a.terrain_until(|p| at(p, BlockType::Air));
+    b.terrain_until(|p| at(p, BlockType::Air));
+    drop((a, b));
+    server.stop();
+    let reopened = GameState::open_in_directory(&world)?;
+    assert_eq!(reopened.world.get_block(34, 26), BlockType::Air);
+    drop(reopened);
+    std::fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires local TCP sockets and Unix process signals"]
 fn portals_stream_separate_worlds_and_restore_dimensions_after_restart() -> io::Result<()> {
     use termcraft::{
         engine::{

@@ -1,11 +1,16 @@
-//! Snapshot-based, gravity-first block fluids. Level 8 is a persistent source;
-//! levels 1–7 are supplied flows, not independent pools.
+//! Snapshot-based fluids. Water fills connected basins to the source surface,
+//! constrained by local spillways. Level 8 is a persistent source, 9 is full
+//! supplied water, and 1–7 are runoff. Full supplied water never mints sources.
+
+mod hydraulics;
 
 use super::{BlockType, CHUNK_HEIGHT, CHUNK_WIDTH, Dimension, OVERWORLD_LAVA_TICK_INTERVAL, World};
+use hydraulics::WaterBasins;
 use std::collections::HashSet;
 
 fn level(block: BlockType, water: bool) -> Option<u8> {
     match (water, block) {
+        (true, BlockType::Water(9)) => Some(7),
         (true, BlockType::Water(n)) | (false, BlockType::Lava(n)) => Some(n.min(8)),
         _ => None,
     }
@@ -32,7 +37,8 @@ impl World {
             return false;
         }
         let target = self.get_block(x, y);
-        target.is_replaceable()
+        target != BlockType::Water(9)
+            && target.is_replaceable()
             && (!target.is_fluid() || level(target, water).is_some_and(|n| n < 8))
     }
 
@@ -40,6 +46,7 @@ impl World {
         y + 1 == CHUNK_HEIGHT as i32
             || !self.get_block(x, y + 1).is_replaceable()
             || level(self.get_block(x, y + 1), water) == Some(8)
+            || (water && self.get_block(x, y + 1) == BlockType::Water(9))
     }
 
     fn min_horizontal_fluid_level(&self, water: bool) -> u8 {
@@ -108,7 +115,7 @@ impl World {
             .any(|(nx, ny)| matches!(self.get_block(nx, ny), BlockType::Water(_)))
     }
 
-    fn next_fluid_block(&self, x: i32, y: i32, lava_due: bool) -> BlockType {
+    fn next_fluid_block(&self, x: i32, y: i32, lava_due: bool, basins: &WaterBasins) -> BlockType {
         let current = self.get_block(x, y);
         if let BlockType::Lava(amount) = current {
             if self.water_cools_lava_at(x, y) {
@@ -139,9 +146,26 @@ impl World {
         if !matches!(current, BlockType::Lava(_)) && self.can_form_infinite_water_source(x, y) {
             return BlockType::Water(8);
         }
+        let basin_target = basins.target(x, y);
+        let resting_water = basin_target == 9
+            && self.fluid_has_floor(x, y, true)
+            && (current == BlockType::Water(9)
+                || [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]
+                    .into_iter()
+                    .any(|(nx, ny)| level(self.get_block(nx, ny), true).is_some_and(|n| n > 0)));
+        // A full basin feeds a shallow overflow sheet at its escape crest.
+        // Without this layer a pool stops just below its rim and never spills
+        // into a lower terrace or a newly opened drain.
+        let overflow =
+            basin_target == 7 && matches!(self.get_block(x, y + 1), BlockType::Water(8 | 9));
         let water = if !matches!(current, BlockType::Lava(_)) {
-            self.supplied_fluid_level(x, y, true)
-                .max(level(current, true).unwrap_or(0).saturating_sub(1))
+            if resting_water {
+                9
+            } else {
+                self.supplied_fluid_level(x, y, true)
+                    .max(level(current, true).unwrap_or(0).saturating_sub(1))
+                    .max(if overflow { 7 } else { 0 })
+            }
         } else {
             0
         };
@@ -171,6 +195,10 @@ impl World {
             || self
                 .tick_counter
                 .is_multiple_of(OVERWORLD_LAVA_TICK_INTERVAL);
+        if scheduled.is_empty() {
+            return;
+        }
+        let basins = WaterBasins::solve(self, center_chunk);
         let mut candidates = HashSet::new();
         let mut waiting_lava_chunks = HashSet::new();
         for cx in &scheduled {
@@ -197,7 +225,10 @@ impl World {
                     {
                         candidates.insert((wx, wy));
                     }
-                    for (nx, ny) in [(wx - 1, wy), (wx + 1, wy), (wx, wy + 1)] {
+                    for (nx, ny) in [(wx - 1, wy), (wx + 1, wy), (wx, wy + 1), (wx, wy - 1)] {
+                        if ny < wy && !matches!(block, BlockType::Water(8 | 9)) {
+                            continue;
+                        }
                         let target = self.get_block(nx, ny);
                         if target.is_replaceable() && level(target, water) != Some(8) {
                             candidates.insert((nx, ny));
@@ -220,7 +251,7 @@ impl World {
             .into_iter()
             .filter_map(|(x, y)| {
                 let before = self.get_block(x, y);
-                let after = self.next_fluid_block(x, y, lava_due);
+                let after = self.next_fluid_block(x, y, lava_due, &basins);
                 (before != after).then_some((x, y, before, after))
             })
             .collect();
@@ -292,6 +323,219 @@ mod tests {
         for x in -50..=50 {
             world.set_block(x, y, BlockType::Stone);
         }
+    }
+
+    fn basin(world: &mut World, left: i32, right: i32, top: i32, bottom: i32) {
+        for x in left..=right {
+            world.set_block(x, bottom, BlockType::Stone);
+        }
+        for y in top..=bottom {
+            world.set_block(left, y, BlockType::Stone);
+            world.set_block(right, y, BlockType::Stone);
+        }
+    }
+
+    fn step(world: &mut World, count: usize) {
+        for _ in 0..count {
+            world.update_fluids(0);
+        }
+    }
+
+    #[test]
+    fn water_fills_a_wide_deep_basin_to_the_source_surface() {
+        let mut world = scene(Dimension::Overworld, false);
+        basin(&mut world, -15, 15, 9, 30);
+        world.set_block(-14, 12, BlockType::Water(8));
+        step(&mut world, 100);
+        for x in -14..15 {
+            assert_eq!(world.fluid_surface_y(x, 12), Some(12.0), "surface x={x}");
+            for y in 13..30 {
+                assert!(world.get_block(x, y).is_fluid(), "dry basin {x},{y}");
+            }
+            assert_eq!(world.get_block(x, 11), BlockType::Air, "above source");
+        }
+        assert_eq!(world.get_block(-14, 12), BlockType::Water(8));
+        assert_ne!(
+            world.get_block(14, 12),
+            BlockType::Water(8),
+            "filling must not create independent sources"
+        );
+    }
+
+    #[test]
+    fn water_rises_in_a_connected_vessel_through_a_low_tunnel() {
+        let mut world = scene(Dimension::Overworld, false);
+        basin(&mut world, -10, 10, 8, 30);
+        for y in 8..28 {
+            world.set_block(0, y, BlockType::Stone);
+        }
+        world.set_block(-8, 12, BlockType::Water(8));
+        step(&mut world, 120);
+        assert_eq!(world.fluid_surface_y(8, 12), Some(12.0));
+        assert_eq!(world.get_block(8, 11), BlockType::Air);
+        assert!(world.get_block(0, 28).is_fluid());
+        assert_eq!(world.get_block(0, 27), BlockType::Stone);
+    }
+
+    #[test]
+    fn filled_vessels_drain_after_source_pickup_or_supply_is_sealed() {
+        for seal_tunnel in [false, true] {
+            let mut world = scene(Dimension::Overworld, false);
+            basin(&mut world, -10, 10, 8, 30);
+            for y in 8..28 {
+                world.set_block(0, y, BlockType::Stone);
+            }
+            world.set_block(-8, 12, BlockType::Water(8));
+            step(&mut world, 100);
+            assert_eq!(world.fluid_surface_y(8, 12), Some(12.0));
+            if seal_tunnel {
+                world.set_block(0, 28, BlockType::Stone);
+                world.set_block(0, 29, BlockType::Stone);
+            } else {
+                world.set_block(-8, 12, BlockType::Air);
+            }
+            step(&mut world, 200);
+            for x in 1..10 {
+                for y in 8..30 {
+                    assert!(!world.get_block(x, y).is_fluid(), "orphan water {x},{y}");
+                }
+            }
+            if seal_tunnel {
+                assert_eq!(world.fluid_surface_y(-8, 12), Some(12.0));
+            }
+        }
+    }
+
+    #[test]
+    fn opening_and_closing_an_outlet_lowers_and_refills_the_basin() {
+        let mut world = scene(Dimension::Overworld, false);
+        basin(&mut world, -10, 10, 8, 30);
+        world.set_block(-8, 12, BlockType::Water(8));
+        step(&mut world, 100);
+        assert_eq!(world.fluid_surface_y(8, 12), Some(12.0));
+        world.set_block(10, 23, BlockType::Air);
+        step(&mut world, 150);
+        assert_eq!(world.get_block(8, 12), BlockType::Air);
+        assert_eq!(world.fluid_surface_y(8, 24), Some(24.0));
+        assert!(
+            world.get_block(11, 24).is_fluid(),
+            "outlet must actually drain"
+        );
+        world.set_block(10, 23, BlockType::Stone);
+        step(&mut world, 100);
+        assert_eq!(world.fluid_surface_y(8, 12), Some(12.0));
+    }
+
+    #[test]
+    fn overflowing_terraces_keep_their_own_spill_heights() {
+        let mut world = scene(Dimension::Overworld, false);
+        basin(&mut world, -12, 0, 15, 25);
+        basin(&mut world, 0, 12, 21, 32);
+        // The shared wall separates two pools with different rim heights.
+        for y in 15..32 {
+            world.set_block(0, y, BlockType::Stone);
+        }
+        world.set_block(-10, 10, BlockType::Water(8));
+        step(&mut world, 180);
+        assert_eq!(world.fluid_surface_y(-5, 15), Some(15.0));
+        assert_eq!(world.fluid_surface_y(6, 21), Some(21.0));
+        assert_ne!(world.get_block(6, 20), BlockType::Water(9));
+        assert_ne!(world.get_block(-5, 14), BlockType::Water(9));
+    }
+
+    #[test]
+    fn basin_fill_crosses_chunk_seams_and_is_deterministic() {
+        let mut a = scene(Dimension::Overworld, false);
+        let mut b = scene(Dimension::Overworld, true);
+        for world in [&mut a, &mut b] {
+            basin(world, 24, 45, 8, 30);
+            world.set_block(25, 12, BlockType::Water(8));
+        }
+        for _ in 0..100 {
+            a.update_fluids(0);
+            b.update_fluids(0);
+            for x in 24..=45 {
+                for y in 8..=30 {
+                    assert_eq!(a.get_block(x, y), b.get_block(x, y));
+                }
+            }
+        }
+        assert_eq!(a.fluid_surface_y(44, 12), Some(12.0));
+        assert!(a.active_fluid_chunks.is_empty(), "settled water must sleep");
+    }
+
+    #[test]
+    fn moving_the_tick_window_does_not_sever_a_resident_source() {
+        let mut world = scene(Dimension::Overworld, false);
+        basin(&mut world, -25, 70, 8, 30);
+        world.set_block(-24, 12, BlockType::Water(8));
+        step(&mut world, 180);
+        assert_eq!(world.fluid_surface_y(68, 12), Some(12.0));
+        world.active_fluid_chunks.insert(2);
+        for _ in 0..10 {
+            world.update_fluids(2); // Source is outside +/-2 ticking chunks.
+        }
+        assert_eq!(world.fluid_surface_y(68, 12), Some(12.0));
+    }
+
+    #[test]
+    fn walls_and_both_door_states_prevent_pressure_crossing() {
+        for barrier in [
+            BlockType::Stone,
+            BlockType::WoodDoor(false),
+            BlockType::WoodDoor(true),
+        ] {
+            let mut world = scene(Dimension::Overworld, false);
+            basin(&mut world, -10, 10, 8, 30);
+            for y in 8..30 {
+                world.set_block(0, y, BlockType::Stone);
+            }
+            world.set_block(0, 28, barrier);
+            world.set_block(0, 29, barrier);
+            world.set_block(-8, 12, BlockType::Water(8));
+            step(&mut world, 100);
+            assert_eq!(world.fluid_surface_y(-5, 12), Some(12.0));
+            for x in 1..10 {
+                for y in 8..30 {
+                    assert_eq!(world.get_block(x, y), BlockType::Air);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn unknown_chunk_edges_do_not_form_an_invisible_dam() {
+        let mut world = World::network_replica(Dimension::Overworld);
+        world.apply_chunk_column_snapshot(0, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
+        basin(&mut world, 0, 32, 8, 30); // Right wall is not loaded.
+        world.set_block(1, 12, BlockType::Water(8));
+        step(&mut world, 100);
+        assert_eq!(world.get_block(10, 12), BlockType::Air);
+        assert_ne!(world.get_block(4, 29), BlockType::Water(9));
+        assert_eq!(
+            world.chunks.len(),
+            1,
+            "fluid solver must not generate chunks"
+        );
+    }
+
+    #[test]
+    fn distant_coop_basins_fill_without_allocating_the_gap() {
+        let mut world = scene(Dimension::Overworld, false);
+        let far = 100_000;
+        world.apply_chunk_column_snapshot(far, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
+        world.simulation_centers = vec![0, far];
+        for x in [0, far * CHUNK_WIDTH as i32 + 1] {
+            basin(&mut world, x, x + 20, 8, 30);
+            world.set_block(x + 1, 12, BlockType::Water(8));
+        }
+        step(&mut world, 100);
+        assert_eq!(world.fluid_surface_y(19, 12), Some(12.0));
+        assert_eq!(
+            world.fluid_surface_y(far * CHUNK_WIDTH as i32 + 20, 12),
+            Some(12.0)
+        );
+        assert_eq!(world.chunks.len(), 6);
     }
 
     #[test]

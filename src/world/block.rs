@@ -32,6 +32,7 @@ pub enum BlockType {
     YellowFlower,
     TallGrass,
     // Fluids and fluid-derived blocks
+    // 8 = persistent source, 9 = full supplied basin water; 1..=7 = runoff.
     Water(u8),
     Lava(u8),
     Cobblestone,

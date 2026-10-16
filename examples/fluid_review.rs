@@ -1,4 +1,4 @@
-//! Actual bucket commands and world ticks in isolated replicas, captured at all
+//! Actual bucket commands and world ticks in isolated native saves, captured at all
 //! three pixel zooms. Geometry/player poses are staged, never a survival claim.
 use serde_json::json;
 use std::{fs, path::Path, time::Instant};
@@ -56,7 +56,9 @@ fn room(dimension: Dimension, root: &Path) -> Result<GameState, Box<dyn std::err
 
 fn use_bucket(s: &mut GameState, item: ItemType, x: i32, y: i32) {
     if matches!(item, ItemType::WaterBucket | ItemType::LavaBucket)
-        && !s.world.get_block(x, y + 1).is_solid()
+        && ![(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]
+            .into_iter()
+            .any(|(bx, by)| s.world.get_block(bx, by).is_solid())
     {
         // Ordinary bucket placement needs an adjacent anchor. Connect its
         // ceiling beam to the floor rather than staging a floating support.
@@ -73,7 +75,11 @@ fn use_bucket(s: &mut GameState, item: ItemType, x: i32, y: i32) {
         durability: None,
     });
     s.hotbar_index = 0;
-    s.player.x = x as f64 - 1.5;
+    s.player.x = if s.world.get_block(x - 1, y).is_solid() {
+        x as f64 + 2.5
+    } else {
+        x as f64 - 1.5
+    };
     s.player.y = y as f64 + 1.0;
     s.apply_client_command(ClientCommand::UseAt(x, y));
 }
@@ -152,7 +158,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     capture(&shallow, &out, "shallow-flow")?;
 
     let mut routed = room(Dimension::Overworld, &root.join("routed"))?;
-    for y in 30..35 {
+    for y in 30..128 {
         routed.world.set_block(3, y, BlockType::Air);
     }
     use_bucket(&mut routed, ItemType::WaterBucket, 0, 29);
@@ -189,6 +195,77 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     mixing.player.grounded = true;
     capture(&mixing, &out, "mixing")?;
 
+    let mut basin = room(Dimension::Overworld, &root.join("basin"))?;
+    for y in 18..30 {
+        for x in [-13, 13] {
+            basin.world.set_block(x, y, BlockType::StoneBricks);
+        }
+    }
+    for y in 18..28 {
+        basin.world.set_block(0, y, BlockType::StoneBricks);
+    }
+    // The divider hangs from a roof beam; its low opening connects the vessels.
+    for x in -13..=13 {
+        basin.world.set_block(x, 18, BlockType::StoneBricks);
+    }
+    use_bucket(&mut basin, ItemType::WaterBucket, -12, 22);
+    assert_eq!(
+        basin.world.get_block(-12, 22),
+        BlockType::Water(8),
+        "basin bucket placement"
+    );
+    advance(&mut basin, 50); // Save a partially filled vessel, then finish after reopen.
+    basin.world.try_save_all()?;
+    basin.try_save_progression()?;
+    drop(basin);
+    let mut basin = GameState::open_in_directory(&root.join("basin"))?;
+    basin.dismiss_startup_splash();
+    let started = Instant::now();
+    advance(&mut basin, 650);
+    let filling_ms = started.elapsed().as_secs_f64() * 1000.0;
+    for x in -12..13 {
+        if x != 0 {
+            assert_eq!(basin.world.fluid_surface_y(x, 22), Some(22.0));
+            assert_eq!(basin.world.get_block(x, 21), BlockType::Air);
+        }
+    }
+    assert_eq!(basin.world.get_block(12, 22), BlockType::Water(9));
+    basin.player.x = 3.5;
+    basin.player.y = 27.0;
+    basin.player.grounded = false;
+    capture(&basin, &out, "connected-vessels")?;
+    basin.world.try_save_all()?;
+    basin.try_save_progression()?;
+    drop(basin);
+    let mut basin = GameState::open_in_directory(&root.join("basin"))?;
+    basin.dismiss_startup_splash();
+    assert_eq!(basin.world.get_block(12, 22), BlockType::Water(9));
+    basin.world.set_block(13, 27, BlockType::Air);
+    advance(&mut basin, 650);
+    assert_eq!(basin.world.fluid_surface_y(10, 28), Some(28.0));
+    assert_eq!(basin.world.get_block(10, 22), BlockType::Air);
+    basin.player.y = 30.0;
+    basin.player.grounded = true;
+    capture(&basin, &out, "basin-outlet")?;
+    basin.world.set_block(13, 27, BlockType::StoneBricks);
+    advance(&mut basin, 650);
+    assert_eq!(basin.world.fluid_surface_y(12, 22), Some(22.0));
+    basin.player.y = 27.0;
+    basin.player.grounded = false;
+    capture(&basin, &out, "basin-refilled")?;
+    use_bucket(&mut basin, ItemType::Bucket, -12, 22);
+    assert_eq!(basin.world.get_block(-12, 22), BlockType::Air);
+    advance(&mut basin, 900);
+    for x in -12..13 {
+        for y in 22..30 {
+            assert!(!basin.world.get_block(x, y).is_fluid());
+        }
+    }
+    basin.player.x = 3.5;
+    basin.player.y = 30.0;
+    basin.player.grounded = true;
+    capture(&basin, &out, "vessels-drained")?;
+
     let started = Instant::now();
     advance(&mut shallow, 1000);
     let idle_ms = started.elapsed().as_secs_f64() * 1000.0;
@@ -203,11 +280,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let report = json!({"status":"passed", "actual_bucket_place_and_pickup":true,
         "vertical_waterfall":true,"complete_drain_after_pickup":true,"nearest_drop":true,
         "adjacent_lava_source_cooled":true,"save_reopen_preserves_flow_levels":true,"idle_world_1000_ticks_ms":idle_ms,
-        "views_per_scene":3,"scenes":6,
-        "limits":"Staged replica geometry/player poses, actual bucket commands and world ticks. CPU work excludes terminal presentation, disk and WAN."});
+        "source_height_in_connected_vessels":true,"no_rise_above_source":true,
+        "opening_outlet_lowers_pool_closing_it_refills":true,
+        "partial_fill_continues_after_reopen":true,"full_supplied_water_survives_reopen":true,
+        "supplied_pool_drains_after_actual_bucket_pickup":true,"filling_650_ticks_cpu_ms":filling_ms,
+        "views_per_scene":3,"scenes":10,
+        "limits":"Staged native geometry/player poses, actual bucket commands and world ticks. CPU work excludes terminal presentation, disk and WAN."});
     fs::write(out.join("checks.json"), serde_json::to_vec_pretty(&report)?)?;
     println!("{report}");
-    drop((water, shallow, routed, lava, mixing));
+    drop((water, shallow, routed, lava, mixing, basin));
     fs::remove_dir_all(root)?;
     Ok(())
 }

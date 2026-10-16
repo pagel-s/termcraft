@@ -1176,6 +1176,7 @@ mod tests {
             BlockType::Water(1),
             BlockType::Water(4),
             BlockType::Water(8),
+            BlockType::Water(9),
             BlockType::Lava(1),
         ] {
             state.world.set_block(0, 10, block);

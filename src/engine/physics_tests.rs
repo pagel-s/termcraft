@@ -585,6 +585,13 @@ fn breathing_and_boat_surface_follow_actual_fluid_depth() {
         "eyes above shallow water must breathe"
     );
     assert_eq!(s.boat_surface_y_near(0.5, 18.9), Some(18.875));
+    for block in [BlockType::Water(8), BlockType::Water(9)] {
+        s.world.set_block(0, 18, block);
+        assert_eq!(s.boat_surface_y_near(0.5, 18.9), Some(18.0));
+        assert_eq!(s.world.fluid_at_point(0.5, 18.5), block);
+        let (water, lava) = s.entity_fluid_submersion(0.5, 19.0, PLAYER_HALF_WIDTH, 1.0);
+        assert_eq!((water, lava), (1.0, 0.0));
+    }
 }
 
 fn generated_village_scene() -> (
