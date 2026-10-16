@@ -159,6 +159,13 @@ seeds and progression are rejected rather than silently regenerated. Failed
 writes remain dirty, unsafe dimension travel is cancelled, and fatal native-loop
 errors attempt a private **partial** recovery copy.
 
+Interrupted world saves now roll back terrain, chests, player/server inventories,
+entities and sidecars together across all dimensions. Startup recovers the last
+completed checkpoint; later progress may be lost. Keep hidden checkpoint files
+with backups and use a matching build for recovery. Process-kill and injected
+storage-error tests pass; physical power-loss durability remains unqualified.
+See the [recovery guide](world-format.md#recoverable-world-checkpoints).
+
 Waterfalls now fall vertically until landing, runoff follows nearby drops, and
 unsupported flow drains after removing or blocking supply. Water/lava mixing is
 independent of chunk order. Thin flows have matching visible and physical depth:

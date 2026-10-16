@@ -23,6 +23,10 @@ See [BETA_RELEASE_PLAN.md](BETA_RELEASE_PLAN.md) for results and limitations and
 - [x] Linux process-scoped checkpoint ENOSPC/partial/slow/sync-error and
   interrupted-rename checks; native failed-save terminal restoration and recovery
   into a second backup copy, followed by two normal reopenings.
+- [x] Whole-world process interruption: terrain/chests, native runtime and three
+  hosted players across all dimensions; real SIGKILL during save/rollback,
+  recovery retries after storage errors, and corrupt-journal rejection. See the
+  [save recovery review](docs/design/save-recovery-2026-10-16/README.md).
 
 Run core gates with `./scripts/release_smoke.sh`. Socket tests need loopback
 permission and create disposable worlds. For a longer network run:
@@ -106,8 +110,9 @@ failures. Test copies of saves: older builds cannot open progression v9.
   glyphs, colors, 120×40/200×60 resize, disconnect and orderly shutdown.
 - [ ] **Backup/recovery:** follow the [recovery guide](docs/world-format.md#recovering-into-a-copy)
   on representative disposable worlds; exercise physical slow/full storage and
-  whole-world interruption. The automated Linux checkpoint faults and native
-  backup-copy overlay path above pass; broad disk/dimension consistency remains.
+  power-loss behavior. Automated all-dimension process interruption, hosted
+  records and the native backup-copy overlay path pass; real-device qualification
+  remains.
 - [ ] **Onboarding/demo:** an uncoached player joins, gathers/builds and requests
   a change; record real shared play/screenshots. Label automated fixtures honestly.
 
@@ -201,3 +206,15 @@ finds remain discoverable. The 750-test stable/MSRV suites, strict Clippy and si
 real TCP/MCP integrations pass. The preceding view/input native matrix is fully
 green; fresh CI must qualify the ore source. Test fresh chunks or a new world for
 human mining pace and resource progression, since saved terrain is preserved.
+
+## Whole-world checkpoint follow-up, 16 October
+
+`325bfb6` replaces per-file-only recovery with checked cross-file rollback.
+758 stable/MSRV checks, both strict Clippy runs, seven TCP/MCP integrations,
+normal Lantern Run, offline crate verification and the expanded fault suite pass.
+The local executable includes it. The [save recovery review](docs/design/save-recovery-2026-10-16/README.md)
+records item/build conservation, hosted identities/dimensions, interrupted
+rollback and native emergency-copy recovery. General CI succeeds on the feature
+source. `c71d1fc` fixes Windows-only strict Clippy; fresh native platform results
+are tracked in the evidence file. Real physical-device and
+power-loss behavior, human play and release preparation remain separate gates.

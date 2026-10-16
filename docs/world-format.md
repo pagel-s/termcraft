@@ -22,6 +22,7 @@ Set `TERMCRAFT_SAVE_DIR` to override this location. Existing repo-local `./saves
   nether_chunk_<x>.bin
   end_chunk_<x>.bin
   player_progression.bin
+  .world-checkpoint/       # private undo journal; keep it with world backups
 ```
 
 Chunk saves are namespaced by dimension. Older legacy overworld chunk filenames are still migrated on load.
@@ -46,8 +47,8 @@ named world roots:
 
 Both sidecars use synced temporary files and rename. Corrupt environment data
 blocks checked world startup; corrupt director metadata disables authoring until
-explicit reset while allowing ordinary play. Neither these files nor the chunk/
-progression files form a whole-world transaction. Structures and ambience survive
+explicit reset while allowing ordinary play. These sidecars participate in the
+recoverable world checkpoint described below. Structures and ambience survive
 reopening. Weather/time use progression persistence and then follow normal game
 cycles. Spawned mobs and the active finite encounter now resume from the native
 v9 or server v3 checkpoint. Pending model requests and bridge connections are
@@ -157,12 +158,42 @@ See the [implementation review](design/entity-persistence-2026-10-16/README.md).
 
 Progression writes also sync a temporary file before rename. Autosave errors are
 shown in the native HUD and retried on the next save interval. Dimension travel
-is cancelled when saving the source world fails. Individual atomic files do not
-form a transaction across chunks, progression and dimensions; physical-disk and
-directory durability still need qualification. Linux process tests now exercise
-ENOSPC, partial writes, sync errors, delayed writes and process exit immediately
-before/after checkpoint rename, with normal CLI crafting and save/reopen.
-See the [reliability review](design/reliability-2026-10-16/README.md).
+is cancelled when saving the source world fails.
+
+## Recoverable world checkpoints
+
+The unreleased build keeps synced before-images in private `.world-checkpoint/`
+before replacing any owned world file. This covers terrain and chest saves,
+including cache eviction, every visited dimension, native/server player records,
+entities, portal history, trial progress and environment/director sidecars. The
+owner flushes all dimensions and records before publishing a completion marker.
+Normal successful saves retain the new files; an interrupted checkpoint rolls
+all its files back together on the next checked startup. Newly created files in
+that checkpoint are removed. Progress since the last completed save can be lost.
+
+Rollback validates the bounded manifest and all before-image checksums before
+replacing any destination. A corrupt journal or failed recovery is reported and
+preserved; it is not replaced with fresh terrain. Recovery can itself be
+interrupted or run out of space and then retried after the problem is resolved.
+Abandoned checkpoint initialization, completed cleanup and restore temporaries
+are removed after successful recovery. These hidden names are reserved.
+
+After a process crash, first verify that the original game/server/MCP owner is
+gone, then remove only its stale `.session.lock` if necessary. Reopen using this
+build to recover automatically. **Do not delete `.world-checkpoint/`.** Include
+hidden files when backing up or copying a world; keep the whole checkpoint
+together with its terrain and player files. Resolve pending recovery with a
+matching build before opening the world with an older binary. Native/chunk/server
+payload versions remain 9/2/3; the new journal has its own version 1.
+
+Linux tests inject ENOSPC, partial/slow writes, sync/rename errors and real
+SIGKILL during saves and rollback. They check item conservation and terrain in
+all three dimensions, plus three real TCP players and repeated reopenings.
+See the [save recovery review](design/save-recovery-2026-10-16/README.md).
+Files are synced on all platforms and directories on Unix; portable Rust does
+not flush Windows directory handles here. These tests qualify process-crash
+recovery, **not physical disk/controller power-loss durability**, arbitrary
+external file edits or a substitute for independent backups.
 
 ## Compatibility Notes
 
@@ -200,7 +231,7 @@ the whole save directory with this partial snapshot. A failed copy is reported
 alongside the original error. Disk failure can also prevent recovery. Temporary
 directories may be cleaned by the OS; copy a useful recovery elsewhere promptly.
 
-Regular backups and whole-world transaction/crash qualification remain necessary.
+Regular backups and physical-storage qualification remain necessary.
 Classic local play now also holds `.session.lock`; verify no owner is running
 before manually removing a stale lock after a crash. A live authoring bridge does
 not acquire a second world lease or edit files independently.
@@ -214,13 +245,17 @@ not acquire a second world lease or edit files independently.
    `worlds/world-ID` for a named world, or `multiplayer/default` for the default
    shared world. Make a complete backup, then a **second** copy for recovery.
    Work only on the second copy. Native recovery is not a multiplayer backup.
-3. Read `RECOVERY.txt` and inspect which dimension/chunks were captured. Overlay
+   If the copy has `.session.lock`, verify its original owner is gone before
+   removing **the copy's** stale lock. Leave the original and backup untouched.
+3. Before overlaying anything, open **the second copy** with the matching build
+   and quit normally, allowing its pending checkpoint to roll back. Otherwise
+   startup could roll your newly overlaid emergency files back too. If recovery
+   fails, preserve the copy and error; do not delete its journal to force entry.
+4. Read `RECOVERY.txt` and inspect which dimension/chunks were captured. Overlay
    only the recovered chunk/progression/seed/environment/recipe/director files
    that you intend to restore. Keep the copy's unloaded chunks and other
    dimensions. Do not copy leases, bridge credentials or reconnect identities.
-4. If the copy has `.session.lock`, verify its original owner is gone before
-   removing **the copy's** stale lock. Leave the original and backup untouched.
-5. Open the recovered world as a standalone copy with the matching build:
+5. Open the overlaid world as a standalone copy with the matching build:
 
    ```sh
    TERMCRAFT_SAVE_DIR=/absolute/path/to/recovered-world ./termcraft

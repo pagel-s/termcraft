@@ -474,12 +474,14 @@ real human cross-dimension progression remains a qualification gate.
 **Persistence:** Native v9 and server v3 checkpoints retain entities and encounters
 alongside their associated player inventories. Dimensions and item ages pause
 while offline, and solo travel retains each world's entities. Older checkpoints
-remain readable but contain no historical entities to recover. Writes remain
-atomic per file, not across a whole world/plan. Recovery copies capture loaded chunks
+remain readable but contain no historical entities to recover. An undo journal
+now recovers interrupted saves across terrain, chest contents, native/server
+records and sidecars in all dimensions. Recovery copies capture loaded chunks
 of the current dimension and player state; they are partial snapshots, not full
 backups. Disk failure can also prevent recovery. Stale world locks require checking
-that no owner remains before manual removal. Interrupted writes, slow/full disks,
-whole-world crash consistency and recovery instructions still need broader trials.
+that no owner remains before manual removal. All-dimension process kills and
+injected storage errors pass; physical power-loss and real-device qualification
+remain open. See the save recovery follow-up below.
 
 **Human/platform qualification before beta:**
 
@@ -664,3 +666,20 @@ checks. Fresh platform CI must qualify the ore source. The preceding view/input
 source now passes its entire four-platform native matrix, including Windows and
 ARM Mac's formerly failing water-route check. Human mining/progression pacing
 remains a playtest gate. [Review and exact evidence](docs/design/deep-ore-balance-2026-10-16/README.md).
+
+## Whole-world save recovery, 16 October
+
+Source `325bfb6` adds an undo journal so a killed save cannot combine reduced
+chest contents with an older player inventory. Dirty eviction, all dimensions,
+native/server records, entities, portal history and sidecars share a checkpoint.
+Startup validates and restores the previous checkpoint; a failed or interrupted
+rollback remains retryable. Preserve hidden files in backups and use a matching
+build to resolve a pending journal. Emergency exports remain partial snapshots.
+
+All 758 stable/MSRV checks, strict Clippy, seven TCP/MCP integrations and normal
+Lantern Run pass. Six CLI faults, 24 all-dimension cases, six hosted crash cases
+and native terminal backup/overlay recovery pass. General GitHub CI succeeds on the feature source. Windows passed its tests but
+strict Clippy caught an unnecessary Unix-only mutable builder; `c71d1fc` fixes
+it and passes local checkpoint/Clippy/fault checks. Fresh native CI is pending.
+[Review and exact evidence](docs/design/save-recovery-2026-10-16/README.md).
+These process-level checks do not qualify hardware power loss or physical disks.

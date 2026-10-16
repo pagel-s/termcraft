@@ -1,0 +1,19 @@
+{
+  "description": "Local warm idle save_world MCP roundtrip, 50 sequential requests; includes serialization, journal and response. Not physical storage or frame time.",
+  "samples": {
+    "previous": {
+      "sha256": "321835b7c4605f44afda6462f864147a442ed5f20694c786d487b74b3bf029af",
+      "n": 50,
+      "p50_ms": 0.05760750354966149,
+      "p95_ms": 0.13498601038008928,
+      "max_ms": 0.2506299933884293
+    },
+    "candidate": {
+      "sha256": "0b4650f0c2eb91312ece5cd18b32629ac6ec79515cd7884c96a7904c4f609391",
+      "n": 50,
+      "p50_ms": 0.33246800012420863,
+      "p95_ms": 0.4607739974744618,
+      "max_ms": 0.587519010878168
+    }
+  }
+}

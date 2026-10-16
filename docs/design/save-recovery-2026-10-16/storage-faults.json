@@ -1,0 +1,427 @@
+{
+  "status": "passed",
+  "binary_sha256": "068dda0405a984f4144ccb819fe3928c6b8cef280f0f5ac2d4cc36fe8b06a012",
+  "cases": [
+    {
+      "fault": "full",
+      "status": "passed",
+      "hits": [
+        "write-enospc"
+      ],
+      "checkpoint_before_retry_or_reopen": "previous",
+      "craft_in_reopened_checkpoint": true,
+      "normal_rule_inventory_restored": true,
+      "retry_after_error": true
+    },
+    {
+      "fault": "partial",
+      "status": "passed",
+      "hits": [
+        "partial-write",
+        "partial-enospc"
+      ],
+      "checkpoint_before_retry_or_reopen": "previous",
+      "craft_in_reopened_checkpoint": true,
+      "normal_rule_inventory_restored": true,
+      "retry_after_error": true
+    },
+    {
+      "fault": "sync",
+      "status": "passed",
+      "hits": [
+        "sync-eio"
+      ],
+      "checkpoint_before_retry_or_reopen": "previous",
+      "craft_in_reopened_checkpoint": true,
+      "normal_rule_inventory_restored": true,
+      "retry_after_error": true
+    },
+    {
+      "fault": "slow",
+      "status": "passed",
+      "hits": [
+        "slow-write-enter"
+      ],
+      "checkpoint_before_retry_or_reopen": "new",
+      "craft_in_reopened_checkpoint": true,
+      "normal_rule_inventory_restored": true,
+      "retry_after_error": false
+    },
+    {
+      "fault": "crash-before",
+      "status": "passed",
+      "hits": [
+        "crash-before-rename"
+      ],
+      "checkpoint_before_retry_or_reopen": "previous",
+      "craft_in_reopened_checkpoint": false,
+      "normal_rule_inventory_restored": true,
+      "retry_after_error": false
+    },
+    {
+      "fault": "crash-after",
+      "status": "passed",
+      "hits": [
+        "crash-after-rename"
+      ],
+      "checkpoint_before_retry_or_reopen": "new",
+      "craft_in_reopened_checkpoint": false,
+      "normal_rule_inventory_restored": true,
+      "retry_after_error": false
+    }
+  ],
+  "disposable_worlds_only": true,
+  "limits": "Disposable staged conservation fixtures with real serializers, CLI/MCP and SIGKILL. Includes interruptions and errors during rollback. Not physical power-loss durability.",
+  "native_recovery": {
+    "status": "passed",
+    "terminal_restored_after_save_error": true,
+    "original_checkpoint_and_backup_preserved": true,
+    "copied_world_reopened_twice": true,
+    "pending_journal_resolved_in_copy_before_overlay": true,
+    "private_recovery_directory": true,
+    "start_x": 0.5,
+    "restored_x": 1.5631110112256,
+    "overlay_files": [
+      "RECOVERY.txt",
+      "director.json",
+      "environment.json",
+      "lantern-trial.json",
+      "overworld_chunk_-1.bin",
+      "overworld_chunk_-2.bin",
+      "overworld_chunk_-3.bin",
+      "overworld_chunk_0.bin",
+      "overworld_chunk_1.bin",
+      "overworld_chunk_2.bin",
+      "overworld_chunk_3.bin",
+      "overworld_world_seed.bin",
+      "player_progression.bin",
+      "world.json"
+    ]
+  },
+  "world_checkpoints": {
+    "status": "passed",
+    "fixture_sha256": "8a9c37a2dc499d5c29a24d9344c7cca6b90d4855f597bb5fcd07654d32ce0322",
+    "before": {
+      "health": 20.0,
+      "inventory": 4,
+      "loot": 1,
+      "terrain": [
+        {
+          "build": "Planks",
+          "chest": 4,
+          "dimension": "overworld",
+          "new_chunk": false
+        },
+        {
+          "build": "Planks",
+          "chest": 4,
+          "dimension": "nether",
+          "new_chunk": false
+        },
+        {
+          "build": "Planks",
+          "chest": 4,
+          "dimension": "end",
+          "new_chunk": false
+        }
+      ],
+      "x": 0.5
+    },
+    "after": {
+      "health": 13.0,
+      "inventory": 8,
+      "loot": 0,
+      "terrain": [
+        {
+          "build": "Cobblestone",
+          "chest": 3,
+          "dimension": "overworld",
+          "new_chunk": true
+        },
+        {
+          "build": "Cobblestone",
+          "chest": 3,
+          "dimension": "nether",
+          "new_chunk": true
+        },
+        {
+          "build": "Cobblestone",
+          "chest": 3,
+          "dimension": "end",
+          "new_chunk": true
+        }
+      ],
+      "x": 7.5
+    },
+    "cases": [
+      {
+        "selector": "all",
+        "fault": "full",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "write-enospc"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "partial",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "partial-write",
+          "partial-enospc"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "sync",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "sync-eio"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "rename",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "rename-eio"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "freeze-before",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-before-rename"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "freeze-before",
+        "rename": 4,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-before-rename"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "freeze-before",
+        "rename": 12,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-before-rename"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "freeze-before",
+        "rename": 18,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-before-rename"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "freeze-after",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "freeze-after",
+        "rename": 4,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "freeze-after",
+        "rename": 12,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      },
+      {
+        "selector": "all",
+        "fault": "freeze-after",
+        "rename": 18,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      },
+      {
+        "selector": "chunks",
+        "fault": "full",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "write-enospc"
+        ]
+      },
+      {
+        "selector": "chunks",
+        "fault": "partial",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "partial-write",
+          "partial-enospc"
+        ]
+      },
+      {
+        "selector": "chunks",
+        "fault": "sync",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "sync-eio"
+        ]
+      },
+      {
+        "selector": "chunks",
+        "fault": "freeze-write",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-partial-write"
+        ]
+      },
+      {
+        "selector": "chunks",
+        "fault": "freeze-after",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      },
+      {
+        "selector": "commit",
+        "fault": "freeze-before",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-before-rename"
+        ]
+      },
+      {
+        "selector": "commit",
+        "fault": "freeze-after",
+        "rename": 1,
+        "recovery_fault": null,
+        "status": "passed",
+        "outcome": "new",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      },
+      {
+        "selector": "player_progression.bin.tmp",
+        "fault": "freeze-after",
+        "rename": 1,
+        "recovery_fault": "full",
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      },
+      {
+        "selector": "player_progression.bin.tmp",
+        "fault": "freeze-after",
+        "rename": 1,
+        "recovery_fault": "sync",
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      },
+      {
+        "selector": "player_progression.bin.tmp",
+        "fault": "freeze-after",
+        "rename": 1,
+        "recovery_fault": "rename",
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      },
+      {
+        "selector": "player_progression.bin.tmp",
+        "fault": "freeze-after",
+        "rename": 1,
+        "recovery_fault": "freeze-after",
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      },
+      {
+        "selector": "player_progression.bin.tmp",
+        "fault": "freeze-after",
+        "rename": 1,
+        "recovery_fault": "freeze-write",
+        "status": "passed",
+        "outcome": "previous",
+        "hits": [
+          "freeze-after-rename"
+        ]
+      }
+    ],
+    "conservation": "17 diamonds across inventory, loot and three chests",
+    "fixture": "Staged chest transfers and builds in all dimensions, new chunk creation, native loot/session changes"
+  }
+}
