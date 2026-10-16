@@ -228,6 +228,40 @@ impl GameState {
             self.activate_peer(id);
         }
     }
+
+    pub(super) fn select_item_collector(&mut self, x: f64, y: f64, item: ItemType) {
+        self.select_nearest_peer(x, y);
+        if !self.cooperative() {
+            return;
+        }
+        let distance = |p: &Player| (p.x - x).powi(2) + (p.y - 1.0 - y).powi(2);
+        let mut best = if self.player.health > 0.0
+            && !self.death_screen_active
+            && self.inventory.can_accept(item)
+        {
+            self.active_peer.map(|id| (id, distance(&self.player)))
+        } else {
+            None
+        };
+        for (&id, actor) in &self.cooperative_players {
+            if self.peer_dimension(id) != self.current_dimension
+                || actor.player.health <= 0.0
+                || actor.death_screen_active
+                || !actor.inventory.can_accept(item)
+            {
+                continue;
+            }
+            let d = distance(&actor.player);
+            if best.is_none_or(|(old, dist)| d < dist || (d == dist && id < old)) {
+                best = Some((id, d));
+            }
+        }
+        if let Some((id, d)) = best
+            && d < 9.0
+        {
+            self.activate_peer(id);
+        }
+    }
     pub(crate) fn finish_cooperative_damage(&mut self) {
         if self.player.health <= 0.0 && !self.death_screen_active {
             self.start_death_screen();

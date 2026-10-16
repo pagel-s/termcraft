@@ -40,7 +40,11 @@ fn capture(
     records.push(json!({"id":format!("action-{id}"),"title":title,"dimension":format!("{:?}",s.current_dimension),"category":"Actions & tools","origin":"Scripted gameplay","source":"examples/interaction_review.rs","caption":"Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.","images":images}));
     Ok(())
 }
-fn pty_fixture(root: &Path, address: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn pty_fixture(
+    root: &Path,
+    address: &str,
+    inventory: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     use termcraft::{
         engine::{
             server_save::{ServerSave, token},
@@ -62,6 +66,27 @@ fn pty_fixture(root: &Path, address: &str) -> Result<(), Box<dyn std::error::Err
     let mut state = GameState::open_in_directory(&path)?;
     state.dismiss_startup_splash();
     state.apply_client_command(ClientCommand::EquipDiamondLoadout);
+    state.player.hunger = 16.0;
+    if inventory {
+        state.inventory.slots.fill(None);
+        for (slot, item, count) in [
+            (0, ItemType::Wood, 16),
+            (1, ItemType::Cobblestone, 60),
+            (2, ItemType::Cobblestone, 20),
+            (3, ItemType::CookedBeef, 4),
+            (9, ItemType::Coal, 4),
+            (10, ItemType::Planks, 16),
+            (11, ItemType::Stick, 4),
+        ] {
+            state.inventory.slots[slot] = Some(ItemStack {
+                item_type: item,
+                count,
+                durability: None,
+            });
+        }
+        state.player.hunger = 19.0;
+    }
+    state.try_persist_world_and_progress()?;
     let mut saved = ServerSave::read(&state)?;
     let identity = token();
     saved
@@ -88,10 +113,14 @@ fn pty_fixture(root: &Path, address: &str) -> Result<(), Box<dyn std::error::Err
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().collect();
-    if args.get(1).is_some_and(|s| s == "--pty-fixture") {
+    if args
+        .get(1)
+        .is_some_and(|s| s == "--pty-fixture" || s == "--inventory-fixture")
+    {
         return pty_fixture(
             Path::new(args.get(2).ok_or("save root required")?),
             args.get(3).ok_or("address required")?,
+            args[1] == "--inventory-fixture",
         );
     }
     let out = std::path::PathBuf::from(std::env::args().nth(1).ok_or("output required")?);

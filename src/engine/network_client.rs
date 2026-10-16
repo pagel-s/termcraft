@@ -368,6 +368,13 @@ fn run_tcp_client_loop(
                 Event::Key(key_event) => {
                     match key_event.kind {
                         KeyEventKind::Press => match key_event.code {
+                            KeyCode::Tab if state.inventory_open => renderer.toggle_recipe_book(),
+                            KeyCode::PageDown if state.inventory_open => {
+                                renderer.scroll_recipe_book(8)
+                            }
+                            KeyCode::PageUp if state.inventory_open => {
+                                renderer.scroll_recipe_book(-8)
+                            }
                             KeyCode::Char('t' | 'T') if !state.inventory_open => {
                                 for command in [
                                     ClientCommand::ClearDirectionalInput,
@@ -846,6 +853,12 @@ fn run_tcp_client_loop(
                         );
                     }
                     match mouse_event.kind {
+                        MouseEventKind::ScrollDown if state.inventory_open => {
+                            renderer.scroll_recipe_book(1)
+                        }
+                        MouseEventKind::ScrollUp if state.inventory_open => {
+                            renderer.scroll_recipe_book(-1)
+                        }
                         MouseEventKind::Down(button) if state.inventory_open => {
                             if let Some(slot) = renderer.get_inventory_click(
                                 &state,
@@ -890,7 +903,13 @@ fn run_tcp_client_loop(
                                             mouse_event.column,
                                             mouse_event.row,
                                         )
-                                        .map(|i| ClientCommand::CraftRecipe(i as u16))
+                                        .map(|i| {
+                                            if mouse_event.modifiers.contains(KeyModifiers::SHIFT) {
+                                                ClientCommand::CraftRecipeMax(i as u16)
+                                            } else {
+                                                ClientCommand::CraftRecipe(i as u16)
+                                            }
+                                        })
                                 };
                                 if let Some(command) = command {
                                     queue_client_command(

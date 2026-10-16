@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 15;
+pub const NET_PROTOCOL_VERSION: u16 = 16;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;
@@ -1734,6 +1734,34 @@ mod tests {
         let encoded = encode_server_message(&message).expect("encoding should succeed");
         let decoded = decode_server_message(&encoded).expect("decoding should succeed");
         assert_eq!(decoded, message);
+    }
+
+    #[test]
+    fn lit_ore_and_fire_survive_framing_and_client_terrain_replication() {
+        let mut blocks = vec![BlockType::Air; CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT];
+        blocks[0] = BlockType::LitRedstoneOre(8);
+        blocks[1] = BlockType::Fire(6);
+        let message = ServerWireMessage::ChunkDelta(ChunkDeltaPacket {
+            protocol: NET_PROTOCOL_VERSION,
+            tick: 3,
+            dimension: SnapshotDimension::Overworld,
+            center_chunk_x: 0,
+            chunks: vec![ChunkColumnSnapshot {
+                chunk_x: 0,
+                revision: 1,
+                biomes: vec![crate::world::BiomeType::Plains; CHUNK_WIDTH],
+                blocks,
+            }],
+        });
+        let mut wire = Vec::new();
+        write_framed_server_message(&mut wire, &message).unwrap();
+        let decoded = read_framed_server_message(&mut Cursor::new(wire)).unwrap();
+        assert_eq!(decoded, message);
+        let mut client = ClientPredictionState::new(1);
+        client.apply_server_message(decoded);
+        let chunk = client.replicated_chunk(0).unwrap();
+        assert_eq!(chunk.blocks[0], BlockType::LitRedstoneOre(8));
+        assert_eq!(chunk.blocks[1], BlockType::Fire(6));
     }
 
     #[test]

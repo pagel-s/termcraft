@@ -329,6 +329,15 @@ impl GameLoop {
                         match key_event.kind {
                             KeyEventKind::Press => {
                                 match key_event.code {
+                                    KeyCode::Tab if self.state.inventory_open => {
+                                        renderer.toggle_recipe_book()
+                                    }
+                                    KeyCode::PageDown if self.state.inventory_open => {
+                                        renderer.scroll_recipe_book(8)
+                                    }
+                                    KeyCode::PageUp if self.state.inventory_open => {
+                                        renderer.scroll_recipe_book(-8)
+                                    }
                                     KeyCode::F(4) => renderer.toggle_zoom(),
                                     KeyCode::Char('+' | '=') => renderer.zoom_in(),
                                     KeyCode::Char('-') => renderer.zoom_out(),
@@ -592,7 +601,11 @@ impl GameLoop {
                                         mouse_event.column,
                                         mouse_event.row,
                                     ) {
-                                        self.state.attempt_craft(recipe_idx);
+                                        if mouse_event.modifiers.contains(KeyModifiers::SHIFT) {
+                                            self.state.attempt_craft_max(recipe_idx);
+                                        } else {
+                                            self.state.attempt_craft(recipe_idx);
+                                        }
                                     }
                                 } else {
                                     self.state.apply_client_command(
@@ -673,6 +686,12 @@ impl GameLoop {
                                 self.last_inventory_left_drag_slot = None;
                                 self.state
                                     .apply_client_command(ClientCommand::SetPrimaryAction(false));
+                            }
+                            MouseEventKind::ScrollDown if self.state.inventory_open => {
+                                renderer.scroll_recipe_book(1)
+                            }
+                            MouseEventKind::ScrollUp if self.state.inventory_open => {
+                                renderer.scroll_recipe_book(-1)
                             }
                             MouseEventKind::Up(MouseButton::Right) => {
                                 self.last_inventory_right_drag_slot = None;
@@ -1553,12 +1572,16 @@ mod tests {
             durability: None,
         });
         loop_state.state.handle_inventory_click(0);
-        loop_state
-            .state
-            .handle_inventory_click(CRAFT_GRID_UI_OFFSET);
-        loop_state
-            .state
-            .handle_inventory_click(CRAFT_GRID_UI_OFFSET + 3);
+        for _ in 0..1 {
+            loop_state
+                .state
+                .handle_inventory_right_click(CRAFT_GRID_UI_OFFSET);
+        }
+        for _ in 0..1 {
+            loop_state
+                .state
+                .handle_inventory_right_click(CRAFT_GRID_UI_OFFSET + 3);
+        }
 
         let key_event = crossterm::event::KeyEvent::new_with_kind(
             KeyCode::Enter,
@@ -1586,12 +1609,16 @@ mod tests {
             durability: None,
         });
         loop_state.state.handle_inventory_click(0);
-        loop_state
-            .state
-            .handle_inventory_click(CRAFT_GRID_UI_OFFSET);
-        loop_state
-            .state
-            .handle_inventory_click(CRAFT_GRID_UI_OFFSET + 3);
+        for _ in 0..4 {
+            loop_state
+                .state
+                .handle_inventory_right_click(CRAFT_GRID_UI_OFFSET);
+        }
+        for _ in 0..4 {
+            loop_state
+                .state
+                .handle_inventory_right_click(CRAFT_GRID_UI_OFFSET + 3);
+        }
 
         let key_event = crossterm::event::KeyEvent::new_with_kind(
             KeyCode::Enter,
@@ -1619,12 +1646,16 @@ mod tests {
             durability: None,
         });
         loop_state.state.handle_inventory_click(0);
-        loop_state
-            .state
-            .handle_inventory_click(CRAFT_GRID_UI_OFFSET);
-        loop_state
-            .state
-            .handle_inventory_click(CRAFT_GRID_UI_OFFSET + 3);
+        for _ in 0..2 {
+            loop_state
+                .state
+                .handle_inventory_right_click(CRAFT_GRID_UI_OFFSET);
+        }
+        for _ in 0..2 {
+            loop_state
+                .state
+                .handle_inventory_right_click(CRAFT_GRID_UI_OFFSET + 3);
+        }
 
         let key_event = crossterm::event::KeyEvent::new_with_kind(
             KeyCode::Delete,

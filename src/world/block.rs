@@ -90,9 +90,39 @@ pub enum BlockType {
     BirchSapling,
     ZombieSpawner,
     SkeletonSpawner,
+    LitRedstoneOre(u8),
+    Fire(u8),
 }
 
 impl BlockType {
+    pub fn is_flammable(&self) -> bool {
+        matches!(
+            self,
+            Self::Wood
+                | Self::BirchWood
+                | Self::Planks
+                | Self::Leaves
+                | Self::BirchLeaves
+                | Self::CraftingTable
+                | Self::Bookshelf
+                | Self::Wool
+                | Self::Sapling
+                | Self::BirchSapling
+                | Self::DeadBush
+                | Self::TallGrass
+                | Self::WoodDoor(_)
+                | Self::Ladder
+                | Self::Tnt
+        )
+    }
+
+    pub(crate) fn has_heat_tick(&self) -> bool {
+        matches!(
+            self,
+            Self::Lava(_) | Self::Fire(_) | Self::LitRedstoneOre(_)
+        )
+    }
+
     /// Local collision rectangles [left, top, right, bottom], with y down.
     /// Slabs occupy the lower half; the existing unoriented stair rises right.
     /// Rendering and all shared actor movement use this same shape definition.
@@ -109,6 +139,7 @@ impl BlockType {
         !matches!(
             self,
             BlockType::Air
+                | BlockType::Fire(_)
                 | BlockType::Leaves
                 | BlockType::BirchLeaves
                 | BlockType::Torch
@@ -141,6 +172,7 @@ impl BlockType {
         matches!(
             self,
             BlockType::Air
+                | BlockType::Fire(_)
                 | BlockType::Torch
                 | BlockType::Lever(_)
                 | BlockType::StoneButton(_)
@@ -164,6 +196,7 @@ impl BlockType {
     pub fn hardness(&self) -> f32 {
         match self {
             BlockType::Air
+            | BlockType::Fire(_)
             | BlockType::Torch
             | BlockType::Lever(_)
             | BlockType::StoneButton(_)
@@ -223,7 +256,7 @@ impl BlockType {
             | BlockType::StickyPiston { .. } => 1.5,
             BlockType::EndPortalFrame { .. } => 8.0,
             BlockType::IronOre => 3.0,
-            BlockType::RedstoneOre => 3.0,
+            BlockType::RedstoneOre | BlockType::LitRedstoneOre(_) => 3.0,
             BlockType::GoldOre => 3.0,
             BlockType::DiamondOre => 4.0,
             BlockType::Obsidian => 10.0, // Very slow to mine
@@ -256,7 +289,7 @@ impl BlockType {
             BlockType::IronDoor(_) => 2,
             BlockType::EndPortalFrame { .. } => 4,
             BlockType::IronOre => 2,
-            BlockType::RedstoneOre => 3,
+            BlockType::RedstoneOre | BlockType::LitRedstoneOre(_) => 3,
             BlockType::GoldOre | BlockType::DiamondOre => 3,
             BlockType::Obsidian => 4, // Needs Diamond Pickaxe
             BlockType::Bedrock => 255,
@@ -351,6 +384,7 @@ impl BlockType {
                 | BlockType::CoalOre
                 | BlockType::IronOre
                 | BlockType::RedstoneOre
+                | BlockType::LitRedstoneOre(_)
                 | BlockType::GoldOre
                 | BlockType::DiamondOre
                 | BlockType::Ice

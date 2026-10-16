@@ -6,6 +6,8 @@ impl BlockType {
     pub fn emitted_light(self) -> u8 {
         match self {
             Self::Torch | Self::Lava(_) | Self::Glowstone => 15,
+            Self::LitRedstoneOre(_) => 10,
+            Self::Fire(_) => 14,
             Self::PrimedTnt(_) => 13,
             Self::RedstoneTorch(true) | Self::NetherPortal => 11,
             Self::EndPortal => 10,

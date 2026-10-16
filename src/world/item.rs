@@ -297,7 +297,7 @@ impl ItemType {
             BlockType::GoldOre => Some(ItemType::RawGold),
             BlockType::DiamondOre => Some(ItemType::Diamond),
             BlockType::CoalOre => Some(ItemType::Coal),
-            BlockType::RedstoneOre => Some(ItemType::RedstoneDust),
+            BlockType::RedstoneOre | BlockType::LitRedstoneOre(_) => Some(ItemType::RedstoneDust),
             BlockType::Sand => Some(ItemType::Sand),
             BlockType::Gravel => Some(ItemType::Gravel),
             BlockType::Planks => Some(ItemType::Planks),
@@ -347,6 +347,7 @@ impl ItemType {
             BlockType::Crops(7) => Some(ItemType::Wheat),
             BlockType::Crops(_) => Some(ItemType::WheatSeeds),
             BlockType::TallGrass
+            | BlockType::Fire(_)
             | BlockType::Bedrock
             | BlockType::PrimedTnt(_)
             | BlockType::NetherPortal
@@ -812,6 +813,9 @@ impl Inventory {
     }
 
     pub fn add_item(&mut self, item: ItemType, amount: u32) -> u32 {
+        if amount == 0 {
+            return 0;
+        }
         let mut remaining = amount;
         let stack_limit = if item.max_durability().is_some() {
             1
@@ -845,6 +849,17 @@ impl Inventory {
             }
         }
         remaining
+    }
+
+    pub fn can_accept(&self, item: ItemType) -> bool {
+        self.slots.iter().any(|slot| match slot {
+            None => true,
+            Some(stack) => {
+                stack.item_type == item
+                    && stack.durability.is_none()
+                    && stack.count < item.max_stack_size()
+            }
+        })
     }
 }
 
@@ -2031,14 +2046,23 @@ impl Recipe {
                 return false;
             }
         }
-        true
+        let mut after = inventory.clone();
+        for (item, amount) in self.required_ingredients() {
+            after.remove_item(item, amount);
+        }
+        after.add_item(self.result, self.result_count) == 0
     }
 
     pub fn craft(&self, inventory: &mut Inventory) {
+        let mut after = inventory.clone();
         for (item, amount) in self.required_ingredients() {
-            inventory.remove_item(item, amount);
+            if !after.remove_item(item, amount) {
+                return;
+            }
         }
-        inventory.add_item(self.result, self.result_count);
+        if after.add_item(self.result, self.result_count) == 0 {
+            *inventory = after;
+        }
     }
 }
 

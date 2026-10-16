@@ -104,16 +104,26 @@ impl Tile {
                 };
                 ["a++a", "+..+", "..-.", "-..a"]
             }
-            IronOre | GoldOre | DiamondOre | CoalOre | RedstoneOre => {
+            IronOre | GoldOre | DiamondOre | CoalOre | RedstoneOre | LitRedstoneOre(_) => {
                 let accent = match block {
                     IronOre => (173, 137, 110),
                     GoldOre => (217, 176, 73),
                     DiamondOre => (91, 191, 192),
                     CoalOre => (47, 51, 57),
+                    LitRedstoneOre(_) => (255, 98, 65),
                     _ => (176, 70, 57),
                 };
                 colors = [(99, 105, 111), (115, 121, 124), (82, 88, 95), accent];
                 ["....", ".aa.", "a..a", ".-.."]
+            }
+            Fire(_) => {
+                colors = [
+                    (236, 93, 23),
+                    (255, 224, 121),
+                    (177, 48, 19),
+                    (255, 155, 39),
+                ];
+                [" +  ", " a+ ", "+aa+", " a+ "]
             }
             Sand => {
                 colors = [
@@ -428,7 +438,7 @@ impl Tile {
                 "++aa-aaa", "+aaa-a++", "aa.-aa++", "---aaa-a", "a++aa---", "++++-aa+", "a++a-aa+",
                 "aaa--aaa",
             ]),
-            IronOre | GoldOre | DiamondOre | CoalOre | RedstoneOre => Some([
+            IronOre | GoldOre | DiamondOre | CoalOre | RedstoneOre | LitRedstoneOre(_) => Some([
                 "........", ".+......", "..aa....", "..aa..a.", ".....aa.", ".a......", "...-....",
                 "........",
             ]),
@@ -941,12 +951,15 @@ impl Renderer {
                                 let emissive = matches!(
                                     block,
                                     BlockType::Lava(_)
+                                        | BlockType::Fire(_)
                                         | BlockType::Glowstone
                                         | BlockType::NetherPortal
                                         | BlockType::EndPortal
                                 ) || (matches!(
                                     block,
-                                    BlockType::Torch | BlockType::RedstoneTorch(true)
+                                    BlockType::Torch
+                                        | BlockType::RedstoneTorch(true)
+                                        | BlockType::LitRedstoneOre(_)
                                 ) && matches!(token, b'a' | b'+'));
                                 lighting.shade(
                                     Self::rgb(rgb),

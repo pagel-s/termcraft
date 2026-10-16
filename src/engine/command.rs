@@ -39,4 +39,5 @@ pub enum ClientCommand {
     Anvil,
     Brew(u8),
     ClearCraftGrid,
+    CraftRecipeMax(u16),
 }

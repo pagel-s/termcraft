@@ -142,6 +142,186 @@ mod tests {
         });
     }
     #[test]
+    fn every_food_fills_the_final_hunger_point_and_stops_at_full() {
+        for food in [
+            ItemType::Bread,
+            ItemType::RawBeef,
+            ItemType::RawMutton,
+            ItemType::CookedMutton,
+            ItemType::CookedBeef,
+            ItemType::RawPorkchop,
+            ItemType::CookedPorkchop,
+            ItemType::RawChicken,
+            ItemType::CookedChicken,
+            ItemType::RawFish,
+            ItemType::CookedFish,
+        ] {
+            let mut s = room();
+            hold(&mut s, food);
+            s.inventory.slots[0].as_mut().unwrap().count = 2;
+            s.player.hunger = 19.0;
+            s.apply_client_command(ClientCommand::UseAt(-20, 0));
+            assert_eq!(s.player.hunger, 20.0, "{food:?}");
+            assert_eq!(s.inventory.slots[0].as_ref().unwrap().count, 1);
+            s.apply_client_command(ClientCommand::UseAt(-20, 0));
+            assert_eq!(s.inventory.slots[0].as_ref().unwrap().count, 1);
+            s.update(0, 0);
+            s.apply_client_command(ClientCommand::UseAt(-20, 0));
+            assert_eq!(
+                s.inventory.slots[0].as_ref().unwrap().count,
+                1,
+                "fractional drain wasted another meal: {food:?}"
+            );
+        }
+    }
+    #[test]
+    fn a_full_bag_leaves_drops_on_the_ground_then_collects_when_space_is_freed() {
+        let mut s = room();
+        s.inventory.slots.fill(Some(ItemStack {
+            item_type: ItemType::Stone,
+            count: 64,
+            durability: None,
+        }));
+        s.item_entities
+            .push(crate::entities::item_entity::ItemEntity::new(
+                2.5,
+                38.0,
+                ItemType::Diamond,
+            ));
+        for _ in 0..80 {
+            s.update(0, 0);
+        }
+        assert_eq!(s.item_entities.len(), 1);
+        let drop = &s.item_entities[0];
+        assert!(
+            (drop.x - 2.5).abs() < 0.01,
+            "a full bag must not attract items"
+        );
+        assert!(drop.grounded && (drop.y - 40.0).abs() < 0.1, "{drop:?}");
+        s.inventory.slots[26] = None;
+        for _ in 0..40 {
+            s.update(0, 0);
+        }
+        assert!(s.item_entities.is_empty());
+        assert!(s.inventory.has_item(ItemType::Diamond, 1));
+    }
+    #[test]
+    fn dropped_items_are_destroyed_by_lava_and_fire_without_being_picked_up() {
+        for hazard in [BlockType::Lava(8), BlockType::Fire(8)] {
+            let mut s = room();
+            s.world.set_block(3, 39, hazard);
+            s.item_entities
+                .push(crate::entities::item_entity::ItemEntity::new(
+                    3.5,
+                    39.5,
+                    ItemType::Planks,
+                ));
+            s.update(0, 0);
+            assert!(s.item_entities.is_empty(), "{hazard:?}");
+            assert!(!s.inventory.has_item(ItemType::Planks, 1));
+        }
+    }
+    #[test]
+    fn crafting_is_atomic_with_a_full_bag_and_can_reuse_a_consumed_slot() {
+        let mut s = room();
+        s.inventory.slots.fill(Some(ItemStack {
+            item_type: ItemType::Stone,
+            count: 64,
+            durability: None,
+        }));
+        s.inventory.slots[0] = Some(ItemStack {
+            item_type: ItemType::Wood,
+            count: 2,
+            durability: None,
+        });
+        let before = s.inventory.slots.clone();
+        s.attempt_craft(0);
+        assert_eq!(s.inventory.slots, before);
+        s.inventory.slots[0].as_mut().unwrap().count = 1;
+        s.attempt_craft(0);
+        assert_eq!(
+            s.inventory.slots[0].as_ref().unwrap().item_type,
+            ItemType::Planks
+        );
+        assert_eq!(s.inventory.slots[0].as_ref().unwrap().count, 4);
+        s.inventory_open = true;
+        s.inventory.slots[0] = Some(ItemStack {
+            item_type: ItemType::Wood,
+            count: 2,
+            durability: None,
+        });
+        s.handle_inventory_click(0);
+        s.handle_inventory_right_click(crate::engine::state::CRAFT_GRID_UI_OFFSET);
+        s.handle_inventory_right_click(crate::engine::state::CRAFT_GRID_UI_OFFSET);
+        s.inventory.slots[0] = Some(ItemStack {
+            item_type: ItemType::Planks,
+            count: 64,
+            durability: None,
+        });
+        // A partial result stack still has room, so fill it before testing refusal.
+        s.inventory.slots[0].as_mut().unwrap().count = 64;
+        s.attempt_craft_from_grid_max();
+        s.clear_active_crafting_grid();
+        assert_eq!(s.crafting_grid_slot_stack(0).unwrap().count, 2);
+        assert!(s.item_entities.is_empty());
+        s.inventory.slots[26] = None;
+        s.attempt_craft_from_grid_max();
+        assert!(s.crafting_grid_slot_stack(0).is_none());
+        assert_eq!(s.inventory.slots[26].as_ref().unwrap().count, 8);
+    }
+    #[test]
+    fn clicking_ore_lights_it_only_within_reach_and_line_of_sight() {
+        let mut s = room();
+        s.world.set_block(3, 39, BlockType::RedstoneOre);
+        s.apply_client_command(ClientCommand::UseAt(3, 39));
+        assert!(matches!(
+            s.world.get_block(3, 39),
+            BlockType::LitRedstoneOre(_)
+        ));
+        s.world.set_block(3, 39, BlockType::RedstoneOre);
+        s.world.set_block(1, 39, BlockType::Stone);
+        s.apply_client_command(ClientCommand::UseAt(3, 39));
+        assert_eq!(s.world.get_block(3, 39), BlockType::RedstoneOre);
+        s.world.set_block(12, 39, BlockType::RedstoneOre);
+        s.apply_client_command(ClientCommand::UseAt(12, 39));
+        assert_eq!(s.world.get_block(12, 39), BlockType::RedstoneOre);
+    }
+    #[test]
+    fn fire_burns_the_player_but_respects_a_fire_resistance_potion() {
+        let mut s = room();
+        s.world.set_block(0, 39, BlockType::Fire(8));
+        s.update(0, 0);
+        assert!(s.player.burning_timer > 0);
+        let mut protected = room();
+        hold(&mut protected, ItemType::PotionFireResistance);
+        protected.apply_client_command(ClientCommand::UseAt(-20, 0));
+        protected.world.set_block(0, 39, BlockType::Fire(8));
+        protected.update(0, 0);
+        assert_eq!(protected.player.burning_timer, 0);
+        assert_eq!(protected.player.health, 20.0);
+    }
+    #[test]
+    fn ordinary_clicks_merge_stacks_and_keep_the_remainder_selected() {
+        let mut s = room();
+        s.inventory_open = true;
+        for (i, count) in [(0, 20), (1, 60)] {
+            s.inventory.slots[i] = Some(ItemStack {
+                item_type: ItemType::Cobblestone,
+                count,
+                durability: None,
+            });
+        }
+        s.handle_inventory_click(0);
+        s.handle_inventory_click(1);
+        assert_eq!(s.inventory.slots[1].as_ref().unwrap().count, 64);
+        assert_eq!(s.inventory.slots[0].as_ref().unwrap().count, 16);
+        assert_eq!(s.selected_inventory_slot, Some(0));
+        s.handle_inventory_click(2);
+        assert!(s.inventory.slots[0].is_none());
+        assert_eq!(s.inventory.slots[2].as_ref().unwrap().count, 16);
+        assert!(s.selected_inventory_slot.is_none());
+    }
+    #[test]
     fn missing_swing_is_visible_but_does_not_spend_tool_durability() {
         let mut s = room();
         hold(&mut s, ItemType::IronSword);

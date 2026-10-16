@@ -2403,7 +2403,7 @@ impl GameState {
     fn experience_from_mined_block(block: BlockType, rng: &mut impl Rng) -> u32 {
         match block {
             BlockType::CoalOre => rng.gen_range(1..=2),
-            BlockType::RedstoneOre => rng.gen_range(1..=5),
+            BlockType::RedstoneOre | BlockType::LitRedstoneOre(_) => rng.gen_range(1..=5),
             BlockType::DiamondOre => rng.gen_range(3..=7),
             BlockType::SilverfishSpawner => rng.gen_range(15..=43),
             BlockType::BlazeSpawner => rng.gen_range(18..=46),
@@ -2895,7 +2895,15 @@ impl GameState {
 
     pub fn clear_active_crafting_grid(&mut self) {
         if self.active_crafting_grid_size().is_some() {
-            self.flush_crafting_grid_items_to_inventory();
+            let mut after = self.inventory.clone();
+            for stack in self.crafting_grid.iter().flatten() {
+                if after.add_item(stack.item_type, stack.count) > 0 {
+                    return;
+                }
+            }
+            self.inventory = after;
+            self.crafting_grid.fill(None);
+            self.selected_inventory_slot = None;
         }
     }
 
@@ -3095,6 +3103,11 @@ impl GameState {
     }
 
     fn can_place_stack_in_ui_slot(&self, ui_slot: usize, stack: &ItemStack) -> bool {
+        if self.is_crafting_grid_ui_slot(ui_slot)
+            && self.is_valid_active_crafting_cell(ui_slot - CRAFT_GRID_UI_OFFSET)
+        {
+            return stack.durability.is_none() && !Self::can_item_be_enchanted(stack.item_type);
+        }
         if self.at_chest {
             return ui_slot < CHEST_INVENTORY_CAPACITY + PLAYER_INVENTORY_CAPACITY;
         }
@@ -3324,6 +3337,9 @@ impl GameState {
     }
 
     fn split_range_for_slot(&self, slot_idx: usize) -> Option<std::ops::Range<usize>> {
+        if self.is_crafting_grid_ui_slot(slot_idx) && self.active_crafting_grid_size().is_some() {
+            return Some(0..PLAYER_INVENTORY_CAPACITY);
+        }
         if self.at_chest {
             if slot_idx < CHEST_INVENTORY_CAPACITY {
                 return Some(0..CHEST_INVENTORY_CAPACITY);
@@ -3747,6 +3763,7 @@ impl GameState {
         match command {
             ClientCommand::AimAt(_, _) => {}
             ClientCommand::CraftRecipe(index) => self.attempt_craft(index as usize),
+            ClientCommand::CraftRecipeMax(index) => self.attempt_craft_max(index as usize),
             ClientCommand::Enchant(index) => self.attempt_enchant_option(index as usize),
             ClientCommand::Anvil => self.attempt_anvil_combine(),
             ClientCommand::Brew(index) => self.attempt_brew_option(index as usize),
@@ -4229,7 +4246,7 @@ impl GameState {
                         | ItemType::RawFish
                         | ItemType::CookedFish
                 );
-                if food && self.player.hunger >= self.player.max_hunger {
+                if food && self.player.hunger.ceil() >= self.player.max_hunger {
                     return;
                 }
                 let mut ate = false;
@@ -4332,6 +4349,7 @@ impl GameState {
             }
             return;
         }
+        self.world.activate_redstone_ore(bx, by);
         if is_break {
             let target_block = self.world.get_block(bx, by);
             if matches!(
@@ -4602,6 +4620,23 @@ impl GameState {
                 self.apply_inventory_slot_durability_wear(self.hotbar_index as usize);
                 return;
             }
+            if self.current_hotbar_item_type() == Some(ItemType::FlintAndSteel) {
+                let (fx, fy) = if target_block.is_solid() {
+                    (bx, by - 1)
+                } else {
+                    (bx, by)
+                };
+                if self.world.get_block(fx, fy) == BlockType::Air
+                    && (self.world.get_block(fx, fy + 1).is_solid()
+                        || [(fx - 1, fy), (fx + 1, fy), (fx, fy - 1)]
+                            .iter()
+                            .any(|&(x, y)| self.world.get_block(x, y).is_flammable()))
+                {
+                    self.world.set_block(fx, fy, BlockType::Fire(8));
+                    self.apply_inventory_slot_durability_wear(self.hotbar_index as usize);
+                    return;
+                }
+            }
             if self.current_hotbar_item_type() == Some(ItemType::Shears) {
                 let sheared_drop = match target_block {
                     BlockType::Leaves => Some(ItemType::Leaves),
@@ -4819,11 +4854,11 @@ impl GameState {
                 self.selected_inventory_slot = None;
                 return;
             }
-            if first_idx >= slot_count {
+            if first_idx >= slot_count && !self.is_crafting_grid_ui_slot(first_idx) {
                 self.selected_inventory_slot = None;
                 return;
             }
-            let Some(first_stack) = self.ui_slot_item_clone(first_idx) else {
+            let Some(first_stack) = self.any_slot_item_clone(first_idx) else {
                 self.selected_inventory_slot = None;
                 return;
             };
@@ -4833,19 +4868,30 @@ impl GameState {
             };
             let first_enchant = self.ui_slot_enchant_level(first_idx).unwrap_or(0);
             let second_enchant = self.ui_slot_enchant_level(slot_idx).unwrap_or(0);
+            if let (Some(source), Some(target)) = (&first_stack, &second_stack)
+                && source.item_type == target.item_type
+                && source.durability.is_none()
+                && target.durability.is_none()
+                && first_enchant == second_enchant
+            {
+                self.transfer_full_stack_between_slots(first_idx, &[slot_idx]);
+                self.selected_inventory_slot = self
+                    .ui_slot_item_clone(first_idx)
+                    .flatten()
+                    .map(|_| first_idx);
+                return;
+            }
             if let Some(stack) = second_stack.as_ref()
                 && !self.can_place_stack_in_ui_slot(first_idx, stack)
             {
-                self.selected_inventory_slot = None;
                 return;
             }
             if let Some(stack) = first_stack.as_ref()
                 && !self.can_place_stack_in_ui_slot(slot_idx, stack)
             {
-                self.selected_inventory_slot = None;
                 return;
             }
-            if self.set_ui_slot_item(first_idx, second_stack)
+            if self.set_any_slot_item(first_idx, second_stack)
                 && self.set_ui_slot_item(slot_idx, first_stack)
             {
                 let _ = self.set_ui_slot_enchant_level(first_idx, second_enchant);
@@ -4884,16 +4930,9 @@ impl GameState {
                 {
                     self.selected_inventory_slot = None;
                 }
-            } else if let Some(existing_stack) = self.crafting_grid[cell_idx].as_mut() {
-                let item_type = existing_stack.item_type;
-                existing_stack.count = existing_stack.count.saturating_sub(1);
-                if existing_stack.count == 0 {
-                    self.crafting_grid[cell_idx] = None;
-                }
-                let overflow = self.inventory.add_item(item_type, 1);
-                for _ in 0..overflow {
-                    self.spill_single_item_near_player(item_type);
-                }
+            } else if self.crafting_grid[cell_idx].is_some() {
+                self.selected_inventory_slot = Some(slot_idx);
+                self.split_selected_stack_into_empty_slot();
             }
             return;
         }
@@ -5017,30 +5056,25 @@ impl GameState {
         let Some(job) = self.furnace_job else {
             return;
         };
-
-        if self.furnace_burn_ticks == 0 {
-            if !self.consume_one_furnace_fuel() {
-                return;
+        if self.furnace_progress_ticks < FURNACE_COOK_TICKS {
+            if self.furnace_burn_ticks == 0 {
+                if !self.consume_one_furnace_fuel() {
+                    return;
+                }
+                self.furnace_burn_ticks = FURNACE_COAL_BURN_TICKS;
             }
-            self.furnace_burn_ticks = FURNACE_COAL_BURN_TICKS;
+            self.furnace_burn_ticks = self.furnace_burn_ticks.saturating_sub(1);
+            self.furnace_progress_ticks = self.furnace_progress_ticks.saturating_add(1);
         }
-
-        self.furnace_burn_ticks = self.furnace_burn_ticks.saturating_sub(1);
-        self.furnace_progress_ticks = self.furnace_progress_ticks.saturating_add(1);
         if self.furnace_progress_ticks < FURNACE_COOK_TICKS {
             return;
         }
-
-        self.furnace_progress_ticks = 0;
-        let overflow = self.inventory.add_item(job.output, job.output_count);
-        for _ in 0..overflow {
-            self.item_entities.push(ItemEntity::new(
-                self.player.x,
-                self.player.y - 0.5,
-                job.output,
-            ));
+        let mut after = self.inventory.clone();
+        if after.add_item(job.output, job.output_count) > 0 {
+            return;
         }
-
+        self.inventory = after;
+        self.furnace_progress_ticks = 0;
         if !self.inventory.remove_item(job.input, job.input_count) {
             self.furnace_job = None;
         }
@@ -5062,6 +5096,9 @@ impl GameState {
 
     pub fn furnace_status_line(&self) -> String {
         if let Some(job) = self.furnace_job {
+            if self.furnace_progress_ticks >= FURNACE_COOK_TICKS {
+                return format!("{} ready · Free bag space to collect", job.output.name());
+            }
             let progress_pct =
                 (self.furnace_progress_ticks as u32 * 100 / FURNACE_COOK_TICKS as u32) as u8;
             let fuel_pct =
@@ -5381,6 +5418,21 @@ impl GameState {
             && recipe.can_craft(&self.inventory, self.at_crafting_table, self.at_furnace)
         {
             recipe.craft(&mut self.inventory);
+            self.selected_inventory_slot = None;
+        }
+    }
+
+    pub fn attempt_craft_max(&mut self, recipe_idx: usize) {
+        if self.at_furnace {
+            self.attempt_craft(recipe_idx);
+            return;
+        }
+        for _ in 0..512 {
+            let before = self.inventory.slots.clone();
+            self.attempt_craft(recipe_idx);
+            if self.inventory.slots == before {
+                break;
+            }
         }
     }
 
@@ -5563,6 +5615,9 @@ impl GameState {
     }
 
     pub fn attempt_craft_from_grid(&mut self) {
+        if !self.can_take_crafting_output() {
+            return;
+        }
         let Some(grid_size) = self.active_crafting_grid_size() else {
             return;
         };
@@ -5574,6 +5629,7 @@ impl GameState {
             return;
         };
         self.consume_crafting_recipe_inputs(recipe, grid_size);
+        self.selected_inventory_slot = None;
         let overflow = self.inventory.add_item(recipe.result, recipe.result_count);
         for _ in 0..overflow {
             self.spill_single_item_near_player(recipe.result);
@@ -5582,151 +5638,57 @@ impl GameState {
 
     pub fn attempt_craft_from_grid_max(&mut self) {
         for _ in 0..512 {
-            if self.current_crafting_recipe_index().is_none() {
+            if !self.can_take_crafting_output() {
                 break;
             }
             self.attempt_craft_from_grid();
         }
     }
 
+    pub fn can_take_crafting_output(&self) -> bool {
+        self.crafting_output_preview().is_some_and(|(item, count)| {
+            let mut inventory = self.inventory.clone();
+            inventory.add_item(item, count) == 0
+        })
+    }
+
     fn handle_crafting_grid_click(&mut self, cell_idx: usize) {
         if !self.is_valid_active_crafting_cell(cell_idx) {
             return;
         }
-        if let Some(source_slot) = self.selected_inventory_slot
-            && source_slot < PLAYER_INVENTORY_CAPACITY
-        {
-            let Some(source_stack_ref) = self.inventory.slots[source_slot].as_ref() else {
-                self.selected_inventory_slot = None;
-                return;
-            };
-            if source_stack_ref.count == 0 {
-                self.inventory.slots[source_slot] = None;
-                self.inventory_enchant_levels[source_slot] = 0;
-                self.selected_inventory_slot = None;
-                return;
-            }
-            let source_item_type = source_stack_ref.item_type;
-            let source_count = source_stack_ref.count;
-            let source_durability = source_stack_ref.durability;
-            if Self::can_item_be_enchanted(source_item_type) || source_durability.is_some() {
-                return;
-            }
-
-            let stack_limit = source_item_type.max_stack_size();
-            let existing_same_stack = self
-                .crafting_grid
-                .iter()
-                .flatten()
-                .filter(|stack| stack.item_type == source_item_type)
-                .map(|stack| stack.count)
-                .max()
-                .unwrap_or(0);
-
-            if let Some(existing_stack) = self.crafting_grid[cell_idx].as_ref()
-                && existing_stack.item_type != source_item_type
-            {
-                let removed = self.crafting_grid[cell_idx]
-                    .take()
-                    .expect("checked crafting stack should exist");
-                let overflow = self.inventory.add_item(removed.item_type, removed.count);
-                for _ in 0..overflow {
-                    self.spill_single_item_near_player(removed.item_type);
-                }
-            }
-
-            let target_count = self.crafting_grid[cell_idx]
-                .as_ref()
-                .map(|stack| stack.count)
-                .unwrap_or(0);
-            let mut matching_cell_indices: Vec<usize> = (0..CRAFT_GRID_UI_SLOTS)
-                .filter(|&idx| self.is_valid_active_crafting_cell(idx))
-                .filter(|&idx| {
-                    self.crafting_grid[idx]
-                        .as_ref()
-                        .is_some_and(|stack| stack.item_type == source_item_type)
-                })
-                .collect();
-
-            let mut moved_total = 0u32;
-            if target_count > 0 && matching_cell_indices.len() > 1 {
-                let mut remaining = source_count;
-                let add_per_cell = (remaining / matching_cell_indices.len() as u32).max(1);
-                for idx in matching_cell_indices.drain(..) {
-                    if remaining == 0 {
-                        break;
-                    }
-                    let Some(stack) = self.crafting_grid[idx].as_mut() else {
-                        continue;
-                    };
-                    let available_space = stack_limit.saturating_sub(stack.count);
-                    if available_space == 0 {
-                        continue;
-                    }
-                    let added = add_per_cell.min(available_space).min(remaining);
-                    if added == 0 {
-                        continue;
-                    }
-                    stack.count += added;
-                    remaining -= added;
-                    moved_total += added;
-                }
-            } else {
-                let available_space = stack_limit.saturating_sub(target_count);
-                if available_space == 0 {
-                    return;
-                }
-
-                let empty_cell_count = (0..CRAFT_GRID_UI_SLOTS)
-                    .filter(|&idx| self.is_valid_active_crafting_cell(idx))
-                    .filter(|&idx| self.crafting_grid[idx].is_none())
-                    .count()
-                    .max(1) as u32;
-                let suggested_count = if target_count > 0 {
-                    source_count
-                } else if existing_same_stack > 0 {
-                    existing_same_stack
-                } else {
-                    source_count.div_ceil(empty_cell_count)
-                };
-                let moving_count = suggested_count
-                    .max(1)
-                    .min(available_space)
-                    .min(source_count);
-                if moving_count == 0 {
-                    return;
-                }
-
-                let target_stack = self.crafting_grid[cell_idx].get_or_insert(ItemStack {
-                    item_type: source_item_type,
-                    count: 0,
-                    durability: None,
-                });
-                target_stack.count += moving_count;
-                moved_total = moving_count;
-            }
-
-            if moved_total == 0 {
-                return;
-            }
-
-            if let Some(source_stack) = self.inventory.slots[source_slot].as_mut() {
-                source_stack.count = source_stack.count.saturating_sub(moved_total);
-                if source_stack.count == 0 {
-                    self.inventory.slots[source_slot] = None;
-                    self.inventory_enchant_levels[source_slot] = 0;
-                    self.selected_inventory_slot = None;
-                }
+        let target = CRAFT_GRID_UI_OFFSET + cell_idx;
+        let Some(source) = self.selected_inventory_slot else {
+            if self.crafting_grid[cell_idx].is_some() {
+                self.selected_inventory_slot = Some(target);
             }
             return;
+        };
+        if source == target {
+            self.selected_inventory_slot = None;
+            return;
         }
-        if let Some(existing_stack) = self.crafting_grid[cell_idx].take() {
-            let overflow = self
-                .inventory
-                .add_item(existing_stack.item_type, existing_stack.count);
-            for _ in 0..overflow {
-                self.spill_single_item_near_player(existing_stack.item_type);
-            }
+        let Some(Some(incoming)) = self.any_slot_item_clone(source) else {
+            self.selected_inventory_slot = None;
+            return;
+        };
+        if incoming.durability.is_some()
+            || Self::can_item_be_enchanted(incoming.item_type)
+            || self.ui_slot_enchant_level(source).unwrap_or(0) > 0
+        {
+            return;
+        }
+        let old = self.crafting_grid[cell_idx].clone();
+        if old
+            .as_ref()
+            .is_none_or(|s| s.item_type == incoming.item_type)
+        {
+            self.transfer_full_stack_between_slots(source, &[target]);
+            self.selected_inventory_slot =
+                self.any_slot_item_clone(source).flatten().map(|_| source);
+        } else if self.can_place_stack_in_ui_slot(source, old.as_ref().unwrap()) {
+            self.set_any_slot_item(source, old);
+            self.set_any_slot_item(target, Some(incoming));
+            self.selected_inventory_slot = None;
         }
     }
 
@@ -13549,13 +13511,23 @@ impl GameState {
 
         let mut resolved_item_indices: Vec<(usize, bool, Option<u16>)> = Vec::new();
         for i in 0..self.item_entities.len() {
-            self.select_nearest_peer(self.item_entities[i].x, self.item_entities[i].y);
+            self.select_item_collector(
+                self.item_entities[i].x,
+                self.item_entities[i].y,
+                self.item_entities[i].item_type,
+            );
             let (ix, iy, ivx, ivy) = {
                 let item = &self.item_entities[i];
                 (item.x, item.y, item.vx, item.vy)
             };
             self.item_entities[i].age = self.item_entities[i].age.saturating_add(1);
-            if self.item_entities[i].age > ITEM_ENTITY_DESPAWN_TICKS {
+            if self.item_entities[i].age > ITEM_ENTITY_DESPAWN_TICKS
+                || matches!(self.world.fluid_at_point(ix, iy), BlockType::Lava(_))
+                || matches!(
+                    self.world.get_block(ix.floor() as i32, iy.floor() as i32),
+                    BlockType::Fire(_)
+                )
+            {
                 resolved_item_indices.push((i, false, self.active_peer));
                 continue;
             }
@@ -13567,11 +13539,14 @@ impl GameState {
             let dy = (self.player.y - 1.0) - iy;
             let dist = (dx * dx + dy * dy).sqrt();
             let (mut f_vx, mut f_vy) = (ivx, next_ivy);
-            if dist < 3.0 && dist > 0.001 {
+            let can_collect = !self.death_screen_active
+                && self.player.health > 0.0
+                && self.inventory.can_accept(self.item_entities[i].item_type);
+            if can_collect && dist < 3.0 && dist > 0.001 {
                 f_vx += (dx / dist) * 0.15;
                 f_vy += (dy / dist) * 0.15;
             }
-            if dist < 0.8 && !self.death_screen_active && self.player.health > 0.0 {
+            if can_collect && dist < 0.8 {
                 resolved_item_indices.push((i, true, self.active_peer));
                 continue;
             }
@@ -13796,6 +13771,23 @@ impl GameState {
         }
         self.player.age += 1;
         let fire_resistant = self.has_fire_resistance();
+        if !fire_resistant
+            && [
+                self.player.y - 0.1,
+                self.player.y - 0.8,
+                self.player.y - 1.5,
+            ]
+            .iter()
+            .any(|y| {
+                matches!(
+                    self.world
+                        .get_block(self.player.x.floor() as i32, y.floor() as i32),
+                    BlockType::Fire(_)
+                )
+            })
+        {
+            self.player.burning_timer = self.player.burning_timer.max(80);
+        }
         if self.potion_strength_timer > 0 {
             self.potion_strength_timer -= 1;
         }
@@ -13899,6 +13891,10 @@ impl GameState {
     }
 
     fn tick_player_actions(&mut self, mouse_target_x: i32, mouse_target_y: i32) {
+        self.world.activate_redstone_ore(
+            self.player.x.floor() as i32,
+            (self.player.y + 0.02).floor() as i32,
+        );
         let (water_submersion, lava_submersion) = self.entity_fluid_submersion(
             self.player.x,
             self.player.y,
@@ -22579,8 +22575,12 @@ mod tests {
         });
 
         state.handle_inventory_click(0);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET + 3);
+        for _ in 0..1 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET);
+        }
+        for _ in 0..1 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET + 3);
+        }
 
         assert_eq!(state.crafting_output_preview(), Some((ItemType::Stick, 4)));
         state.handle_inventory_click(CRAFT_OUTPUT_UI_SLOT);
@@ -22686,8 +22686,12 @@ mod tests {
         });
 
         state.handle_inventory_click(0);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET + 3);
+        for _ in 0..4 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET);
+        }
+        for _ in 0..4 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET + 3);
+        }
 
         assert_eq!(
             state.crafting_grid_slot_stack(0).map(|stack| stack.count),
@@ -22712,52 +22716,27 @@ mod tests {
     }
 
     #[test]
-    fn test_inventory_right_click_returns_single_item_from_stacked_crafting_cell() {
-        let mut state = GameState::new();
-        state.inventory = Inventory::new(PLAYER_INVENTORY_CAPACITY);
-        state.inventory_enchant_levels = [0; PLAYER_INVENTORY_CAPACITY];
+    fn test_inventory_right_click_splits_a_grid_stack_then_merges_it_back() {
+        let mut state = GameState::network_view();
+        state.inventory.slots.fill(None);
         state.inventory_open = true;
-        state.at_crafting_table = false;
-        state.at_furnace = false;
-        state.at_chest = false;
-        state.at_enchanting_table = false;
-        state.at_anvil = false;
         state.inventory.slots[0] = Some(ItemStack {
             item_type: ItemType::Planks,
             count: 8,
             durability: None,
         });
-
         state.handle_inventory_click(0);
         state.handle_inventory_click(CRAFT_GRID_UI_OFFSET);
-        assert_eq!(
-            state.crafting_grid_slot_stack(0).map(|stack| stack.count),
-            Some(2)
-        );
-        assert_eq!(
-            state.inventory.slots[0].as_ref().map(|stack| stack.count),
-            Some(6)
-        );
-
+        assert_eq!(state.crafting_grid_slot_stack(0).unwrap().count, 8);
+        assert!(state.inventory.slots[0].is_none());
+        state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET);
+        assert_eq!(state.crafting_grid_slot_stack(0).unwrap().count, 4);
+        assert_eq!(state.inventory.slots[0].as_ref().unwrap().count, 4);
+        assert_eq!(state.selected_inventory_slot, Some(CRAFT_GRID_UI_OFFSET));
         state.handle_inventory_click(0);
-        assert_eq!(state.selected_inventory_slot, None);
-
-        state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET);
-        assert_eq!(
-            state.crafting_grid_slot_stack(0).map(|stack| stack.count),
-            Some(1)
-        );
-        assert_eq!(
-            state.inventory.slots[0].as_ref().map(|stack| stack.count),
-            Some(7)
-        );
-
-        state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET);
         assert!(state.crafting_grid_slot_stack(0).is_none());
-        assert_eq!(
-            state.inventory.slots[0].as_ref().map(|stack| stack.count),
-            Some(8)
-        );
+        assert_eq!(state.inventory.slots[0].as_ref().unwrap().count, 8);
+        assert!(state.item_entities.is_empty());
     }
 
     #[test]
@@ -22816,8 +22795,12 @@ mod tests {
         });
 
         state.handle_inventory_click(0);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET + 3);
+        for _ in 0..2 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET);
+        }
+        for _ in 0..2 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET + 3);
+        }
         assert_eq!(
             state.crafting_grid_slot_stack(0).map(|stack| stack.count),
             Some(2)
@@ -22861,12 +22844,22 @@ mod tests {
         });
 
         state.handle_inventory_click(0);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET + 1);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET + 2);
+        for _ in 0..1 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET);
+        }
+        for _ in 0..1 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET + 1);
+        }
+        for _ in 0..1 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET + 2);
+        }
         state.handle_inventory_click(1);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET + 4);
-        state.handle_inventory_click(CRAFT_GRID_UI_OFFSET + 7);
+        for _ in 0..1 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET + 4);
+        }
+        for _ in 0..1 {
+            state.handle_inventory_right_click(CRAFT_GRID_UI_OFFSET + 7);
+        }
 
         assert_eq!(
             state.crafting_output_preview(),

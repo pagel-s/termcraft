@@ -67,6 +67,8 @@ jobs:
         run: |
           python scripts/test_terminal_input.py --binary target/${{ matrix.target }}/release/termcraft --report terminal-input-qualification.json
           python scripts/test_terminal_views.py --binary target/${{ matrix.target }}/release/termcraft --report terminal-views-qualification.json
+          cargo +1.88.0 build --locked --example interaction_review
+          python scripts/test_inventory_input.py --binary target/${{ matrix.target }}/release/termcraft --fixture target/debug/examples/interaction_review --report inventory-qualification.json
       - name: Check storage faults and recover into a backup copy (Linux)
         if: runner.os == 'Linux'
         run: python scripts/test_storage_recovery.py --binary target/${{ matrix.target }}/release/termcraft --native-recovery --report storage-qualification.json
@@ -107,3 +109,4 @@ jobs:
           path: |
             terminal-input-qualification.json
             terminal-views-qualification.json
+            inventory-qualification.json

@@ -1,5 +1,6 @@
 mod attachments;
 mod fluids;
+mod heat;
 mod lighting;
 mod ores;
 mod portals;
@@ -1183,6 +1184,9 @@ impl World {
         if self.tick_counter.is_multiple_of(5) {
             self.update_fluids(center_chunk);
         }
+        if self.tick_counter.is_multiple_of(10) {
+            self.update_heat(center_chunk);
+        }
         if self.tick_counter.is_multiple_of(20) {
             self.update_leaf_decay(center_chunk);
             self.update_farming(center_chunk);
@@ -2016,7 +2020,7 @@ impl World {
 
     fn explosion_block_resistance(block: BlockType) -> f32 {
         match block {
-            BlockType::Air => 0.0,
+            BlockType::Air | BlockType::Fire(_) => 0.0,
             BlockType::Bedrock => 1_000_000.0,
             BlockType::Obsidian => 1_200.0,
             BlockType::EndPortalFrame { .. } => 1_200.0,
@@ -2030,6 +2034,7 @@ impl World {
             | BlockType::GoldOre
             | BlockType::DiamondOre
             | BlockType::RedstoneOre
+            | BlockType::LitRedstoneOre(_)
             | BlockType::Cobblestone
             | BlockType::EndStone
             | BlockType::StoneSlab

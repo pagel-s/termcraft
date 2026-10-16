@@ -44,10 +44,22 @@ struct ChunkActivityCounts {
     leaf_blocks: u16,
     farming_blocks: u16,
     redstone_blocks: u16,
+    heat_blocks: u16,
+    timed_heat_blocks: u16,
+    flammable_blocks: u16,
 }
 
 impl ChunkActivityCounts {
     fn add_block(&mut self, block: BlockType) {
+        if block.is_flammable() {
+            self.flammable_blocks += 1;
+        }
+        if matches!(block, BlockType::Fire(_) | BlockType::LitRedstoneOre(_)) {
+            self.timed_heat_blocks += 1;
+        }
+        if block.has_heat_tick() {
+            self.heat_blocks += 1;
+        }
         if block.is_fluid() {
             self.fluid_blocks = self.fluid_blocks.saturating_add(1);
         }
@@ -66,6 +78,15 @@ impl ChunkActivityCounts {
     }
 
     fn remove_block(&mut self, block: BlockType) {
+        if block.is_flammable() {
+            self.flammable_blocks = self.flammable_blocks.saturating_sub(1);
+        }
+        if matches!(block, BlockType::Fire(_) | BlockType::LitRedstoneOre(_)) {
+            self.timed_heat_blocks = self.timed_heat_blocks.saturating_sub(1);
+        }
+        if block.has_heat_tick() {
+            self.heat_blocks = self.heat_blocks.saturating_sub(1);
+        }
         if block.is_fluid() {
             self.fluid_blocks = self.fluid_blocks.saturating_sub(1);
         }
@@ -271,6 +292,17 @@ impl Chunk {
 
     pub fn has_fluids(&self) -> bool {
         self.activity_counts.fluid_blocks > 0
+    }
+
+    pub(crate) fn has_heat_blocks(&self) -> bool {
+        self.activity_counts.heat_blocks > 0
+    }
+
+    pub(crate) fn has_timed_heat(&self) -> bool {
+        self.activity_counts.timed_heat_blocks > 0
+    }
+    pub(crate) fn has_flammable_blocks(&self) -> bool {
+        self.activity_counts.flammable_blocks > 0
     }
 
     pub fn has_falling_blocks(&self) -> bool {

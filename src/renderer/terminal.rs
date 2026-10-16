@@ -2,6 +2,8 @@ use crate::engine::state::{
     ARMOR_UI_OFFSET, CRAFT_GRID_UI_OFFSET, CRAFT_OUTPUT_UI_SLOT, GameState, PrecipitationType,
 };
 use crate::world::Dimension;
+#[path = "inventory.rs"]
+mod inventory;
 #[path = "items.rs"]
 mod items;
 #[path = "materials.rs"]
@@ -73,6 +75,8 @@ pub struct Renderer {
     pixel_colors: bool,
     dragon_art_preview: Option<bool>,
     actor_sprites: Vec<ActorSprite>,
+    recipe_book_open: bool,
+    recipe_scroll: usize,
     motion: motion::MotionHistory,
     player_preview: Option<Box<motion::PlayerPreview>>,
     frame_seconds: f64,
@@ -117,6 +121,8 @@ impl Renderer {
             pixel_colors: true,
             dragon_art_preview: None,
             actor_sprites: Vec::new(),
+            recipe_book_open: cols >= 100,
+            recipe_scroll: 0,
             motion: motion::MotionHistory::default(),
             player_preview: None,
             frame_seconds: 1.0 / 60.0,
@@ -843,6 +849,8 @@ impl Renderer {
             BlockType::DiamondOre => textured('▓', (72, 240, 240), (88, 98, 104)),
             BlockType::CoalOre => textured('▓', (64, 64, 70), (98, 98, 104)),
             BlockType::RedstoneOre => textured('▓', (188, 56, 56), (92, 92, 98)),
+            BlockType::LitRedstoneOre(_) => textured('▓', (255, 88, 58), (112, 77, 76)),
+            BlockType::Fire(_) => ('♨', Self::rgb((255, 174, 48)), Color::Reset),
             BlockType::Sand => textured('▒', (240, 230, 150), (188, 166, 96)),
             BlockType::Gravel => textured('▒', (132, 132, 138), (82, 82, 88)),
             BlockType::Bedrock => textured('▓', (44, 44, 48), (18, 18, 20)),
@@ -1021,6 +1029,7 @@ impl Renderer {
         !matches!(
             block,
             BlockType::Air
+                | BlockType::Fire(_)
                 | BlockType::Leaves
                 | BlockType::BirchLeaves
                 | BlockType::Glass
@@ -3483,7 +3492,15 @@ impl Renderer {
             .unwrap_or(Color::DarkGrey);
         let detail_w = (self.width as i32 - 2).max(0) as usize;
         if detail_w > 0 {
-            let mut detail = detail_line;
+            let blocked = state.item_entities.iter().any(|item| {
+                (item.x - state.player.x).hypot(item.y - (state.player.y - 1.0)) < 3.0
+                    && !state.inventory.can_accept(item.item_type)
+            });
+            let mut detail = if blocked {
+                format!("BAG FULL · E: manage | {detail_line}")
+            } else {
+                detail_line
+            };
             if detail.len() > detail_w {
                 detail.truncate(detail_w);
             }
@@ -3511,17 +3528,29 @@ impl Renderer {
             }
         }
         let mut h_str = String::new();
-        for _ in 0..(state.player.health / 2.0).floor() as i32 {
+        let health = state
+            .player
+            .health
+            .clamp(0.0, state.player.max_health)
+            .ceil() as i32;
+        for _ in 0..health / 2 {
             h_str.push('♥');
         }
-        if state.player.health % 2.0 >= 1.0 {
+        if health % 2 == 1 {
             h_str.push('♡');
         }
         let mut n_str = String::new();
-        for _ in 0..(state.player.hunger / 2.0).floor() as i32 {
+        // Hunger drains fractionally. A tiny drain after eating must not render
+        // as half a missing icon (or hide the final fraction altogether).
+        let hunger = state
+            .player
+            .hunger
+            .clamp(0.0, state.player.max_hunger)
+            .ceil() as i32;
+        for _ in 0..hunger / 2 {
             n_str.push('#');
         }
-        if state.player.hunger % 2.0 >= 1.0 {
+        if hunger % 2 == 1 {
             n_str.push('+');
         }
         self.put_str(
@@ -3799,7 +3828,8 @@ impl Renderer {
                     BlockType::GoldOre => "Gold Ore",
                     BlockType::DiamondOre => "Diamond Ore",
                     BlockType::CoalOre => "Coal Ore",
-                    BlockType::RedstoneOre => "Redst. Ore",
+                    BlockType::RedstoneOre | BlockType::LitRedstoneOre(_) => "Redst. Ore",
+                    BlockType::Fire(_) => "Fire",
                     BlockType::Sand => "Sand",
                     BlockType::Gravel => "Gravel",
                     BlockType::Bedrock => "Bedrock",
@@ -5113,28 +5143,53 @@ impl Renderer {
         width: usize,
         bg: Color,
     ) {
-        let (fg, mut line) = if let Some(stack) = state.selected_inventory_preview_item() {
-            let item_name = stack.item_type.name();
-            let stack_count = stack.count;
-            (Color::Cyan, format!("Selected: {item_name} x{stack_count}"))
-        } else {
-            (
-                Color::DarkGrey,
-                "Selected: none. Click a slot to inspect it.".to_string(),
+        let hovered = self
+            .get_inventory_click(state, state.mouse_x, state.mouse_y)
+            .and_then(|slot| state.inventory_ui_slot_preview_item(slot));
+        let selected = state.selected_inventory_preview_item();
+        let moving = selected.is_some();
+        let line = if let Some(stack) = selected.or_else(|| hovered.clone()) {
+            format!(
+                "{}: {} x{}",
+                if moving { "Moving" } else { "Item" },
+                stack.item_type.name(),
+                stack.count
             )
+        } else {
+            "Hover an item for its name · Click to move".into()
         };
-        if line.len() > width {
-            line.truncate(width);
+        let line = line.chars().take(width).collect::<String>();
+        self.put_str(
+            x,
+            y,
+            &format!("{line:<width$}"),
+            if moving {
+                Self::rgb((139, 211, 221))
+            } else {
+                Self::rgb((170, 188, 199))
+            },
+            bg,
+        );
+        if moving && let Some(stack) = hovered {
+            let line = format!("Over: {} x{}", stack.item_type.name(), stack.count)
+                .chars()
+                .take(width)
+                .collect::<String>();
+            self.put_str(x, y + 1, &line, Self::rgb((170, 188, 199)), bg);
         }
-        self.put_str(x, y, &format!("{line:<width$}"), fg, bg);
     }
 
     fn draw_inventory_overlay(&mut self, state: &GameState) {
         let box_w = 60;
         let box_h = 24;
-        let box_x = (self.width as i32 - box_w) / 2;
+        let (box_x, _) = self.inventory_origin(state);
         let box_y = (self.height as i32 - box_h) / 2;
-        let bg = Color::AnsiValue(235);
+        if self.compact_recipe_book(state) {
+            self.draw_recipe_book(state);
+            return;
+        }
+        self.draw_recipe_book(state);
+        let bg = Self::rgb((31, 39, 49));
         const CHEST_UI_OFFSET: usize = 27;
 
         for y in 0..box_h {
@@ -5158,10 +5213,37 @@ impl Renderer {
         } else {
             "INVENTORY & CRAFTING (2x2)"
         };
-        self.put_str(box_x + 2, box_y + 1, title, Color::Yellow, bg);
+        self.put_str(box_x + 2, box_y + 1, title, Self::rgb((237, 201, 121)), bg);
+        let used = state.inventory.slots.iter().flatten().count();
+        self.put_str(
+            box_x + 2,
+            box_y + 2,
+            &format!("Bag {used}/27 · Hotbar 1-9 · Tab: recipes"),
+            if used == 27 {
+                Self::rgb((237, 201, 121))
+            } else {
+                Self::rgb((150, 166, 178))
+            },
+            bg,
+        );
+        for col in 0..9 {
+            self.put_str(
+                box_x + 4 + col * 6,
+                box_y + if state.at_chest { 16 } else { 7 },
+                &(col + 1).to_string(),
+                Self::rgb((150, 166, 178)),
+                bg,
+            );
+        }
 
         if state.at_chest {
-            self.put_str(box_x + 2, box_y + 3, "CHEST SLOTS", Color::Yellow, bg);
+            self.put_str(
+                box_x + 2,
+                box_y + 3,
+                "CHEST SLOTS",
+                Self::rgb((237, 201, 121)),
+                bg,
+            );
             for i in 0..27 {
                 let row = i / 9;
                 let col = i % 9;
@@ -5175,23 +5257,34 @@ impl Renderer {
                 } else {
                     Color::White
                 };
+                self.put_str(sx, sy + 1, "      ", bracket_fg, slot_bg);
                 self.put_str(sx, sy, "[    ]", bracket_fg, slot_bg);
                 if let Some(stack) = state.chest_slot_item(i) {
                     self.draw_inventory_stack(sx, sy, stack, is_selected, slot_bg);
                 }
             }
-            self.put_str(box_x + 2, box_y + 11, "PLAYER INVENTORY", Color::Yellow, bg);
+            self.put_str(
+                box_x + 2,
+                box_y + 11,
+                "PLAYER INVENTORY",
+                Self::rgb((237, 201, 121)),
+                bg,
+            );
             for i in 0..27 {
-                let row = i / 9;
                 let col = i % 9;
                 let sx = box_x + 2 + (col as i32 * 6);
-                let sy = box_y + 12 + (row as i32 * 2);
+                let sy = box_y
+                    + if i < 9 {
+                        17
+                    } else {
+                        12 + ((i - 9) / 9) as i32 * 2
+                    };
                 let ui_slot = CHEST_UI_OFFSET + i;
                 let is_selected = state.selected_inventory_slot == Some(ui_slot);
                 let slot_bg = if is_selected {
                     Color::Cyan
                 } else if i < 9 && state.hotbar_index == i as u8 {
-                    Color::AnsiValue(238)
+                    Self::rgb((47, 62, 75))
                 } else {
                     bg
                 };
@@ -5200,6 +5293,7 @@ impl Renderer {
                 } else {
                     Color::White
                 };
+                self.put_str(sx, sy + 1, "      ", bracket_fg, slot_bg);
                 self.put_str(sx, sy, "[    ]", bracket_fg, slot_bg);
                 if let Some(stack) = &state.inventory.slots[i] {
                     self.draw_inventory_stack(sx, sy, stack, is_selected, slot_bg);
@@ -5208,7 +5302,7 @@ impl Renderer {
             self.put_str(
                 box_x + 2,
                 box_y + 20,
-                "L-click swap. Shift+L quick-move. R-click split/place 1.",
+                "Click moves/merges. Shift-click: move. R-click: split/one.",
                 Self::rgb((172, 185, 195)),
                 bg,
             );
@@ -5217,16 +5311,20 @@ impl Renderer {
         }
 
         for i in 0..27 {
-            let row = i / 9;
             let col = i % 9;
             let sx = box_x + 2 + (col as i32 * 6);
-            let sy = box_y + 3 + (row as i32 * 2);
+            let sy = box_y
+                + if i < 9 {
+                    8
+                } else {
+                    3 + ((i - 9) / 9) as i32 * 2
+                };
 
             let is_selected = state.selected_inventory_slot == Some(i);
             let slot_bg = if is_selected {
                 Color::Cyan
             } else if i < 9 && state.hotbar_index == i as u8 {
-                Color::AnsiValue(238)
+                Self::rgb((47, 62, 75))
             } else {
                 bg
             };
@@ -5236,6 +5334,7 @@ impl Renderer {
                 Color::White
             };
 
+            self.put_str(sx, sy + 1, "      ", bracket_fg, slot_bg);
             self.put_str(sx, sy, "[    ]", bracket_fg, slot_bg);
             if let Some(stack) = &state.inventory.slots[i] {
                 self.draw_inventory_stack(sx, sy, stack, is_selected, slot_bg);
@@ -5245,7 +5344,13 @@ impl Renderer {
         if state.has_personal_armor_ui() {
             const ARMOR_SLOT_LABELS: [&str; 4] = ["H", "C", "L", "B"];
 
-            self.put_str(box_x + 2, box_y + 10, "ARMOR", Color::Yellow, bg);
+            self.put_str(
+                box_x + 2,
+                box_y + 10,
+                "ARMOR",
+                Self::rgb((237, 201, 121)),
+                bg,
+            );
             for (armor_slot_idx, slot_label) in ARMOR_SLOT_LABELS.iter().enumerate() {
                 let sx = box_x + 2;
                 let sy = box_y + 11 + (armor_slot_idx as i32 * 2);
@@ -5257,7 +5362,7 @@ impl Renderer {
                 } else {
                     Color::White
                 };
-                self.put_str(sx, sy, slot_label, Color::DarkGrey, bg);
+                self.put_str(sx, sy, slot_label, Self::rgb((150, 166, 178)), bg);
                 self.put_str(sx + 2, sy, "[    ]", bracket_fg, slot_bg);
                 if let Some(stack) = state.armor_slot_item(armor_slot_idx) {
                     self.draw_inventory_stack(sx + 2, sy, stack, is_selected, slot_bg);
@@ -5270,7 +5375,7 @@ impl Renderer {
                 box_x + 2,
                 box_y + 10,
                 "ENCHANT OPTIONS (CLICK TO APPLY)",
-                Color::Yellow,
+                Self::rgb((237, 201, 121)),
                 bg,
             );
             self.put_str(
@@ -5285,7 +5390,7 @@ impl Renderer {
                 let fg = if state.can_apply_enchant_option(option_idx) {
                     Color::Green
                 } else {
-                    Color::DarkGrey
+                    Self::rgb((150, 166, 178))
                 };
                 let desc = match option_idx {
                     0 => "Minor Enchant + Repair",
@@ -5302,7 +5407,13 @@ impl Renderer {
                 );
             }
         } else if state.at_anvil {
-            self.put_str(box_x + 2, box_y + 10, "ANVIL ACTIONS", Color::Yellow, bg);
+            self.put_str(
+                box_x + 2,
+                box_y + 10,
+                "ANVIL ACTIONS",
+                Self::rgb((237, 201, 121)),
+                bg,
+            );
             self.put_str(
                 box_x + 2,
                 box_y + 11,
@@ -5313,7 +5424,7 @@ impl Renderer {
             let fg = if state.can_apply_anvil_combine() {
                 Color::Green
             } else {
-                Color::DarkGrey
+                Self::rgb((150, 166, 178))
             };
             self.put_str(
                 box_x + 2,
@@ -5323,7 +5434,13 @@ impl Renderer {
                 bg,
             );
         } else if state.at_brewing_stand {
-            self.put_str(box_x + 2, box_y + 10, "BREWING OPTIONS", Color::Yellow, bg);
+            self.put_str(
+                box_x + 2,
+                box_y + 10,
+                "BREWING OPTIONS",
+                Self::rgb((237, 201, 121)),
+                bg,
+            );
             self.put_str(
                 box_x + 2,
                 box_y + 11,
@@ -5335,7 +5452,7 @@ impl Renderer {
                 let fg = if state.can_apply_brew_option(option_idx) {
                     Color::Green
                 } else {
-                    Color::DarkGrey
+                    Self::rgb((150, 166, 178))
                 };
                 let desc = match option_idx {
                     0 => "Water Bottle + Nether Wart -> Awkward Potion",
@@ -5358,7 +5475,7 @@ impl Renderer {
                 box_x + 2,
                 box_y + 10,
                 "AVAILABLE SMELTS (CLICK TO START)",
-                Color::Yellow,
+                Self::rgb((237, 201, 121)),
                 bg,
             );
             self.put_str(
@@ -5381,7 +5498,7 @@ impl Renderer {
                 let fg = if can_craft {
                     Color::Green
                 } else {
-                    Color::DarkGrey
+                    Self::rgb((150, 166, 178))
                 };
                 let mut ing_str = String::new();
                 for (ing, amt) in r.ingredient_requirements() {
@@ -5416,7 +5533,13 @@ impl Renderer {
             } else {
                 box_x + 2
             };
-            self.put_str(craft_info_x, box_y + 10, "CRAFTING GRID", Color::Yellow, bg);
+            self.put_str(
+                craft_info_x,
+                box_y + 10,
+                "CRAFTING GRID",
+                Self::rgb((237, 201, 121)),
+                bg,
+            );
             self.put_str(
                 craft_info_x,
                 box_y + 18,
@@ -5441,6 +5564,7 @@ impl Renderer {
                     } else {
                         Color::White
                     };
+                    self.put_str(sx, sy + 1, "      ", bracket_fg, slot_bg);
                     self.put_str(sx, sy, "[    ]", bracket_fg, slot_bg);
                     if let Some(stack) = state.crafting_grid_slot_stack(cell_idx) {
                         self.draw_inventory_stack(sx, sy, stack, is_selected, slot_bg);
@@ -5450,14 +5574,17 @@ impl Renderer {
 
             let output_x = grid_x + (grid_size as i32 * 6) + 6;
             let output_y = grid_y + 2;
-            self.put_str(output_x - 4, output_y, "=>", Color::Yellow, bg);
+            self.put_str(output_x - 4, output_y, "=>", Self::rgb((237, 201, 121)), bg);
             let output_selected = state.selected_inventory_slot == Some(CRAFT_OUTPUT_UI_SLOT);
             let output_bg = if output_selected { Color::Cyan } else { bg };
-            let output_fg = if output_selected {
-                Color::Black
-            } else {
-                Color::White
-            };
+            let output_fg =
+                if state.crafting_output_preview().is_some() && !state.can_take_crafting_output() {
+                    Color::Red
+                } else if output_selected {
+                    Color::Black
+                } else {
+                    Color::White
+                };
             self.put_str(output_x, output_y, "[    ]", output_fg, output_bg);
             if let Some((result, count)) = state.crafting_output_preview() {
                 self.draw_inventory_stack(
@@ -5478,7 +5605,7 @@ impl Renderer {
                 if state.world.is_replica() {
                     "L-click swap. R-click split. Shift+L quick-move."
                 } else {
-                    "L-click swap. L/R-drag spread 1. Shift+L output crafts max."
+                    "Click: move/merge | Right: split/one | Shift: transfer"
                 },
                 Self::rgb((172, 185, 195)),
                 bg,
@@ -5486,7 +5613,7 @@ impl Renderer {
             self.put_str(
                 box_x + 2,
                 box_y + 21,
-                "Enter craft 1, Shift+Enter max, Del clears grid.",
+                "Enter: craft | Shift+Enter: max | Del: return grid",
                 Self::rgb((172, 185, 195)),
                 bg,
             );
@@ -5500,75 +5627,16 @@ impl Renderer {
         screen_x: u16,
         screen_y: u16,
     ) -> Option<usize> {
-        let box_w = 60;
-        let box_h = 24;
-        let box_x = (self.width as i32 - box_w) / 2;
-        let box_y = (self.height as i32 - box_h) / 2;
-        if (screen_x as i32) < box_x
-            || (screen_x as i32) >= box_x + box_w
-            || (screen_y as i32) < box_y
-            || (screen_y as i32) >= box_y + box_h
-        {
+        if self.compact_recipe_book(state) {
             return None;
         }
-        let rel_x = screen_x as i32 - box_x;
-        let rel_y = screen_y as i32 - box_y;
-        if state.at_chest {
-            if (4..10).contains(&rel_y) {
-                let row = (rel_y - 4) / 2;
-                let col = (rel_x - 2) / 6;
-                if (0..9).contains(&col) {
-                    return Some((row * 9 + col) as usize);
-                }
-            }
-            if (12..18).contains(&rel_y) {
-                let row = (rel_y - 12) / 2;
-                let col = (rel_x - 2) / 6;
-                if (0..9).contains(&col) {
-                    return Some(27 + (row * 9 + col) as usize);
-                }
-            }
-            return None;
-        }
-        if (3..9).contains(&rel_y) {
-            let row = (rel_y - 3) / 2;
-            let col = (rel_x - 2) / 6;
-            if (0..9).contains(&col) {
-                return Some((row * 9 + col) as usize);
-            }
-        }
-        if state.has_personal_armor_ui() && (11..19).contains(&rel_y) {
-            let row = (rel_y - 11) / 2;
-            let col = rel_x - 4;
-            if (0..4).contains(&row) && (0..6).contains(&col) {
-                return Some(ARMOR_UI_OFFSET + row as usize);
-            }
-        }
-        if !state.at_furnace
-            && !state.at_enchanting_table
-            && !state.at_anvil
-            && !state.at_brewing_stand
-        {
-            let grid_size = if state.at_crafting_table { 3 } else { 2 };
-            let grid_rel_x = rel_x - 30;
-            let grid_rel_y = rel_y - 11;
-            if grid_rel_x >= 0 && grid_rel_y >= 0 {
-                let col = grid_rel_x / 6;
-                let row = grid_rel_y / 2;
-                if (0..grid_size).contains(&(col as usize))
-                    && (0..grid_size).contains(&(row as usize))
-                {
-                    let cell_idx = (row as usize) * 3 + (col as usize);
-                    return Some(CRAFT_GRID_UI_OFFSET + cell_idx);
-                }
-            }
-            let output_rel_x = rel_x - (30 + (grid_size as i32 * 6) + 6);
-            let output_rel_y = rel_y - (11 + 2);
-            if (0..6).contains(&output_rel_x) && output_rel_y == 0 {
-                return Some(CRAFT_OUTPUT_UI_SLOT);
-            }
-        }
-        None
+        (0..=CRAFT_OUTPUT_UI_SLOT.max(54)).find(|&slot| {
+            self.inventory_slot_position(state, slot)
+                .is_some_and(|(x, y)| {
+                    (x..x + 6).contains(&(screen_x as i32))
+                        && (y..y + 2).contains(&(screen_y as i32))
+                })
+        })
     }
 
     pub fn get_recipe_click(
@@ -5577,6 +5645,12 @@ impl Renderer {
         screen_x: u16,
         screen_y: u16,
     ) -> Option<usize> {
+        if let Some(index) = self.recipe_book_click(state, screen_x, screen_y) {
+            return Some(index);
+        }
+        if self.compact_recipe_book(state) {
+            return None;
+        }
         if state.at_chest
             || state.at_enchanting_table
             || state.at_anvil
@@ -5585,9 +5659,8 @@ impl Renderer {
         {
             return None;
         }
-        let box_w = 60;
         let box_h = 24;
-        let box_x = (self.width as i32 - box_w) / 2;
+        let (box_x, _) = self.inventory_origin(state);
         let box_y = (self.height as i32 - box_h) / 2;
         let rel_x = screen_x as i32 - box_x;
         let rel_y = screen_y as i32 - box_y;
@@ -5618,9 +5691,8 @@ impl Renderer {
         if !state.at_enchanting_table {
             return None;
         }
-        let box_w = 60;
         let box_h = 24;
-        let box_x = (self.width as i32 - box_w) / 2;
+        let (box_x, _) = self.inventory_origin(state);
         let box_y = (self.height as i32 - box_h) / 2;
         let rel_x = screen_x as i32 - box_x;
         let rel_y = screen_y as i32 - box_y;
@@ -5637,9 +5709,8 @@ impl Renderer {
         if !state.at_anvil {
             return false;
         }
-        let box_w = 60;
         let box_h = 24;
-        let box_x = (self.width as i32 - box_w) / 2;
+        let (box_x, _) = self.inventory_origin(state);
         let box_y = (self.height as i32 - box_h) / 2;
         let rel_x = screen_x as i32 - box_x;
         let rel_y = screen_y as i32 - box_y;
@@ -5655,9 +5726,8 @@ impl Renderer {
         if !state.at_brewing_stand {
             return None;
         }
-        let box_w = 60;
         let box_h = 24;
-        let box_x = (self.width as i32 - box_w) / 2;
+        let (box_x, _) = self.inventory_origin(state);
         let box_y = (self.height as i32 - box_h) / 2;
         let rel_x = screen_x as i32 - box_x;
         let rel_y = screen_y as i32 - box_y;
@@ -5674,6 +5744,35 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bag_recipe_and_grid_picking_matches_the_visible_controls_in_both_sizes() {
+        let mut state = GameState::network_view();
+        state.inventory_open = true;
+        state.inventory.slots.fill(None);
+        state.inventory.slots[0] = Some(ItemStack {
+            item_type: ItemType::Wood,
+            count: 2,
+            durability: None,
+        });
+        let mut wide = Renderer::with_size(120, 40);
+        wide.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        assert_eq!(wide.get_recipe_click(&state, 15, 12), Some(0));
+        assert_eq!(wide.get_inventory_click(&state, 15, 12), None);
+        let recipe = wide.get_recipe_click(&state, 15, 12).unwrap();
+        state.attempt_craft(recipe);
+        assert!(state.inventory.has_item(ItemType::Planks, 4));
+        let mut compact = Renderer::with_size(80, 24);
+        compact.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        assert_eq!(compact.get_inventory_click(&state, 13, 8), Some(0));
+        assert_eq!(compact.get_inventory_click(&state, 13, 3), Some(9));
+        assert_eq!(compact.get_inventory_click(&state, 10, 3), None);
+        assert_eq!(compact.get_inventory_click(&state, 13, 7), None);
+        compact.toggle_recipe_book();
+        compact.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        assert_eq!(compact.get_inventory_click(&state, 13, 8), None);
+        assert_eq!(compact.get_recipe_click(&state, 13, 4), Some(0));
+    }
 
     #[test]
     fn default_view_has_context_and_cycles_wide_then_detailed() {
@@ -6585,6 +6684,8 @@ mod tests {
             pixel_colors: true,
             dragon_art_preview: None,
             actor_sprites: Vec::new(),
+            recipe_book_open: false,
+            recipe_scroll: 0,
             motion: motion::MotionHistory::default(),
             player_preview: None,
             frame_seconds: 1.0 / 60.0,
@@ -6650,6 +6751,8 @@ mod tests {
             pixel_colors: true,
             dragon_art_preview: None,
             actor_sprites: Vec::new(),
+            recipe_book_open: false,
+            recipe_scroll: 0,
             motion: motion::MotionHistory::default(),
             player_preview: None,
             frame_seconds: 1.0 / 60.0,
@@ -6700,6 +6803,8 @@ mod tests {
             pixel_colors: true,
             dragon_art_preview: None,
             actor_sprites: Vec::new(),
+            recipe_book_open: false,
+            recipe_scroll: 0,
             motion: motion::MotionHistory::default(),
             player_preview: None,
             frame_seconds: 1.0 / 60.0,
@@ -6750,6 +6855,8 @@ mod tests {
             pixel_colors: true,
             dragon_art_preview: None,
             actor_sprites: Vec::new(),
+            recipe_book_open: false,
+            recipe_scroll: 0,
             motion: motion::MotionHistory::default(),
             player_preview: None,
             frame_seconds: 1.0 / 60.0,
@@ -6797,6 +6904,8 @@ mod tests {
             pixel_colors: true,
             dragon_art_preview: None,
             actor_sprites: Vec::new(),
+            recipe_book_open: false,
+            recipe_scroll: 0,
             motion: motion::MotionHistory::default(),
             player_preview: None,
             frame_seconds: 1.0 / 60.0,
@@ -6844,6 +6953,8 @@ mod tests {
             pixel_colors: true,
             dragon_art_preview: None,
             actor_sprites: Vec::new(),
+            recipe_book_open: false,
+            recipe_scroll: 0,
             motion: motion::MotionHistory::default(),
             player_preview: None,
             frame_seconds: 1.0 / 60.0,
@@ -6895,6 +7006,8 @@ mod tests {
             pixel_colors: true,
             dragon_art_preview: None,
             actor_sprites: Vec::new(),
+            recipe_book_open: false,
+            recipe_scroll: 0,
             motion: motion::MotionHistory::default(),
             player_preview: None,
             frame_seconds: 1.0 / 60.0,

@@ -80,6 +80,73 @@ fn populate(s: &mut GameState) {
 }
 
 #[test]
+fn persistence_fire_and_ore_timers_resume_from_saved_chunk_activity() {
+    let (_fixture, mut s) = fixture();
+    let root = s.world.save_root().to_path_buf();
+    s.world.set_block(3, 63, BlockType::LitRedstoneOre(6));
+    s.world.set_block(6, 63, BlockType::Fire(6));
+    s.world.set_block(6, 64, BlockType::Planks);
+    s.try_persist_world_and_progress().unwrap();
+    drop(s);
+    let mut s = GameState::open_in_directory(&root).unwrap();
+    assert_eq!(s.world.get_block(3, 63), BlockType::LitRedstoneOre(6));
+    assert_eq!(s.world.get_block(6, 63), BlockType::Fire(6));
+    for _ in 0..10 {
+        s.world.update(0);
+    }
+    assert_eq!(s.world.get_block(3, 63), BlockType::LitRedstoneOre(5));
+    assert_eq!(s.world.get_block(6, 63), BlockType::Fire(5));
+}
+
+#[test]
+fn persistence_completed_furnace_waits_for_bag_space_without_losing_output_or_fuel() {
+    let (_fixture, mut s) = fixture();
+    let root = s.world.save_root().to_path_buf();
+    let stone = Some(ItemStack {
+        item_type: ItemType::Stone,
+        count: 64,
+        durability: None,
+    });
+    s.inventory.slots.fill(stone.clone());
+    s.inventory.slots[0] = Some(ItemStack {
+        item_type: ItemType::RawIron,
+        count: 1,
+        durability: None,
+    });
+    s.inventory.slots[1] = Some(ItemStack {
+        item_type: ItemType::Coal,
+        count: 1,
+        durability: None,
+    });
+    let job = GameState::furnace_job_for_input_item(ItemType::RawIron).unwrap();
+    assert!(s.start_furnace_job(job));
+    s.inventory.slots[0] = stone.clone();
+    s.inventory.slots[1] = stone;
+    for _ in 0..FURNACE_COOK_TICKS {
+        s.update_furnace();
+    }
+    let fuel = s.furnace_burn_ticks;
+    for _ in 0..50 {
+        s.update_furnace();
+    }
+    assert_eq!(s.furnace_burn_ticks, fuel);
+    assert_eq!(s.furnace_progress_ticks, FURNACE_COOK_TICKS);
+    assert!(!s.inventory.has_item(ItemType::IronIngot, 1));
+    assert!(s.item_entities.is_empty());
+    s.try_persist_world_and_progress().unwrap();
+    drop(s);
+    let mut s = GameState::open_in_directory(&root).unwrap();
+    s.inventory.slots[26] = None;
+    s.update_furnace();
+    assert!(s.inventory.has_item(ItemType::IronIngot, 1));
+    assert!(s.furnace_job.is_none());
+    s.try_persist_world_and_progress().unwrap();
+    drop(s);
+    let s = GameState::open_in_directory(&root).unwrap();
+    assert!(!s.inventory.has_item(ItemType::IronIngot, 2));
+}
+
+#[test]
 fn persistence_failed_checkpoint_restores_chest_player_and_build_together() {
     let (_fixture, mut s) = fixture();
     let root = s.world.save_root().to_path_buf();

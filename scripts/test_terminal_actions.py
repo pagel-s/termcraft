@@ -16,20 +16,20 @@ import subprocess
 import tempfile
 from PIL import ImageChops
 from capture_terminal_art import raster
-from test_terminal_input import TerminalGame, make_flat_world
+from test_terminal_input import TerminalGame
 
 
 def check(binary, fixture, root, mode):
     save = root / mode / 'saves'
     save.parent.mkdir(parents=True)
     address = None
+    with socket.socket() as listener:
+        listener.bind(('127.0.0.1', 0))
+        fixture_address = '127.0.0.1:' + str(listener.getsockname()[1])
+    # Both modes start hungry. Eating while visibly full should spend no food.
+    subprocess.run([str(fixture), '--pty-fixture', str(save), fixture_address], check=True)
     if mode == 'coop':
-        with socket.socket() as listener:
-            listener.bind(('127.0.0.1', 0))
-            address = '127.0.0.1:' + str(listener.getsockname()[1])
-        subprocess.run([str(fixture), '--pty-fixture', str(save), address], check=True)
-    else:
-        make_flat_world(binary, save)
+        address = fixture_address
     game = TerminalGame(binary, save, root / mode / 'captures', 'terminal-input', address)
     try:
         if mode == 'native':
@@ -73,6 +73,7 @@ def check(binary, fixture, root, mode):
         game.send(b'\x1b[<2;5;5m')
         game.capture('eating-away-from-terrain')
         assert 'Held: Cooked Beef x31' in game.screen.text(), (mode, 'food was not consumed')
+        assert re.search(r'Food\s+##########', game.screen.text()), (mode, 'food bar lost its final half immediately after eating')
         return dict(mode=mode, views=['overview', 'wide', 'detail'], bow_pose_changed=True,
                     arrows_after_shots=arrow_counts, distant_food_use=True,
                     captures=str(game.artifacts), **game.finish())

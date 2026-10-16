@@ -42,6 +42,48 @@ pub(super) fn fixture() -> (Fixture, ServerSimulation) {
     sim.state.activate_peer(1);
     (Fixture(root), sim)
 }
+
+#[test]
+fn a_full_nearby_player_does_not_block_a_friend_from_collecting_drops() {
+    let (_fixture, mut sim) = fixture();
+    sim.state.activate_peer(1);
+    sim.state
+        .inventory
+        .slots
+        .fill(Some(crate::world::item::ItemStack {
+            item_type: ItemType::Stone,
+            count: 64,
+            durability: None,
+        }));
+    sim.state.activate_peer(2);
+    sim.state.inventory.slots.fill(None);
+    sim.state.player.x = 1.5;
+    sim.state
+        .item_entities
+        .push(crate::entities::item_entity::ItemEntity::new(
+            0.6,
+            79.0,
+            ItemType::Diamond,
+        ));
+    for _ in 0..30 {
+        sim.step(0, 0);
+    }
+    assert!(
+        !sim.snapshot_for_client(1)
+            .unwrap()
+            .session
+            .inventory()
+            .has_item(ItemType::Diamond, 1)
+    );
+    assert!(
+        sim.snapshot_for_client(2)
+            .unwrap()
+            .session
+            .inventory()
+            .has_item(ItemType::Diamond, 1)
+    );
+    assert!(sim.state.item_entities.is_empty());
+}
 pub(super) fn command(sim: &mut ServerSimulation, id: u16, cmd: ClientCommand) {
     let sequence = sim
         .last_applied_sequence_by_client

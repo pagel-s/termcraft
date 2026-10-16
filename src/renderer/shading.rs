@@ -50,6 +50,8 @@ impl SceneLighting {
                     BlockType::Torch | BlockType::Glowstone => result.warm[i] = 15,
                     BlockType::Lava(_) => result.ember[i] = 15,
                     BlockType::RedstoneTorch(true) => result.ember[i] = 11,
+                    BlockType::LitRedstoneOre(_) => result.ember[i] = 10,
+                    BlockType::Fire(_) => result.ember[i] = 14,
                     BlockType::PrimedTnt(_) => result.ember[i] = 13,
                     BlockType::NetherPortal => result.arcane[i] = 11,
                     BlockType::EndPortal => result.arcane[i] = 10,
