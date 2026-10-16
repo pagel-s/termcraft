@@ -1429,7 +1429,7 @@ impl Renderer {
         let (vx, vy, cx, cy, scale) = self.world_view.unwrap();
         let wx = (x + vx - cx) as f64 / f64::from(2 * scale);
         let wy = (y + vy * 2 + self.vertical_pixel_offset - cy * 2) as f64 / f64::from(2 * scale);
-        let color = lighting.map_or(color, |light| light.shade(color, wx, wy, 0.94, false));
+        let color = lighting.map_or(color, |light| light.shade_actor(color, wx, wy, 0.94, false));
         self.put_visible_effect(x, y, color, state);
     }
 

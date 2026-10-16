@@ -43,7 +43,10 @@ chosen pixel artwork and corrects the actual interaction paths.
 
 Verification: 696 Rust tests; four real localhost TCP/MCP integration tests;
 Linux native/cooperative PTY movement, jump, focus and all-view door checks.
-`native-input.json` records the binary hash and measured checks. Native save v8 and
+`native-input.json` records the movement/door checks before the final held-gear
+lighting correction. `native-actions.json` checks the final game build in both
+solo and co-op PTYs: all three zooms draw the bow, shots consume exactly one arrow,
+and aiming at distant terrain still allows eating. Terminal restoration passes. Native save v8 and
 server checkpoint v2 remain compatible; transient presentation state is not saved.
 New source pushes run the four-platform native CI separately.
 
