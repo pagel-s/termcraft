@@ -21561,7 +21561,9 @@ mod tests {
 
     #[test]
     fn test_day_villager_leaves_hut_through_side_door_and_recloses_it() {
-        let mut state = GameState::new();
+        // A generated neighboring village can reassign this deliberately minimal
+        // hut's home. Keep the door route independent of random settlement seeds.
+        let mut state = isolated_villager_behavior_fixture();
         state.current_dimension = Dimension::Overworld;
         state.game_rules.do_mob_spawning = false;
         state.world.load_chunks_around(0);
@@ -21591,7 +21593,11 @@ mod tests {
             }
         }
 
-        assert!(saw_open_door);
+        assert!(
+            saw_open_door,
+            "day door fixture: villager={:?}, weather={:?}",
+            state.villagers[0], state.weather
+        );
         assert!(reached_outside_offset);
         assert!(was_outside);
         assert!(saw_closed_after_exit);
@@ -21599,7 +21605,7 @@ mod tests {
 
     #[test]
     fn test_night_villager_enters_hut_through_side_door_and_recloses_it() {
-        let mut state = GameState::new();
+        let mut state = isolated_villager_behavior_fixture();
         state.current_dimension = Dimension::Overworld;
         state.game_rules.do_mob_spawning = false;
         state.world.load_chunks_around(0);
@@ -21645,7 +21651,7 @@ mod tests {
 
     #[test]
     fn test_villager_auto_step_crosses_single_block_obstacle() {
-        let mut state = GameState::new();
+        let mut state = isolated_villager_behavior_fixture();
         state.current_dimension = Dimension::Overworld;
         state.game_rules.do_mob_spawning = false;
         state.world.load_chunks_around(0);
