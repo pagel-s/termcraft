@@ -160,3 +160,13 @@ unrelated generated-village home reassignment in a door-test fixture. `b35fe15`
 isolates that fixture and its neighboring route tests; 60 repeat checks and both
 716-test suites pass. The [fresh native matrix](https://github.com/pagel-s/termcraft/actions/runs/38889843430)
 is still running at evidence collection. Pending stages are not qualified.
+
+## Fluid follow-up, 16 October
+
+The [fluid review](docs/design/fluid-flow-2026-10-16/README.md) covers gravity-first
+falls, nearby-drop routing, drainage, mixing, range/cadence, legacy zero levels,
+chunk-order independence and depth shared by rendering/immersion/breathing/boats.
+Actual bucket placement/pickup and save/reopen are exercised in disposable worlds.
+Include source removal, thin runoff, deep swimming and shoreline exits in the
+remaining human physics gate. This remains a block/source model; finite-volume
+pressure and waterlogged blocks are not implemented.

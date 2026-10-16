@@ -599,3 +599,19 @@ reassigns the test villager's home. `b35fe15` isolates the day/night door and st
 routes without relaxing their assertions; all 60 repeated checks and both full
 unit suites pass. Fresh native CI is running for that correction; its pending
 stages remain unqualified. No production villager behavior changed.
+
+## Fluid flow correction, 16 October
+
+The source-based fluid solver now computes a deterministic next frame before
+applying edits. Falling columns remain vertical, supported runoff seeks the
+nearest drop, and unsupported branches decay after removal or blocking of supply.
+Water/lava contact no longer depends on which fluid happened to update first.
+Source regeneration and existing fluid ranges/cadence remain explicit game rules.
+
+Visible fluid depth now agrees with player immersion, breathing and boat height
+in all color views; thin puddles retain grounded jumping. Sky above shallow flow
+stays sky. Legacy zero-level flows drain without underflow, and new Lantern Run
+pools use persistent sources. Existing save and protocol formats are unchanged.
+The [flow review](docs/design/fluid-flow-2026-10-16/README.md) records test results,
+actual bucket/save-reopen checks, screenshots and limits. Finite-volume pressure,
+waterlogging and human swimming/boat acceptance remain separate follow-ups.

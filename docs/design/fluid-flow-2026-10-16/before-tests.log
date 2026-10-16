@@ -1,0 +1,37 @@
+   Compiling termcraft v0.1.0 (/home/sebastian/projects/termcraft)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.43s
+     Running unittests src/lib.rs (/tmp/termcraft-build-20261015/debug/deps/termcraft-a59d39c87217e09b)
+
+running 5 tests
+
+thread 'world::fluids::tests::water_cools_adjacent_lava_even_while_the_water_can_fall' (846) panicked at src/world/fluids.rs:80:9:
+assertion `left == right` failed
+  left: Lava(8)
+ right: Obsidian
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test world::fluids::tests::water_cools_adjacent_lava_even_while_the_water_can_fall ... FAILED
+test world::fluids::tests::weak_flow_adjusts_to_its_actual_supply ... ok
+
+thread 'world::fluids::tests::supported_flow_takes_the_nearest_drop_instead_of_spreading_both_ways' (845) panicked at src/world/fluids.rs:70:9:
+assertion `left == right` failed
+  left: Water(7)
+ right: Air
+test world::fluids::tests::supported_flow_takes_the_nearest_drop_instead_of_spreading_both_ways ... FAILED
+
+thread 'world::fluids::tests::waterfall_stays_vertical_until_it_lands' (847) panicked at src/world/fluids.rs:44:21:
+assertion `left == right` failed: sideways waterfall at -1,6
+  left: Water(7)
+ right: Air
+test world::fluids::tests::waterfall_stays_vertical_until_it_lands ... FAILED
+test world::fluids::tests::one_source_drains_completely_after_removal_including_its_waterfall ... ok
+
+failures:
+
+failures:
+    world::fluids::tests::supported_flow_takes_the_nearest_drop_instead_of_spreading_both_ways
+    world::fluids::tests::water_cools_adjacent_lava_even_while_the_water_can_fall
+    world::fluids::tests::waterfall_stays_vertical_until_it_lands
+
+test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 716 filtered out; finished in 0.35s
+
+error: test failed, to rerun pass `--lib`

@@ -171,3 +171,22 @@ A bucket aimed at a solid block uses the facing surface only. If that surface is
 occupied, clear a visible trench or aim at another exposed surface; the bucket
 will stay full rather than pouring underneath or behind the block. Click farmland
 with seeds to plant directly above it.
+
+## Water and lava flow
+
+Fluids fall first. A waterfall spreads where it lands, rather than fanning out
+sideways through the air. On supported ground, runoff prefers the nearest drop;
+on a flat floor it can spread both ways. Water travels up to seven horizontal
+blocks, Overworld/End lava three, and Nether lava seven. Lava outside the Nether
+also updates more slowly.
+
+A placed bucket creates a source. Picking up that source drains the flow it fed.
+Two water sources can refill the supported gap between them, so remove both to
+drain an infinite-water arrangement. Natural pools may contain many source cells.
+Water touching lava from above or the side cools the lava into obsidian (source)
+or cobblestone (flow); lava falling into water forms stone.
+
+Flowing water has a visible shallow surface. Immersion, breathing and boat height
+use that surface too; ankle-deep runoff allows a normal ground jump. Crops washed
+away by a flow drop their harvest/seeds. These are block/source game rules:
+finite-volume displacement, pressure and waterlogged slabs/stairs are not modeled.

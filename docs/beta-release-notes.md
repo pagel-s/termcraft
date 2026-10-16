@@ -153,6 +153,13 @@ seeds and progression are rejected rather than silently regenerated. Failed
 writes remain dirty, unsafe dimension travel is cancelled, and fatal native-loop
 errors attempt a private **partial** recovery copy.
 
+Waterfalls now fall vertically until landing, runoff follows nearby drops, and
+unsupported flow drains after removing or blocking supply. Water/lava mixing is
+independent of chunk order. Thin flows have matching visible and physical depth:
+breathing, immersion and boat height follow the surface, and ankle-deep runoff
+allows land jumps. These retain source-block rules rather than finite-volume
+pressure simulation. [Flow review and captures](design/fluid-flow-2026-10-16/README.md).
+
 **Back up saves before upgrading.** Progression v9 reads v1–8, then upgrades on
 save; older builds cannot reopen v9. Entities and portal links share the player
 checkpoint; co-op inventories and entities share server checkpoint v3. Animals,

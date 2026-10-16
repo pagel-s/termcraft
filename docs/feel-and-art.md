@@ -477,3 +477,20 @@ socket transport is checked separately. [Review the gallery](design/world-atlas-
 ## Interaction consistency — 16 October 2026
 
 See the [action, zoom, spawning, portal, water and ore corrections](design/interaction-review-2026-10-16/README.md), including reproduction evidence and remaining verification limits.
+
+## Fluid flow and visible depth — 16 October 2026
+
+Waterfalls now stay vertical until landing, supported runoff prefers nearby drops,
+and flow/decay/mixing is evaluated from one snapshot so chunk order cannot choose
+the result. Puddles taper with their supply, and removal or blocking of a source
+drains unsupported branches. Fluid-blocking doors support a sideways spill.
+
+All color views clip water/lava to the shared fluid surface. The sky/underground
+boundary follows that surface, avoiding a dark rectangle above thin runoff.
+Immersion and breathing use visible depth; shallow grounded flow retains land
+jumping, and boats use the same surface height. Fresh Lantern Run pools now use
+actual source blocks instead of zero-level flows that evaporated.
+
+[Rules, screenshots and reproducible checks](design/fluid-flow-2026-10-16/README.md)
+cover bucket placement/pickup, waterfalls, shallow flow, nearby drops, lava,
+mixing, source regeneration, legacy levels, chunk seams and save/reopen.
