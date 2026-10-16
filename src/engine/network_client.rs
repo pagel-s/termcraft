@@ -104,6 +104,7 @@ pub(crate) fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerS
     state.chat.pending = snapshot.chat.pending;
     let _ = snapshot.settings.apply(state);
     snapshot.session.apply(state);
+    state.install_action_visual(snapshot.action);
     snapshot.entities.apply(state);
     state.trial = snapshot.trial.clone();
     state.thunder_flash_timer = snapshot.thunder_flash;
@@ -131,6 +132,8 @@ pub(crate) fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerS
         .iter()
         .map(|remote| crate::engine::state::RemotePlayerState {
             client_id: remote.client_id,
+            action: remote.action,
+            held_item: remote.held_item,
             x: remote.player.x,
             y: remote.player.y,
             vx: remote.player.vx,

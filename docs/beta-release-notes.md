@@ -43,7 +43,7 @@ same linked frame or remain in another dimension. Terrain, entities, hazards,
 boats and client streaming stay local to that dimension. Saved identities reopen
 in their own dimensions, and shared portal links/dragon completion survive restart.
 The End encounter is shared; credits and respawn remain individual. Late commands
-from a previous dimension cannot place/mine there after travel. Matching protocol-13
+from a previous dimension cannot place/mine there after travel. Matching protocol-14
 builds are required. Server checkpoint v2 reads v1; native checkpoints remain v8.
 
 ## Faster rendering and clearer play
@@ -96,7 +96,7 @@ Existing saved chunks retain their geometry. See the
 [village comparison and route](design/village-refinement-2026-10-12/provenance.md).
 
 After native terminal feedback, the default is a wider pixel overview; F4 cycles
-wide glyphs and optional close detail. Plain-key taps remain bounded; confirmed
+wide pixels and optional close detail. Plain-key taps remain bounded; confirmed
 key-release controls retain run+jump chords until actual release or focus/menu
 reset. An individually lost key-up requires releasing again or changing focus.
 Right-click dragging does not repeatedly toggle doors.
@@ -188,3 +188,9 @@ across all three dimensions. Protocol **13** requires matching builds. Classic s
 sustained human co-op, remote SSH/WAN behavior, live model quality and all-platform
 terminals remain release gates. Automated results do not establish a completed
 human campaign or a viral release.
+
+The October 16 correction adds visible misses, distinct held-tool/bow/eat/use poses,
+consistent pixels at every colour zoom, light-aware cave spawns, walk-in Nether
+portals, source-preserving fluids and direct seed placement on farmland. Co-op
+action poses require matching **protocol 14** clients and server. See the
+[interaction review](design/interaction-review-2026-10-16/README.md).

@@ -1,5 +1,8 @@
 #[path = "flight.rs"]
 mod flight;
+#[cfg(test)]
+#[path = "interaction_tests.rs"]
+mod interaction_tests;
 #[path = "trial.rs"]
 mod trial;
 pub use trial::{Trial, TrialStage};
@@ -192,6 +195,8 @@ pub struct LightningBolt {
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemotePlayerState {
     pub client_id: u16,
+    pub action: Option<super::action::ActionVisual>,
+    pub held_item: Option<ItemType>,
     pub x: f64,
     pub y: f64,
     pub vx: f64,
@@ -895,6 +900,7 @@ pub use actors::{PlayerSession, SharedSettings};
 pub(crate) use dimensions::SharedProgress;
 
 pub struct GameState {
+    pub(super) action_visuals: std::collections::BTreeMap<u16, super::action::ActionRecord>,
     active_peer: Option<u16>,
     cooperative_players: std::collections::BTreeMap<u16, PlayerSession>,
     cooperative_dimensions: std::collections::BTreeMap<u16, Dimension>,
@@ -1794,6 +1800,7 @@ impl GameState {
             save_error: std::cell::RefCell::new(None),
             player: Player::new(player_x, spawn_y),
             remote_players: Vec::new(),
+            action_visuals: Default::default(),
             inventory: Inventory::new(PLAYER_INVENTORY_CAPACITY),
             armor_slots: [None, None, None, None],
             crafting_grid: std::array::from_fn(|_| None),
@@ -4032,8 +4039,129 @@ impl GameState {
     }
 
     pub fn interact_block(&mut self, bx: i32, by: i32, is_break: bool) {
+        let held = self.inventory.slots[self.hotbar_index as usize].clone();
+        let block = self.world.get_block(bx, by);
+        let hunger = self.player.hunger;
+        let health = self.player.health;
+        let was_open = self.inventory_open;
+        self.interact_block_inner(bx, by, is_break);
+        if !is_break
+            && (held != self.inventory.slots[self.hotbar_index as usize]
+                || block != self.world.get_block(bx, by)
+                || was_open != self.inventory_open
+                || hunger != self.player.hunger
+                || health != self.player.health)
+        {
+            let item = held.as_ref().map(|s| s.item_type);
+            let kind = if hunger < self.player.hunger {
+                super::action::ActionKind::Eat
+            } else if item.is_some_and(|i| {
+                matches!(
+                    i,
+                    ItemType::WaterBottle
+                        | ItemType::PotionHealing
+                        | ItemType::PotionStrength
+                        | ItemType::PotionRegeneration
+                        | ItemType::PotionFireResistance
+                )
+            }) {
+                super::action::ActionKind::Drink
+            } else {
+                super::action::ActionKind::Use
+            };
+            self.show_action(
+                kind,
+                item,
+                bx,
+                by,
+                if matches!(
+                    kind,
+                    super::action::ActionKind::Eat | super::action::ActionKind::Drink
+                ) {
+                    14
+                } else {
+                    8
+                },
+                0.0,
+            );
+        }
+    }
+
+    fn interact_block_inner(&mut self, bx: i32, by: i32, is_break: bool) {
         if self.inventory_open {
             return;
+        }
+        if !is_break {
+            if let Some(stack) = self.inventory.slots[self.hotbar_index as usize].as_mut() {
+                let food = matches!(
+                    stack.item_type,
+                    ItemType::Bread
+                        | ItemType::RawBeef
+                        | ItemType::RawMutton
+                        | ItemType::CookedMutton
+                        | ItemType::CookedBeef
+                        | ItemType::RawPorkchop
+                        | ItemType::CookedPorkchop
+                        | ItemType::RawChicken
+                        | ItemType::CookedChicken
+                        | ItemType::RawFish
+                        | ItemType::CookedFish
+                );
+                if food && self.player.hunger >= self.player.max_hunger {
+                    return;
+                }
+                let mut ate = false;
+                match stack.item_type {
+                    ItemType::Bread => {
+                        self.player.hunger += 5.0;
+                        ate = true;
+                    }
+                    ItemType::RawBeef | ItemType::RawMutton => {
+                        self.player.hunger += 3.0;
+                        ate = true;
+                    }
+                    ItemType::CookedBeef => {
+                        self.player.hunger += 8.0;
+                        ate = true;
+                    }
+                    ItemType::RawPorkchop => {
+                        self.player.hunger += 3.0;
+                        ate = true;
+                    }
+                    ItemType::CookedPorkchop => {
+                        self.player.hunger += 8.0;
+                        ate = true;
+                    }
+                    ItemType::RawChicken => {
+                        self.player.hunger += 2.0;
+                        ate = true;
+                    }
+                    ItemType::CookedChicken | ItemType::CookedMutton => {
+                        self.player.hunger += 6.0;
+                        ate = true;
+                    }
+                    ItemType::RawFish => {
+                        self.player.hunger += 2.0;
+                        ate = true;
+                    }
+                    ItemType::CookedFish => {
+                        self.player.hunger += 5.0;
+                        ate = true;
+                    }
+                    _ => {}
+                }
+                if ate {
+                    self.player.hunger = self.player.hunger.clamp(0.0, self.player.max_hunger);
+                    stack.count -= 1;
+                    if stack.count == 0 {
+                        self.inventory.slots[self.hotbar_index as usize] = None;
+                    }
+                    return;
+                }
+            }
+            if self.consume_held_potion_if_any() {
+                return;
+            }
         }
         let holding_ender_pearl =
             !is_break && self.current_hotbar_item_type() == Some(ItemType::EnderPearl);
@@ -4425,60 +4553,6 @@ impl GameState {
                 }
             }
 
-            // Check if we are eating food before trying to place a block
-            if let Some(stack) = self.inventory.slots[self.hotbar_index as usize].as_mut() {
-                let mut ate = false;
-                match stack.item_type {
-                    ItemType::Bread => {
-                        self.player.hunger += 5.0;
-                        ate = true;
-                    }
-                    ItemType::RawBeef => {
-                        self.player.hunger += 3.0;
-                        ate = true;
-                    }
-                    ItemType::CookedBeef => {
-                        self.player.hunger += 8.0;
-                        ate = true;
-                    }
-                    ItemType::RawPorkchop => {
-                        self.player.hunger += 3.0;
-                        ate = true;
-                    }
-                    ItemType::CookedPorkchop => {
-                        self.player.hunger += 8.0;
-                        ate = true;
-                    }
-                    ItemType::RawChicken => {
-                        self.player.hunger += 2.0;
-                        ate = true;
-                    }
-                    ItemType::CookedChicken => {
-                        self.player.hunger += 6.0;
-                        ate = true;
-                    }
-                    ItemType::RawFish => {
-                        self.player.hunger += 2.0;
-                        ate = true;
-                    }
-                    ItemType::CookedFish => {
-                        self.player.hunger += 5.0;
-                        ate = true;
-                    }
-                    _ => {}
-                }
-                if ate {
-                    self.player.hunger = self.player.hunger.clamp(0.0, self.player.max_hunger);
-                    stack.count -= 1;
-                    if stack.count == 0 {
-                        self.inventory.slots[self.hotbar_index as usize] = None;
-                    }
-                    return;
-                }
-            }
-            if self.consume_held_potion_if_any() {
-                return;
-            }
             if holding_ender_pearl {
                 self.throw_ender_pearl(bx, by);
                 return;
@@ -4538,7 +4612,7 @@ impl GameState {
                     return;
                 }
             } else {
-                if self.block_intersects_player_bounds(place_x, place_y) {
+                if !block_type.is_fluid() && self.block_intersects_player_bounds(place_x, place_y) {
                     return;
                 }
                 if matches!(
@@ -6116,6 +6190,10 @@ impl GameState {
         }
     }
 
+    pub(super) fn bow_is_drawing(&self) -> bool {
+        self.bow_draw_active
+    }
+
     fn update_bow_draw_state(&mut self, mouse_target_x: i32, mouse_target_y: i32) -> bool {
         let holding_bow = self.current_hotbar_item_type() == Some(ItemType::Bow);
         let can_use_bow = holding_bow && !self.inventory_open;
@@ -6126,6 +6204,14 @@ impl GameState {
                 .saturating_add(1)
                 .min(BOW_MAX_DRAW_TICKS);
             self.bow_draw_active = true;
+            self.show_action(
+                super::action::ActionKind::BowDraw,
+                Some(ItemType::Bow),
+                mouse_target_x,
+                mouse_target_y,
+                2,
+                self.bow_draw_ticks as f64 / BOW_MAX_DRAW_TICKS as f64,
+            );
             self.player.mining_timer = 0.0;
             return true;
         }
@@ -6139,7 +6225,7 @@ impl GameState {
             return can_use_bow;
         }
 
-        false
+        can_use_bow
     }
 
     fn release_bow_shot(&mut self, mouse_target_x: i32, mouse_target_y: i32) {
@@ -6191,6 +6277,14 @@ impl GameState {
         }
 
         self.player.attack_timer = 8;
+        self.show_action(
+            super::action::ActionKind::BowRelease,
+            Some(ItemType::Bow),
+            mouse_target_x,
+            mouse_target_y,
+            8,
+            0.0,
+        );
         self.player.mining_timer = 0.0;
     }
 
@@ -6560,6 +6654,18 @@ impl GameState {
 
     fn resolve_block_placement_target(&self, clicked_x: i32, clicked_y: i32) -> Option<(i32, i32)> {
         let clicked_block = self.world.get_block(clicked_x, clicked_y);
+        // Plant on top of the soil that was clicked, regardless of approach angle.
+        if matches!(
+            self.current_hotbar_item_type(),
+            Some(ItemType::WheatSeeds | ItemType::NetherWart)
+        ) && !clicked_block.is_replaceable()
+        {
+            return self
+                .world
+                .get_block(clicked_x, clicked_y - 1)
+                .is_replaceable()
+                .then_some((clicked_x, clicked_y - 1));
+        }
         if clicked_block.is_replaceable() {
             return self
                 .has_adjacent_placement_anchor(clicked_x, clicked_y)
@@ -7870,6 +7976,38 @@ impl GameState {
         None
     }
 
+    // Find a floor on this cave level, rather than the first surface from the sky.
+    fn dark_spawn_floor_near(
+        &self,
+        x: i32,
+        reference_y: i32,
+        radius: i32,
+        daylight: bool,
+    ) -> Option<f64> {
+        (2..CHUNK_HEIGHT as i32 - 2)
+            .filter(|&y| (y - reference_y).abs() <= radius)
+            .filter(|&y| {
+                self.world.get_block(x, y).is_solid()
+                    && self.world.get_block(x, y - 1) == BlockType::Air
+                    && self.world.get_block(x, y - 2) == BlockType::Air
+            })
+            .filter(|&y| !daylight || !self.world.has_open_sky(x, y - 1))
+            .filter(|&y| {
+                self.world.block_light_at(x, y - 1) == 0 && self.world.block_light_at(x, y - 2) == 0
+            })
+            .min_by_key(|&y| (y - reference_y).abs())
+            .map(|y| y as f64 - 0.1)
+    }
+
+    fn find_dark_overworld_spawn(&self, x: i32) -> Option<f64> {
+        self.dark_spawn_floor_near(
+            x,
+            self.player.y.floor() as i32,
+            32,
+            self.time_of_day > 4000.0 && self.time_of_day < 20000.0,
+        )
+    }
+
     fn is_slime_chunk(world_x: i32) -> bool {
         let chunk_x = world_x.div_euclid(CHUNK_WIDTH as i32) as i64;
         let mut seed = chunk_x
@@ -7882,7 +8020,7 @@ impl GameState {
     }
 
     fn find_spawn_surface_for_slime(&self, x: i32) -> Option<f64> {
-        let spawn_y = self.find_spawn_surface_for_mob(x)?;
+        let spawn_y = self.find_dark_overworld_spawn(x)?;
         if spawn_y < 64.0 {
             return None;
         }
@@ -8632,7 +8770,7 @@ impl GameState {
             return;
         }
 
-        self.dungeon_spawner_timer = 16 + rng.gen_range(0..14);
+        self.dungeon_spawner_timer = 90 + rng.gen_range(0..61);
         let center_x = self.player.x.floor() as i32;
         let center_y = self.player.y.floor() as i32;
         let mut spawners = Vec::new();
@@ -8643,7 +8781,7 @@ impl GameState {
                         let dist = ((wx as f64 + 0.5 - self.player.x).powi(2)
                             + (wy as f64 - self.player.y).powi(2))
                         .sqrt();
-                        if dist <= 32.0 {
+                        if dist <= 20.0 && self.world.block_light_at(wx, wy - 1) == 0 {
                             spawners.push((wx, wy, self.world.get_block(wx, wy)));
                         }
                     }
@@ -8656,16 +8794,28 @@ impl GameState {
         }
 
         let (spawner_x, spawner_y, spawner_block) = spawners[rng.gen_range(0..spawners.len())];
+        let local_count = self.nearby_zombie_count(
+            spawner_x as f64 + 0.5,
+            spawner_y as f64,
+            OVERWORLD_DUNGEON_SPAWNER_LOCAL_CLUSTER_RADIUS_SQ,
+        ) + self.nearby_skeleton_count(
+            spawner_x as f64 + 0.5,
+            spawner_y as f64,
+            OVERWORLD_DUNGEON_SPAWNER_LOCAL_CLUSTER_RADIUS_SQ,
+        );
+        if local_count >= OVERWORLD_DUNGEON_SPAWNER_LOCAL_CLUSTER_LIMIT {
+            return;
+        }
         for _ in 0..8 {
             let target_x = spawner_x + rng.gen_range(-4..=4);
-            let Some(spawn_y) = self.find_spawn_surface_for_mob(target_x) else {
+            let Some(spawn_y) = self.dark_spawn_floor_near(target_x, spawner_y, 9, false) else {
                 continue;
             };
             if (spawn_y - spawner_y as f64).abs() > 9.0 {
                 continue;
             }
             let spawn_x = target_x as f64 + 0.5;
-            if self.is_spawn_too_close_to_player(spawn_x, spawn_y, 1.5 * 1.5) {
+            if self.is_spawn_too_close_to_player(spawn_x, spawn_y, 4.0 * 4.0) {
                 continue;
             }
             match spawner_block {
@@ -8759,7 +8909,7 @@ impl GameState {
             return;
         }
 
-        self.silverfish_spawner_timer = 14 + rng.gen_range(0..12);
+        self.silverfish_spawner_timer = 90 + rng.gen_range(0..61);
         let scan_left = self.player.x.floor() as i32 - 96;
         let scan_right = self.player.x.floor() as i32 + 96;
         let mut spawners = Vec::new();
@@ -8767,7 +8917,16 @@ impl GameState {
             for wy in (crate::world::STRONGHOLD_ROOM_TOP_Y - 10)
                 ..=(crate::world::STRONGHOLD_ROOM_BOTTOM_Y + 4)
             {
-                if self.world.get_block(wx, wy) == BlockType::SilverfishSpawner {
+                if self.world.get_block(wx, wy) == BlockType::SilverfishSpawner
+                    && (wx as f64 + 0.5 - self.player.x).hypot(wy as f64 - self.player.y) <= 20.0
+                    && self.world.block_light_at(wx, wy - 1) == 0
+                    && self
+                        .silverfish
+                        .iter()
+                        .filter(|m| (m.x - wx as f64).hypot(m.y - wy as f64) < 14.0)
+                        .count()
+                        < 4
+                {
                     spawners.push((wx, wy));
                 }
             }
@@ -8779,7 +8938,7 @@ impl GameState {
         let (spawner_x, spawner_y) = spawners[rng.gen_range(0..spawners.len())];
         for _ in 0..8 {
             let target_x = spawner_x + rng.gen_range(-4..=4);
-            let Some(spawn_y) = self.find_spawn_surface_for_mob(target_x) else {
+            let Some(spawn_y) = self.dark_spawn_floor_near(target_x, spawner_y, 9, false) else {
                 continue;
             };
             if (spawn_y - spawner_y as f64).abs() > 9.0 {
@@ -8788,7 +8947,7 @@ impl GameState {
             let p_dist = ((target_x as f64 + 0.5 - self.player.x).powi(2)
                 + (spawn_y - self.player.y).powi(2))
             .sqrt();
-            if p_dist < 1.5 {
+            if p_dist < 4.0 {
                 continue;
             }
             self.silverfish
@@ -8884,7 +9043,7 @@ impl GameState {
                 let wolf_refill_cap = Self::spawn_refill_threshold(wolf_cap, 1, 2);
                 let ocelot_refill_cap = Self::spawn_refill_threshold(ocelot_cap, 1, 2);
 
-                if !is_day && hostile_spawning_enabled {
+                if hostile_spawning_enabled {
                     if self.overworld_hostile_spawn_timer > 0 {
                         self.overworld_hostile_spawn_timer -= 1;
                     } else {
@@ -8906,17 +9065,14 @@ impl GameState {
                                 let spawn_y = if can_try_slime {
                                     self.find_spawn_surface_for_slime(wx)
                                 } else {
-                                    self.find_spawn_surface_for_mob(wx)
+                                    self.find_dark_overworld_spawn(wx)
                                 };
                                 let Some(spawn_y) = spawn_y else {
                                     continue;
                                 };
                                 let spawn_x = wx as f64 + 0.5;
-                                if self.is_spawn_too_close_to_player(
-                                    spawn_x,
-                                    spawn_y,
-                                    OVERWORLD_SPAWN_MIN_DIST_SQ,
-                                ) {
+                                if self.is_spawn_too_close_to_player(spawn_x, spawn_y, 24.0 * 24.0)
+                                {
                                     continue;
                                 }
                                 if can_try_slime
@@ -10367,11 +10523,49 @@ impl GameState {
     }
 
     fn handle_portal_transition(&mut self) -> bool {
+        let touching = self.player_portal_contact();
         if self.portal_cooldown > 0 {
             self.portal_cooldown -= 1;
+            // An arrival latch prevents automatic bouncing. Explicit use is
+            // available after the normal cooldown even if the actor stays here.
+            self.portal_timer = if touching.is_some() { u16::MAX } else { 0 };
+            return false;
         }
-        self.portal_timer = 0;
-        false
+        if self.portal_timer == u16::MAX {
+            if touching.is_none() {
+                self.portal_timer = 0;
+            }
+            return false;
+        }
+        if self.inventory_open || self.chat.open || self.death_screen_active || self.credits_active
+        {
+            self.portal_timer = 0;
+            return false;
+        }
+        let target = match self.player_portal_contact() {
+            Some((PortalKind::Nether, Some(anchor))) => PortalUseTarget::Nether(anchor),
+            Some((PortalKind::End, _)) => PortalUseTarget::End,
+            _ => {
+                self.portal_timer = 0;
+                return false;
+            }
+        };
+        self.portal_timer = self.portal_timer.saturating_add(1);
+        // A two-block membrane must trigger during a normal walking crossing.
+        if self.portal_timer < 4 {
+            return false;
+        }
+        let previous = self.current_dimension;
+        self.use_portal_target(target);
+        let travelled = self.current_dimension != previous || self.credits_active;
+        if travelled {
+            self.apply_client_command(ClientCommand::ClearDirectionalInput);
+            self.jump_held = false;
+            self.left_click_down = false;
+            self.player.vx = 0.0;
+            self.player.vy = 0.0;
+        }
+        travelled
     }
 
     fn explosion_effect_at(
@@ -10793,17 +10987,13 @@ impl GameState {
                             let spawn_y = if can_try_slime {
                                 self.find_spawn_surface_for_slime(wx)
                             } else {
-                                self.find_spawn_surface_for_mob(wx)
+                                self.find_dark_overworld_spawn(wx)
                             };
                             let Some(spawn_y) = spawn_y else {
                                 continue;
                             };
                             let spawn_x = wx as f64 + 0.5;
-                            if self.is_spawn_too_close_to_player(
-                                spawn_x,
-                                spawn_y,
-                                OVERWORLD_SPAWN_MIN_DIST_SQ,
-                            ) {
+                            if self.is_spawn_too_close_to_player(spawn_x, spawn_y, 24.0 * 24.0) {
                                 continue;
                             }
                             if can_try_slime
@@ -10939,7 +11129,7 @@ impl GameState {
                         )
                     {
                         let wx = wx_start + rng.gen_range(0..CHUNK_WIDTH as i32);
-                        if let Some(spawn_y) = self.find_spawn_surface_for_mob(wx) {
+                        if let Some(spawn_y) = self.find_dark_overworld_spawn(wx) {
                             let spawn_x = wx as f64 + 0.5;
                             if !self.is_spawn_too_close_to_player(
                                 spawn_x,
@@ -11138,8 +11328,20 @@ impl GameState {
                 .into_iter()
                 .filter_map(|id| self.peer_session(id).map(|s| s.player().x.floor() as i32))
                 .collect::<Vec<_>>();
+            self.world.farming_skylight =
+                if self.current_dimension == Dimension::Overworld && is_day_now {
+                    15
+                } else {
+                    4
+                };
             self.world.update_for_players(&positions);
         } else {
+            self.world.farming_skylight =
+                if self.current_dimension == Dimension::Overworld && is_day_now {
+                    15
+                } else {
+                    4
+                };
             self.world.update(self.player.x as i32);
         }
         self.apply_world_explosion_impacts();
@@ -13830,8 +14032,16 @@ impl GameState {
             hit_entity =
                 self.perform_melee(mouse_target_x as f64 + 0.5, mouse_target_y as f64 + 0.5);
 
+            self.player.attack_timer = 10;
+            self.show_action(
+                super::action::ActionKind::Swing,
+                self.current_hotbar_item_type(),
+                mouse_target_x,
+                mouse_target_y,
+                10,
+                0.0,
+            );
             if hit_entity {
-                self.player.attack_timer = 10;
                 self.player.mining_timer = 0.0;
                 self.apply_inventory_slot_durability_wear(self.hotbar_index as usize);
             }
@@ -13964,18 +14174,14 @@ impl GameState {
     }
 
     fn collision_bounds_at(&self, wx: i32, wy: i32) -> impl Iterator<Item = [f64; 4]> {
-        self.world
-            .get_block(wx, wy)
-            .collision_boxes()
-            .iter()
-            .map(move |b| {
-                [
-                    wx as f64 + b[0],
-                    wy as f64 + b[1],
-                    wx as f64 + b[2],
-                    wy as f64 + b[3],
-                ]
-            })
+        self.world.collision_boxes_at(wx, wy).iter().map(move |b| {
+            [
+                wx as f64 + b[0],
+                wy as f64 + b[1],
+                wx as f64 + b[2],
+                wy as f64 + b[3],
+            ]
+        })
     }
 
     fn collision_bounds_at_point(&self, x: f64, y: f64) -> Option<[f64; 4]> {
@@ -17408,17 +17614,23 @@ mod tests {
     fn test_silverfish_spawner_spawns_silverfish_nearby() {
         use rand::{SeedableRng, rngs::StdRng};
 
-        let mut state = GameState::new();
+        let mut state = GameState::network_view();
         let center_x = crate::world::STRONGHOLD_CENTER_X;
         state.current_dimension = Dimension::Overworld;
-        state.world.load_chunks_around(center_x);
+        for cx in center_x.div_euclid(CHUNK_WIDTH as i32) - 6
+            ..=center_x.div_euclid(CHUNK_WIDTH as i32) + 6
+        {
+            state
+                .world
+                .apply_chunk_column_snapshot(cx, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
+        }
         state.world.newly_generated_chunks.clear();
         state.silverfish.clear();
 
         state.player.x = center_x as f64 + 0.5;
         // Keep player far enough from all candidate spawn columns so near-player rejection
         // does not introduce non-determinism in this test.
-        state.player.y = (crate::world::STRONGHOLD_ROOM_TOP_Y - 8) as f64;
+        state.player.y = 78.0;
 
         for x in (center_x - 96)..=(center_x + 96) {
             for y in (crate::world::STRONGHOLD_ROOM_TOP_Y - 10)
@@ -18760,26 +18972,42 @@ mod tests {
     }
 
     #[test]
-    fn test_standing_in_nether_portal_does_not_transfer_without_interaction() {
-        let mut state = GameState::new();
-        configure_quiet_world(&mut state);
-        for x in 12..=20 {
-            for y in 0..20 {
-                state.world.set_block(x, y, BlockType::Air);
+    fn test_walking_through_active_portal_from_either_side_transfers_without_clicking() {
+        for right in [false, true] {
+            let mut state = GameState::new();
+            configure_quiet_world(&mut state);
+            for x in 12..=20 {
+                for y in 0..20 {
+                    state.world.set_block(x, y, BlockType::Air);
+                }
+                state.world.set_block(x, 10, BlockType::Stone);
             }
-            state.world.set_block(x, 10, BlockType::Stone);
+
+            state.ensure_nether_portal_at(16, 10);
+            state.player.x = if right { 13.5 } else { 20.5 };
+            state.player.y = 10.0;
+            state.player.grounded = true;
+            state.apply_client_command(if right {
+                ClientCommand::SetMoveRight(true)
+            } else {
+                ClientCommand::SetMoveLeft(true)
+            });
+
+            for _ in 0..30 {
+                state.update(16, 8);
+                if state.current_dimension == Dimension::Nether {
+                    break;
+                }
+            }
+
+            assert_eq!(state.current_dimension, Dimension::Nether);
+            assert!(!state.moving_left && !state.moving_right);
+            let dimension = state.current_dimension;
+            for _ in 0..80 {
+                state.update(0, 0);
+            }
+            assert_eq!(state.current_dimension, dimension, "arrival bounced back");
         }
-
-        state.ensure_nether_portal_at(16, 10);
-        state.player.x = 16.5;
-        state.player.y = 10.0;
-
-        for _ in 0..30 {
-            state.update(16, 8);
-        }
-
-        assert_eq!(state.current_dimension, Dimension::Overworld);
-        assert_eq!(state.player_portal_kind(), Some(PortalKind::Nether));
     }
 
     #[test]

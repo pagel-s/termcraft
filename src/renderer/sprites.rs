@@ -81,6 +81,7 @@ pub(super) struct ActorSprite {
     airborne: bool,
     vertical_velocity: f64,
     swing: Option<f64>,
+    action_pose: Option<crate::engine::action::ActionVisual>,
     warning: u8,
     held_item: Option<super::ItemType>,
     stride: usize,
@@ -122,6 +123,7 @@ impl ActorSprite {
             airborne: false,
             vertical_velocity: 0.0,
             swing: None,
+            action_pose: None,
             warning: 0,
             held_item: None,
             stride: 0,
@@ -190,6 +192,10 @@ impl ActorSprite {
     }
     pub(super) fn with_swing(mut self, phase: Option<f64>) -> Self {
         self.swing = phase;
+        self
+    }
+    pub(super) fn with_action(mut self, pose: Option<crate::engine::action::ActionVisual>) -> Self {
+        self.action_pose = pose;
         self
     }
     pub(super) fn with_warning(mut self, ticks: u8) -> Self {
@@ -736,9 +742,10 @@ impl Renderer {
         region: (i32, i32, usize, usize),
         frame_alpha: f64,
     ) {
-        let lighting =
-            (scale > 1).then(|| super::shading::SceneLighting::new(state, light, region));
-        if scale > 1 {
+        let lighting = self
+            .pixel_colors
+            .then(|| super::shading::SceneLighting::new(state, light, region));
+        if self.pixel_colors {
             (self.width, self.height) = physical;
             self.clear_back_buffer();
             self.render_pixel_sky(state, lighting.as_ref().unwrap(), frame_alpha);
@@ -754,7 +761,7 @@ impl Renderer {
                     matches!(a.kind, SpriteKind::Player).cmp(&matches!(b.kind, SpriteKind::Player))
                 })
         });
-        if scale > 1 {
+        if self.pixel_colors {
             for actor in &actors {
                 self.draw_contact_shadow(actor, scale, state);
             }
@@ -763,7 +770,7 @@ impl Renderer {
             self.draw_actor_sprite(actor, scale, lighting.as_ref(), state);
         }
         self.actor_sprites = actors;
-        if scale == 1 {
+        if !self.pixel_colors {
             self.render_classic_warnings(state);
         }
     }
@@ -811,8 +818,7 @@ impl Renderer {
                 .flat_map(|by| {
                     state
                         .world
-                        .get_block(bx, by)
-                        .collision_boxes()
+                        .collision_boxes_at(bx, by)
                         .iter()
                         .filter_map(move |b| {
                             let top = by as f64 + b[1];
@@ -865,7 +871,7 @@ impl Renderer {
         lighting: Option<&super::shading::SceneLighting>,
         state: &super::GameState,
     ) {
-        if scale == 1 {
+        if !self.pixel_colors {
             let head = if actor.hit {
                 "×"
             } else {
@@ -938,11 +944,15 @@ impl Renderer {
         let y = y_pixel.div_euclid(2);
         for py in 0..pixel_height {
             for col in 0..width {
-                let mut source_col =
-                    ((col * 2 + 1) * source_width / (2 * width)).min(source_width - 1);
-                if !actor.facing_right {
-                    source_col = source_width - 1 - source_col;
-                }
+                // Mirror the output sample, not the source coordinate after
+                // rounding: odd compact widths otherwise select another face.
+                let pose_col = if actor.facing_right {
+                    col
+                } else {
+                    width - 1 - col
+                };
+                let source_col =
+                    ((pose_col * 2 + 1) * source_width / (2 * width)).min(source_width - 1);
                 let source_y =
                     ((py * 2 + 1) * source_height / (pixel_height * 2)).min(source_height - 1);
                 let mut token = read_pixel(source_col, source_y);
@@ -975,16 +985,16 @@ impl Renderer {
                     let left = if width <= 3 { 0 } else { width / 2 - 2 };
                     let right = (width / 2 + 1).min(width - 1);
                     token = if rising {
-                        if py + 3 == pixel_height && (col == left || col == right) {
+                        if py + 3 == pixel_height && (pose_col == left || pose_col == right) {
                             b'l'
                         } else if py + 2 == pixel_height
-                            && (col == (left + 1).min(width - 1) || col == right)
+                            && (pose_col == (left + 1).min(width - 1) || pose_col == right)
                         {
                             b'b'
                         } else {
                             b' '
                         }
-                    } else if col == left || col == right {
+                    } else if pose_col == left || pose_col == right {
                         if py + 1 == pixel_height { b'b' } else { b'l' }
                     } else {
                         b' '
@@ -1007,6 +1017,15 @@ impl Renderer {
                         b' '
                     };
                 }
+                // The articulated near arm replaces the atlas arm during actions.
+                if matches!(actor.kind, SpriteKind::Player)
+                    && (token == b'w'
+                        || (actor.action_pose.is_some()
+                            && token == b'a'
+                            && source_col >= source_width / 2))
+                {
+                    continue;
+                }
                 if let Some(mut color) = actor.color(token) {
                     let edge = |dx: isize, dy: isize| {
                         let nx = source_col as isize + dx;
@@ -1019,9 +1038,9 @@ impl Renderer {
                     };
                     let normal = if edge(0, -1) {
                         1.1
-                    } else if edge(1, 0) {
+                    } else if edge(if actor.facing_right { 1 } else { -1 }, 0) {
                         0.78
-                    } else if edge(-1, 0) {
+                    } else if edge(if actor.facing_right { -1 } else { 1 }, 0) {
                         1.02
                     } else {
                         0.94
@@ -1033,12 +1052,16 @@ impl Renderer {
                         / (2 * scale) as f64;
                     let covered = state.world.get_block(wx.floor() as i32, wy.floor() as i32);
                     if covered != super::BlockType::Glass
-                        && covered.collision_boxes().iter().any(|b| {
-                            wx.rem_euclid(1.0) >= b[0]
-                                && wx.rem_euclid(1.0) < b[2]
-                                && wy.rem_euclid(1.0) >= b[1]
-                                && wy.rem_euclid(1.0) < b[3]
-                        })
+                        && state
+                            .world
+                            .collision_boxes_at(wx.floor() as i32, wy.floor() as i32)
+                            .iter()
+                            .any(|b| {
+                                wx.rem_euclid(1.0) >= b[0]
+                                    && wx.rem_euclid(1.0) < b[2]
+                                    && wy.rem_euclid(1.0) >= b[1]
+                                    && wy.rem_euclid(1.0) < b[3]
+                            })
                     {
                         continue;
                     }
@@ -1071,7 +1094,9 @@ impl Renderer {
                 Color::AnsiValue(234),
             );
         }
-        if let Some(phase) = actor.swing {
+        if matches!(actor.kind, SpriteKind::Player) || actor.action_pose.is_some() {
+            self.draw_player_action(actor, x, y_pixel, width, pixel_height, state, lighting);
+        } else if let Some(phase) = actor.swing {
             let direction = if actor.facing_right { 1.0 } else { -1.0 };
             let shoulder = (
                 x + if actor.facing_right {
@@ -1157,6 +1182,186 @@ impl Renderer {
             self.put_visible_effect(center, y_pixel - 1, amber, state);
         }
     }
+    #[allow(clippy::too_many_arguments)]
+    fn draw_player_action(
+        &mut self,
+        actor: &ActorSprite,
+        x: i32,
+        y: i32,
+        width: usize,
+        height: usize,
+        state: &GameState,
+        lighting: Option<&super::shading::SceneLighting>,
+    ) {
+        use super::ItemType;
+        use crate::engine::action::ActionKind;
+        let pose = actor.action_pose;
+        let item = pose.and_then(|p| p.item).or(actor.held_item);
+        if item.is_none() && pose.is_none() {
+            return;
+        }
+        let dir = if actor.facing_right { 1.0 } else { -1.0 };
+        let h = height as f64;
+        let shoulder = (
+            x as f64 + (width as f64 - 1.0) * if actor.facing_right { 0.65 } else { 0.35 },
+            y as f64 + h * 0.38,
+        );
+        let skin = actor.color(b'a').unwrap_or(actor.colors[0]);
+        let sleeve = actor.color(b'c').unwrap_or(actor.colors[1]);
+        let mut line = |from: (f64, f64), to: (f64, f64), color: Color| {
+            let steps = (from.0 - to.0)
+                .abs()
+                .max((from.1 - to.1).abs())
+                .ceil()
+                .max(1.0) as i32;
+            for step in 0..=steps {
+                let t = step as f64 / steps as f64;
+                self.put_swing_pixel(
+                    (from.0 + (to.0 - from.0) * t).round() as i32,
+                    (from.1 + (to.1 - from.1) * t).round() as i32,
+                    color,
+                    state,
+                    lighting,
+                );
+            }
+        };
+        let phase = pose.map_or(0.0, |p| p.progress);
+        let kind = pose.map(|p| p.kind);
+        let bow = item == Some(ItemType::Bow);
+        let eating = matches!(kind, Some(ActionKind::Eat | ActionKind::Drink));
+        let (hand, tool_angle) = if bow {
+            let aim = pose.map_or([dir, 0.0], |p| p.aim);
+            let a = (aim[1]).atan2(aim[0] * dir);
+            let forward = (dir * a.cos(), a.sin());
+            let across = (-forward.1, forward.0);
+            let center = (
+                shoulder.0 + forward.0 * h * 0.36,
+                shoulder.1 + forward.1 * h * 0.36,
+            );
+            let radius = (h * 0.25).max(1.5);
+            let drawing = matches!(kind, Some(ActionKind::BowDraw));
+            let draw = if drawing { phase } else { 0.0 };
+            let nock = (
+                center.0 - forward.0 * h * (0.08 + draw * 0.14),
+                center.1 - forward.1 * h * (0.08 + draw * 0.14),
+            );
+            let mut prior = None;
+            for step in 0..=8 {
+                let t = step as f64 / 4.0 - 1.0;
+                let point = (
+                    center.0 + across.0 * radius * t + forward.0 * radius * 0.38 * (1.0 - t * t),
+                    center.1 + across.1 * radius * t + forward.1 * radius * 0.38 * (1.0 - t * t),
+                );
+                if let Some(prev) = prior {
+                    line(prev, point, Renderer::rgb((171, 123, 72)));
+                }
+                prior = Some(point);
+            }
+            for sign in [-1.0, 1.0] {
+                line(
+                    (
+                        center.0 + across.0 * radius * sign,
+                        center.1 + across.1 * radius * sign,
+                    ),
+                    nock,
+                    Renderer::rgb((213, 209, 183)),
+                );
+            }
+            line(shoulder, center, sleeve);
+            line((shoulder.0 - dir, shoulder.1 + 1.0), nock, skin);
+            if drawing {
+                let tip = (
+                    center.0 + forward.0 * h * 0.26,
+                    center.1 + forward.1 * h * 0.26,
+                );
+                line(nock, tip, Renderer::rgb((218, 204, 167)));
+                line(
+                    (tip.0 - forward.0 + across.0, tip.1 - forward.1 + across.1),
+                    tip,
+                    Renderer::rgb((224, 232, 225)),
+                );
+            }
+            return;
+        } else if eating {
+            let hand = (
+                x as f64
+                    + (width as f64 - 1.0) * if actor.facing_right { 0.9 } else { 0.1 }
+                    + dir * (phase * std::f64::consts::TAU * 2.0).sin() * 0.4,
+                y as f64 + h * 0.23,
+            );
+            (hand, -0.2)
+        } else {
+            let reach = if matches!(kind, Some(ActionKind::Use)) {
+                0.2 + (phase * std::f64::consts::PI).sin() * 0.12
+            } else {
+                0.23
+            };
+            let angle = if matches!(kind, Some(ActionKind::Swing | ActionKind::Mine)) {
+                -0.9 + 1.3 * (phase * std::f64::consts::PI).sin()
+            } else {
+                0.65
+            };
+            let hand = (
+                shoulder.0 + dir * angle.cos() * h * reach,
+                shoulder.1 + angle.sin() * h * reach,
+            );
+            let tool_angle = if matches!(kind, Some(ActionKind::Swing | ActionKind::Mine)) {
+                -1.7 + 2.6 * phase
+            } else {
+                -0.6
+            };
+            (hand, tool_angle)
+        };
+        let elbow = (
+            (shoulder.0 + hand.0) * 0.5 - dir * 0.5,
+            (shoulder.1 + hand.1) * 0.5 + 0.5,
+        );
+        line(shoulder, elbow, sleeve);
+        line(elbow, hand, skin);
+        if let Some(item) = item {
+            let is_tool = item.max_durability().is_some()
+                && !matches!(item, ItemType::FlintAndSteel | ItemType::Shears);
+            let size = if is_tool {
+                (h * 0.58).max(2.0)
+            } else {
+                (h * 0.27).max(1.5)
+            };
+            let unit = size / 8.0;
+            let rotation = if is_tool {
+                tool_angle + std::f64::consts::FRAC_PI_4
+            } else {
+                0.0
+            };
+            for sy in 0..8 {
+                for sx in 0..8 {
+                    if let Some(color) =
+                        super::items::color(item, super::items::token(item, sx, sy))
+                    {
+                        let u = (sx as f64 - if is_tool { 1.0 } else { 3.5 }) * unit;
+                        let v = (sy as f64 - if is_tool { 6.0 } else { 3.5 }) * unit;
+                        self.put_swing_pixel(
+                            (hand.0 + dir * (u * rotation.cos() - v * rotation.sin())).round()
+                                as i32,
+                            (hand.1 + u * rotation.sin() + v * rotation.cos()).round() as i32,
+                            color,
+                            state,
+                            lighting,
+                        );
+                    }
+                }
+            }
+            if eating && kind == Some(ActionKind::Eat) && phase > 0.2 && phase < 0.8 {
+                self.put_swing_pixel(
+                    hand.0.round() as i32 + (dir * 2.0) as i32,
+                    (hand.1 + h * 0.12 * phase).round() as i32,
+                    Self::inventory_item_color(item),
+                    state,
+                    lighting,
+                );
+            }
+        }
+    }
+
     fn render_classic_warnings(&mut self, state: &GameState) {
         let (vx, vy, cx, cy, _) = self.world_view.unwrap();
         let mut positions = Vec::new();
@@ -1198,12 +1403,16 @@ impl Renderer {
         let wy = (y + vy * 2 + self.vertical_pixel_offset - cy * 2) as f64 / (2 * scale) as f64;
         let block = state.world.get_block(wx.floor() as i32, wy.floor() as i32);
         if block == super::BlockType::Glass
-            || !block.collision_boxes().iter().any(|b| {
-                wx.rem_euclid(1.0) >= b[0]
-                    && wx.rem_euclid(1.0) < b[2]
-                    && wy.rem_euclid(1.0) >= b[1]
-                    && wy.rem_euclid(1.0) < b[3]
-            })
+            || !state
+                .world
+                .collision_boxes_at(wx.floor() as i32, wy.floor() as i32)
+                .iter()
+                .any(|b| {
+                    wx.rem_euclid(1.0) >= b[0]
+                        && wx.rem_euclid(1.0) < b[2]
+                        && wy.rem_euclid(1.0) >= b[1]
+                        && wy.rem_euclid(1.0) < b[3]
+                })
         {
             self.put_pixel(x, y, color);
         }
@@ -1297,7 +1506,13 @@ mod tests {
                         false,
                     )
                     .with_subcell(5.0, 8.0, scale)
-                    .with_swing(Some(phase));
+                    .with_action(Some(crate::engine::action::ActionVisual {
+                        kind: crate::engine::action::ActionKind::Swing,
+                        item: None,
+                        progress: phase,
+                        aim: [if facing { 1.0 } else { -1.0 }, 0.0],
+                        ticks: 10,
+                    }));
                     renderer.draw_actor_sprite(&actor, scale, Some(&lighting), &state);
                     let (width, height) = actor.pixel_dimensions(scale);
                     let center = 5 * 2 * scale;
@@ -1317,6 +1532,60 @@ mod tests {
                         }
                     }
                     assert!(drawn > 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn turning_mirrors_the_same_player_silhouette_at_every_pixel_resolution() {
+        let state = fixture();
+        let lighting =
+            super::super::shading::SceneLighting::new(&state, &[15; 1024], (0, 0, 32, 32));
+        for scale in [1, 2, 3, 4] {
+            for airborne in [false, true] {
+                for moving in [0.0, 0.2] {
+                    let mut masks = Vec::new();
+                    for facing in [false, true] {
+                        let mut r = Renderer::with_size(160, 48);
+                        r.world_view = Some((0, 0, 0, 0, scale));
+                        let actor = ActorSprite::humanoid(
+                            0,
+                            0,
+                            SpriteKind::Player,
+                            facing,
+                            moving,
+                            0,
+                            [Color::White; 3],
+                            false,
+                            false,
+                        )
+                        .with_subcell(5.0, 10.0, scale)
+                        .with_pose(airborne)
+                        .with_motion(-0.3);
+                        r.draw_actor_sprite(&actor, scale, Some(&lighting), &state);
+                        let mut occupied = std::collections::BTreeSet::new();
+                        for (i, cell) in r.back_buffer.iter().enumerate() {
+                            let (top, bottom) = Renderer::cell_pixels(*cell);
+                            for (dy, color) in [(0, top), (1, bottom)] {
+                                if color != Color::Reset {
+                                    occupied.insert(((i % 160) as i32, (i / 160 * 2 + dy) as i32));
+                                }
+                            }
+                        }
+                        let lo = occupied.iter().map(|p| p.0).min().unwrap();
+                        let hi = occupied.iter().map(|p| p.0).max().unwrap();
+                        masks.push(
+                            occupied
+                                .into_iter()
+                                .map(|(x, y)| (if facing { x - lo } else { hi - x }, y))
+                                .collect::<std::collections::BTreeSet<_>>(),
+                        );
+                    }
+                    assert_eq!(
+                        masks[0], masks[1],
+                        "scale={scale} airborne={airborne} moving={moving}"
+                    );
                 }
             }
         }
@@ -1381,6 +1650,7 @@ mod tests {
         z.attack_windup = 8;
         state.zombies.push(z);
         let mut r = Renderer::with_size(80, 24);
+        r.pixel_colors = false;
         r.render_to(&state, 0.0, &mut Vec::new()).unwrap();
         assert!(r.back_buffer.iter().any(|c| c.ch == '!'));
         assert_eq!(state.player.health, 20.0);

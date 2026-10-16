@@ -290,6 +290,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into_iter()
         .map(|(dx, id)| RemotePlayerState {
             client_id: id,
+            action: None,
+            held_item: None,
             x: (px + dx) as f64 + 0.5,
             y: stand(&s.world, px + dx, plains.1).unwrap_or(plains.1) as f64,
             vx: 0.0,

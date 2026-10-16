@@ -62,6 +62,13 @@ def main():
                   for v in record['images']]
         add(record, 'portals', images)
 
+    action_catalog = args.raw / 'actions/catalog.json'
+    if action_catalog.exists():
+        action_review = json.loads(action_catalog.read_text())
+        assert all(action_review['checks'].values())
+        for record in action_review['scenes']:
+            add(record, 'actions', [(v['view'], v['view'].title(), v['ansi'], v['width'], v['height']) for v in record['images']])
+
     cooperative_review = json.loads((args.raw / 'cooperative/catalog.json').read_text())
     assert all(cooperative_review['checks'].values()), 'Co-op behavior checks failed'
     for record in cooperative_review['scenes']:
@@ -136,6 +143,21 @@ def main():
         record['images'].append(dict(mode='animation', label='Motion', file=filename, columns=160, rows=48,
                                      revision=hashlib.sha256((args.output / filename).read_bytes()).hexdigest()[:16]))
         animations.append(dict(file=filename, frames=count, limits='Staged renderer samples, not achieved FPS or an emulator recording.'))
+
+    if action_catalog.exists():
+        record = next(s for s in scenes if s['id'] == 'action-bow-right')
+        for view in ['overview', 'wide', 'detail']:
+            screen, frames = Screen(160, 48), []
+            for path in sorted((args.raw / 'actions').glob(f'motion-{view}-*.ansi')):
+                data = path.read_bytes()
+                input_hashes[path.relative_to(args.raw).as_posix()] = hashlib.sha256(data).hexdigest()
+                screen.feed(data)
+                frames.append(raster(screen))
+            assert len(frames) == 64
+            name = f'actions-{view}.gif'
+            frames[0].save(args.output / name, save_all=True, append_images=frames[1:], duration=50, loop=0, optimize=True)
+            record['images'].append(dict(mode=f'motion-{view}', label=f'Actions in motion · {view}', file=name, columns=160, rows=48, revision=hashlib.sha256((args.output / name).read_bytes()).hexdigest()[:16]))
+            animations.append(dict(file=name, frames=64, limits='Actual scripted actions; software renderer samples, not terminal latency.'))
 
     ids = [s['id'] for s in scenes]
     assert len(ids) == len(set(ids))

@@ -1,0 +1,92 @@
+//! Simulation-side light queries use the renderer's emission and attenuation rules.
+use super::{BlockType, CHUNK_HEIGHT, World};
+use std::{cmp::Reverse, collections::BinaryHeap};
+
+impl BlockType {
+    pub fn emitted_light(self) -> u8 {
+        match self {
+            Self::Torch | Self::Lava(_) | Self::Glowstone => 15,
+            Self::PrimedTnt(_) => 13,
+            Self::RedstoneTorch(true) | Self::NetherPortal => 11,
+            Self::EndPortal => 10,
+            _ => 0,
+        }
+    }
+}
+
+impl World {
+    pub fn has_open_sky(&self, x: i32, y: i32) -> bool {
+        (0..y.clamp(0, CHUNK_HEIGHT as i32)).all(|by| {
+            let block = self.get_block(x, by);
+            !block.is_solid() || block == BlockType::Glass
+        })
+    }
+
+    /// Brightest artificial light at a cell, including light around corners.
+    /// Reverse shortest paths preserve destination attenuation (air 1, solid 3).
+    /// No source can contribute from beyond 14 cells, so work is strictly bounded.
+    pub fn block_light_at(&self, x: i32, y: i32) -> u8 {
+        const WIDTH: usize = 31;
+        let mut costs = [u8::MAX; WIDTH * WIDTH];
+        let center = 15 * WIDTH + 15;
+        costs[center] = 0;
+        let mut queue = BinaryHeap::from([Reverse((0u8, center))]);
+        let mut brightest = 0;
+        while let Some(Reverse((cost, index))) = queue.pop() {
+            if cost != costs[index] {
+                continue;
+            }
+            if 15u8.saturating_sub(cost) <= brightest {
+                break;
+            }
+            let wx = x + (index % WIDTH) as i32 - 15;
+            let wy = y + (index / WIDTH) as i32 - 15;
+            if !(0..CHUNK_HEIGHT as i32).contains(&wy) {
+                continue;
+            }
+            let block = self.get_block(wx, wy);
+            brightest = brightest.max(block.emitted_light().saturating_sub(cost));
+            let next_cost = cost + if block.is_solid() { 3 } else { 1 };
+            if next_cost >= 15 {
+                continue;
+            }
+            for next in [
+                index.checked_sub(WIDTH),
+                (index + WIDTH < costs.len()).then_some(index + WIDTH),
+                (index % WIDTH > 0).then(|| index - 1),
+                (index % WIDTH + 1 < WIDTH).then_some(index + 1),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                if next_cost < costs[next] {
+                    costs[next] = next_cost;
+                    queue.push(Reverse((next_cost, next)));
+                }
+            }
+        }
+        brightest
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn light_falls_off_through_air_and_stone_and_tracks_source_removal() {
+        let mut world = World::network_replica(super::super::Dimension::Overworld);
+        let blocks = vec![BlockType::Air; super::super::CHUNK_WIDTH * CHUNK_HEIGHT];
+        assert!(world.apply_chunk_column_snapshot(0, &blocks));
+        world.set_block(0, 20, BlockType::Glowstone);
+        assert_eq!(world.block_light_at(0, 20), 15);
+        assert_eq!(world.block_light_at(4, 20), 11);
+        for x in 1..=4 {
+            for y in 0..CHUNK_HEIGHT as i32 {
+                world.set_block(x, y, BlockType::Stone);
+            }
+        }
+        assert_eq!(world.block_light_at(5, 20), 2);
+        world.set_block(0, 20, BlockType::Air);
+        assert_eq!(world.block_light_at(5, 20), 0);
+    }
+}

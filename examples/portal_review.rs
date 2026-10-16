@@ -19,7 +19,7 @@ fn capture(
     caption: &str,
 ) -> Result<Value, Box<dyn std::error::Error>> {
     let mut images = Vec::new();
-    for (zoom, view) in [(0, "overview"), (1, "glyphs"), (2, "detail")] {
+    for (zoom, view) in [(0, "overview"), (1, "wide"), (2, "detail")] {
         let mut r = Renderer::with_size(160, 48);
         for _ in 0..zoom {
             r.toggle_zoom();

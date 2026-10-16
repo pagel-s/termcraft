@@ -343,3 +343,43 @@ fn end_encounter_is_shared_and_credits_do_not_freeze_or_teleport_the_other_playe
         true
     );
 }
+
+#[test]
+fn cooperative_walk_in_portal_and_action_poses_replicate_without_affecting_other_actor() {
+    let (_root, mut sim) = fixture();
+    light_portal(&mut sim, 1);
+    sim.state.player.x = -3.5;
+    sim.state.player.y = 80.0;
+    sim.state.player.grounded = true;
+    for x in -6..=5 {
+        if !(0..=1).contains(&x) {
+            sim.state.world.set_block(x, 80, BlockType::Stone);
+        }
+    }
+    command(&mut sim, 1, ClientCommand::SetPrimaryAction(true));
+    sim.step(-4, 78);
+    let local = sim.snapshot_for_client(1).unwrap();
+    assert!(local.action.is_some());
+    let other = sim.snapshot_for_client(2).unwrap();
+    assert!(
+        other
+            .remote_players
+            .iter()
+            .find(|p| p.client_id == 1)
+            .unwrap()
+            .action
+            .is_some()
+    );
+    command(&mut sim, 1, ClientCommand::SetPrimaryAction(false));
+    command(&mut sim, 1, ClientCommand::SetMoveRight(true));
+    for _ in 0..40 {
+        sim.step(0, 0);
+        if sim.state.peer_dimension(1) == Dimension::Nether {
+            break;
+        }
+    }
+    assert_eq!(sim.state.peer_dimension(1), Dimension::Nether);
+    assert_eq!(sim.state.peer_dimension(2), Dimension::Overworld);
+    sim.state.activate_peer(1);
+    assert!(!sim.state.moving_right);
+}

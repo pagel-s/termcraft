@@ -2,6 +2,24 @@
 use super::{BlockType, CHUNK_HEIGHT, CHUNK_WIDTH, World};
 
 impl World {
+    /// In a side-on 2D projection active portal uprights sit behind the opening.
+    /// Keep their blocks/mineability, but let actors enter through either side.
+    /// An unlit or broken obsidian frame is ordinary solid terrain.
+    pub fn collision_boxes_at(&self, x: i32, y: i32) -> &'static [[f64; 4]] {
+        let block = self.get_block(x, y);
+        if block == BlockType::Obsidian {
+            for adjacent_x in [x - 1, x + 1] {
+                if let Some((inner_x, base_y)) = self.nether_portal_anchor_at(adjacent_x, y)
+                    && (x == inner_x - 1 || x == inner_x + 2)
+                    && (base_y - 3..base_y).contains(&y)
+                {
+                    return &[];
+                }
+            }
+        }
+        block.collision_boxes()
+    }
+
     pub(crate) fn end_portal_frame_at(&self, inner_x: i32, inner_y: i32) -> bool {
         if inner_y < 1 || inner_y + 2 >= CHUNK_HEIGHT as i32 {
             return false;

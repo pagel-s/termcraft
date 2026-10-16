@@ -27,7 +27,7 @@ slower pale flakes. Every color view and monochrome fallback uses the same field
 Roofs, glass, slabs, foliage and fluid surfaces stop precipitation even when the
 cover is above the viewport. Snowy biomes show `Snow` in the weather label. Figure
 silhouettes, palettes, dimensions and animation were not changed in this or the
-preceding torch correction; F4 still selects different pixel/glyph resolutions.
+preceding torch correction; F4 now keeps the pixel artwork at all colour resolutions.
 
 [Captures, clips and reproduction](design/run-jump-weather-2026-10-15/provenance.md)
 cover actual rendered motion, above-viewport roofs and combined native/co-op input.
@@ -62,7 +62,7 @@ These scripted checks establish behavior, rather than human gameplay acceptance.
 ## Try the candidate
 
 Run the local development executable. Restart the co-op server and every client
-together: the updated movement rules use **network protocol 13**.
+together: the updated movement rules use **network protocol 14**.
 
 - Hold A/D or an arrow for one second, then release. In a terminal with key-release
   support, movement should stay continuous through the initial keyboard-repeat
@@ -71,9 +71,9 @@ together: the updated movement rules use **network protocol 13**.
   to the easing camera; co-op predicts jump, landing and collision locally.
 - Switch focus while holding movement. Focus loss clears held controls.
 - The default is a pixel overview at 100×32 and above. F4 cycles overview →
-  wide glyphs → detailed pixels. Detail uses 8×8 block pixels at 140×44 and above;
+  wide pixels → detailed pixels. Detail uses 8×8 block pixels at 140×44 and above;
   the default overview shows twice as much world horizontally. Smaller terminals
-  use wide glyphs. HUD and inventory retain their normal resolution.
+  use reduced pixel artwork. `NO_COLOR` retains glyphs. HUD and inventory retain their normal resolution.
 - Mine/place around negative world coordinates, then repeat after F4 and a resize.
   Targeting should match the visible tile.
 
@@ -103,7 +103,7 @@ and invisible foreground changes. Frame pacing waits after the terminal flush,
 preventing slow output from immediately queuing another frame. Synchronization
 requires emulator support; CPU timings alone do not prove smooth presentation.
 The default pixel overview shows 40 blocks across at 160×48 instead of 20. F4 gives
-wide glyphs, then optional detail. The sky uses restrained screen-space clouds,
+wide pixels, then optional detail. The sky uses restrained screen-space clouds,
 a stepped sun/moon and stable stars in both color overview/detail and wide views.
 The noisy cloud field, foreground-derived distant ridge and competing sky motion
 are removed. Swing poses use a short shaded arm and compact held tool.
@@ -147,7 +147,7 @@ seek shelter at night, and move toward outdoor entry space by day.
 
 [Compare the old hut and new settlement](design/village-refinement-2026-10-12/provenance.md).
 The overview is a deliberately wide virtual viewport; ordinary-size captures include
-80×24 glyph fallback, 120×40 and 160×48 pixel views, plus nighttime and desert masonry.
+80×24 reduced pixel view, 120×40 and 160×48 pixel views, plus nighttime and desert masonry.
 The covered market reads as a gatehouse, and desert architecture still has limited
 biome-specific color and detail. This is a reviewed candidate for playtesting.
 
@@ -472,3 +472,7 @@ in separate dimensions, reunited in the Nether, and returning independently.
 Starting tools/frames are staged; placement, ignition, travel and walking use
 ordinary commands. The replicas use the actual snapshot/terrain handlers; real
 socket transport is checked separately. [Review the gallery](design/world-atlas-2026-10-15/index.html).
+
+## Interaction consistency — 16 October 2026
+
+See the [action, zoom, spawning, portal, water and ore corrections](design/interaction-review-2026-10-16/README.md), including reproduction evidence and remaining verification limits.

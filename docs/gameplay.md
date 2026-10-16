@@ -87,8 +87,9 @@ it removes its light on the next rendered frame.
 For a Nether portal, build a 4-block-wide, 5-block-high obsidian outline with a
 2×3 empty opening. The four corners are optional (ten obsidian blocks minimum).
 Hold Flint and Steel and right-click or press `F` on the frame to ignite it.
-Use the active opening or its obsidian frame within reach to travel; merely
-standing in it does not transfer you. The target hint displays `R-click / F: travel`
+Walk through the active opening from either side, or use the opening/frame within
+reach to travel. Active uprights sit behind the 2D walking plane; unlit or broken
+frames remain solid. Arrival does not automatically bounce you back. The target hint displays `R-click / F: travel`
 or `Portal recharging...` during the two-second cooldown. Breaking a required frame
 block extinguishes the whole opening. Repair the frame and ignite it again.
 
@@ -102,7 +103,7 @@ momentum and accumulated fall distance reset during travel.
 Dimension travel works in single-player and co-op. In co-op only the interacting
 player travels; friends can follow or remain in another dimension. Terrain,
 entities, inventories and saved portal links remain separate, with one shared
-dragon encounter for players in the End. Use matching protocol-13 clients/server.
+dragon encounter for players in the End. Use matching protocol-14 clients/server.
 
 ## Travel / Test Shortcuts
 
@@ -151,7 +152,8 @@ sparkles update less often to reduce distracting repainting.
 
 ## Art and movement review
 
-F4 switches between the close pixel-art view and the wide view. Use a color
+F4 cycles pixel overview, wide pixels and close detail. All three colour views use
+the same artwork; only their resolution changes. `NO_COLOR` retains glyphs. Use a color
 terminal at least 140×44 for the detailed view; 160×48 is a useful starting size.
 F3 reports keyboard release support. Try walking, abrupt reversal, tap/held jumps,
 low ceilings and wall landings before comparing the camera in both views.

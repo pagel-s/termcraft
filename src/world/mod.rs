@@ -1,4 +1,5 @@
 mod attachments;
+mod lighting;
 mod portals;
 pub use attachments::{RoomMaterial, TorchAttachment};
 pub mod block;
@@ -269,6 +270,7 @@ impl PartialOrd for ChunkRequest {
 
 pub struct World {
     replica: bool,
+    pub(crate) farming_skylight: u8,
     simulation_centers: Vec<i32>,
     replica_biomes: HashMap<i32, BiomeType>,
     chunks: HashMap<i32, Chunk>,
@@ -484,6 +486,7 @@ impl World {
 
         Self {
             replica: false,
+            farming_skylight: 15,
             simulation_centers: Vec::new(),
             replica_biomes: HashMap::new(),
             chunks: HashMap::new(),
@@ -1215,7 +1218,8 @@ impl World {
 
                             if has_water && moisture < 7 {
                                 changes.push((wx, wy, BlockType::Farmland(7)));
-                            } else if !has_water && moisture > 0 {
+                            } else if !has_water && moisture > 0 && growth_phase.rem_euclid(5) == 0
+                            {
                                 changes.push((wx, wy, BlockType::Farmland(moisture - 1)));
                             } else if !has_water
                                 && moisture == 0
@@ -1232,14 +1236,21 @@ impl World {
                             if let BlockType::Farmland(moisture) = ground {
                                 if stage < 7 {
                                     // Chance to grow based on moisture
-                                    let grow_chance = if moisture > 0 { 0.2 } else { 0.05 };
-                                    if rng.gen_bool(grow_chance) {
+                                    let grow_chance = if moisture > 0 { 0.05 } else { 0.0125 };
+                                    if rng.gen_bool(grow_chance)
+                                        && ((self.farming_skylight >= 9
+                                            && self.has_open_sky(wx, wy))
+                                            || self.block_light_at(wx, wy) >= 9)
+                                    {
                                         changes.push((wx, wy, BlockType::Crops(stage + 1)));
                                     }
                                 }
                             } else {
-                                // Break if not on farmland
                                 changes.push((wx, wy, BlockType::Air));
+                                support_drops.push((wx, wy, ItemType::WheatSeeds));
+                                if stage >= 7 {
+                                    support_drops.push((wx, wy, ItemType::Wheat));
+                                }
                             }
                         }
                         BlockType::Sapling | BlockType::BirchSapling => {
@@ -1291,6 +1302,8 @@ impl World {
 
     pub fn has_nearby_farmland_water(&self, wx: i32, wy: i32) -> bool {
         for dx in -4..=4 {
+            // In this 2D cutaway, the root zone includes the cell just below the soil.
+            // Existing village beds use that shallow irrigation channel.
             for dy in -1..=1 {
                 if matches!(self.get_block(wx + dx, wy + dy), BlockType::Water(_)) {
                     return true;
@@ -1698,7 +1711,7 @@ impl World {
             return false;
         }
         let below = self.get_block(x, y + 1);
-        (below.is_solid() || matches!(below, BlockType::Water(_)))
+        (below.is_solid() || below == BlockType::Water(8))
             && matches!(self.get_block(x - 1, y), BlockType::Water(8))
             && matches!(self.get_block(x + 1, y), BlockType::Water(8))
     }
@@ -1883,7 +1896,7 @@ impl World {
                                     wx.div_euclid(CHUNK_WIDTH as i32),
                                 );
                             }
-                        } else if below.is_replaceable() {
+                        } else if below.is_replaceable() && (!is_same(below) || get_l(below) < 7) {
                             let fall_block = if is_water {
                                 BlockType::Water(7)
                             } else {
@@ -1918,6 +1931,7 @@ impl World {
                                     );
                                 }
                             } else if side.is_replaceable()
+                                && (!is_same(side) || get_l(side) < level - 1)
                                 && Self::insert_fluid_change(&mut next_state, nx, wy, spread_block)
                             {
                                 Self::activate_fluid_chunk_neighbors_in(
@@ -3192,11 +3206,11 @@ impl World {
         {
             Some(BlockType::RedstoneOre)
         } else if current_y >= OVERWORLD_IRON_ORE_MIN_Y
-            && iron_score > (0.53 - iron_depth_t * 0.05)
+            && iron_score > (0.52 - iron_depth_t * 0.05)
             && iron_gate > 0.0
         {
             Some(BlockType::IronOre)
-        } else if coal_score > 0.49 {
+        } else if coal_score > 0.48 {
             Some(BlockType::CoalOre)
         } else {
             None
@@ -3209,10 +3223,10 @@ impl World {
         // prevent a noise lobe becoming dozens of exposed blocks in 2D.
         // Coordinates are global so deposits have the same limits at chunk seams.
         let (width, height, salt) = match block {
-            BlockType::CoalOre => (9, 7, 11u32),
-            BlockType::IronOre => (7, 6, 29),
-            BlockType::DiamondOre => (5, 5, 71),
-            _ => (6, 5, 43),
+            BlockType::CoalOre => (7, 6, 11u32),
+            BlockType::IronOre => (6, 5, 29),
+            BlockType::DiamondOre => (5, 4, 71),
+            _ => (5, 4, 43),
         };
         let px = (world_x + salt as i32).rem_euclid(width);
         let py = (y + salt as i32 / 3).rem_euclid(height);
@@ -7190,6 +7204,55 @@ mod tests {
         world.update_fluids(0);
 
         assert_eq!(world.get_block(3, 2), BlockType::Water(7));
+    }
+
+    #[test]
+    fn adjacent_flows_never_downgrade_pool_sources() {
+        let mut world = World::network_replica(Dimension::Overworld);
+        world.apply_chunk_column_snapshot(0, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
+        for x in 0..12 {
+            world.set_block(x, 30, BlockType::Stone);
+        }
+        world.set_block(3, 29, BlockType::Water(8));
+        world.set_block(4, 29, BlockType::Water(7));
+        world.set_block(5, 29, BlockType::Water(8));
+        for _ in 0..24 {
+            world.update_fluids(0);
+            assert_eq!(world.get_block(3, 29), BlockType::Water(8));
+            assert_eq!(world.get_block(5, 29), BlockType::Water(8));
+        }
+        assert_eq!(world.get_block(4, 29), BlockType::Water(8));
+    }
+
+    #[test]
+    fn irrigation_covers_shallow_root_zone_and_respects_four_block_range() {
+        let mut world = World::network_replica(Dimension::Overworld);
+        world.apply_chunk_column_snapshot(0, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
+        world.set_block(4, 31, BlockType::Water(8));
+        assert!(world.has_nearby_farmland_water(0, 30));
+        world.set_block(4, 31, BlockType::Air);
+        world.set_block(4, 30, BlockType::Water(8));
+        assert!(world.has_nearby_farmland_water(0, 30));
+        assert!(!world.has_nearby_farmland_water(-1, 30));
+    }
+
+    #[test]
+    fn unsupported_wheat_drops_seed_and_mature_harvest() {
+        let mut world = World::network_replica(Dimension::Overworld);
+        world.apply_chunk_column_snapshot(0, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
+        world.set_block(2, 30, BlockType::Crops(7));
+        world.update_farming(0);
+        assert_eq!(world.get_block(2, 30), BlockType::Air);
+        assert!(
+            world
+                .recent_environment_drops
+                .contains(&(2, 30, ItemType::WheatSeeds))
+        );
+        assert!(
+            world
+                .recent_environment_drops
+                .contains(&(2, 30, ItemType::Wheat))
+        );
     }
 
     #[test]

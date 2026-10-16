@@ -380,6 +380,7 @@ impl GameState {
             return None;
         }
         self.clear_container_interaction_state();
+        self.action_visuals.remove(&id);
         let mut session = PlayerSession::capture(self);
         session.release_inputs();
         Some(session)

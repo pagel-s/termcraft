@@ -1381,16 +1381,11 @@ impl Renderer {
 
         for y in 0..height_b {
             for x in 0..width_b {
-                match state.world.get_block(min_bx + x as i32, min_by + y as i32) {
-                    BlockType::Torch => light[y * width_b + x] = 15,
-                    BlockType::RedstoneTorch(true) => light[y * width_b + x] = 11,
-                    BlockType::PrimedTnt(_) => light[y * width_b + x] = 13,
-                    BlockType::Lava(_) => light[y * width_b + x] = 15,
-                    BlockType::Glowstone => light[y * width_b + x] = 15,
-                    BlockType::NetherPortal => light[y * width_b + x] = 11,
-                    BlockType::EndPortal => light[y * width_b + x] = 10,
-                    _ => {}
-                }
+                let emitted = state
+                    .world
+                    .get_block(min_bx + x as i32, min_by + y as i32)
+                    .emitted_light();
+                light[y * width_b + x] = light[y * width_b + x].max(emitted);
             }
         }
         for fireball in &state.fireballs {
@@ -1731,7 +1726,7 @@ impl Renderer {
                     } else {
                         pulse
                     };
-                    if scale > 1 {
+                    if self.pixel_colors {
                         self.actor_sprites.push(
                             ActorSprite::mob(
                                 c_sx,
@@ -1778,7 +1773,7 @@ impl Renderer {
                             b: 75,
                         };
                     }
-                    if scale > 1 {
+                    if self.pixel_colors {
                         self.actor_sprites.push(
                             ActorSprite::mob(
                                 d_sx,
@@ -1842,7 +1837,7 @@ impl Renderer {
             let light_factor = (light_val as f32 / 15.0).clamp(0.38, 1.0);
             let (head_fg, torso_fg, limb_fg) = Self::remote_player_visible_colors(
                 remote.client_id,
-                if scale > 1 { 1.0 } else { light_factor },
+                if self.pixel_colors { 1.0 } else { light_factor },
             );
             self.actor_sprites.push(
                 ActorSprite::humanoid(
@@ -1857,7 +1852,11 @@ impl Renderer {
                     false,
                 )
                 .with_subcell(render_remote_x, render_remote_y, scale)
-                .with_label(remote.client_id),
+                .with_label(remote.client_id)
+                .with_item(remote.held_item)
+                .with_pose(!remote.grounded)
+                .with_motion(remote.vy)
+                .with_action(remote.action),
             );
         }
 
@@ -1868,7 +1867,7 @@ impl Renderer {
         let p_light_val = light[p_light_y * width_b + p_light_x];
         let p_factor = (p_light_val as f32 / 15.0).clamp(0.4, 1.0);
         let (player_head_fg, player_torso_fg, player_limb_fg) =
-            Self::player_visible_colors(state, if scale > 1 { 1.0 } else { p_factor });
+            Self::player_visible_colors(state, if self.pixel_colors { 1.0 } else { p_factor });
 
         let player_screen_x =
             (render_player_x * 2.0).round() as i32 - view_char_x + screen_center_x - 1;
@@ -1882,7 +1881,7 @@ impl Renderer {
                 state.player.vx,
                 state.player.age,
                 [
-                    if scale > 1 {
+                    if self.pixel_colors {
                         Self::rgb(Self::player_skin_rgb())
                     } else {
                         player_head_fg
@@ -1902,16 +1901,7 @@ impl Renderer {
             .with_pose(!state.player.grounded)
             .with_motion(state.player.vy)
             .with_hit(state.player_hurt_ticks() > 5)
-            .with_swing(if state.player.attack_timer > 0 {
-                Some(
-                    0.3 + 0.7 * (10.0 - state.player.attack_timer.min(10) as f64 + frame_alpha)
-                        / 10.0,
-                )
-            } else if state.player.mining_timer > 0.0 {
-                Some((state.player.age as f64 + frame_alpha).rem_euclid(8.0) / 8.0)
-            } else {
-                None
-            })
+            .with_action(state.action_visual(frame_alpha))
             .with_helmet(
                 state
                     .armor_slot_item(0)
@@ -2078,7 +2068,7 @@ impl Renderer {
                         b: (220.0 * g_f) as u8,
                     };
                 }
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             g_sx,
@@ -2139,7 +2129,7 @@ impl Renderer {
                 } else if blaze.shoot_cooldown < 10 {
                     b_fg = Color::Yellow;
                 }
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             b_sx,
@@ -2371,7 +2361,7 @@ impl Renderer {
                         b: (0.0 * f) as u8,
                     }
                 };
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             sx,
@@ -2423,7 +2413,7 @@ impl Renderer {
                         b: (200.0 * f) as u8,
                     }
                 };
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             sx,
@@ -2487,7 +2477,7 @@ impl Renderer {
                         b: (130.0 * f) as u8,
                     };
                 }
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             sx,
@@ -2553,7 +2543,7 @@ impl Renderer {
                         b: 20,
                     }
                 };
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             sx,
@@ -2584,7 +2574,7 @@ impl Renderer {
             let sx = (actor_x * 2.0).round() as i32 - view_char_x + screen_center_x;
             let sy = actor_y.floor() as i32 - view_char_y + screen_center_y;
             if sx >= -4 && sx < self.width as i32 + 4 && sy >= -4 && sy < self.height as i32 + 4 {
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             sx,
@@ -2632,7 +2622,7 @@ impl Renderer {
                 let light_factor =
                     (light[light_y * width_b + light_x] as f32 / 15.0).clamp(0.45, 1.0);
                 let fg = Self::rgb(Self::scale_rgb((176, 128, 72), light_factor));
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             b_sx,
@@ -2885,7 +2875,7 @@ impl Renderer {
                         b: 70,
                     };
                 }
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             s_sx,
@@ -3262,7 +3252,7 @@ impl Renderer {
                     _ => Color::White,
                 };
                 let bob_y = (item.get_bobbing_offset() * 1.0).round() as i32;
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             i_screen_x,
@@ -3314,7 +3304,7 @@ impl Renderer {
                     }
                 };
                 let bob_y = (orb.get_bobbing_offset() * 1.0).round() as i32;
-                if scale > 1 {
+                if self.pixel_colors {
                     self.actor_sprites.push(
                         ActorSprite::mob(
                             o_screen_x,
@@ -5836,6 +5826,8 @@ mod tests {
             .remote_players
             .push(crate::engine::state::RemotePlayerState {
                 client_id: 7,
+                action: None,
+                held_item: None,
                 x: 3.0,
                 y: 64.0,
                 vx: 0.0,

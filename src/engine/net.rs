@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 13;
+pub const NET_PROTOCOL_VERSION: u16 = 14;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;
@@ -147,6 +147,8 @@ impl PlayerSnapshot {
 pub struct PeerPlayerSnapshot {
     pub client_id: u16,
     pub player: PlayerSnapshot,
+    pub action: Option<super::action::ActionVisual>,
+    pub held_item: Option<ItemType>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -158,6 +160,7 @@ pub struct ServerSnapshot {
     pub weather: SnapshotWeather,
     pub time_of_day: f32,
     pub player: PlayerSnapshot,
+    pub action: Option<super::action::ActionVisual>,
     pub chat: super::director::ChatView,
     pub settings: super::state::SharedSettings,
     pub session: PlayerSession,
@@ -188,6 +191,7 @@ impl ServerSnapshot {
             weather: state.weather.into(),
             time_of_day: state.time_of_day,
             player: PlayerSnapshot::from_state(state),
+            action: state.action_visual(0.0),
             chat: state.chat.clone(),
             settings: super::state::SharedSettings::capture(state),
             session,
@@ -696,6 +700,10 @@ impl ServerSimulation {
                 self.state.peer_session(id).map(|p| PeerPlayerSnapshot {
                     client_id: id,
                     player: PlayerSnapshot::from_player(p.player()),
+                    action: self.state.peer_action_visual(id, p.player().age, 0.0),
+                    held_item: p.inventory().slots[p.hotbar_index() as usize]
+                        .as_ref()
+                        .map(|s| s.item_type),
                 })
             })
             .collect();
