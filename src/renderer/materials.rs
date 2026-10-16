@@ -714,7 +714,12 @@ impl Renderer {
             } else {
                 crate::world::chunk::CHUNK_HEIGHT as i32
             };
-            horizons.push(ground);
+            horizons.push(
+                state
+                    .world
+                    .fluid_surface_y(bx, ground)
+                    .unwrap_or(ground as f64),
+            );
         }
         let precipitation: Vec<_> = (left..=right)
             .map(|x| {
@@ -747,7 +752,7 @@ impl Renderer {
                 let bx = world_x.floor() as i32;
                 let ground = horizons[(bx - left) as usize];
                 let rgb = match state.current_dimension {
-                    Dimension::Overworld if world_y < ground as f64 => {
+                    Dimension::Overworld if world_y < ground => {
                         let mut sky = Self::screen_sky_pixel(
                             state,
                             (sx, sy),
@@ -842,6 +847,11 @@ impl Renderer {
                     ((bx.wrapping_mul(31) ^ by.wrapping_mul(17)).rem_euclid(5) - 2) as f32 * 0.012;
                 let mirror = matches!(block, BlockType::Netherrack | BlockType::SoulSand)
                     && (bx.wrapping_mul(37) ^ by.wrapping_mul(53)) & 1 == 0;
+                // Keep the visible surface aligned with immersion/buoyancy.
+                // At tiny scales retain at least one pixel for a shallow flow.
+                let fluid_top = state.world.fluid_surface_y(bx, by).map(|surface| {
+                    (((surface - by as f64) * unit as f64).floor() as usize).min(unit as usize - 1)
+                });
                 let backdrop_pixel = |px: usize, py: usize| {
                     let color = backdrop?;
                     let wx = bx as f64 + (px as f64 + 0.5) / unit as f64;
@@ -863,11 +873,19 @@ impl Renderer {
                 };
                 for py in 0..unit as usize {
                     for px in 0..unit as usize {
+                        if fluid_top.is_some_and(|top| py < top) {
+                            if let Some(color) = backdrop_pixel(px, py) {
+                                self.put_pixel(sx + px as i32, sy + py as i32, color);
+                            }
+                            continue;
+                        }
                         let color = if let Some(tile) = &tile {
                             // The 4px silhouettes are authored for overview.
                             // Sampling an 8px fixture at every other pixel can
                             // erase a thin stem, both ladder rails or a latch.
-                            let token = if let Some(detail) = tile.detail.filter(|_| unit >= 8) {
+                            let token = if fluid_top == Some(py) && !above.is_fluid() {
+                                b'+'
+                            } else if let Some(detail) = tile.detail.filter(|_| unit >= 8) {
                                 detail[py * 8 / unit as usize].as_bytes()[px * 8 / unit as usize]
                             } else {
                                 tile.pixels[py * 4 / unit as usize].as_bytes()[if mirror {
@@ -1130,6 +1148,64 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fluid_pixels_follow_the_shared_surface_at_every_color_scale() {
+        let mut state = GameState::network_view();
+        state.world.apply_chunk_column_snapshot(
+            0,
+            &vec![
+                BlockType::Air;
+                crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+            ],
+        );
+        for x in 0..8 {
+            for y in 11..16 {
+                state.world.set_block(x, y, BlockType::Stone);
+            }
+        }
+        let pixel = |buffer: &[super::super::RenderCell], x: usize, y: usize| {
+            let cell = buffer[(y / 2) * 160 + x];
+            if y.is_multiple_of(2) {
+                cell.fg
+            } else {
+                cell.bg
+            }
+        };
+        for block in [
+            BlockType::Water(1),
+            BlockType::Water(4),
+            BlockType::Water(8),
+            BlockType::Lava(1),
+        ] {
+            state.world.set_block(0, 10, block);
+            let lighting =
+                super::super::shading::SceneLighting::new(&state, &[15; 64], (0, 8, 8, 8));
+            for scale in [1, 2, 4] {
+                let mut renderer = Renderer::with_size(160, 48);
+                renderer.world_view = Some((0, 10 * scale, 0, 0, scale));
+                state.world.set_block(0, 10, BlockType::Air);
+                renderer.render_pixel_sky(&state, &lighting, 0.0);
+                let sky = renderer.back_buffer.clone();
+                state.world.set_block(0, 10, block);
+                renderer.render_pixel_sky(&state, &lighting, 0.0);
+                renderer.render_pixel_materials(&state, &lighting);
+                let unit = scale as usize * 2;
+                let top = (((state.world.fluid_surface_y(0, 10).unwrap() - 10.0) * unit as f64)
+                    .floor() as usize)
+                    .min(unit - 1);
+                for y in 0..unit {
+                    for x in 0..unit {
+                        assert_eq!(
+                            pixel(&renderer.back_buffer, x, y) == pixel(&sky, x, y),
+                            y < top,
+                            "fluid depth mismatch for {block:?} at scale {scale}, pixel {x},{y}"
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn nether_backdrop_and_terrain_share_camera_translation_in_both_pixel_views() {

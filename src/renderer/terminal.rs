@@ -78,7 +78,7 @@ pub struct Renderer {
     frame_seconds: f64,
     last_frame_at: Option<std::time::Instant>,
     vertical_pixel_offset: i32,
-    pixel_horizons: Vec<i32>,
+    pixel_horizons: Vec<f64>,
 }
 
 impl Renderer {

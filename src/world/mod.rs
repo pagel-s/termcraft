@@ -1,4 +1,5 @@
 mod attachments;
+mod fluids;
 mod lighting;
 mod portals;
 pub use attachments::{RoomMaterial, TorchAttachment};
@@ -113,8 +114,6 @@ const OVERWORLD_NEAR_SURFACE_WORM_CAVE_THRESHOLD: f64 = 0.08;
 const OVERWORLD_DUNGEON_CHUNK_CADENCE: i32 = 5;
 const OVERWORLD_DUNGEON_CHUNK_PHASE: i32 = 2;
 const OVERWORLD_LAVA_TICK_INTERVAL: u64 = 30;
-const WATER_MIN_HORIZONTAL_FLOW_LEVEL: u8 = 1;
-const SLOW_LAVA_MIN_HORIZONTAL_FLOW_LEVEL: u8 = 5;
 const TNT_FUSE_TICKS: u8 = 35;
 const TNT_CHAIN_FUSE_TICKS: u8 = 5;
 const TNT_BLAST_RADIUS: i32 = 3;
@@ -1124,12 +1123,6 @@ impl World {
         }
     }
 
-    fn activate_fluid_chunk_neighbors_in(target: &mut HashSet<i32>, center_chunk: i32) {
-        for chunk_x in (center_chunk - 1)..=(center_chunk + 1) {
-            target.insert(chunk_x);
-        }
-    }
-
     pub fn save_dirty_chunk_budget(&mut self, max_chunks: usize) -> bool {
         self.try_save_dirty_chunk_budget(max_chunks).unwrap_or(true)
     }
@@ -1704,254 +1697,6 @@ impl World {
         }
     }
 
-    fn can_form_infinite_water_source(&self, x: i32, y: i32) -> bool {
-        if y + 1 >= CHUNK_HEIGHT as i32 {
-            return false;
-        }
-        let below = self.get_block(x, y + 1);
-        (below.is_solid() || below == BlockType::Water(8))
-            && matches!(self.get_block(x - 1, y), BlockType::Water(8))
-            && matches!(self.get_block(x + 1, y), BlockType::Water(8))
-    }
-
-    fn min_horizontal_fluid_level(&self, is_water: bool) -> u8 {
-        if is_water || self.dimension == Dimension::Nether {
-            WATER_MIN_HORIZONTAL_FLOW_LEVEL
-        } else {
-            SLOW_LAVA_MIN_HORIZONTAL_FLOW_LEVEL
-        }
-    }
-
-    fn should_process_lava(&self) -> bool {
-        self.dimension == Dimension::Nether
-            || self
-                .tick_counter
-                .is_multiple_of(OVERWORLD_LAVA_TICK_INTERVAL)
-    }
-
-    fn fluid_mix_result(
-        &self,
-        is_water: bool,
-        target: BlockType,
-        vertical_flow: bool,
-    ) -> Option<BlockType> {
-        match (is_water, target) {
-            (true, BlockType::Lava(level)) => Some(if level == 8 {
-                BlockType::Obsidian
-            } else {
-                BlockType::Cobblestone
-            }),
-            (false, BlockType::Water(_)) => Some(if vertical_flow {
-                BlockType::Stone
-            } else {
-                BlockType::Cobblestone
-            }),
-            _ => None,
-        }
-    }
-
-    fn maybe_insert_infinite_water_source(
-        &self,
-        next_state: &mut std::collections::HashMap<(i32, i32), BlockType>,
-        source_x: i32,
-        source_y: i32,
-        gap_dir: i32,
-    ) -> bool {
-        let gap_x = source_x + gap_dir;
-        if self.get_block(gap_x, source_y) != BlockType::Air {
-            return false;
-        }
-
-        if self.can_form_infinite_water_source(gap_x, source_y) {
-            return next_state.insert((gap_x, source_y), BlockType::Water(8))
-                != Some(BlockType::Water(8));
-        }
-        false
-    }
-
-    fn update_fluids(&mut self, center_chunk: i32) {
-        use std::collections::{HashMap, HashSet};
-        let scheduled_chunks: Vec<i32> = self
-            .active_fluid_chunks
-            .iter()
-            .copied()
-            .filter(|chunk_x| {
-                self.simulation_chunk_active(*chunk_x, center_chunk)
-                    && self
-                        .chunks
-                        .get(chunk_x)
-                        .is_some_and(|chunk| chunk.has_fluids())
-            })
-            .collect();
-        let mut next_active_chunks: HashSet<i32> = self
-            .active_fluid_chunks
-            .iter()
-            .copied()
-            .filter(|chunk_x| {
-                !self.simulation_chunk_active(*chunk_x, center_chunk)
-                    && self
-                        .chunks
-                        .get(chunk_x)
-                        .is_some_and(|chunk| chunk.has_fluids())
-            })
-            .collect();
-        if scheduled_chunks.is_empty() {
-            self.active_fluid_chunks = next_active_chunks;
-            return;
-        }
-
-        let mut next_state = HashMap::new();
-        let process_lava = self.should_process_lava();
-
-        for cx in scheduled_chunks {
-            let Some(chunk) = self.chunks.get(&cx) else {
-                continue;
-            };
-            let mut skipped_lava = false;
-            for y in 0..CHUNK_HEIGHT {
-                for x in 0..CHUNK_WIDTH {
-                    let block = chunk.get_block(x, y);
-                    let wx = cx * CHUNK_WIDTH as i32 + x as i32;
-                    let wy = y as i32;
-
-                    let (is_water, mut level) = match block {
-                        BlockType::Water(l) => (true, l),
-                        BlockType::Lava(l) => (false, l),
-                        _ => continue,
-                    };
-                    if !is_water && !process_lava {
-                        skipped_lava = true;
-                        continue;
-                    }
-
-                    if is_water && level == 8 {
-                        if self.maybe_insert_infinite_water_source(&mut next_state, wx, wy, -1) {
-                            Self::activate_fluid_chunk_neighbors_in(&mut next_active_chunks, cx);
-                        }
-                        if self.maybe_insert_infinite_water_source(&mut next_state, wx, wy, 1) {
-                            Self::activate_fluid_chunk_neighbors_in(&mut next_active_chunks, cx);
-                        }
-                    }
-
-                    if is_water && self.can_form_infinite_water_source(wx, wy) {
-                        if next_state.insert((wx, wy), BlockType::Water(8))
-                            != Some(BlockType::Water(8))
-                        {
-                            Self::activate_fluid_chunk_neighbors_in(&mut next_active_chunks, cx);
-                        }
-                        level = 8;
-                    }
-
-                    let is_same = |b: BlockType| {
-                        if is_water {
-                            matches!(b, BlockType::Water(_))
-                        } else {
-                            matches!(b, BlockType::Lava(_))
-                        }
-                    };
-                    let get_l = |b: BlockType| match b {
-                        BlockType::Water(l) => l,
-                        BlockType::Lava(l) => l,
-                        _ => 0,
-                    };
-
-                    let above = self.get_block(wx, wy - 1);
-                    let left = self.get_block(wx - 1, wy);
-                    let right = self.get_block(wx + 1, wy);
-
-                    let supported = if level == 8 {
-                        true
-                    } else {
-                        is_same(above)
-                            || (is_same(left) && get_l(left) > level)
-                            || (is_same(right) && get_l(right) > level)
-                    };
-
-                    if !supported {
-                        let new_block = if level > 1 {
-                            if is_water {
-                                BlockType::Water(level - 1)
-                            } else {
-                                BlockType::Lava(level - 1)
-                            }
-                        } else {
-                            BlockType::Air
-                        };
-                        if Self::insert_fluid_change(&mut next_state, wx, wy, new_block) {
-                            Self::activate_fluid_chunk_neighbors_in(&mut next_active_chunks, cx);
-                        }
-                        continue;
-                    }
-
-                    let below = self.get_block(wx, wy + 1);
-                    let mut spread_horizontally = false;
-
-                    if wy + 1 < CHUNK_HEIGHT as i32 {
-                        if let Some(mixed_block) = self.fluid_mix_result(is_water, below, true) {
-                            if next_state.insert((wx, wy + 1), mixed_block) != Some(mixed_block) {
-                                Self::activate_fluid_chunk_neighbors_in(
-                                    &mut next_active_chunks,
-                                    wx.div_euclid(CHUNK_WIDTH as i32),
-                                );
-                            }
-                        } else if below.is_replaceable() && (!is_same(below) || get_l(below) < 7) {
-                            let fall_block = if is_water {
-                                BlockType::Water(7)
-                            } else {
-                                BlockType::Lava(7)
-                            };
-                            if Self::insert_fluid_change(&mut next_state, wx, wy + 1, fall_block) {
-                                Self::activate_fluid_chunk_neighbors_in(
-                                    &mut next_active_chunks,
-                                    wx.div_euclid(CHUNK_WIDTH as i32),
-                                );
-                            }
-                        } else {
-                            spread_horizontally = true;
-                        }
-                    }
-
-                    if spread_horizontally && level > self.min_horizontal_fluid_level(is_water) {
-                        let spread_block = if is_water {
-                            BlockType::Water(level - 1)
-                        } else {
-                            BlockType::Lava(level - 1)
-                        };
-
-                        for nx in [wx - 1, wx + 1] {
-                            let side = self.get_block(nx, wy);
-                            if let Some(mixed_block) = self.fluid_mix_result(is_water, side, false)
-                            {
-                                if next_state.insert((nx, wy), mixed_block) != Some(mixed_block) {
-                                    Self::activate_fluid_chunk_neighbors_in(
-                                        &mut next_active_chunks,
-                                        nx.div_euclid(CHUNK_WIDTH as i32),
-                                    );
-                                }
-                            } else if side.is_replaceable()
-                                && (!is_same(side) || get_l(side) < level - 1)
-                                && Self::insert_fluid_change(&mut next_state, nx, wy, spread_block)
-                            {
-                                Self::activate_fluid_chunk_neighbors_in(
-                                    &mut next_active_chunks,
-                                    nx.div_euclid(CHUNK_WIDTH as i32),
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            if skipped_lava {
-                Self::activate_fluid_chunk_neighbors_in(&mut next_active_chunks, cx);
-            }
-        }
-
-        for ((wx, wy), block) in next_state {
-            self.set_block(wx, wy, block);
-        }
-        self.active_fluid_chunks = next_active_chunks;
-    }
-
     fn update_redstone(&mut self, center_chunk: i32) {
         let mut trigger_changes = Vec::new();
         for (&cx, chunk) in &self.chunks {
@@ -2480,38 +2225,6 @@ impl World {
             BlockType::RedstoneDust(level) => level.saturating_sub(1),
             _ => 0,
         }
-    }
-
-    fn insert_fluid_change(
-        next_state: &mut std::collections::HashMap<(i32, i32), BlockType>,
-        x: i32,
-        y: i32,
-        new_block: BlockType,
-    ) -> bool {
-        let current = next_state.get(&(x, y)).copied().unwrap_or(BlockType::Air);
-        if current.is_solid() {
-            return false;
-        }
-        if new_block.is_solid() || new_block == BlockType::Air {
-            return next_state.insert((x, y), new_block) != Some(new_block);
-        }
-
-        let cur_l = match current {
-            BlockType::Water(l) => l,
-            BlockType::Lava(l) => l,
-            _ => 0,
-        };
-        let new_l = match new_block {
-            BlockType::Water(l) => l,
-            BlockType::Lava(l) => l,
-            _ => 0,
-        };
-
-        if new_l > cur_l {
-            next_state.insert((x, y), new_block);
-            return true;
-        }
-        false
     }
 
     fn biome_climate_noise(
@@ -7130,7 +6843,9 @@ mod tests {
         let mut world = World::new();
         world.load_chunks_around(0);
 
-        for x in 0..6 {
+        // Keep drops beyond the flow's reach: this checks cadence, not the
+        // independent nearest-drop routing rule.
+        for x in -12..=12 {
             for y in 0..5 {
                 world.set_block(x, y, BlockType::Air);
             }

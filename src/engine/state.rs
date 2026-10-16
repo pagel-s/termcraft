@@ -5790,7 +5790,7 @@ impl GameState {
             let center_y = y.floor() as i32;
             for by in (center_y - 1)..=(center_y + 1) {
                 if matches!(self.world.get_block(bx, by), BlockType::Water(_)) {
-                    let surface_y = by as f64;
+                    let surface_y = self.world.fluid_surface_y(bx, by).unwrap();
                     best = Some(best.map_or(surface_y, |current| current.min(surface_y)));
                 }
             }
@@ -6899,44 +6899,36 @@ impl GameState {
     fn entity_fluid_submersion(&self, x: f64, y: f64, half_width: f64, height: f64) -> (f64, f64) {
         let side_sample = (half_width - 0.02).max(0.0);
         let sample_xs = [x - side_sample, x, x + side_sample];
-        let sample_ys = [y - height + 0.1, y - height * 0.5, y];
-        let mut water_samples = 0u32;
-        let mut lava_samples = 0u32;
-        let mut center_water_samples = 0u32;
-        let mut center_lava_samples = 0u32;
-
+        let mut water = [0.0_f64; 3];
+        let mut lava = [0.0_f64; 3];
+        let top = y - height;
         for (x_idx, sample_x) in sample_xs.into_iter().enumerate() {
-            for sample_y in sample_ys {
-                match self
-                    .world
-                    .get_block(sample_x.floor() as i32, sample_y.floor() as i32)
-                {
-                    BlockType::Water(_) => {
-                        water_samples += 1;
-                        if x_idx == 1 {
-                            center_water_samples += 1;
-                        }
+            let bx = sample_x.floor() as i32;
+            for by in top.floor() as i32..=(y - 0.000001).floor() as i32 {
+                if let Some(surface) = self.world.fluid_surface_y(bx, by) {
+                    let overlap = (y.min(by as f64 + 1.0) - top.max(surface)).max(0.0);
+                    match self.world.get_block(bx, by) {
+                        BlockType::Water(_) => water[x_idx] += overlap / height,
+                        BlockType::Lava(_) => lava[x_idx] += overlap / height,
+                        _ => {}
                     }
-                    BlockType::Lava(_) => {
-                        lava_samples += 1;
-                        if x_idx == 1 {
-                            center_lava_samples += 1;
-                        }
-                    }
-                    _ => {}
                 }
             }
+            // Start drag on contact with the visible surface without treating
+            // touching feet as one third of a submerged body.
+            match self.world.fluid_at_point(sample_x, y) {
+                BlockType::Water(_) => water[x_idx] = water[x_idx].max(0.01),
+                BlockType::Lava(_) => lava[x_idx] = lava[x_idx].max(0.01),
+                _ => {}
+            }
         }
-
-        let total_samples = (sample_xs.len() * sample_ys.len()) as f64;
-        let center_sample_count = sample_ys.len() as f64;
-        let water_average = water_samples as f64 / total_samples;
-        let lava_average = lava_samples as f64 / total_samples;
-        let center_water = center_water_samples as f64 / center_sample_count;
-        let center_lava = center_lava_samples as f64 / center_sample_count;
         (
-            water_average.max(center_water),
-            lava_average.max(center_lava),
+            (water.iter().sum::<f64>() / 3.0)
+                .max(water[1])
+                .clamp(0.0, 1.0),
+            (lava.iter().sum::<f64>() / 3.0)
+                .max(lava[1])
+                .clamp(0.0, 1.0),
         )
     }
 
@@ -13808,11 +13800,15 @@ impl GameState {
         }
         self.update_fishing_state(rng);
 
-        let head_y = (self.player.y - 1.5).floor() as i32;
-        let feet_y = self.player.y.floor() as i32;
-        let p_x = self.player.x.floor() as i32;
-        let head_block = self.world.get_block(p_x, head_y);
-        let feet_block = self.world.get_block(p_x, feet_y);
+        let head_block = self
+            .world
+            .fluid_at_point(self.player.x, self.player.y - 1.5);
+        let (water_contact, lava_contact) = self.entity_fluid_submersion(
+            self.player.x,
+            self.player.y,
+            PLAYER_HALF_WIDTH,
+            PLAYER_HEIGHT,
+        );
 
         if matches!(head_block, BlockType::Water(_)) {
             self.player.drowning_timer -= 1;
@@ -13824,7 +13820,7 @@ impl GameState {
             self.player.drowning_timer = 300;
         }
 
-        if matches!(feet_block, BlockType::Lava(_)) || matches!(head_block, BlockType::Lava(_)) {
+        if lava_contact > 0.0 {
             if fire_resistant {
                 self.player.burning_timer = 0;
             } else {
@@ -13837,8 +13833,7 @@ impl GameState {
 
         if self.player.burning_timer > 0 {
             if fire_resistant
-                || matches!(feet_block, BlockType::Water(_))
-                || matches!(head_block, BlockType::Water(_))
+                || water_contact > 0.0
                 || self.is_weather_wet_at(self.player.x, self.player.y - 1.5)
             {
                 self.player.burning_timer = 0;
@@ -13979,7 +13974,18 @@ impl GameState {
                         self.player.grounded = true;
                         self.player.jump(0.0, 0.0);
                     } else {
-                        self.player.jump(water_submersion, lava_submersion);
+                        self.player.jump(
+                            if in_fluid_for_jump {
+                                water_submersion
+                            } else {
+                                0.0
+                            },
+                            if in_fluid_for_jump {
+                                lava_submersion
+                            } else {
+                                0.0
+                            },
+                        );
                     }
                     if input_dir != 0.0 && !on_ladder && !in_fluid_for_jump {
                         // Preserve a minimum forward impulse so jumping from flush against
@@ -14572,7 +14578,7 @@ impl GameState {
                 vy *= 0.96 - water_submersion * 0.03;
             }
         } else if shallow_water_contact {
-            vx *= 0.74 - water_submersion * 0.1;
+            vx *= 0.70 - water_submersion * 0.1;
             if vy < 0.0 {
                 vy *= 0.92;
             }
@@ -15715,7 +15721,9 @@ mod tests {
             state.world.set_block(x, 10, BlockType::Stone);
         }
         for x in 0..=1 {
-            for y in 8..=9 {
+            // One block deep is genuinely partial immersion for a 1.8-block
+            // actor. Two full cells cover the head and require swimming up.
+            for y in 9..=9 {
                 state.world.set_block(x, y, BlockType::Water(8));
             }
         }

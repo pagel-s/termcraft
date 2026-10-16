@@ -143,7 +143,7 @@ impl GameState {
                     x,
                     y,
                     if y == 67 {
-                        BlockType::Water(0)
+                        BlockType::Water(8)
                     } else {
                         BlockType::Air
                     },
@@ -199,7 +199,7 @@ impl GameState {
                     x,
                     y,
                     if y == 83 {
-                        BlockType::Water(0)
+                        BlockType::Water(8)
                     } else {
                         BlockType::Air
                     },

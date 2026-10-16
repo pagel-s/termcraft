@@ -549,6 +549,44 @@ fn npc_fluid_motion_is_independent_of_player_jump_hold() {
     assert_eq!(released, held);
 }
 
+#[test]
+fn thin_flow_has_shallow_immersion_and_allows_a_normal_ground_jump() {
+    let mut s = scene();
+    s.dismiss_startup_splash();
+    s.game_rules.do_mob_spawning = false;
+    for x in -2..=2 {
+        s.world.set_block(x, 20, BlockType::Stone);
+        s.world.set_block(x, 19, BlockType::Water(1));
+    }
+    s.player.grounded = true;
+    let (water, lava) = s.entity_fluid_submersion(0.5, 20.0, PLAYER_HALF_WIDTH, PLAYER_HEIGHT);
+    assert!((water - 0.125 / PLAYER_HEIGHT).abs() < 0.00001);
+    assert_eq!(lava, 0.0);
+    s.apply_client_command(ClientCommand::QueueJump);
+    s.update(0, 0);
+    assert!(
+        s.player.vy < -0.35,
+        "puddle suppressed land jump: {}",
+        s.player.vy
+    );
+}
+
+#[test]
+fn breathing_and_boat_surface_follow_actual_fluid_depth() {
+    let mut s = scene();
+    s.dismiss_startup_splash();
+    s.game_rules.do_mob_spawning = false;
+    s.player.y = 20.0;
+    s.world.set_block(0, 18, BlockType::Water(1));
+    s.player.drowning_timer = 100;
+    s.update(0, 0);
+    assert_eq!(
+        s.player.drowning_timer, 300,
+        "eyes above shallow water must breathe"
+    );
+    assert_eq!(s.boat_surface_y_near(0.5, 18.9), Some(18.875));
+}
+
 fn generated_village_scene() -> (
     GameState,
     crate::world::village::VillageSite,
