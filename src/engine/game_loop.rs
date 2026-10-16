@@ -43,6 +43,12 @@ pub(super) fn input_stale_timeout(
     (!key_releases).then_some(legacy_timeout)
 }
 
+pub(super) fn frame_deadline(started: Instant, finished: Instant, budget: Duration) -> Instant {
+    // Render/flush time consumes this frame's budget. A slow terminal must not
+    // incur another full sleep, or accumulate debt for a catch-up paint burst.
+    (started + budget).max(finished)
+}
+
 #[derive(Default)]
 pub(super) struct LegacyJumpGrace {
     until: Option<Instant>,
@@ -324,6 +330,8 @@ impl GameLoop {
                             KeyEventKind::Press => {
                                 match key_event.code {
                                     KeyCode::F(4) => renderer.toggle_zoom(),
+                                    KeyCode::Char('+' | '=') => renderer.zoom_in(),
+                                    KeyCode::Char('-') => renderer.zoom_out(),
                                     KeyCode::F(3) => {
                                         self.state.show_debug_overlay =
                                             !self.state.show_debug_overlay;
@@ -738,7 +746,8 @@ impl GameLoop {
                     .performance
                     .render
                     .record(render_started.elapsed());
-                next_frame_deadline = Instant::now() + FRAME_DURATION;
+                next_frame_deadline =
+                    frame_deadline(render_started, Instant::now(), FRAME_DURATION);
             }
             // poll wakes for input without consuming it. Input is processed immediately,
             // while rendering stays bounded and simulation retains its fixed 20 Hz step.
@@ -996,8 +1005,11 @@ impl GameLoop {
                 if !self.state.moving_left {
                     return false;
                 }
-                self.state
-                    .apply_client_command(ClientCommand::SetMoveLeft(false));
+                self.state.apply_client_command(if self.state.moving_right {
+                    ClientCommand::SetMoveLeft(false)
+                } else {
+                    ClientCommand::ClearDirectionalInput
+                });
                 self.left_last_input_at = None;
                 self.left_repeat_observed = false;
                 true
@@ -1006,8 +1018,11 @@ impl GameLoop {
                 if !self.state.moving_right {
                     return false;
                 }
-                self.state
-                    .apply_client_command(ClientCommand::SetMoveRight(false));
+                self.state.apply_client_command(if self.state.moving_left {
+                    ClientCommand::SetMoveRight(false)
+                } else {
+                    ClientCommand::ClearDirectionalInput
+                });
                 self.right_last_input_at = None;
                 self.right_repeat_observed = false;
                 true
@@ -1056,6 +1071,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn rendering_consumes_the_frame_budget_without_extra_sleep_or_catchup_debt() {
+        let start = Instant::now();
+        assert_eq!(
+            frame_deadline(start, start + Duration::from_millis(8), FRAME_DURATION),
+            start + FRAME_DURATION
+        );
+        let slow = start + Duration::from_millis(40);
+        assert_eq!(frame_deadline(start, slow, FRAME_DURATION), slow);
+        let next_slow = slow + Duration::from_millis(40);
+        assert_eq!(frame_deadline(slow, next_slow, FRAME_DURATION), next_slow);
+    }
+
+    #[test]
     fn release_reporting_terminal_keeps_held_movement_and_jump_until_key_up() {
         let mut game = GameLoop::new();
         game.key_releases =
@@ -1088,6 +1116,22 @@ mod tests {
         game.clear_stale_horizontal_input(now + Duration::from_millis(151));
         assert!(!game.state.moving_right);
         assert!(!game.key_releases);
+    }
+
+    #[test]
+    fn legacy_repeat_after_initial_timeout_does_not_become_a_sprint_tap() {
+        for direction in [HorizontalDirection::Left, HorizontalDirection::Right] {
+            let mut game = GameLoop::with_state(GameState::network_view());
+            let now = Instant::now();
+            game.handle_horizontal_press(direction, now, false);
+            game.clear_stale_horizontal_input(now + Duration::from_millis(151));
+            game.handle_horizontal_press(direction, now + Duration::from_millis(300), false);
+            assert!(!game.state.is_sprinting(), "OS repeat became a double tap");
+            // An actual release and second press still intentionally sprint.
+            game.handle_horizontal_release(direction);
+            game.handle_horizontal_press(direction, now + Duration::from_millis(350), false);
+            assert!(game.state.is_sprinting());
+        }
     }
 
     #[test]

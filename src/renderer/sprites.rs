@@ -1903,6 +1903,14 @@ mod tests {
                     for facing_right in [false, true] {
                         for age in [0, 6, 11] {
                             for x in [0.5, 6.0] {
+                                // Close detail no longer falls back on compact
+                                // terminals. Keep the historical side-view head
+                                // inside the camera for this eye-identity check.
+                                state.player.x = if front == Some(false) && zoom == 2 {
+                                    x
+                                } else {
+                                    0.5
+                                };
                                 let mut dragon =
                                     crate::entities::ender_dragon::EnderDragon::new(x, 7.0);
                                 dragon.facing_right = facing_right;

@@ -1,7 +1,9 @@
 #[path = "client_identity.rs"]
 mod identity;
 use super::command::ClientCommand;
-use super::game_loop::{LegacyJumpGrace, confirms_control_key_releases, input_stale_timeout};
+use super::game_loop::{
+    LegacyJumpGrace, confirms_control_key_releases, frame_deadline, input_stale_timeout,
+};
 use super::net::{
     ChunkDeltaPacket, ClientHello, ClientInputFrame, ClientPredictionState, NET_PROTOCOL_VERSION,
     SERVER_TICK_RATE, ServerSnapshot, ServerWireMessage, read_framed_server_message,
@@ -390,6 +392,8 @@ fn run_tcp_client_loop(
                                 state.chat.open = true;
                             }
                             KeyCode::F(4) => renderer.toggle_zoom(),
+                            KeyCode::Char('+' | '=') => renderer.zoom_in(),
+                            KeyCode::Char('-') => renderer.zoom_out(),
                             KeyCode::F(3) => state.show_debug_overlay = !state.show_debug_overlay,
                             KeyCode::Char('q') | KeyCode::Esc => {
                                 if state.inventory_open {
@@ -1003,7 +1007,11 @@ fn run_tcp_client_loop(
             queue_client_command(
                 &mut prediction,
                 &mut pending_outbound,
-                ClientCommand::SetMoveLeft(false),
+                if right_active {
+                    ClientCommand::SetMoveLeft(false)
+                } else {
+                    ClientCommand::ClearDirectionalInput
+                },
             );
         }
         if right_active
@@ -1026,7 +1034,11 @@ fn run_tcp_client_loop(
             queue_client_command(
                 &mut prediction,
                 &mut pending_outbound,
-                ClientCommand::SetMoveRight(false),
+                if left_active {
+                    ClientCommand::SetMoveRight(false)
+                } else {
+                    ClientCommand::ClearDirectionalInput
+                },
             );
         }
         if jump_held_sent
@@ -1056,11 +1068,13 @@ fn run_tcp_client_loop(
         while now.duration_since(last_tick) >= CLIENT_TICK_DURATION
             && catchup_ticks < CLIENT_MAX_CATCHUP_TICKS_PER_FRAME
         {
+            let tick_started = Instant::now();
             renderer.capture_motion_step(&state);
             prediction.advance_local_tick();
             if let Some(predicted) = prediction.predicted_snapshot() {
                 sync_state_from_snapshot(&mut state, predicted);
             }
+            state.performance.tick.record(tick_started.elapsed());
             last_tick += CLIENT_TICK_DURATION;
             catchup_ticks = catchup_ticks.saturating_add(1);
         }
@@ -1121,8 +1135,11 @@ fn run_tcp_client_loop(
             let frame_alpha = (now.duration_since(last_tick).as_secs_f64()
                 / CLIENT_TICK_DURATION.as_secs_f64())
             .clamp(0.0, 1.0);
+            let render_started = Instant::now();
             renderer.render(&state, frame_alpha)?;
-            next_frame_deadline = Instant::now() + CLIENT_FRAME_DURATION;
+            state.performance.render.record(render_started.elapsed());
+            next_frame_deadline =
+                frame_deadline(render_started, Instant::now(), CLIENT_FRAME_DURATION);
         }
         let wake_at = next_frame_deadline.min(last_tick + CLIENT_TICK_DURATION);
         event::poll(wake_at.saturating_duration_since(Instant::now()))?;

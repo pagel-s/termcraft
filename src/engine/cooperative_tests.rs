@@ -103,7 +103,9 @@ fn obstacle_routes_match_native_motion_for_every_tick_in_shared_play() {
                     state.world.set_block(
                         x,
                         y,
-                        if y >= 80 {
+                        // Isolate the course from each world's independently
+                        // generated neighbours, including external water heads.
+                        if y >= 80 || x == -16 || x == 48 {
                             BlockType::Stone
                         } else {
                             BlockType::Air

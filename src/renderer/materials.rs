@@ -737,7 +737,7 @@ impl Renderer {
             .collect();
         let day = Self::day_mix(state.time_of_day);
         let twilight = Self::twilight_mix(state.time_of_day);
-        let rows = i32::from(self.height - 4) * 2;
+        let rows = i32::from(self.height.saturating_sub(4)) * 2;
         let nether_columns: Vec<_> = if state.current_dimension == Dimension::Nether {
             (0..i32::from(self.width))
                 .map(|sx| super::nether::Column::new((sx + vx - cx) as f64 / unit as f64))
@@ -809,7 +809,7 @@ impl Renderer {
         let right = (vx - cx + i32::from(self.width)).div_euclid(unit);
         let top = (vy * 2 + self.vertical_pixel_offset - cy * 2).div_euclid(unit);
         let bottom = (vy * 2 + self.vertical_pixel_offset - cy * 2
-            + i32::from(self.height - 4) * 2)
+            + i32::from(self.height.saturating_sub(4)) * 2)
             .div_euclid(unit);
         let mut torches = Vec::new();
         for by in top..=bottom {

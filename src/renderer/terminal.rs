@@ -187,12 +187,38 @@ impl Renderer {
     }
 
     pub fn toggle_zoom(&mut self) {
+        self.set_zoom((self.zoom + 1) % 3);
+    }
+
+    pub fn zoom_in(&mut self) {
+        self.set_zoom(if self.zoom == 1 { 0 } else { 2 });
+    }
+
+    pub fn zoom_out(&mut self) {
+        self.set_zoom(if self.zoom == 2 { 0 } else { 1 });
+    }
+
+    fn set_zoom(&mut self, zoom: u8) {
         if !self.pixel_colors {
             return;
         }
-        self.zoom = (self.zoom + 1) % 3;
+        self.zoom = zoom;
         // Picking continues to use the image still on screen until the next frame.
         self.buffer.fill(RenderCell::default());
+    }
+
+    fn view_name(&self) -> &'static str {
+        if !self.pixel_colors {
+            "Glyph (NO_COLOR)"
+        } else if self.width < 8 || self.height < 8 {
+            "Resize terminal"
+        } else {
+            match self.zoom {
+                1 => "Wide",
+                2 => "Detail",
+                _ => "Overview",
+            }
+        }
     }
 
     pub fn reports_key_releases(&self) -> bool {
@@ -1188,25 +1214,20 @@ impl Renderer {
         self.actor_sprites.clear();
         let physical_size = (self.width, self.height);
         let boss_view = state.current_dimension == Dimension::End && state.ender_dragon.is_some();
-        // Start in a useful pixel overview. Detailed art is an explicit view,
-        // rather than automatically halving world context on a larger terminal.
-        let scale = if self.pixel_colors && self.zoom != 1 && self.width >= 100 && self.height >= 32
-        {
-            if self.zoom == 2
-                && (!boss_view || self.dragon_art_preview.is_some())
-                && self.width >= 140
-                && self.height >= 44
-            {
-                4
-            } else {
-                2
+        // A selected view has a fixed resolution. Font/window zoom must never
+        // silently replace the detailed artwork with a reduced sprite.
+        let scale = if self.pixel_colors && self.width >= 8 && self.height >= 8 {
+            match self.zoom {
+                1 => 1,
+                2 => 4,
+                _ => 2,
             }
         } else {
             1
         };
         if scale > 1 {
             self.width = self.width / scale as u16 + 2;
-            self.height = (self.height - 4) / scale as u16 + 5;
+            self.height = self.height.saturating_sub(4) / scale as u16 + 5;
         }
         let frame_alpha = frame_alpha.clamp(0.0, 1.0);
         if self
@@ -3551,9 +3572,9 @@ impl Renderer {
             hud_x,
             5,
             if state.is_sprinting() {
-                "Sprint ON       "
+                "Sprint ON (release)   "
             } else {
-                "Sprint OFF      "
+                "Sprint OFF (tap twice)"
             },
             if state.is_sprinting() {
                 Color::Yellow
@@ -3633,7 +3654,8 @@ impl Renderer {
             1,
             0,
             &format!(
-                "Chunk {:>5.2}ms max {:>5.2}ms p{:>2} sg:{} ag:{} dim:{:?} w:{:?} mv:{} df:{} gr:{} r:{}/{}/{}/{} opt:O amb:{:>2}/{:>2}/{:>2}",
+                "View:{} {}x{} | Chunk {:>5.2}ms max {:>5.2}ms p{:>2} sg:{} ag:{} dim:{:?} w:{:?} mv:{} df:{} gr:{} r:{}/{}/{}/{} opt:O amb:{:>2}/{:>2}/{:>2}",
+                self.view_name(), self.width, self.height,
                 chunk_ms,
                 chunk_max_ms,
                 state.world.chunk_metrics.pending_requests,
@@ -3677,8 +3699,9 @@ impl Renderer {
                 1,
                 0,
                 &format!(
-                    "Termcraft | {:?} | {} | {}    {chat_hint}E: inventory{settings_hint}  F3: diagnostics  F4: view",
+                    "Termcraft | {:?} | {} +/- F4 | {} | {}    {chat_hint}E: inventory{settings_hint}  F3: diagnostics",
                     state.current_dimension,
+                    self.view_name(),
                     Self::local_weather_label(state),
                     state.difficulty_name()
                 ),
@@ -5664,6 +5687,76 @@ mod tests {
             assert!(output.starts_with(b"\x1b[?2026h"));
             assert!(output.ends_with(b"\x1b[?2026l"));
             renderer.toggle_zoom();
+        }
+    }
+
+    #[test]
+    fn explicit_detail_keeps_full_resolution_in_compact_terminals_and_the_end() {
+        for (width, height) in [(80, 24), (100, 32), (120, 40), (160, 48)] {
+            for dimension in [Dimension::Overworld, Dimension::End] {
+                let mut state = GameState::network_view();
+                state.dismiss_startup_splash();
+                state.current_dimension = dimension;
+                if dimension == Dimension::End {
+                    state.ender_dragon =
+                        Some(crate::entities::ender_dragon::EnderDragon::new(0.0, 20.0));
+                }
+                let mut renderer = Renderer::with_size(width, height);
+                renderer.toggle_zoom();
+                renderer.toggle_zoom();
+                renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+                assert_eq!(
+                    renderer.world_view.unwrap().4,
+                    4,
+                    "{width}x{height} {dimension:?}"
+                );
+                let header: String = renderer.back_buffer[..width as usize]
+                    .iter()
+                    .map(|c| c.ch)
+                    .collect();
+                assert!(header.contains("Detail"), "{header}");
+            }
+        }
+    }
+
+    #[test]
+    fn relative_zoom_steps_in_order_and_stops_at_each_end() {
+        let state = GameState::network_view();
+        let mut renderer = Renderer::with_size(80, 24);
+        for (zoom_in, expected) in [
+            (true, 4),
+            (true, 4),
+            (false, 2),
+            (false, 1),
+            (false, 1),
+            (true, 2),
+        ] {
+            if zoom_in {
+                renderer.zoom_in();
+            } else {
+                renderer.zoom_out();
+            }
+            renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+            assert_eq!(renderer.world_view.unwrap().4, expected);
+        }
+        renderer.pixel_colors = false;
+        renderer.zoom_in();
+        renderer.toggle_zoom();
+        renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+        assert_eq!(renderer.world_view.unwrap().4, 1);
+        assert_eq!(renderer.view_name(), "Glyph (NO_COLOR)");
+    }
+
+    #[test]
+    fn all_zoom_views_handle_tiny_terminal_sizes_without_underflow() {
+        let state = GameState::network_view();
+        for (width, height) in [(1, 1), (20, 4), (40, 12)] {
+            let mut renderer = Renderer::with_size(width, height);
+            for _ in 0..3 {
+                renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+                assert_eq!((renderer.width, renderer.height), (width, height));
+                renderer.toggle_zoom();
+            }
         }
     }
 

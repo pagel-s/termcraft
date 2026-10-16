@@ -51,6 +51,7 @@ impl WaterBasins {
         let width = chunks.len() * CHUNK_WIDTH;
         let len = width * CHUNK_HEIGHT;
         let mut passable = vec![false; len];
+        let mut wet = vec![false; len];
         let mut heads = vec![u8::MAX; len];
         let mut supply = BinaryHeap::new();
         for (cx, chunk_x) in chunks.iter().enumerate() {
@@ -60,6 +61,7 @@ impl WaterBasins {
                     let i = (cx * CHUNK_WIDTH + x) * CHUNK_HEIGHT + y;
                     let block = chunk.get_block(x, y);
                     passable[i] = block.is_replaceable() && !matches!(block, BlockType::Lava(_));
+                    wet[i] = matches!(block, BlockType::Water(n) if n > 0);
                     if block == BlockType::Water(8) {
                         heads[i] = y as u8;
                         supply.push(Reverse((y as u8, i)));
@@ -70,8 +72,10 @@ impl WaterBasins {
         if supply.is_empty() {
             return;
         }
-        // Highest reachable source surface, through passages at/below that
-        // surface. Air is considered for reach, but does not itself become wet.
+        // Pressure follows an actual wet connection, at/below its source.
+        // Include one dry neighbour as a growth target, without propagating
+        // through it: a distant high source must not pressurize another pool
+        // across an unfilled passage or through the air above its walls.
         while let Some(Reverse((head, i))) = supply.pop() {
             if heads[i] != head {
                 continue;
@@ -79,7 +83,9 @@ impl WaterBasins {
             for ni in neighbours(i, len) {
                 if passable[ni] && ni % CHUNK_HEIGHT >= usize::from(head) && head < heads[ni] {
                     heads[ni] = head;
-                    supply.push(Reverse((head, ni)));
+                    if wet[ni] {
+                        supply.push(Reverse((head, ni)));
+                    }
                 }
             }
         }

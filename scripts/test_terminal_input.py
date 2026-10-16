@@ -32,7 +32,7 @@ from capture_terminal_art import Screen, raster
 
 
 class TerminalGame:
-    def __init__(self, binary, save_root, artifacts, world_id=None, address=None, env_overrides=None):
+    def __init__(self, binary, save_root, artifacts, world_id=None, address=None, env_overrides=None, size=(160, 48)):
         self.binary = str(binary)
         self.artifacts = artifacts
         artifacts.mkdir(parents=True, exist_ok=True)
@@ -41,9 +41,10 @@ class TerminalGame:
         self.env.pop("TERMCRAFT_DIRECTOR", None)
         self.env.update(env_overrides or {})
         self.master, self.slave = pty.openpty()
-        fcntl.ioctl(self.slave, termios.TIOCSWINSZ, struct.pack("HHHH", 48, 160, 0, 0))
+        columns, rows = size
+        fcntl.ioctl(self.slave, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
         self.before = termios.tcgetattr(self.slave)
-        self.screen = Screen(160, 48)
+        self.screen = Screen(columns, rows)
         self.raw = bytearray()
         self.queries = 0
         self.mcp = None
@@ -97,6 +98,15 @@ class TerminalGame:
 
     def send(self, data):
         os.write(self.master, data)
+
+    def resize(self, columns, rows):
+        if (columns, rows) == (self.screen.w, self.screen.h):
+            self.pump(0.25)
+            return
+        self.screen = Screen(columns, rows)
+        fcntl.ioctl(self.slave, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
+        self.process.send_signal(signal.SIGWINCH)
+        self.pump(0.25)
 
     def pump(self, seconds):
         deadline = time.monotonic() + seconds
@@ -219,6 +229,27 @@ def check_input(binary, root, mode):
         assert "keys:repeat" in game.screen.text(), "capability claim was treated as key-up proof"
         game.capture("legacy-tap-stopped")
         game.send(b"\x1b[13~")
+        # One physical hold with a 300 ms OS repeat delay must stay a walk,
+        # even though conservative legacy input expired its initial pulse.
+        game.send(b"d")
+        game.pump(0.3)
+        for _ in range(6):
+            game.send(b"d")
+            game.pump(0.045)
+        assert "Sprint OFF" in game.screen.text(), (mode, "OS repeat started sprint")
+        game.pump(0.5)
+        # Even a zero-relief recipe includes the survival starter tree at x=10.
+        # Walk to the clear western runway through ordinary legacy input before
+        # measuring jump/landing height; do not confuse landing on that tree
+        # with a movement failure, or edit the live world to remove it.
+        deadline = time.monotonic() + 12
+        while game.x() > -32:
+            assert time.monotonic() < deadline, (mode, "clear runway approach stalled", game.player())
+            for _ in range(4):
+                game.send(b"a")
+                game.pump(0.08)
+        game.pump(0.5)
+        course_start = game.player()
         # Legacy OS repeat shifts to Space. Preserve established movement
         # through takeoff, but never renew it forever from Space alone.
         legacy_start = game.player()
@@ -235,12 +266,19 @@ def check_input(binary, root, mode):
             game.pump(0.2)
         # Repeated jump requests can leave ordinary airborne momentum after
         # direction has stopped. End the jump input and allow a normal landing.
-        game.pump(1.0)
-        legacy_end = game.x()
+        game.pump(0.7)
+        deadline = time.monotonic() + 2
         legacy_landed = game.player()
+        # Observe the actual landing: terminal backpressure can change the
+        # number of simulation ticks serviced in one fixed wall-clock sleep.
+        while abs(legacy_landed["y"] - legacy_start["y"]) >= 0.05:
+            assert time.monotonic() < deadline, (mode, "legacy jump never landed", legacy_start, legacy_landed)
+            game.pump(0.1)
+            legacy_landed = game.player()
+        legacy_end = legacy_landed["x"]
         game.pump(0.3)
         assert abs(game.x() - legacy_end) < 0.3, (mode, "legacy movement did not stop after landing", legacy_end, game.player())
-        assert abs(legacy_landed["y"] - legacy_start["y"]) < 0.05, (mode, "legacy jump never landed")
+        assert abs(legacy_landed["y"] - legacy_start["y"]) < 0.05, (mode, "legacy jump never landed", legacy_start, legacy_landed)
         # Prime only after checking the first tap: this is actual control key-up.
         game.send(b"\x1b[100;1:3u")
         game.send(b"\x1b[100;1:1u")
@@ -299,8 +337,31 @@ def check_input(binary, root, mode):
         game.pump(0.3)
         assert abs(game.x() - focus_end) < 0.35, (mode, "focus loss left movement held")
         game.capture("confirmed-controls")
+        # Explicit press/release double taps distinguish sprint from one held
+        # direction. Measure both through the actual native/co-op input path.
+        game.pump(0.5)
+        walk_start = game.x()
+        game.send(b"\x1b[100;1:1u")
+        game.pump(0.65)
+        walk_distance = game.x() - walk_start
+        assert "Sprint OFF" in game.screen.text(), (mode, "holding direction started sprint")
+        game.send(b"\x1b[100;1:3u")
+        game.pump(0.5)
+        game.send(b"\x1b[100;1:1u\x1b[100;1:3u")
+        game.pump(0.08)
+        sprint_start = game.x()
+        game.send(b"\x1b[100;1:1u")
+        game.pump(0.65)
+        sprint_distance = game.x() - sprint_start
+        assert "Sprint ON" in game.screen.text(), (mode, "double tap did not sprint")
+        assert sprint_distance > walk_distance * 1.1, (mode, walk_distance, sprint_distance)
+        game.capture("sprint")
+        game.send(b"\x1b[100;1:3u")
+        game.pump(0.2)
+        assert "Sprint OFF" in game.screen.text(), (mode, "release did not end sprint")
         return {
             "mode": mode, "status": "passed", "capability_positive_ascii_tap_delta": tap_end - start,
+            "movement_course_start": course_start,
             "tap_rest_drift": stopped - tap_end, "unrelated_release_rest_drift": unrelated_stopped - unrelated_end,
             "confirmed_hold_delta": held_end - held_start, "key_up_drift": release_stopped - released,
             "legacy_run_jump_delta": legacy_air["x"] - legacy_start["x"],
@@ -308,6 +369,9 @@ def check_input(binary, root, mode):
             "run_after_jump_release_delta": after_jump - chord_end,
             "quiet_left_run_jump_delta": left_start["x"] - left_end,
             "focus_loss_cleared": True,
+            "walk_distance": walk_distance, "sprint_distance": sprint_distance,
+            "sprint_double_tap_and_release": True,
+            "legacy_repeat_does_not_start_sprint": True,
             **game.finish(),
         }
     finally:

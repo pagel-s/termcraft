@@ -3850,6 +3850,8 @@ impl GameState {
                 let was_moving = self.moving_left || self.moving_right;
                 self.moving_left = false;
                 self.moving_right = false;
+                self.sprint_left_tap_ticks = 0;
+                self.sprint_right_tap_ticks = 0;
                 self.stop_sprinting();
                 if was_moving {
                     self.brake_released_movement();

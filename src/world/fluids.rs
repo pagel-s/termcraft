@@ -363,6 +363,23 @@ mod tests {
     }
 
     #[test]
+    fn a_high_source_across_dry_air_cannot_pressurize_an_unconnected_pool() {
+        let mut world = scene(Dimension::Overworld, false);
+        basin(&mut world, 0, 20, 8, 30);
+        world.set_block(1, 20, BlockType::Water(8));
+        world.set_block(-12, 5, BlockType::Water(8)); // Falls past the outside wall.
+        step(&mut world, 100);
+        for x in 1..20 {
+            assert_eq!(world.fluid_surface_y(x, 20), Some(20.0));
+            assert_eq!(
+                world.get_block(x, 19),
+                BlockType::Air,
+                "pressure crossed dry air at {x}"
+            );
+        }
+    }
+
+    #[test]
     fn water_rises_in_a_connected_vessel_through_a_low_tunnel() {
         let mut world = scene(Dimension::Overworld, false);
         basin(&mut world, -10, 10, 8, 30);
