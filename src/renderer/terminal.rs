@@ -5474,56 +5474,30 @@ impl Renderer {
             self.put_str(
                 box_x + 2,
                 box_y + 10,
-                "AVAILABLE SMELTS (CLICK TO START)",
+                "FURNACE",
                 Self::rgb((237, 201, 121)),
                 bg,
             );
+            let status = state
+                .furnace_status_line()
+                .chars()
+                .take(56)
+                .collect::<String>();
             self.put_str(
                 box_x + 2,
-                box_y + 11,
-                &state.furnace_status_line(),
-                Color::Cyan,
+                box_y + 12,
+                &status,
+                Self::rgb((139, 211, 221)),
                 bg,
             );
-            let recipe_start_y = 13;
-            let all_recipes = Recipe::all();
-            let mut visible_idx = 0;
-            for (i, r) in all_recipes.iter().enumerate() {
-                if !r.needs_furnace {
-                    continue;
-                }
-                let rx = box_x + 2;
-                let ry = box_y + recipe_start_y + visible_idx;
-                let can_craft = state.can_start_furnace_recipe(i);
-                let fg = if can_craft {
-                    Color::Green
-                } else {
-                    Self::rgb((150, 166, 178))
-                };
-                let mut ing_str = String::new();
-                for (ing, amt) in r.ingredient_requirements() {
-                    let ingredient_name = ing.name();
-                    ing_str.push_str(&format!("{ingredient_name} x{amt}, "));
-                }
-                let recipe_number = i + 1;
-                let result_name = r.result.name();
-                let result_count = r.result_count;
-                self.put_str(
-                    rx,
-                    ry,
-                    &format!("{recipe_number}. {result_name} x{result_count} <- {ing_str}"),
-                    fg,
-                    bg,
-                );
-                visible_idx += 1;
+            for (row, line) in [
+                (14, "Tab: browse all smelting recipes"),
+                (15, "Shift-click bag input or coal to start a job."),
+                (17, "Finished output waits safely if the bag is full."),
+                (18, "You can close this screen while it cooks."),
+            ] {
+                self.put_str(box_x + 2, box_y + row, line, Self::rgb((172, 185, 195)), bg);
             }
-            self.put_str(
-                box_x + 2,
-                box_y + 20,
-                "Shift+L on smeltable item/coal to quick-start furnace job.",
-                Self::rgb((172, 185, 195)),
-                bg,
-            );
         } else {
             let grid_size = if state.at_crafting_table { 3 } else { 2 };
             let grid_x = box_x + 30;
@@ -5641,41 +5615,7 @@ impl Renderer {
         screen_x: u16,
         screen_y: u16,
     ) -> Option<usize> {
-        if let Some(index) = self.recipe_book_click(state, screen_x, screen_y) {
-            return Some(index);
-        }
-        if self.compact_recipe_book(state) {
-            return None;
-        }
-        if state.at_chest
-            || state.at_enchanting_table
-            || state.at_anvil
-            || state.at_brewing_stand
-            || !state.at_furnace
-        {
-            return None;
-        }
-        let box_h = 24;
-        let (box_x, _) = self.inventory_origin(state);
-        let box_y = (self.height as i32 - box_h) / 2;
-        let rel_x = screen_x as i32 - box_x;
-        let rel_y = screen_y as i32 - box_y;
-        let recipe_start_y = 13;
-        if (2..58).contains(&rel_x) && rel_y >= recipe_start_y {
-            let clicked_row = (rel_y - recipe_start_y) as usize;
-            let all_recipes = Recipe::all();
-            let mut visible_idx = 0;
-            for (i, r) in all_recipes.iter().enumerate() {
-                if !r.needs_furnace {
-                    continue;
-                }
-                if visible_idx == clicked_row {
-                    return Some(i);
-                }
-                visible_idx += 1;
-            }
-        }
-        None
+        self.recipe_book_click(state, screen_x, screen_y)
     }
 
     pub fn get_enchant_option_click(
