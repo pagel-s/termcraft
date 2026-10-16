@@ -29,7 +29,7 @@
     "examples/weather_review.rs": "cace6e098309fe29c10d6cd44f8ae364fba32edaf9c857a5aff73105eaee4b42",
     "examples/world_review.rs": "bf136a8cf76183b99c0bab21868646d0acffd151ea2235a5958d97022f1953c3",
     "scripts/build_material_gallery.py": "e52b07938c69020e7441a6d1098e8d6af17fe57ee218f93e08f1ececc4e22dbc",
-    "scripts/build_world_gallery.py": "85383c7dd45212cc155e01206fc9c6d02f324d456f23e1becea5bf02ec935ff5",
+    "scripts/build_world_gallery.py": "74f5b1e97e6012e68291fbded5d95333d7bf282ab5dbad64969666a95cd9c196",
     "scripts/export_gallery.py": "e1cd6d3bac4a1f14b8a266d38925a98ccf9e12d2a4b4b6d8217000ee98c57554",
     "scripts/verify_gallery.py": "fa55cd7871b1b0f99fb9651a14921ec4195dedbe90aee959ca4950bd243bf6aa",
     "src/engine/actors.rs": "19dabe31804bbd1b29901d27ca3686850df0b19bc50543a9cca897fab1920186",
@@ -459,5 +459,8 @@
     "report": "../world-atlas-2026-10-15/image-loads.json",
     "checks": "HTTP 200, exact bytes, revisions, dimensions, all GIF frames and all static covers",
     "limits": "HTTP/raster verification, not browser UI QA."
-  }
+  },
+  "native_platform_qualification": "https://github.com/pagel-s/termcraft/actions/runs/38797431069",
+  "native_platform_status": "all four targets passed",
+  "image_loading": "First four covers eager; remaining covers load as they approach the viewport. Full-size sources remain in the catalog."
 }

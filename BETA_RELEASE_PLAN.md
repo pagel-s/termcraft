@@ -464,7 +464,7 @@ implemented, but real Codex/Claude/model task fidelity and latency still need us
 qualification beyond the single interactive Codex run above. Optional LLM play owns a stepped single-player world, so simultaneous
 human/LLM player entry is deferred. Ordinary gameplay remains model-independent.
 
-**Shared play:** Eight connections/64 saved identities, Overworld only, trusted
+**Shared play:** Eight connections/64 saved identities across all three dimensions, trusted
 local TCP or an existing SSH tunnel. Player IDs, not custom display names, label
 avatars. Prediction remains approximate and server-authoritative; qualify jitter,
 slow clients, bandwidth and input feel under latency. No public host/accounts or
@@ -524,3 +524,20 @@ remain release gates. Entity/loose-item restart persistence, larger authoring/te
 changes and architectural variety remain unimplemented follow-ups; these checks
 do not silently expand the game master's bounded Overworld contract. No release
 version bump, tag, crate publication or merge has been performed.
+
+
+## Native qualification collected 16 October
+
+[Run 38797431069](https://github.com/pagel-s/termcraft/actions/runs/38797431069)
+passes all four targets: Linux x86_64, Windows x86_64, macOS ARM64 and macOS Intel.
+Each target passes Rust 1.88 tests, strict Clippy, native build, archive hashes,
+launcher argument forwarding and no-Rust-in-PATH MCP/save-reopen checks. Unix
+checks native/default-launcher PTYs and terminal restoration; Linux also checks
+real OpenSSH joining. This qualifies automated native packages, not interactive
+human OS/terminal behavior. The macOS terminal observer keeps the controlling
+session alive until restoration is checked, and rejects a raw-mode negative control.
+
+The final eight-player delayed-link soak passes for ten wall-clock minutes, with
+roughly 12,000 snapshots per player, seven stalled readers removed and saved
+reconnect after restart. Door clicking/right-drag passes in overview, wide and
+close views. Evidence is retained in `docs/assets/cooperative-qualification-2026-10-15.json`.

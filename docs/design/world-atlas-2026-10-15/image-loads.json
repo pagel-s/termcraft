@@ -467,7 +467,7 @@
     },
     {
       "url": "world-atlas-2026-10-15/evidence.json",
-      "sha256": "1f37038f6fcf36fd4e4ff08b97ed5ade8a3d5e698f8083435923f671907a9a81",
+      "sha256": "6a9e332ba277837fdd35eedca5a33151cbf790b250fd50b3f40ec638ee3a2db8",
       "image_frames": 0
     },
     {
@@ -577,7 +577,7 @@
     },
     {
       "url": "world-atlas-2026-10-15/index.html",
-      "sha256": "e62479babd07a4d8297d3cc990cea269628b970ca47285f876ebedb5ea608018",
+      "sha256": "c854fe4ecef02d383da84bfddc17a502f847b0030d32aa5301f83343c6cc2ece",
       "image_frames": 0
     },
     {
@@ -2582,7 +2582,7 @@
     },
     {
       "url": "world-refinement-2026-10-15/evidence.json",
-      "sha256": "548725fe5f6a5de527732f0b57a3c72ce40fec6ae2c480080cdcb2f0cb489fe2",
+      "sha256": "7c973eaa077a0f86cdc4ea0b2b32031df0414a7172d586e94615cf7de56fb313",
       "image_frames": 0
     },
     {

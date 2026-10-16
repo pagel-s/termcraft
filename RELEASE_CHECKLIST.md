@@ -1,6 +1,6 @@
 # Beta qualification and release handoff
 
-Updated 15 October 2026. Candidate: `0.2.0-beta.1`; current development
+Updated 16 October 2026. Candidate: `0.2.0-beta.1`; current development
 manifest/executable: `0.1.0`. Nothing here authorizes publication or public hosting.
 See [BETA_RELEASE_PLAN.md](BETA_RELEASE_PLAN.md) for results and limitations and
 [development release notes](docs/beta-release-notes.md) for player-facing changes.
@@ -61,7 +61,8 @@ Linux no-Rust launcher/archive checks pass. Source identities and limits are in
 
 Native CI now builds/tests/packages Linux, Windows and both Mac architectures on
 beta source pushes. Download and judge only the exact successful run you test;
-[the candidate's run](https://github.com/pagel-s/termcraft/actions/runs/38795587109)
+[the candidate's run](https://github.com/pagel-s/termcraft/actions/runs/38797431069)
+passes all four targets, including archive/launcher and no-Rust MCP checks. This
 is separate from human terminal qualification. No tag, crate or release was published.
 
 ## Human, model and platform gates

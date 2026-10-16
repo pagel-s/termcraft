@@ -46,6 +46,11 @@ for the exact commit being downloaded. Passing automation and native human input
 pass before distributing a beta. A Linux binary built on this workstation is
 not proof of compatibility with older Linux/glibc systems.
 
+The [qualified development run](https://github.com/pagel-s/termcraft/actions/runs/38797431069)
+passes on all four targets at `0ab6317`. Its game code is the `d48fe93` candidate;
+the follow-up corrects the macOS terminal test observer. Native interactive
+terminal behavior and clean-machine acceptance remain separate checks.
+
 ## Join through SSH
 
 On a server you already control, install the matching Termcraft build and run:
