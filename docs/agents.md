@@ -217,7 +217,7 @@ Interactions still obey the normal reach, collision, ingredients, and line of
 sight checks. Recipe IDs are session-local lookup indexes, not stable content IDs.
 
 `inventory_click` uses the ordinary open inventory/container UI. Pass `slot` and
-`kind`: 0 swaps with the cursor, 1 splits, and 2 quick-moves. Slot numbering starts
+`kind`: 0 selects/moves/merges a stack, 1 splits or places one, and 2 quick-moves. Slot numbering starts
 with container slots when a chest is open. `observe` includes open chest contents,
 nearby entity health, and the optional trial objective/progress. `act(jump: true)`
 queues takeoff as well as holding the jump, so normal grounded jumps work.

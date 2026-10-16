@@ -683,3 +683,17 @@ strict Clippy caught an unnecessary Unix-only mutable builder; `c71d1fc` fixes
 it and passes local checkpoint/Clippy/fault checks. Fresh native CI is pending.
 [Review and exact evidence](docs/design/save-recovery-2026-10-16/README.md).
 These process-level checks do not qualify hardware power loss or physical disks.
+
+## Inventory, survival feedback and reactive blocks, 16 October
+
+`095bd35` adds a recipe browser, capacity-safe single/batch crafting, consistent
+stack merging and ground pickups, readable item names, final food/health icon
+rounding, ore activation and local lava/fire. `308cc9b` brings native inventory
+dragging to co-op. Final furnace layout/import cleanup is in `e218e48`. The local
+executable is updated; matching protocol **16** clients/server are required.
+
+774 stable/MSRV checks, strict Clippy on both, seven TCP/MCP integrations, real
+solo/co-op inventory and action PTYs, storage faults/recovery and normal Lantern
+Run pass. The exact counts, snapshots, source/binary identities and platform CI
+status are in the [inventory/survival review](docs/design/inventory-survival-2026-10-16/README.md).
+Human interaction/physics acceptance remains a playtest gate.

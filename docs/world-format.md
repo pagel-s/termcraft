@@ -82,7 +82,12 @@ Fluid blocks retain their existing `Water(u8)` / `Lava(u8)` encoding. Water valu
 save/reopen and is rendered/used for immersion at full depth. Its supply is
 recomputed from loaded geometry when simulation resumes. No chunk schema bump is
 needed; older development binaries do not implement the new hydraulic semantics.
-Use matching protocol-15 clients/server for this build.
+Use matching protocol-16 clients/server for this build.
+
+The new `LitRedstoneOre(u8)` and `Fire(u8)` variants are appended to the block
+enum. Their timers persist with chunks and resume when simulated. Existing chunks
+remain readable; older development binaries may reject chunks containing the new
+variants. Use matching current builds and keep a complete backup when upgrading.
 
 Payload fields:
 

@@ -218,3 +218,14 @@ rollback and native emergency-copy recovery. General CI succeeds on the feature
 source. `c71d1fc` fixes Windows-only strict Clippy; fresh native platform results
 are tracked in the evidence file. Real physical-device and
 power-loss behavior, human play and release preparation remain separate gates.
+
+## Inventory and survival follow-up, 16 October
+
+The [inventory/survival review](docs/design/inventory-survival-2026-10-16/README.md)
+records 774 stable/MSRV checks, both strict Clippy runs, seven TCP/MCP tests,
+real solo/co-op inventory dragging/recipes/merges/resize/eating with exact saved
+totals, and repeated action/storage checks. Furnace output waits safely for space;
+ore/fire timers persist and replicate. Source `e218e48` passes general CI and
+Windows/Linux/ARM Mac native jobs; Intel Mac is still running at evidence collection. The local binary uses protocol **16**.
+Test the new bag/crafting flow, food, ground pickups, ore glow and fire in actual
+play. These results do not establish human UX acceptance or a qualified release.

@@ -47,7 +47,7 @@ same linked frame or remain in another dimension. Terrain, entities, hazards,
 boats and client streaming stay local to that dimension. Saved identities reopen
 in their own dimensions, and shared portal links/dragon completion survive restart.
 The End encounter is shared; credits and respawn remain individual. Late commands
-from a previous dimension cannot place/mine there after travel. Matching protocol-15
+from a previous dimension cannot place/mine there after travel. Matching protocol-16
 builds are required. Server checkpoint v3 reads v1/v2; native checkpoint v9 reads v1–8.
 
 ## Faster rendering and clearer play
@@ -145,6 +145,26 @@ panels no longer cover the scene. Chest-only inventory edits are saved correctly
 Automated CLI completion establishes that the loop is playable under normal rules;
 it does not establish human enjoyment or a polished full survival campaign.
 
+## Easier inventory, food feedback and reactive blocks
+
+The bag separates main storage from its numbered hotbar, shows full item names
+on hover and keeps partial merge remainders selected. A recipe book supports
+one-click crafting, Shift-click batches, wheel/Page Up/Page Down navigation and
+Tab switching on compact terminals. Manual grids use whole-stack left placement,
+one-item right placement, dragging and quick transfer in both solo and co-op.
+
+Recipes preserve their ingredients when the complete output would not fit.
+Completed furnace output waits safely for space, including after a restart.
+Full-bag drops settle on the ground and can be picked up after space opens, or by
+a nearby friend. Food/health icons round fractional values consistently, and a
+visibly full hunger bar prevents wasting another meal on a tiny drain.
+
+Redstone ore lights up when hit, used or stepped on and fades after activation.
+Lava and flint/steel can start local fires in flammable material; water puts them
+out. Lava/fire destroy loose items and flames respect fire resistance. New ore/fire
+block variants and batch-craft commands require matching **protocol 16** builds.
+[Controls and rules](gameplay.md#inventory-and-crafting).
+
 ## More predictable movement and safer saves
 
 Partial-water swimming no longer stalls while holding up. Eight obstacle routes
@@ -215,7 +235,7 @@ four-platform workflow builds development artifacts; interactive OS/terminal
 qualification remains a separate release gate.
 
 Shared play supports eight connections, 64 saved identities and independent travel
-across all three dimensions. Protocol **15** requires matching builds. Classic survival through the dragon,
+across all three dimensions. Protocol **16** requires matching builds. Classic survival through the dragon,
 sustained human co-op, remote SSH/WAN behavior, live model quality and all-platform
 terminals remain release gates. Automated results do not establish a completed
 human campaign or a viral release.
@@ -223,7 +243,7 @@ human campaign or a viral release.
 The October 16 correction adds visible misses, distinct held-tool/bow/eat/use poses,
 consistent pixels at every colour zoom, light-aware cave spawns, walk-in Nether
 portals, source-preserving fluids and direct seed placement on farmland. Co-op
-action poses require matching **protocol 15** clients and server. See the
+action poses require matching **protocol 16** clients and server. See the
 [interaction review](design/interaction-review-2026-10-16/README.md).
 
 Following ore/farming feedback, fresh terrain has more iron and rare ores and coal

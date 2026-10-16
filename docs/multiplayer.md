@@ -125,7 +125,7 @@ with each dimension's clocks, health and timers. Restarting resumes surviving wa
 members and End boss/crystal damage. Nothing advances while offline. Normal live
 spawn/despawn rules still apply. Old server records have no entities to restore.
 
-Protocol **15** requires matching builds. Frames are capped at 256 KiB and nearby
+Protocol **16** requires matching builds. Frames are capped at 256 KiB and nearby
 entity snapshots at 512 entities within 128 columns. Terrain streaming covers
 seven chunk columns around each player. Snapshots are sent at 20 Hz. A two-minute
 eight-player delayed-link/stalled-reader fixture now passes; WAN bandwidth and

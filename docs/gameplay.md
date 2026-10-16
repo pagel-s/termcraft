@@ -80,25 +80,53 @@ beyond previously generated terrain. See the [depth and clustering review](desig
 
 ## Inventory And Crafting
 
-The inventory UI supports more than simple click-swap behavior.
+Open the bag with **E**. Main storage is above the numbered hotbar. Hover an
+item to read its name; the footer identifies the stack you are moving and its
+remainder after a partial merge.
 
-- `Enter`: craft once from the current crafting grid
-- `Shift+Enter`: craft max
-- `Delete`: clear the crafting grid back into inventory
-- left drag: spread one item per crossed slot
-- right drag: also spread one item per crossed slot for precise layout
-- shift-left-click on crafting output: craft max with mouse
+- Left-click a stack, then its destination: move, merge or swap it. Left-click
+  into an empty crafting cell moves the whole stack; right-click places one.
+- Right-click without a selected source splits a stack into an available slot.
+  Drag from a selected stack to distribute one item per crossed slot.
+- Shift-click quickly transfers between storage, hotbar, armor, grid or chest.
+- The recipe book crafts directly from bag supplies. Click for one result batch;
+  Shift-click crafts as much as the available ingredients and output space allow.
+- Scroll the book with the wheel or **Page Up/Page Down**. **Tab** toggles it;
+  compact terminals show either the book or bag. A table unlocks 3×3 recipes.
+- For manual 2×2 / table 3×3 patterns, **Enter** takes one output and
+  **Shift+Enter** or Shift-click on the output crafts the maximum.
+- **Delete** returns the grid to the bag when it all fits. Closing a container
+  returns grid items and leaves overflow on the ground.
 
-The crafting grid changes based on context:
-
-- inventory crafting: 2x2
-- crafting table: 3x3
+Crafting refuses to consume ingredients when its complete output would not fit.
+A completed furnace waits for space without spending additional fuel, including
+across save/reload. Full-bag drops settle on the ground instead of orbiting the
+player; they become collectible when space opens. A nearby friend with capacity
+can collect them. Lava and fire destroy loose items.
 
 ## Interaction Notes
 
 - Right click places or interacts.
 - `F` is the keyboard fallback for hovered-block interaction when terminal mouse support is inconsistent.
 - Chests, furnaces, doors, portals, and other interactables use the same interaction path.
+
+### Food, ore activation and fire
+
+Food can fill the last hunger point. The HUD rounds fractional hunger upward to
+its displayed half-icon, so a tiny simulation drain after eating no longer shows
+an immediately missing half. Further meals are refused while that display is full.
+
+Redstone ore glows and lights nearby terrain when hit, used or stepped on. The
+emission fades about five seconds after the last activation; mining requirements
+and drops match unlit ore. It does not supply power to redstone wiring.
+
+Lava ignites exposed wooden blocks, leaves, wool and other flammable materials;
+submerged wood is consumed by direct lava contact too. Fire spreads locally
+through exposed fuel, burns it away, primes TNT, and goes out when its fuel is
+spent or water reaches it. Flint and steel can light a supported empty cell;
+portal ignition still takes priority on a valid frame. Netherrack supports lasting
+fire. Stone and chests are not fuel. Flames damage players unless protected by
+fire resistance. Only active loaded regions advance this simulation.
 
 ### Glowstone and portals
 
@@ -125,7 +153,7 @@ momentum and accumulated fall distance reset during travel.
 Dimension travel works in single-player and co-op. In co-op only the interacting
 player travels; friends can follow or remain in another dimension. Terrain,
 entities, inventories and saved portal links remain separate, with one shared
-dragon encounter for players in the End. Use matching protocol-15 clients/server.
+dragon encounter for players in the End. Use matching protocol-16 clients/server.
 
 ## Travel / Test Shortcuts
 
