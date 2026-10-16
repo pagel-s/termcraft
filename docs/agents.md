@@ -82,8 +82,10 @@ records are retained. `/reset` backs up preferences/history and starts fresh,
 without undoing world changes.
 
 Structures, ambience, preferences and recent context persist. Spawned mobs and
-active encounters are session-only and are not restored on reopening. Weather
-and time persist through the normal progression save, then follow game cycles.
+active encounters now resume with their surviving members and health after a save
+and reopen, in solo and co-op. The world pauses while offline. Weather and time
+resume from the dimension checkpoint, then follow game cycles. Pending model
+requests and bridge connections do not resume; reconnect the external client.
 Saves are atomic per file, not across the entire plan/world; reported save errors
 need attention before closing. See [World Format](world-format.md).
 

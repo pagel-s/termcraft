@@ -48,7 +48,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(PartialEq, Clone, Copy)]
@@ -58,7 +58,7 @@ pub enum CollisionType {
     VerticalDown(f64),
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum WeatherType {
     Clear,
     Rain,
@@ -339,7 +339,8 @@ const SETTINGS_MENU_ROW_DAYLIGHT_CYCLE: u8 = 3;
 const SETTINGS_MENU_ROW_WEATHER_CYCLE: u8 = 4;
 const SETTINGS_MENU_ROW_KEEP_INVENTORY: u8 = 5;
 const SETTINGS_MENU_ROW_CLOSE: u8 = 6;
-const PLAYER_PROGRESS_VERSION: u16 = 8;
+const PLAYER_PROGRESS_VERSION: u16 = 9;
+const PLAYER_PROGRESS_VERSION_V8: u16 = 8;
 const PLAYER_PROGRESS_VERSION_V7: u16 = 7;
 const PLAYER_PROGRESS_VERSION_V6: u16 = 6;
 const PLAYER_PROGRESS_VERSION_V5: u16 = 5;
@@ -399,6 +400,8 @@ struct PlayerProgressSaveData {
     #[serde(skip)]
     complete_session: Option<PlayerSession>,
     #[serde(skip)]
+    runtime: Option<RuntimeCheckpoint>,
+    #[serde(skip)]
     portal_links: Vec<PortalLink>,
     version: u16,
     player_x: f64,
@@ -457,6 +460,24 @@ struct PlayerCheckpointV8 {
     progress: PlayerProgressSaveData,
     session: PlayerSession,
     portal_links: Vec<PortalLink>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PlayerCheckpointV9 {
+    version: u16,
+    progress: PlayerProgressSaveData,
+    session: PlayerSession,
+    portal_links: Vec<PortalLink>,
+    runtime: RuntimeCheckpoint,
+}
+
+#[derive(Serialize)]
+struct PlayerCheckpointRef<'a> {
+    version: u16,
+    progress: &'a PlayerProgressSaveData,
+    session: &'a PlayerSession,
+    portal_links: &'a [PortalLink],
+    runtime: &'a RuntimeCheckpoint,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -645,6 +666,7 @@ impl From<PlayerProgressSaveDataV1> for PlayerProgressSaveData {
     fn from(v1: PlayerProgressSaveDataV1) -> Self {
         Self {
             complete_session: None,
+            runtime: None,
             portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION,
             player_x: v1.player_x,
@@ -694,6 +716,7 @@ impl From<PlayerProgressSaveDataV5> for PlayerProgressSaveData {
     fn from(v5: PlayerProgressSaveDataV5) -> Self {
         Self {
             complete_session: None,
+            runtime: None,
             portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION,
             player_x: v5.player_x,
@@ -743,6 +766,7 @@ impl From<PlayerProgressSaveDataV4> for PlayerProgressSaveData {
     fn from(v4: PlayerProgressSaveDataV4) -> Self {
         Self {
             complete_session: None,
+            runtime: None,
             portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION,
             player_x: v4.player_x,
@@ -792,6 +816,7 @@ impl From<PlayerProgressSaveDataV3> for PlayerProgressSaveData {
     fn from(v3: PlayerProgressSaveDataV3) -> Self {
         Self {
             complete_session: None,
+            runtime: None,
             portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION,
             player_x: v3.player_x,
@@ -847,6 +872,7 @@ impl From<PlayerProgressSaveDataV2> for PlayerProgressSaveData {
         };
         Self {
             complete_session: None,
+            runtime: None,
             portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION,
             player_x: v2.player_x,
@@ -897,7 +923,7 @@ mod actors;
 #[path = "dimensions.rs"]
 mod dimensions;
 pub use actors::{PlayerSession, SharedSettings};
-pub(crate) use dimensions::SharedProgress;
+pub(crate) use dimensions::{MAX_CHECKPOINT_BYTES, RuntimeCheckpoint, SharedProgress};
 
 pub struct GameState {
     pub(super) action_visuals: std::collections::BTreeMap<u16, super::action::ActionRecord>,
@@ -905,6 +931,8 @@ pub struct GameState {
     cooperative_players: std::collections::BTreeMap<u16, PlayerSession>,
     cooperative_dimensions: std::collections::BTreeMap<u16, Dimension>,
     cooperative_worlds: std::collections::BTreeMap<Dimension, dimensions::DimensionRuntime>,
+    pub(crate) runtime_revision: std::cell::Cell<u64>,
+    pub(crate) director_encounter: Option<u64>,
     pub chat: super::director::ChatView,
     pub performance: super::metrics::PerformanceMetrics,
     pub show_debug_overlay: bool,
@@ -1458,28 +1486,52 @@ impl GameState {
     }
 
     fn load_progression_data_from_path(path: impl AsRef<Path>) -> Option<PlayerProgressSaveData> {
-        let encoded = std::fs::read(path.as_ref()).ok()?;
-        if encoded.len() > 1024 * 1024 {
+        let mut encoded = Vec::new();
+        File::open(path.as_ref())
+            .ok()?
+            .take(MAX_CHECKPOINT_BYTES + 1)
+            .read_to_end(&mut encoded)
+            .ok()?;
+        if encoded.len() as u64 > MAX_CHECKPOINT_BYTES {
             return None;
         }
         let version = u16::from_le_bytes(encoded.get(..2)?.try_into().ok()?);
         if matches!(
             version,
-            PLAYER_PROGRESS_VERSION | PLAYER_PROGRESS_VERSION_V7
+            PLAYER_PROGRESS_VERSION | PLAYER_PROGRESS_VERSION_V8 | PLAYER_PROGRESS_VERSION_V7
         ) {
             use bincode::Options;
             let options = bincode::DefaultOptions::new()
                 .with_fixint_encoding()
-                .with_limit(1024 * 1024)
+                .with_limit(MAX_CHECKPOINT_BYTES)
                 .reject_trailing_bytes();
-            let (checkpoint_version, mut data, session, links) =
+            let (checkpoint_version, mut data, session, links, runtime) =
                 if version == PLAYER_PROGRESS_VERSION {
+                    let checkpoint: PlayerCheckpointV9 = options.deserialize(&encoded).ok()?;
+                    checkpoint.runtime.validate().ok()?;
+                    if !checkpoint
+                        .runtime
+                        .contains_dimension(Self::decode_dimension(
+                            checkpoint.progress.current_dimension_code,
+                        )?)
+                    {
+                        return None;
+                    }
+                    (
+                        checkpoint.version,
+                        checkpoint.progress,
+                        checkpoint.session,
+                        checkpoint.portal_links,
+                        Some(checkpoint.runtime),
+                    )
+                } else if version == PLAYER_PROGRESS_VERSION_V8 {
                     let checkpoint: PlayerCheckpointV8 = options.deserialize(&encoded).ok()?;
                     (
                         checkpoint.version,
                         checkpoint.progress,
                         checkpoint.session,
                         checkpoint.portal_links,
+                        None,
                     )
                 } else {
                     let checkpoint: PlayerCheckpointV7 = options.deserialize(&encoded).ok()?;
@@ -1488,6 +1540,7 @@ impl GameState {
                         checkpoint.progress,
                         checkpoint.session,
                         Vec::new(),
+                        None,
                     )
                 };
             session.validate().ok()?;
@@ -1512,6 +1565,7 @@ impl GameState {
             }
             data.version = PLAYER_PROGRESS_VERSION;
             data.complete_session = Some(session);
+            data.runtime = runtime;
             data.portal_links = links;
             return Some(data);
         }
@@ -1594,6 +1648,7 @@ impl GameState {
     fn to_progression_save_data(&self) -> PlayerProgressSaveData {
         PlayerProgressSaveData {
             complete_session: Some(PlayerSession::capture(self)),
+            runtime: Some(RuntimeCheckpoint::capture(self)),
             portal_links: {
                 let mut links: Vec<_> = self
                     .portal_links
@@ -1648,11 +1703,12 @@ impl GameState {
 
     fn encode_progression(data: &PlayerProgressSaveData) -> bincode::Result<Vec<u8>> {
         if let Some(session) = &data.complete_session {
-            bincode::serialize(&PlayerCheckpointV8 {
+            bincode::serialize(&PlayerCheckpointRef {
                 version: PLAYER_PROGRESS_VERSION,
-                progress: data.clone(),
-                session: session.clone(),
-                portal_links: data.portal_links.clone(),
+                progress: data,
+                session,
+                portal_links: &data.portal_links,
+                runtime: data.runtime.as_ref().expect("complete runtime checkpoint"),
             })
         } else {
             // Legacy fixtures; new runtime checkpoints always contain a full session.
@@ -1677,19 +1733,51 @@ impl GameState {
             return self.save_trial();
         }
         self.world.check_storage()?;
-        let encoded = Self::encode_progression(&self.to_progression_save_data())
+        let data = self.to_progression_save_data();
+        data.runtime
+            .as_ref()
+            .unwrap()
+            .validate()
             .map_err(std::io::Error::other)?;
+        data.complete_session
+            .as_ref()
+            .unwrap()
+            .validate()
+            .map_err(std::io::Error::other)?;
+        let encoded = Self::encode_progression(&data).map_err(std::io::Error::other)?;
+        if encoded.len() as u64 > MAX_CHECKPOINT_BYTES {
+            return Err(std::io::Error::other(
+                "runtime checkpoint exceeds 16 MiB; previous save preserved",
+            ));
+        }
         Self::write_progression_payload_atomically(
             &self.world.save_root().join(PLAYER_PROGRESS_FILE),
             &encoded,
         )?;
+        self.runtime_revision
+            .set(data.runtime.as_ref().unwrap().revision);
         self.save_trial()
     }
 
     pub(crate) fn write_recovery_directory(&self, root: &std::path::Path) -> std::io::Result<()> {
         self.world.write_recovery_directory(root)?;
-        let encoded = Self::encode_progression(&self.to_progression_save_data())
+        let data = self.to_progression_save_data();
+        data.runtime
+            .as_ref()
+            .unwrap()
+            .validate()
             .map_err(std::io::Error::other)?;
+        data.complete_session
+            .as_ref()
+            .unwrap()
+            .validate()
+            .map_err(std::io::Error::other)?;
+        let encoded = Self::encode_progression(&data).map_err(std::io::Error::other)?;
+        if encoded.len() as u64 > MAX_CHECKPOINT_BYTES {
+            return Err(std::io::Error::other(
+                "runtime checkpoint exceeds 16 MiB; previous save preserved",
+            ));
+        }
         Self::write_progression_payload_atomically(&root.join(PLAYER_PROGRESS_FILE), &encoded)?;
         self.save_trial_in(root)
     }
@@ -1706,15 +1794,15 @@ impl GameState {
     }
 
     pub fn try_persist_world_and_progress(&mut self) -> std::io::Result<()> {
-        self.world.try_save_all()?;
+        self.save_dimension_worlds()?;
         self.try_save_progression()?;
         self.save_error.replace(None);
         Ok(())
     }
 
     fn save_before_dimension_change(&mut self) -> bool {
-        let result = self.world.try_save_all().and_then(|()| {
-            if cfg!(test) || self.cooperative() {
+        let result = self.save_dimension_worlds().and_then(|_| {
+            if self.cooperative() {
                 Ok(())
             } else {
                 self.try_save_progression()
@@ -1763,9 +1851,23 @@ impl GameState {
             .as_ref()
             .and_then(|saved| Self::decode_dimension(saved.current_dimension_code))
             .unwrap_or(Dimension::Overworld);
+        let has_runtime = progress.as_ref().is_some_and(|p| p.runtime.is_some());
         let mut state = Self::from_progress(progress, World::open_in_directory(dimension, root)?);
-        state.world.check_storage()?;
-        state.load_trial()?;
+        state.check_dimension_storage()?;
+        if !has_runtime {
+            state.load_trial()?;
+        }
+        // Terrain is shared between solo and hosted play; use the newest entity
+        // checkpoint while keeping their deliberately separate player inventories.
+        if root.join("server-state.json").try_exists()? {
+            let server = super::server_save::ServerSave::read(&state)?;
+            if let Some(runtime) = &server.runtime
+                && runtime.revision > state.runtime_revision.get()
+            {
+                runtime.apply_for_native(&mut state, dimension);
+                state.check_dimension_storage()?;
+            }
+        }
         Ok(state)
     }
 
@@ -1794,6 +1896,8 @@ impl GameState {
             cooperative_players: Default::default(),
             cooperative_dimensions: Default::default(),
             cooperative_worlds: Default::default(),
+            runtime_revision: std::cell::Cell::new(0),
+            director_encounter: None,
             chat: super::director::ChatView::default(),
             performance: super::metrics::PerformanceMetrics::default(),
             show_debug_overlay: false,
@@ -1921,7 +2025,9 @@ impl GameState {
             potion_fire_resistance_timer: 0,
         };
 
+        let mut runtime = None;
         if let Some(saved) = progress {
+            runtime = saved.runtime;
             state.player.x = saved.player_x;
             state.player.y = saved.player_y;
             state.player.vx = saved.player_vx.clamp(-4.0, 4.0);
@@ -1992,6 +2098,10 @@ impl GameState {
         }
 
         state.reset_spawn_timers_for_rules();
+        if let Some(runtime) = runtime {
+            let dimension = state.current_dimension;
+            runtime.apply_for_native(&mut state, dimension);
+        }
         state.apply_peaceful_cleanup_if_needed();
 
         state
@@ -3965,9 +4075,6 @@ impl GameState {
         self.player.hunger = self.player.max_hunger;
 
         self.travel_dimension(Dimension::Overworld);
-        if !self.cooperative() {
-            self.clear_dimension_entities();
-        }
         let (spawn_x, spawn_y) = self.resolve_overworld_spawn_location();
         self.player.x = spawn_x as f64 + 0.5;
         self.player.y = spawn_y;
@@ -7591,6 +7698,7 @@ impl GameState {
         if self.portal_cooldown > 0 {
             return;
         }
+        let source_dimension = self.current_dimension;
         match target {
             PortalUseTarget::Nether(source_anchor) => {
                 self.transfer_nether_dimension_from_anchor(Some(source_anchor));
@@ -7599,8 +7707,10 @@ impl GameState {
                 self.transfer_end_dimension();
             }
         }
-        self.portal_timer = 0;
-        self.portal_cooldown = 40;
+        if self.current_dimension != source_dimension || self.credits_active {
+            self.portal_timer = 0;
+            self.portal_cooldown = 40;
+        }
     }
 
     pub fn portal_interaction_hint(&self, bx: i32, by: i32) -> Option<&'static str> {
@@ -10158,42 +10268,6 @@ impl GameState {
         }
     }
 
-    fn clear_dimension_entities(&mut self) {
-        self.zombies.clear();
-        self.creepers.clear();
-        self.skeletons.clear();
-        self.spiders.clear();
-        self.silverfish.clear();
-        self.slimes.clear();
-        self.endermen.clear();
-        self.blazes.clear();
-        self.pigmen.clear();
-        self.ghasts.clear();
-        self.cows.clear();
-        self.sheep.clear();
-        self.pigs.clear();
-        self.chickens.clear();
-        self.squids.clear();
-        self.wolves.clear();
-        self.ocelots.clear();
-        self.villagers.clear();
-        self.villager_open_doors.clear();
-        self.item_entities.clear();
-        self.experience_orbs.clear();
-        self.arrows.clear();
-        self.fireballs.clear();
-        self.end_crystals.clear();
-        self.ender_dragon = None;
-        self.lightning_bolts.clear();
-        self.boats.clear();
-        self.mounted_boat = None;
-        self.clear_fishing_line();
-        self.reset_spawn_timers_for_rules();
-        self.end_boss_initialized = false;
-        self.end_victory_ticks = 0;
-        self.end_victory_origin = None;
-    }
-
     fn transfer_nether_dimension(&mut self) {
         let source_portal_anchor = self.player_nether_portal_anchor();
         self.transfer_nether_dimension_from_anchor(source_portal_anchor);
@@ -10264,9 +10338,6 @@ impl GameState {
         self.jump_buffer_ticks = 0;
         self.stop_sprinting();
 
-        if !self.cooperative() {
-            self.clear_dimension_entities();
-        }
         self.eye_guidance_timer = 0;
         self.save_progression();
     }
@@ -10312,15 +10383,12 @@ impl GameState {
             if !self.save_before_dimension_change() {
                 return;
             }
-            self.current_dimension = Dimension::Overworld;
-            self.world = self.world.for_dimension(Dimension::Overworld);
-            self.reset_weather_for_dimension();
+            self.travel_dimension(Dimension::Overworld);
         }
 
         let (spawn_x, spawn_y) = self.resolve_overworld_spawn_location();
 
         if switched_dimension {
-            self.clear_dimension_entities();
             self.eye_guidance_timer = 0;
         }
 
@@ -10515,9 +10583,6 @@ impl GameState {
             self.respawn_grace_ticks = self.respawn_grace_ticks.max(24);
         }
 
-        if !self.cooperative() {
-            self.clear_dimension_entities();
-        }
         self.eye_guidance_timer = 0;
         self.save_progression();
     }
@@ -23295,6 +23360,7 @@ mod tests {
 
         let data = PlayerProgressSaveData {
             complete_session: None,
+            runtime: None,
             portal_links: Vec::new(),
             version: PLAYER_PROGRESS_VERSION + 1,
             player_x: 0.5,
@@ -23352,3 +23418,7 @@ mod tests {
 #[cfg(test)]
 #[path = "physics_tests.rs"]
 mod physics_tests;
+
+#[cfg(test)]
+#[path = "persistence_tests.rs"]
+mod persistence_tests;

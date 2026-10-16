@@ -1038,7 +1038,7 @@ impl World {
         }
         std::fs::write(
             root.join("RECOVERY.txt"),
-            "Partial recovery: loaded chunks and current player state only. Unloaded regions and runtime entities are absent. Preserve the original world. Overlay these files onto a separate backup copy; do not replace the original folder with this directory. See docs/world-format.md.\n",
+            "Partial recovery: loaded chunks and current player state only. Unloaded terrain regions and terrain from other dimensions are absent; checkpoint entities cannot recreate that terrain. Preserve the original world. Overlay these files onto a separate backup copy; do not replace the original folder with this directory. See docs/world-format.md.\n",
         )
     }
 

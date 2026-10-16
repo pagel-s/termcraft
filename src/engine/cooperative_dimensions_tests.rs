@@ -383,3 +383,133 @@ fn cooperative_walk_in_portal_and_action_poses_replicate_without_affecting_other
     sim.state.activate_peer(1);
     assert!(!sim.state.moving_right);
 }
+
+#[test]
+fn persistence_shared_entities_and_encounters_restore_in_all_dimensions_with_player_records() {
+    let (_root, mut sim) = fixture();
+    sim.unregister_client(1);
+    sim.unregister_client(2);
+    sim.load_persistent().unwrap();
+    let a = sim.authenticate(3, None).unwrap();
+    let b = sim.authenticate(4, None).unwrap();
+    light_portal(&mut sim, 3);
+    sim.state
+        .cows
+        .push(crate::entities::cow::Cow::new(12.5, 80.0));
+    sim.state
+        .item_entities
+        .push(crate::entities::item_entity::ItemEntity::new(
+            13.5,
+            80.0,
+            ItemType::Diamond,
+        ));
+    command(&mut sim, 3, ClientCommand::UseAt(0, 78));
+    sim.state.blazes.push(crate::entities::blaze::Blaze::new(
+        sim.state.player.x + 8.0,
+        sim.state.player.y - 4.0,
+    ));
+    sim.state.inventory.add_item(ItemType::Diamond, 3);
+    sim.state.select_dimension(Dimension::End);
+    sim.state.world.load_chunks_around(0);
+    sim.state.ender_dragon = Some(crate::entities::ender_dragon::EnderDragon::new(12.5, 32.0));
+    sim.state.ender_dragon.as_mut().unwrap().health = 51.0;
+    // Restore the selected player's real dimension before checkpointing.
+    sim.state.select_dimension(Dimension::Nether);
+    sim.state.activate_peer(4);
+    let mut z = crate::entities::zombie::Zombie::new(14.5, 80.0);
+    z.director_event = 77;
+    sim.state.zombies.push(z);
+    sim.state.director_encounter = Some(77);
+    sim.save().unwrap();
+    let expected =
+        serde_json::to_value(crate::engine::state::RuntimeCheckpoint::capture(&sim.state)).unwrap();
+    let path = sim.state.world.save_root().to_path_buf();
+    drop(sim);
+    let mut restarted = ServerSimulation::with_state(GameState::open_in_directory(&path).unwrap());
+    restarted.load_persistent().unwrap();
+    restarted.authenticate(30, Some(&a.token)).unwrap();
+    restarted.authenticate(40, Some(&b.token)).unwrap();
+    assert_eq!(count(&restarted, 30, ItemType::Diamond), 3);
+    assert_eq!(restarted.state.peer_dimension(30), Dimension::Nether);
+    let actual = serde_json::to_value(crate::engine::state::RuntimeCheckpoint::capture(
+        &restarted.state,
+    ))
+    .unwrap();
+    assert_eq!(actual["dimensions"], expected["dimensions"]);
+    assert_eq!(actual["encounter"], expected["encounter"]);
+    restarted.state.activate_peer(40);
+    assert_eq!(restarted.state.item_entities.len(), 1);
+    assert_eq!(restarted.state.cows.len(), 1);
+    restarted.state.activate_peer(30);
+    assert_eq!(restarted.state.blazes.len(), 1);
+}
+
+#[test]
+fn persistence_shared_and_solo_modes_choose_the_newest_entity_checkpoint() {
+    let (_root, mut sim) = fixture();
+    let path = sim.state.world.save_root().to_path_buf();
+    sim.unregister_client(1);
+    sim.unregister_client(2);
+    sim.state
+        .item_entities
+        .push(crate::entities::item_entity::ItemEntity::new(
+            13.5,
+            80.0,
+            ItemType::Diamond,
+        ));
+    sim.state.try_persist_world_and_progress().unwrap();
+    sim.load_persistent().unwrap();
+    let a = sim.authenticate(3, None).unwrap();
+    sim.state.activate_peer(3);
+    sim.state.item_entities.clear();
+    sim.state.inventory.add_item(ItemType::Diamond, 1);
+    sim.state
+        .cows
+        .push(crate::entities::cow::Cow::new(12.5, 80.0));
+    sim.save().unwrap();
+    drop(sim);
+    let mut solo = GameState::open_in_directory(&path).unwrap();
+    assert!(
+        solo.item_entities.is_empty(),
+        "hosting resurrected native loot"
+    );
+    assert_eq!(solo.cows.len(), 1);
+    solo.cows.clear();
+    solo.sheep
+        .push(crate::entities::sheep::Sheep::new(14.5, 80.0));
+    solo.try_persist_world_and_progress().unwrap();
+    drop(solo);
+    let mut restarted = ServerSimulation::with_state(GameState::open_in_directory(&path).unwrap());
+    restarted.load_persistent().unwrap();
+    restarted.authenticate(30, Some(&a.token)).unwrap();
+    assert!(restarted.state.item_entities.is_empty());
+    assert!(
+        restarted.state.cows.is_empty(),
+        "hosting restored an older native entity checkpoint"
+    );
+    assert_eq!(restarted.state.sheep.len(), 1);
+    assert_eq!(count(&restarted, 30, ItemType::Diamond), 1);
+}
+
+#[test]
+fn persistence_legacy_server_v2_upgrades_and_invalid_v3_entities_are_preserved() {
+    let (_root, mut sim) = fixture();
+    sim.load_persistent().unwrap();
+    let path = sim.state.world.save_root().join("server-state.json");
+    let mut legacy: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    legacy["version"] = 2.into();
+    legacy.as_object_mut().unwrap().remove("runtime");
+    std::fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+    sim.load_persistent().unwrap();
+    let mut current: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(current["version"], 3);
+    assert!(current["runtime"].is_object());
+    current["runtime"]["dimensions"]["Overworld"]["time_of_day"] = serde_json::json!(999999.0);
+    let invalid = serde_json::to_vec(&current).unwrap();
+    std::fs::write(&path, &invalid).unwrap();
+    assert!(sim.load_persistent().is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), invalid);
+    assert!(GameState::open_in_directory(sim.state.world.save_root()).is_err());
+}

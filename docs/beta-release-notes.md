@@ -44,7 +44,7 @@ boats and client streaming stay local to that dimension. Saved identities reopen
 in their own dimensions, and shared portal links/dragon completion survive restart.
 The End encounter is shared; credits and respawn remain individual. Late commands
 from a previous dimension cannot place/mine there after travel. Matching protocol-14
-builds are required. Server checkpoint v2 reads v1; native checkpoints remain v8.
+builds are required. Server checkpoint v3 reads v1/v2; native checkpoint v9 reads v1–8.
 
 ## Faster rendering and clearer play
 
@@ -149,10 +149,13 @@ seeds and progression are rejected rather than silently regenerated. Failed
 writes remain dirty, unsafe dimension travel is cancelled, and fatal native-loop
 errors attempt a private **partial** recovery copy.
 
-**Back up saves before upgrading.** Progression v8 reads v1–7, then upgrades on
-save; older builds cannot reopen v8. Portal links share the atomic checkpoint. Writes are atomic per file, not across a
-whole world. Mobs/loose items are session-only; recovery copies contain loaded
-chunks of the current dimension. [Save/recovery guide](world-format.md).
+**Back up saves before upgrading.** Progression v9 reads v1–8, then upgrades on
+save; older builds cannot reopen v9. Entities and portal links share the player
+checkpoint; co-op inventories and entities share server checkpoint v3. Animals,
+villagers, boats, loot/XP and partial encounters resume across restarts and portal
+travel. Clocks and item ages pause while offline. Writes remain atomic per file,
+not across the whole world; recovery copies contain only loaded terrain in the
+current dimension. [Save/recovery guide](world-format.md).
 
 ## Consistent creature collision and room presentation
 
@@ -184,7 +187,7 @@ four-platform workflow builds development artifacts; interactive OS/terminal
 qualification remains a separate release gate.
 
 Shared play supports eight connections, 64 saved identities and independent travel
-across all three dimensions. Protocol **13** requires matching builds. Classic survival through the dragon,
+across all three dimensions. Protocol **14** requires matching builds. Classic survival through the dragon,
 sustained human co-op, remote SSH/WAN behavior, live model quality and all-platform
 terminals remain release gates. Automated results do not establish a completed
 human campaign or a viral release.
@@ -200,3 +203,7 @@ veins capped at 12 blocks. New village gardens expose their irrigation at soil
 level, with a walkable slab crossing. Buckets no longer fall back to hidden faces.
 See the [ore and irrigation review](design/ore-irrigation-tuning-2026-10-16/README.md)
 for the census, comparison images and native walkthrough.
+
+Entity/encounter persistence also retains partial Lantern Run kills and surviving
+guards, game-master wave membership, destroyed End crystals and dragon health.
+See the [persistence review](design/entity-persistence-2026-10-16/README.md).

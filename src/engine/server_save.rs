@@ -1,5 +1,8 @@
 //! Multiplayer identities and full player records, separate from single-player progression.
-use super::state::{GameState, PlayerSession, SharedProgress, SharedSettings};
+use super::state::{
+    GameState, MAX_CHECKPOINT_BYTES, PlayerSession, RuntimeCheckpoint, SharedProgress,
+    SharedSettings,
+};
 use crate::world::Dimension;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -19,6 +22,8 @@ pub struct ServerSave {
     pub worlds: BTreeMap<Dimension, SharedSettings>,
     #[serde(default)]
     pub(crate) progression: SharedProgress,
+    #[serde(default)]
+    pub(crate) runtime: Option<RuntimeCheckpoint>,
 }
 pub fn token() -> String {
     format!("{:032x}", rand::random::<u128>())
@@ -29,13 +34,14 @@ pub fn valid_token(s: &str) -> bool {
 impl ServerSave {
     pub(crate) fn fresh(state: &GameState) -> Self {
         Self {
-            version: 2,
+            version: 3,
             id: token(),
             settings: SharedSettings::capture(state),
             players: BTreeMap::new(),
             dimensions: BTreeMap::new(),
             worlds: BTreeMap::new(),
             progression: SharedProgress::capture(state),
+            runtime: Some(RuntimeCheckpoint::capture(state)),
         }
     }
     pub fn read(state: &GameState) -> io::Result<Self> {
@@ -47,12 +53,14 @@ impl ServerSave {
             Err(e) => return Err(e),
         };
         let mut bytes = Vec::new();
-        file.take(8 * 1024 * 1024 + 1).read_to_end(&mut bytes)?;
-        if bytes.len() > 8 * 1024 * 1024 {
-            return Err(io::Error::other("server save exceeds 8 MiB"));
+        file.take(MAX_CHECKPOINT_BYTES + 1)
+            .read_to_end(&mut bytes)?;
+        if bytes.len() as u64 > MAX_CHECKPOINT_BYTES {
+            return Err(io::Error::other("server save exceeds 16 MiB"));
         }
-        let mut save: Self = serde_json::from_slice(&bytes)?;
-        if !matches!(save.version, 1 | 2)
+        let save: Self = serde_json::from_slice(&bytes)?;
+        if !matches!(save.version, 1..=3)
+            || (save.version == 3 && save.runtime.is_none())
             || !valid_token(&save.id)
             || save.players.len() > 64
             || save.players.keys().any(|s| !valid_token(s))
@@ -66,11 +74,21 @@ impl ServerSave {
         for player in save.players.values() {
             player.validate().map_err(io::Error::other)?;
         }
-        save.version = 2;
+        if let Some(runtime) = &save.runtime {
+            runtime.validate().map_err(io::Error::other)?;
+        }
         Ok(save)
     }
     pub fn write(&self, root: &Path) -> io::Result<()> {
+        if let Some(runtime) = &self.runtime {
+            runtime.validate().map_err(io::Error::other)?;
+        }
         let data = serde_json::to_vec(self)?;
+        if data.len() as u64 > MAX_CHECKPOINT_BYTES {
+            return Err(io::Error::other(
+                "server save exceeds 16 MiB; previous save preserved",
+            ));
+        }
         let temp = root.join(format!(
             ".server-state-{}-{}.tmp",
             std::process::id(),

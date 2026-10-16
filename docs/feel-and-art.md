@@ -193,7 +193,8 @@ inventory, and Q saves/exits. Quick-move chest stacks with Shift-click.
 The same world can be hosted with `./termcraft world serve lantern-run` and joined
 with the usual client/SSH commands. New co-op identities receive one starter kit;
 reconnecting retains their saved inventory. An interrupted encounter restarts its
-wave on reopen, since mobs are session-only. Loot, bridge blocks and completed
+wave on legacy saves. Native v9 / server v3 checkpoints now resume surviving
+guards and their credited kills on reopen. Loot, bridge blocks and completed
 progress persist. The supply chest is ordinary world storage and can be reached
 before the guards are defeated; the objective still requires all three kills.
 

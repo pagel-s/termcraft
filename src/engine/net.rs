@@ -533,6 +533,7 @@ impl ServerSimulation {
 
     pub fn load_persistent(&mut self) -> io::Result<()> {
         let saved = ServerSave::read(&self.state)?;
+        let native_runtime = super::state::RuntimeCheckpoint::capture(&self.state);
         saved
             .settings
             .apply(&mut self.state)
@@ -544,6 +545,13 @@ impl ServerSimulation {
             .progression
             .apply(&mut self.state)
             .map_err(io::Error::other)?;
+        if let Some(runtime) = &saved.runtime {
+            if runtime.revision >= self.state.runtime_revision.get() {
+                runtime.apply(&mut self.state);
+            } else {
+                native_runtime.apply(&mut self.state);
+            }
+        }
         self.saved = saved;
         self.save()
     }
@@ -605,6 +613,8 @@ impl ServerSimulation {
         }
         self.saved.worlds = self.state.save_dimension_worlds()?;
         self.saved.progression = super::state::SharedProgress::capture(&self.state);
+        self.saved.version = 3;
+        self.saved.runtime = Some(super::state::RuntimeCheckpoint::capture(&self.state));
         self.state.save_trial()?;
         self.director.save(&self.state).map_err(io::Error::other)?;
         self.saved.settings = self
@@ -613,7 +623,11 @@ impl ServerSimulation {
             .get(&Dimension::Overworld)
             .cloned()
             .unwrap_or_else(|| super::state::SharedSettings::capture(&self.state));
-        self.saved.write(self.state.world.save_root())
+        self.saved.write(self.state.world.save_root())?;
+        self.state
+            .runtime_revision
+            .set(self.saved.runtime.as_ref().unwrap().revision);
+        Ok(())
     }
     pub fn tick(&self) -> u64 {
         self.tick

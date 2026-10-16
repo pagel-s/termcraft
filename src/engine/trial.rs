@@ -19,7 +19,7 @@ pub struct Trial {
     pub version: u8,
     pub stage: TrialStage,
     pub kills: u8,
-    #[serde(skip)]
+    #[serde(default)]
     attempt_live: bool,
 }
 impl Trial {
@@ -290,18 +290,12 @@ impl GameState {
         }
     }
     pub(super) fn update_trial(&mut self) {
-        if self.cooperative() && self.current_dimension != Dimension::Overworld {
+        if self.current_dimension != Dimension::Overworld {
             return;
         }
         let Some(mut t) = self.trial.take() else {
             return;
         };
-        if self.current_dimension != Dimension::Overworld {
-            t.attempt_live = false;
-            t.kills = 0;
-            self.trial = Some(t);
-            return;
-        }
         if t.stage == TrialStage::Approach && self.director_near_player(35.0, 9.0) {
             t.stage = TrialStage::Encounter;
         }
@@ -365,9 +359,9 @@ mod tests {
         drop(s);
         let mut s = GameState::open_in_directory(&path).unwrap();
         s.dismiss_startup_splash();
-        assert_eq!(s.trial.as_ref().unwrap().kills, 0);
+        assert_eq!(s.trial.as_ref().unwrap().kills, 1);
         s.update(0, 0);
-        assert_eq!(s.zombies.len() + s.skeletons.len(), 3);
+        assert_eq!(s.zombies.len() + s.skeletons.len(), 2);
         // Despawn is not victory.
         s.zombies.clear();
         s.skeletons.clear();

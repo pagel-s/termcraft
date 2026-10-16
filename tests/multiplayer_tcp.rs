@@ -813,3 +813,101 @@ fn two_socket_players_mine_build_disconnect_and_resume_after_restart() -> io::Re
     std::fs::remove_dir_all(root)?;
     Ok(())
 }
+
+#[test]
+#[ignore = "requires local TCP sockets and Unix process signals"]
+fn entities_and_collected_loot_survive_real_server_restarts() -> io::Result<()> {
+    use termcraft::{
+        engine::{
+            server_save::{ServerSave, token},
+            state::PlayerSession,
+        },
+        entities::{boat::Boat, cow::Cow, experience_orb::ExperienceOrb, item_entity::ItemEntity},
+        world::block::BlockType,
+    };
+    let root = std::env::temp_dir().join(format!("termcraft-persistence-tcp-{}", token()));
+    std::fs::create_dir_all(&root)?;
+    let mut recipe = WorldRecipe::example();
+    recipe.relief = 0;
+    recipe.surface_y = 64;
+    recipe.regions.clear();
+    recipe.landmarks.clear();
+    let world = WorldStore::new(root.join("worlds"))
+        .create("tcp", "Entity restart fixture", &recipe)
+        .unwrap();
+    let mut state = GameState::open_in_directory(&world)?;
+    state.apply_client_command(ClientCommand::ToggleRuleMobSpawning);
+    for x in -16..=48 {
+        for y in 0..64 {
+            state.world.set_block(x, y, BlockType::Air);
+        }
+        state.world.set_block(x, 64, BlockType::Stone);
+    }
+    state.player.x = 0.5;
+    state.player.y = 64.0;
+    state.inventory.slots.fill(None);
+    state.cows.push(Cow::new(12.5, 64.0));
+    state.cows[0].health = 5.0;
+    state.boats.push(Boat::new(17.5, 64.0));
+    state
+        .item_entities
+        .push(ItemEntity::new(4.5, 64.0, ItemType::Diamond));
+    state.item_entities[0].age = 1234;
+    state
+        .experience_orbs
+        .push(ExperienceOrb::new(22.5, 63.0, 7));
+    state.try_persist_world_and_progress()?;
+    let player_token = token();
+    let mut saved = ServerSave::read(&state)?;
+    saved
+        .players
+        .insert(player_token.clone(), PlayerSession::capture(&state));
+    saved.write(&world)?;
+    drop(state);
+    let probe = TcpListener::bind("127.0.0.1:0")?;
+    let addr = probe.local_addr()?.to_string();
+    drop(probe);
+    let entities = |snapshot: &ServerSnapshot| serde_json::to_value(&snapshot.entities).unwrap();
+    let mut server = Server::start(&root, &addr);
+    let a = Client::connect(&addr, Some(player_token.clone()));
+    a.until(|s| {
+        let e = entities(s);
+        e["cows"].as_array().unwrap().len() == 1
+            && e["boats"].as_array().unwrap().len() == 1
+            && e["item_entities"].as_array().unwrap().len() == 1
+            && e["experience_orbs"].as_array().unwrap().len() == 1
+    });
+    drop(a);
+    server.stop();
+    let disk = GameState::open_in_directory(&world)?;
+    assert_eq!(disk.cows.len(), 1);
+    assert_eq!(disk.cows[0].health, 5.0);
+    assert_eq!(disk.boats.len(), 1);
+    assert_eq!(disk.item_entities.len(), 1);
+    assert!(disk.item_entities[0].age >= 1234);
+    assert_eq!(disk.experience_orbs.len(), 1);
+    drop(disk);
+    let mut server = Server::start(&root, &addr);
+    let mut a = Client::connect(&addr, Some(player_token.clone()));
+    a.until(|s| entities(s)["item_entities"].as_array().unwrap().len() == 1);
+    a.send(ClientCommand::SetMoveRight(true));
+    a.until(|s| count(s, ItemType::Diamond) == 1 && s.player.x >= 4.0);
+    a.send(ClientCommand::ClearDirectionalInput);
+    a.until(|s| entities(s)["item_entities"].as_array().unwrap().is_empty());
+    drop(a);
+    server.stop();
+    let mut server = Server::start(&root, &addr);
+    let a = Client::connect(&addr, Some(player_token));
+    a.until(|s| {
+        count(s, ItemType::Diamond) == 1
+            && entities(s)["item_entities"].as_array().unwrap().is_empty()
+    });
+    drop(a);
+    server.stop();
+    let disk = GameState::open_in_directory(&world)?;
+    assert!(disk.item_entities.is_empty());
+    assert_eq!(disk.boats.len(), 1);
+    drop(disk);
+    std::fs::remove_dir_all(root)?;
+    Ok(())
+}

@@ -105,9 +105,11 @@ changes or undo its structures.
 The default server stores data under `$TERMCRAFT_SAVE_DIR/multiplayer/default`
 (or the platform's normal save directory when the variable is unset). Named
 servers store it in their world directory. `server-state.json` holds a versioned
-server ID, world clocks/rules and player records. Server checkpoint version 2
+server ID, world clocks/rules and player records. Server checkpoint version 3
 also saves each identity's dimension, portal links and shared dragon completion.
-Version 1 records upgrade with players in the Overworld. Reconnect and restart
+Version 1 records upgrade with players in the Overworld; version 2 adds dimensions
+and shared progression. Version 3 adds entities/encounters to the same atomic
+record as inventories, and reads both older versions. Reconnect and restart
 restore each saved dimension; native single-player inventory checkpoints stay separate. Reconnect credentials live under
 `clients/` in the local save directory; protect them like save files. On Unix,
 credential and server-record files are written with mode `0600`.
@@ -118,10 +120,12 @@ identities. It saves before issuing a reconnect credential, on disconnect, every
 Chunk and player files are atomic individually, not one whole-world transaction;
 a forced kill or storage failure can lose recent work. Save failures are reported
 and retained data is retried. Corrupt records are rejected without replacement.
-Runtime mobs, loose items and active encounters are session-only, as in local
-play; they are not restored by restarting the server.
+Runtime mobs, boats, loose items/XP, projectiles and active encounters persist
+with each dimension's clocks, health and timers. Restarting resumes surviving wave
+members and End boss/crystal damage. Nothing advances while offline. Normal live
+spawn/despawn rules still apply. Old server records have no entities to restore.
 
-Protocol **13** requires matching builds. Frames are capped at 256 KiB and nearby
+Protocol **14** requires matching builds. Frames are capped at 256 KiB and nearby
 entity snapshots at 512 entities within 128 columns. Terrain streaming covers
 seven chunk columns around each player. Snapshots are sent at 20 Hz. A two-minute
 eight-player delayed-link/stalled-reader fixture now passes; WAN bandwidth and

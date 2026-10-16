@@ -1,6 +1,6 @@
 # Termcraft beta: implementation and qualification
 
-Updated 15 October 2026. Proposed release: `v0.2.0-beta.1`.
+Updated 16 October 2026. Proposed release: `v0.2.0-beta.1`.
 
 **The foundation is implemented, but the gameplay and visual quality target has
 been reopened after playtest feedback. Beta qualification and publication are
@@ -136,7 +136,7 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 | Performance | Brightness-priority lighting with material attenuation cached once; reusable frame encoder, one output write per frame; safe exploration cache eviction around all viewers | `src/renderer/lighting.rs`, `src/renderer/terminal.rs`, `examples/render_profile.rs`, `examples/coop_profile.rs`, `docs/performance.md` |
 | Visuals | Readable solid HUD, separate sprint/target rows, terrain-preserving target tint, mining progress/reach feedback, remote player ID labels, quieter cloud/End animation; F3 diagnostics | `src/renderer/terminal.rs`, rendered PTY/ANSI captures |
 | Physics | Shared release braking without cancelling later knockback; continuous ladder climb/hold; residual-momentum sneak ledge protection; correct final landing-distance damage; swept wall/ceiling collisions | `src/engine/state.rs`, `src/engine/physics_tests.rs`, existing collision regressions |
-| Saves/recovery | Reject unreadable chunks/seeds/progression; keep failed writes dirty; cancel unsafe dimension changes; v8 full native player checkpoint preserving crafting grid/enchantments/effects and portal links; upgrade v1–7; partial emergency native recovery copy | `src/world/chunk.rs`, `src/world/mod.rs`, `src/engine/state.rs`, `docs/world-format.md` |
+| Saves/recovery | Reject unreadable chunks/seeds/progression; keep failed writes dirty; cancel unsafe dimension changes; v9 native / v3 server checkpoints preserving full player state, entities, encounters and portal links; upgrade native v1–8 / server v1–2; partial emergency native recovery copy | `src/world/chunk.rs`, `src/world/mod.rs`, `src/engine/state.rs`, `docs/world-format.md` |
 | In-game director | T chat, asynchronous typed waves/weather/time/ambience/structures, whole-plan validation/preflight, stale-area checks, cancellation, preferences, conditional structure undo | `src/engine/director.rs`, `src/engine/game_loop.rs`, `src/world/environment.rs` |
 | Existing LLM as director | `/connect` opt-in authenticated loopback bridge; six live MCP tools for context, bounded wait, requests, validated submission/results and cancellation; sole simulation writer, no second key | `src/engine/director_bridge.rs`, `src/engine/agent.rs`, `tests/multiplayer_tcp.rs`, `docs/agents.md` |
 | Personalized events | `/auto exploration|building|combat`, healthy-player/travel/modal/encounter gates, 120-second cooldown, three attempts/session; `/pause` and reset controls | `src/engine/director.rs`, cooldown regressions and prior 128-second PTY run |
@@ -148,8 +148,8 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 
 The local executable is `/home/sebastian/projects/termcraft/termcraft`.
 The package version remains `0.1.0`; generated archives are explicitly development
-builds, not mislabeled beta artifacts. Network protocol is **13**, requiring
-matching builds. New native saves use progression version **8**; back up older
+builds, not mislabeled beta artifacts. Network protocol is **14**, requiring
+matching builds. New native saves use progression version **9**; back up older
 saves before testing because older executables cannot read the new format.
 
 ## Measured results and validation
@@ -471,8 +471,11 @@ slow clients, bandwidth and input feel under latency. No public host/accounts or
 internet-grade abuse controls have been provisioned. Independent co-op Nether/End portal travel is implemented in the follow-up pass;
 real human cross-dimension progression remains a qualification gate.
 
-**Persistence:** Writes are atomic per file, not across a whole world/plan. Mobs,
-loose items and encounters are session-only. Recovery copies capture loaded chunks
+**Persistence:** Native v9 and server v3 checkpoints retain entities and encounters
+alongside their associated player inventories. Dimensions and item ages pause
+while offline, and solo travel retains each world's entities. Older checkpoints
+remain readable but contain no historical entities to recover. Writes remain
+atomic per file, not across a whole world/plan. Recovery copies capture loaded chunks
 of the current dimension and player state; they are partial snapshots, not full
 backups. Disk failure can also prevent recovery. Stale world locks require checking
 that no owner remains before manual removal. Interrupted writes, slow/full disks,
@@ -520,8 +523,9 @@ with spaces without Rust in PATH. See `docs/assets/cooperative-qualification-202
 
 Human art/feel acceptance, a sustained human co-op session, classic survival through
 the dragon, real WAN links, interactive Windows/Mac terminals and live model quality
-remain release gates. Entity/loose-item restart persistence, larger authoring/terrain
-changes and architectural variety remain unimplemented follow-ups; these checks
+remain release gates. Entity/loose-item restart persistence was subsequently
+implemented in the 16 October follow-up below. Larger authoring/terrain changes
+and architectural variety remain unimplemented follow-ups; these checks
 do not silently expand the game master's bounded Overworld contract. No release
 version bump, tag, crate publication or merge has been performed.
 
@@ -541,3 +545,23 @@ The final eight-player delayed-link soak passes for ten wall-clock minutes, with
 roughly 12,000 snapshots per player, seven stalled readers removed and saved
 reconnect after restart. Door clicking/right-drag passes in overview, wide and
 close views. Evidence is retained in `docs/assets/cooperative-qualification-2026-10-15.json`.
+
+## Entity and encounter persistence, 16 October
+
+Native v9 and server v3 checkpoints now retain every visited dimension's complete
+entity state with the corresponding player inventories. Solo portals/quick travel
+and respawn preserve world entities, finite game-master waves resume surviving
+members, and Lantern Run retains credited kills and remaining guards. End health
+and destroyed crystals no longer reset on reopening. Item/XP ages and dimension
+clocks pause offline. Native v1–8 and server v1/v2 remain readable; older executables
+cannot reopen the new formats. Network protocol stays 14.
+
+A runtime revision selects the newest entity checkpoint when switching between
+native and hosted play in the same save root. Separate native/shared inventories
+retain their existing identities. Invalid records are rejected, failed checkpoints
+keep the previous inventory/entity pair, and failed travel no longer consumes its
+cooldown. This completes the entity/loose-item/encounter persistence follow-up;
+whole-world crash consistency and broader recovery qualification remain open.
+
+[Implementation, scope and reproduction](docs/design/entity-persistence-2026-10-16/README.md)
+record the regression checks, real-server restart/pickup test and final build identity.

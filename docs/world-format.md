@@ -49,8 +49,9 @@ blocks checked world startup; corrupt director metadata disables authoring until
 explicit reset while allowing ordinary play. Neither these files nor the chunk/
 progression files form a whole-world transaction. Structures and ambience survive
 reopening. Weather/time use progression persistence and then follow normal game
-cycles. Spawned mobs and the director's active finite encounter are session-only;
-they are not restored when reopening a save. The proactive cooldown and attempt
+cycles. Spawned mobs and the active finite encounter now resume from the native
+v9 or server v3 checkpoint. Pending model requests and bridge connections are
+cancelled on exit and must be connected again. The proactive cooldown and attempt
 budget reset on entry; the selected preference persists.
 
 ## Chunk Geometry
@@ -102,7 +103,7 @@ separate emergency recovery directory; see below.
 
 `player_progression.bin` is a separate versioned bincode payload.
 
-Current progression version: `8`
+Current progression version: `9`
 
 The progression payload currently contains:
 
@@ -122,14 +123,29 @@ The progression payload currently contains:
 - XP state
 - difficulty and gamerules
 
-Version 8 is a plain bincode envelope with its version, legacy progression/world
-metadata, the complete player session and a sorted list of portal links. Links
-share the atomic checkpoint write, so returning through an underground or elevated
-portal after reopening reuses its original frame. Version 7 had the complete
-session but did not persist portal links. Versions 1–7 remain readable and are
-upgraded on the next save. Held inputs, mining/bow actions and transient boat/
-fishing references are released on reopening. Invalid full sessions are rejected
-without replacing the original file. It does not use the chunk `MCCF` envelope.
+Version 9 is a bincode envelope containing the version, legacy player/world
+metadata, complete player session, sorted portal links and a runtime checkpoint.
+The runtime contains every visited dimension's entities, clocks, spawn timers,
+End boss/crystal state, active game-master wave and Lantern Run progress. Dropped
+item/XP age, health, shearing, villager homes and projectile state are preserved.
+Inventories and pickups share this atomic write, preventing a reload from restoring
+both the collected item and the inventory that received it. The world pauses while
+offline: there is no wall-clock simulation or offline despawn ageing.
+
+Version 8 introduced portal links; version 7 introduced complete sessions.
+Versions 1–8 remain readable and upgrade on the next save. Older files contain no
+entity snapshot, so their lost entities cannot be recovered. Held player inputs,
+mining/bow actions and boat/fishing references are released on reopening; the boat
+itself persists. Invalid data is rejected without replacing the original file.
+Checkpoints are limited to 16 MiB and 32,768 total entities across three dimensions.
+They do not use the chunk `MCCF` envelope.
+
+Server checkpoint v3 stores the same runtime alongside all saved player records;
+v1/v2 server files remain readable. A monotonically increasing runtime revision
+selects the newest world state when switching between native and hosted play,
+while their player inventories remain separate. Normal spawning/despawning and
+population limits still apply during play; persistence does not make mobs immortal.
+See the [implementation review](design/entity-persistence-2026-10-16/README.md).
 
 Progression writes also sync a temporary file before rename. Autosave errors are
 shown in the native HUD and retried on the next save interval. Dimension travel
@@ -166,7 +182,8 @@ dimension**, player progression, environment/seed/recipe data and valid director
 metadata, plus `RECOVERY.txt` explaining the limits.
 
 This is a **partial emergency copy**, not a full-world backup. It excludes unloaded
-regions, other dimensions, loose items and mobs. Preserve a separate backup of the
+terrain regions and terrain in other dimensions. The player checkpoint includes
+runtime entities, but cannot recreate their missing terrain. Preserve a separate backup of the
 original world, then inspect/overlay recovered files into a copy; never replace
 the whole save directory with this partial snapshot. A failed copy is reported
 alongside the original error. Disk failure can also prevent recovery. Temporary
@@ -208,4 +225,5 @@ not acquire a second world lease or edit files independently.
 
 Recovery combines files from different points in time. Inspect neighboring
 chunks and progression carefully; it cannot restore a whole-world transaction
-or session-only mobs/items. A successful open is not proof of consistency.
+or missing terrain/entity history from before the last checkpoint. A successful
+open is not proof of consistency.

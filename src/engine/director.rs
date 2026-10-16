@@ -383,7 +383,6 @@ pub struct Director {
     last_event: Instant,
     last_area_x: i32,
     proactive_count: u8,
-    encounter: Option<u64>,
     toast_until: Instant,
     config_valid: bool,
     config_dirty: bool,
@@ -416,7 +415,6 @@ impl Director {
             last_event: Instant::now(),
             last_area_x: state.player.x.floor() as i32,
             proactive_count: 0,
-            encounter: None,
             toast_until: Instant::now(),
             config_valid,
             config_dirty: false,
@@ -572,7 +570,7 @@ impl Director {
         }
         let context = json!({"player":{"x":x,"y":state.player.y,"health":state.player.health,"hunger":state.player.hunger},
             "dimension":"overworld","weather":format!("{:?}",state.weather),"biome":format!("{:?}",state.world.get_biome(x)),
-            "difficulty":state.difficulty_name(),"nearby_mobs":mob_count(state),"encounter_active":self.encounter.is_some(),
+            "difficulty":state.difficulty_name(),"nearby_mobs":mob_count(state),"encounter_active":state.director_encounter.is_some(),
             "preference":self.config.proactive,"recent":self.config.recent,"proactive":proactive,
             "terrain":(-12..=12).map(|i| {let px=x+i*4; json!({"x":px,"ground_y":surface(&state.world,px)})}).collect::<Vec<_>>()});
         let request_data = json!({"protocol":1,"task":"director","prompt":request,"context":context,"schema":schema(),"example":example(),
@@ -783,7 +781,7 @@ impl Director {
                 }
             }
         }
-        if let Some(event) = self.encounter
+        if let Some(event) = state.director_encounter
             && state.current_dimension == Dimension::Overworld
         {
             let remaining = state
@@ -802,7 +800,7 @@ impl Director {
                     .filter(|m| m.director_event == event)
                     .count();
             if remaining == 0 {
-                self.encounter = None;
+                state.director_encounter = None;
                 self.tell(
                     state,
                     "Encounter ended: no enemies from that wave remain nearby.",
@@ -818,7 +816,7 @@ impl Director {
         if self.config.proactive.is_none()
             || self.proactive_count >= MAX_PROACTIVE
             || self.pending.is_some()
-            || self.encounter.is_some()
+            || state.director_encounter.is_some()
             || state.chat.open
             || state.inventory_open
             || state.is_settings_menu_open()
@@ -876,8 +874,8 @@ impl Director {
         {
             state.world.set_block(edit.x, edit.y, edit.after);
         }
-        let event = self
-            .encounter
+        let event = state
+            .director_encounter
             .unwrap_or_else(|| rand::random::<u64>().max(1));
         let mut hostiles = 0;
         for (mob, x, y) in prepared.spawns {
@@ -907,7 +905,7 @@ impl Director {
             }
         }
         if hostiles > 0 {
-            self.encounter = Some(event);
+            state.director_encounter = Some(event);
         }
         for action in &plan.actions {
             match action {
@@ -1594,7 +1592,7 @@ mod tests {
         };
         director.apply(&mut state, &plan, 0, "battle").unwrap();
         assert_eq!(state.zombies.len(), 4);
-        assert!(director.encounter.is_some());
+        assert!(state.director_encounter.is_some());
         assert!(
             state
                 .zombies
@@ -1603,7 +1601,7 @@ mod tests {
         );
         state.zombies.clear();
         director.poll(&mut state, Instant::now());
-        assert!(director.encounter.is_none());
+        assert!(state.director_encounter.is_none());
         assert!(state.chat.status.contains("Encounter ended"));
         // A spider is wider than a column: clear headroom at its center alone
         // must not allow spawning its body into a neighboring player wall.
