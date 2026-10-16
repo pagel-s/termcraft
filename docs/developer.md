@@ -35,7 +35,7 @@ Experimental multiplayer path:
 - the server streams `ServerSnapshot` and chunk deltas
 - the protocol is version-tagged in `src/engine/net.rs`
 
-Current network protocol version in code: `11`. `src/engine/actors.rs` separates
+Current network protocol version in code: `15`. `src/engine/actors.rs` separates
 full player sessions from the shared world. Each actor uses normal gameplay
 commands and physics; mobs and terrain advance once per server tick. Snapshots
 include full inventories, current chest contents, nearby runtime entities and

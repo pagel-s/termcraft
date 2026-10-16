@@ -103,7 +103,7 @@ momentum and accumulated fall distance reset during travel.
 Dimension travel works in single-player and co-op. In co-op only the interacting
 player travels; friends can follow or remain in another dimension. Terrain,
 entities, inventories and saved portal links remain separate, with one shared
-dragon encounter for players in the End. Use matching protocol-14 clients/server.
+dragon encounter for players in the End. Use matching protocol-15 clients/server.
 
 ## Travel / Test Shortcuts
 
@@ -176,9 +176,16 @@ with seeds to plant directly above it.
 
 Fluids fall first. A waterfall spreads where it lands, rather than fanning out
 sideways through the air. On supported ground, runoff prefers the nearest drop;
-on a flat floor it can spread both ways. Water travels up to seven horizontal
-blocks, Overworld/End lava three, and Nether lava seven. Lava outside the Nether
-also updates more slowly.
+on a flat floor it can spread both ways. Uncontained water runoff travels up to
+seven horizontal blocks, Overworld/End lava three, and Nether lava seven. Lava
+outside the Nether also updates more slowly.
+
+Contained water fills from the bottom toward the surface height of its source.
+Connected vessels reach the same surface through a submerged tunnel; a wall
+blocks that connection. Water cannot rise above its source. Lower outlets limit
+the level, and filled pools spill into lower terraces. Opening a drain lowers
+the pool; closing it lets the source refill it. Basin filling extends beyond the
+seven-block runoff range.
 
 A placed bucket creates a source. Picking up that source drains the flow it fed.
 Two water sources can refill the supported gap between them, so remove both to
@@ -188,5 +195,12 @@ or cobblestone (flow); lava falling into water forms stone.
 
 Flowing water has a visible shallow surface. Immersion, breathing and boat height
 use that surface too; ankle-deep runoff allows a normal ground jump. Crops washed
-away by a flow drop their harvest/seeds. These are block/source game rules:
-finite-volume displacement, pressure and waterlogged slabs/stairs are not modeled.
+away by a flow drop their harvest/seeds. Filled basin cells remain supplied water,
+so collecting the sole source or sealing off its supply makes them recede too.
+This retains the source-based game
+model: water volume is not conserved after source removal. Hydraulic levels use
+loaded geometry; unknown chunk edges act as outlets. Finite-volume displacement,
+waterlogged slabs/stairs and physical currents are not modeled.
+
+See the [basin review](design/water-basins-2026-10-16/README.md) for captures,
+connected-vessel and overflow checks, save/reopen and real co-op verification.

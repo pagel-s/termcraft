@@ -62,7 +62,7 @@ These scripted checks establish behavior, rather than human gameplay acceptance.
 ## Try the candidate
 
 Run the local development executable. Restart the co-op server and every client
-together: the updated movement rules use **network protocol 14**.
+together: the updated movement rules use **network protocol 15**.
 
 - Hold A/D or an arrow for one second, then release. In a terminal with key-release
   support, movement should stay continuous through the initial keyboard-repeat
@@ -494,3 +494,9 @@ actual source blocks instead of zero-level flows that evaporated.
 [Rules, screenshots and reproducible checks](design/fluid-flow-2026-10-16/README.md)
 cover bucket placement/pickup, waterfalls, shallow flow, nearby drops, lava,
 mixing, source regeneration, legacy levels, chunk seams and save/reopen.
+
+The subsequent [basin review](design/water-basins-2026-10-16/README.md) adds
+source-height filling, communicating vessels through a low tunnel, per-pool
+overflow heights and opened/closed drains. Full supplied water shares the same
+rendered surface and physics as a full source, without becoming an independent
+source. Lava retains its separate, slower runoff rules.

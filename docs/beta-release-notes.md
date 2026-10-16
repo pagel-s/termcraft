@@ -47,7 +47,7 @@ same linked frame or remain in another dimension. Terrain, entities, hazards,
 boats and client streaming stay local to that dimension. Saved identities reopen
 in their own dimensions, and shared portal links/dragon completion survive restart.
 The End encounter is shared; credits and respawn remain individual. Late commands
-from a previous dimension cannot place/mine there after travel. Matching protocol-14
+from a previous dimension cannot place/mine there after travel. Matching protocol-15
 builds are required. Server checkpoint v3 reads v1/v2; native checkpoint v9 reads v1–8.
 
 ## Faster rendering and clearer play
@@ -157,8 +157,12 @@ Waterfalls now fall vertically until landing, runoff follows nearby drops, and
 unsupported flow drains after removing or blocking supply. Water/lava mixing is
 independent of chunk order. Thin flows have matching visible and physical depth:
 breathing, immersion and boat height follow the surface, and ankle-deep runoff
-allows land jumps. These retain source-block rules rather than finite-volume
-pressure simulation. [Flow review and captures](design/fluid-flow-2026-10-16/README.md).
+allows land jumps. Water also fills contained basins toward its source height
+and rises through connected submerged passages. Spillways limit each pool, with overflow into
+lower terraces; opening/closing drains lowers/refills them. Full supplied water
+is distinct from a persistent source, including after saving and in co-op.
+These retain source-block rules rather than conserved fluid volume.
+[Basin review](design/water-basins-2026-10-16/README.md).
 
 **Back up saves before upgrading.** Progression v9 reads v1–8, then upgrades on
 save; older builds cannot reopen v9. Entities and portal links share the player
@@ -198,7 +202,7 @@ four-platform workflow builds development artifacts; interactive OS/terminal
 qualification remains a separate release gate.
 
 Shared play supports eight connections, 64 saved identities and independent travel
-across all three dimensions. Protocol **14** requires matching builds. Classic survival through the dragon,
+across all three dimensions. Protocol **15** requires matching builds. Classic survival through the dragon,
 sustained human co-op, remote SSH/WAN behavior, live model quality and all-platform
 terminals remain release gates. Automated results do not establish a completed
 human campaign or a viral release.
@@ -206,7 +210,7 @@ human campaign or a viral release.
 The October 16 correction adds visible misses, distinct held-tool/bow/eat/use poses,
 consistent pixels at every colour zoom, light-aware cave spawns, walk-in Nether
 portals, source-preserving fluids and direct seed placement on farmland. Co-op
-action poses require matching **protocol 14** clients and server. See the
+action poses require matching **protocol 15** clients and server. See the
 [interaction review](design/interaction-review-2026-10-16/README.md).
 
 Following ore/farming feedback, fresh terrain has more iron and rare ores and coal

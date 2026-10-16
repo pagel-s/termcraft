@@ -1,5 +1,9 @@
 # Fluid flow and depth — 16 October 2026
 
+This records the initial runoff/depth correction. The subsequent
+[source-height basin review](../water-basins-2026-10-16/README.md) supersedes its
+water-basin and protocol limitations with communicating vessels and overflow.
+
 The previous solver let a filled cell below a waterfall trigger sideways flow at
 every row. It also spread across a floor without considering a nearby drop, and
 only cooled some lava contacts when water attempted to flow into them. Three

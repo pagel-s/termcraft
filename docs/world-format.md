@@ -75,6 +75,14 @@ Current structure:
 
 Current chunk payload version: `2`
 
+Fluid blocks retain their existing `Water(u8)` / `Lava(u8)` encoding. Water value
+8 is a persistent source; 9 is a full **supplied** basin cell, not a source;
+1–7 are shallow runoff. Lava remains 1–8. Full supplied water survives chunk
+save/reopen and is rendered/used for immersion at full depth. Its supply is
+recomputed from loaded geometry when simulation resumes. No chunk schema bump is
+needed; older development binaries do not implement the new hydraulic semantics.
+Use matching protocol-15 clients/server for this build.
+
 Payload fields:
 
 - `version: u8`

@@ -615,3 +615,17 @@ pools use persistent sources. Existing save and protocol formats are unchanged.
 The [flow review](docs/design/fluid-flow-2026-10-16/README.md) records test results,
 actual bucket/save-reopen checks, screenshots and limits. Finite-volume pressure,
 waterlogging and human swimming/boat acceptance remain separate follow-ups.
+
+## Source-height basin follow-up, 16 October
+
+Water now fills contained basins toward the source surface, including rising
+through connected low passages. Local spillways constrain each terrace; overflow
+feeds downstream pools. Opened drains lower the pool and closing them lets it
+refill. Waterfalls and uncontained runoff retain gravity-first routing.
+
+Full supplied water is separate from source cells and survives saving/co-op
+replication. Removing or isolating the sole source makes its supplied pool recede;
+this is a source-fed hydraulic model, not conserved finite water volume. Loaded
+geometry bounds the calculation, and settled pools leave the active frontier.
+Matching protocol **15** builds are required. See the
+[basin review](docs/design/water-basins-2026-10-16/README.md) for qualification.

@@ -1,0 +1,132 @@
+{
+  "generated_and_decoded_images": [
+    {
+      "file": "basin-outlet-0.png",
+      "sha256": "a48bcfb9135af0b206447b475068f82ee12e4264f43a0272fb0d3850f9b1b147"
+    },
+    {
+      "file": "basin-outlet-1.png",
+      "sha256": "78f64a71a47cd677656e42de359b9ad4dab158d15ad5cdcf6a6e0fe9bd04e431"
+    },
+    {
+      "file": "basin-outlet-2.png",
+      "sha256": "d20e1fdaf90d799daa7bfe493e8a8ebba9f02e952ff4ef9a4c759b13b966d8a6"
+    },
+    {
+      "file": "basin-refilled-0.png",
+      "sha256": "58b32bbcf5d1ad5b3c75bc64d09dc28f7a160554bac1951429b9c9c312a9c1ad"
+    },
+    {
+      "file": "basin-refilled-1.png",
+      "sha256": "7c225b2ffc48fa98a6c2a0005de354e8c2d28611992900730f300791dbf7120d"
+    },
+    {
+      "file": "basin-refilled-2.png",
+      "sha256": "15c444191ed02238e383e2f307696ba7e3b61ee56faa9fb8a146c65497e3e96e"
+    },
+    {
+      "file": "connected-vessels-0.png",
+      "sha256": "b505ab4a946ea57b5516f31c05e9e6f7889cd83038160e152b2faf39cea83a95"
+    },
+    {
+      "file": "connected-vessels-1.png",
+      "sha256": "932152cd0612db1d55a16cc3146a95c30fa39b682b4782a9ba5f8fc8de913acc"
+    },
+    {
+      "file": "connected-vessels-2.png",
+      "sha256": "748c0ba5bfbe19298073a8db17a5714d05a1f4f213c0fd0bde94aabf40f62f07"
+    },
+    {
+      "file": "drained-0.png",
+      "sha256": "2e5f9635ddc9f432a11721e859396e0ad57cd417d647539d7adb9178b91e09f7"
+    },
+    {
+      "file": "drained-1.png",
+      "sha256": "af9dbaaa8a863e28032c923acf9e89f4aff8f73e7cecc62266614e25c5c02274"
+    },
+    {
+      "file": "drained-2.png",
+      "sha256": "2cf492890f1c1293e8ce9982bd964df51acd97a612914f550ad4dcf514176795"
+    },
+    {
+      "file": "lavafall-0.png",
+      "sha256": "5e8e98bc5f57f5308bceb048eacccd9ac8ebf19a5b807148a6406a244082e4ca"
+    },
+    {
+      "file": "lavafall-1.png",
+      "sha256": "a5fed9cb82eb6e03f4625e2aa4ff890c09707a77b9f94fdd376975f5829bf70b"
+    },
+    {
+      "file": "lavafall-2.png",
+      "sha256": "7300a87f8dec5d21525658c27eb994494cf54723c51d3afc37586bfc18fbe413"
+    },
+    {
+      "file": "mixing-0.png",
+      "sha256": "bf7a2cbb757752da394e1e0e56cd9712ddf875cdb0abb38b16badc2caaf60453"
+    },
+    {
+      "file": "mixing-1.png",
+      "sha256": "3657bba15332c210bde079cca3e04b6713306e55aab6cd2f1cd7414bc4ec4f59"
+    },
+    {
+      "file": "mixing-2.png",
+      "sha256": "be8d4f2044f56aac18f8cf7ea209184a90dceb21bb577d5b9132e58e5bb3f59b"
+    },
+    {
+      "file": "nearest-drop-0.png",
+      "sha256": "957c6561e0474ff1946cc47007d4d5c8eb3d3233d2318aae9ad7f4c045a8c6a6"
+    },
+    {
+      "file": "nearest-drop-1.png",
+      "sha256": "43de5967cdf6f581cc2922bf4d4a5acb6f30cd9d7d7daa53efddcbfbcb35cf51"
+    },
+    {
+      "file": "nearest-drop-2.png",
+      "sha256": "c28c7d6e2723fd2f1531336f9b80e5e97fa5bcfcda11aaa5a69ffe290ae31866"
+    },
+    {
+      "file": "shallow-flow-0.png",
+      "sha256": "400e284a46897f33794d66b02f0d0ac10ab6847d9c8e80ce617a3d223e248a7b"
+    },
+    {
+      "file": "shallow-flow-1.png",
+      "sha256": "572f018a5042b0ad0c9879dae643e43ca00eb8ceb32c699a7cadee361974bfdc"
+    },
+    {
+      "file": "shallow-flow-2.png",
+      "sha256": "c8d06b18f5c7ba8549a85899e52d7088ea9ecc2f0f8700e88ef1ceef65dec8d4"
+    },
+    {
+      "file": "vessels-drained-0.png",
+      "sha256": "84deab7f7162cfeffd43a29c999112b489197c10824b1d8efa8850d8214ae3a2"
+    },
+    {
+      "file": "vessels-drained-1.png",
+      "sha256": "f4a9f89bdf310622516930a3a66715ecef52ad76fb33ea9e12e2d240bdf71e68"
+    },
+    {
+      "file": "vessels-drained-2.png",
+      "sha256": "34acd7be4ed33bd343f1daaa0d6d8192c9adc0c4d5683f59e0375e837f4141dd"
+    },
+    {
+      "file": "waterfall-0.png",
+      "sha256": "3febebda2be986ed475ef52986443405820bf62356ff6881d18187d3fceadb6d"
+    },
+    {
+      "file": "waterfall-1.png",
+      "sha256": "2e9d0a9e2bb8453611adcead7c89607f89f404f32647f0fdf96b37ff51e11831"
+    },
+    {
+      "file": "waterfall-2.png",
+      "sha256": "171d2bd6c0e67033dcaa9864183a3cc73a9d916caf1aa0426dc37c28279f579a"
+    }
+  ],
+  "retained_images": [
+    "basin-outlet-0.png",
+    "basin-refilled-0.png",
+    "connected-vessels-0.png",
+    "connected-vessels-1.png",
+    "connected-vessels-2.png",
+    "vessels-drained-0.png"
+  ]
+}

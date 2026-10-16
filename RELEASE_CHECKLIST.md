@@ -121,7 +121,7 @@ failures. Test copies of saves: older builds cannot open progression v9.
 3. Inspect license, startup instructions, manifest and `cargo package --list`.
    Exclude large videos/GIFs, private saves, bridge/reconnect credentials and keys.
 4. Review Debian PR #4 and AUR guidance against the final version/executable.
-5. Finalize the draft release notes. Retain protocol 14 matching-build and
+5. Finalize the draft release notes. Retain protocol 15 matching-build and
    progression v9 / server v3 backup/migration notices and remaining gameplay limits.
 6. Regular pushes to `beta/terminal-reborn` are user-authorized and have been
    performed, with Sebastian Pagel as sole author/committer. Obtain separate
@@ -170,3 +170,12 @@ Actual bucket placement/pickup and save/reopen are exercised in disposable world
 Include source removal, thin runoff, deep swimming and shoreline exits in the
 remaining human physics gate. This remains a block/source model; finite-volume
 pressure and waterlogged blocks are not implemented.
+
+## Source-height basin follow-up, 16 October
+
+The [basin review](docs/design/water-basins-2026-10-16/README.md) adds communicating
+vessels, wide/deep containers, source-height limits, spillways/terraces, drain
+opening/closure, barriers, chunk seams, tick-window movement and separated co-op
+regions. Native save/reopen and real TCP replication/pickup/restart are checked.
+Require matching protocol **15** builds. Human swimming/shoreline/boat feel,
+finite conserved volume, currents and waterlogged blocks remain separate gates.
