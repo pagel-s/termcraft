@@ -45,8 +45,12 @@ def check(binary, fixture, root, mode):
         game.capture('recipes-and-merged-stacks')
         # Manual crafting: select planks, right-click one in each vertical cell.
         click(77, 15)
-        click(99, 23, 2)
-        click(99, 25, 2)
+        game.send(b'\x1b[<2;100;24M')
+        game.pump(0.12)
+        game.send(b'\x1b[<34;100;26M')  # Actual right drag into the second cell.
+        game.pump(0.12)
+        game.send(b'\x1b[<2;100;26m')
+        game.pump(0.12)
         click(117, 25)  # Take four sticks.
         game.capture('manual-stick-craft')
         game.send(b'\x1b[<65;35;17M')

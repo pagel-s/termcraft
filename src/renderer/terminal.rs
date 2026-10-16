@@ -5602,11 +5602,7 @@ impl Renderer {
             self.put_str(
                 box_x + 2,
                 box_y + 20,
-                if state.world.is_replica() {
-                    "L-click swap. R-click split. Shift+L quick-move."
-                } else {
-                    "Click: move/merge | Right: split/one | Shift: transfer"
-                },
+                "Click: move/merge | Right: split/one | Shift: transfer",
                 Self::rgb((172, 185, 195)),
                 bg,
             );

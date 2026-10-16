@@ -3771,6 +3771,7 @@ impl GameState {
                 0 => self.handle_inventory_click(slot as usize),
                 1 => self.handle_inventory_right_click(slot as usize),
                 2 => self.handle_inventory_shift_click(slot as usize),
+                3 => self.handle_inventory_drag_place(slot as usize),
                 _ => {}
             },
             ClientCommand::CraftGrid(max) => {

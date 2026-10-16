@@ -301,6 +301,7 @@ fn run_tcp_client_loop(
 
     let mut prediction = ClientPredictionState::new(client_id);
     let mut pending_outbound = VecDeque::<ClientInputFrame>::new();
+    let mut inventory_drag_slot = None;
 
     let mut left_active = false;
     let mut right_active = false;
@@ -860,6 +861,7 @@ fn run_tcp_client_loop(
                             renderer.scroll_recipe_book(-1)
                         }
                         MouseEventKind::Down(button) if state.inventory_open => {
+                            inventory_drag_slot = None;
                             if let Some(slot) = renderer.get_inventory_click(
                                 &state,
                                 mouse_event.column,
@@ -872,6 +874,9 @@ fn run_tcp_client_loop(
                                 } else {
                                     0
                                 };
+                                if kind != 2 {
+                                    inventory_drag_slot = Some(slot);
+                                }
                                 queue_client_command(
                                     &mut prediction,
                                     &mut pending_outbound,
@@ -919,6 +924,32 @@ fn run_tcp_client_loop(
                                     );
                                 }
                             }
+                        }
+                        MouseEventKind::Drag(button)
+                            if state.inventory_open
+                                && matches!(
+                                    button,
+                                    crossterm::event::MouseButton::Left
+                                        | crossterm::event::MouseButton::Right
+                                )
+                                && !mouse_event.modifiers.contains(KeyModifiers::SHIFT) =>
+                        {
+                            if let Some(slot) = renderer.get_inventory_click(
+                                &state,
+                                mouse_event.column,
+                                mouse_event.row,
+                            ) && inventory_drag_slot != Some(slot)
+                            {
+                                queue_client_command(
+                                    &mut prediction,
+                                    &mut pending_outbound,
+                                    ClientCommand::InventoryClick(slot as u16, 3),
+                                );
+                                inventory_drag_slot = Some(slot);
+                            }
+                        }
+                        MouseEventKind::Up(_) if state.inventory_open => {
+                            inventory_drag_slot = None;
                         }
                         MouseEventKind::Down(crossterm::event::MouseButton::Left)
                             if !state.inventory_open =>

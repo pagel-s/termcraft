@@ -224,7 +224,7 @@ impl AgentTools {
                 require_alive(state)?;
                 if !state.inventory_open || args.kind > 2 {
                     return Err(
-                        "open inventory/container first; kind 0=swap, 1=split, 2=quick move".into(),
+                        "open inventory/container first; kind 0=move/merge/swap, 1=split/place one, 2=quick move".into(),
                     );
                 }
                 if args.slot as usize >= state.active_ui_slot_count() {
@@ -552,7 +552,7 @@ pub fn tool_catalog() -> Vec<Value> {
     vec![
         tool(
             "inventory_click",
-            "Interact with an open inventory/container under normal rules. UI slots: chest slots first, then player inventory. kind 0=swap, 1=split, 2=quick move.",
+            "Interact with an open inventory/container under normal rules. UI slots: chest slots first, then player inventory. kind 0=move/merge/swap, 1=split/place one, 2=quick move.",
             json!({"slot":{"type":"integer","minimum":0,"maximum":128},"kind":{"type":"integer","minimum":0,"maximum":2}}),
             &["slot"],
             false,
