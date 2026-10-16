@@ -20,7 +20,7 @@ mod sprites;
 mod weather;
 use crate::world::block::BlockType;
 use crate::world::chunk::CHUNK_HEIGHT;
-use crate::world::item::{ItemStack, ItemType, Recipe};
+use crate::world::item::{ItemStack, ItemType};
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
