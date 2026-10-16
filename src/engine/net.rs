@@ -28,6 +28,7 @@ const MAX_PENDING_INPUTS_PER_SCHEDULED_TICK: usize = 128;
 const MAX_CLIENT_INPUT_LEAD_TICKS: u64 = SERVER_TICK_RATE * 4;
 const CLIENT_SEQUENCE_PRUNE_INTERVAL_TICKS: u64 = SERVER_TICK_RATE * 15;
 const CLIENT_SEQUENCE_STALE_TICKS: u64 = SERVER_TICK_RATE * 180;
+const CLIENT_OUTBOUND_QUEUE_PACKETS: usize = 4;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ClientInputFrame {
@@ -1154,8 +1155,35 @@ struct ConnectedClient {
     known_dimension: Option<SnapshotDimension>,
     client_id: u16,
     writer: TcpStream,
+    outgoing: mpsc::SyncSender<QueuedPacket>,
     known_chunk_revisions: HashMap<i32, u64>,
     authenticated: bool,
+}
+struct QueuedPacket {
+    payload: Vec<u8>,
+    close_after: bool,
+}
+impl ConnectedClient {
+    fn queue_payload(&self, payload: Vec<u8>, close_after: bool) -> io::Result<()> {
+        self.outgoing
+            .try_send(QueuedPacket {
+                payload,
+                close_after,
+            })
+            .map_err(|error| match error {
+                mpsc::TrySendError::Full(_) => io::Error::new(
+                    io::ErrorKind::WouldBlock,
+                    "client is not draining its bounded output queue",
+                ),
+                mpsc::TrySendError::Disconnected(_) => {
+                    io::Error::new(io::ErrorKind::BrokenPipe, "client writer disconnected")
+                }
+            })
+    }
+    fn queue_message(&self, message: &ServerWireMessage, close_after: bool) -> io::Result<()> {
+        let payload = encode_server_message(message).map_err(codec_error_to_io)?;
+        self.queue_payload(payload, close_after)
+    }
 }
 impl Drop for ConnectedClient {
     fn drop(&mut self) {
@@ -1175,6 +1203,33 @@ enum ServerEvent {
     Input(ClientInputFrame),
     Chat(u16, String),
     Disconnected(u16),
+}
+fn drain_client_packets(
+    writer: &mut impl Write,
+    incoming: mpsc::Receiver<QueuedPacket>,
+) -> io::Result<()> {
+    while let Ok(packet) = incoming.recv() {
+        write_framed_payload(writer, &packet.payload)?;
+        if packet.close_after {
+            break;
+        }
+    }
+    Ok(())
+}
+fn spawn_client_writer_thread(
+    client_id: u16,
+    mut writer: TcpStream,
+    tx: mpsc::SyncSender<ServerEvent>,
+) -> mpsc::SyncSender<QueuedPacket> {
+    let (outgoing, incoming) = mpsc::sync_channel(CLIENT_OUTBOUND_QUEUE_PACKETS);
+    thread::spawn(move || {
+        // Socket timeouts may be much coarser than requested on some platforms.
+        // No socket write, including a partial framed write, may hold up simulation.
+        let _ = drain_client_packets(&mut writer, incoming);
+        let _ = writer.shutdown(std::net::Shutdown::Both);
+        let _ = tx.send(ServerEvent::Disconnected(client_id));
+    });
+    outgoing
 }
 fn spawn_client_reader_thread(
     client_id: u16,
@@ -1233,10 +1288,12 @@ fn accept_pending_clients(
                     id = next_client_id(counter);
                 }
                 spawn_client_reader_thread(id, reader, tx.clone());
+                let outgoing = spawn_client_writer_thread(id, writer.try_clone()?, tx.clone());
                 clients.push(ConnectedClient {
                     known_dimension: None,
                     client_id: id,
                     writer,
+                    outgoing,
                     known_chunk_revisions: HashMap::new(),
                     authenticated: false,
                 });
@@ -1324,13 +1381,13 @@ fn send_tick_messages_to_client(
     client: &mut ConnectedClient,
     state: &GameState,
     snapshot: &ServerSnapshot,
-    snapshot_wire_payload: &[u8],
+    snapshot_wire_payload: Vec<u8>,
 ) -> io::Result<()> {
     if client.known_dimension != Some(snapshot.dimension) {
         client.known_chunk_revisions.clear();
         client.known_dimension = Some(snapshot.dimension);
     }
-    write_framed_payload(&mut client.writer, snapshot_wire_payload)?;
+    client.queue_payload(snapshot_wire_payload, false)?;
 
     let world = state
         .world_in_dimension(snapshot.dimension.into())
@@ -1342,7 +1399,7 @@ fn send_tick_messages_to_client(
         &mut client.known_chunk_revisions,
     ) {
         let delta_msg = ServerWireMessage::ChunkDelta(delta);
-        write_framed_server_message(&mut client.writer, &delta_msg)?;
+        client.queue_message(&delta_msg, false)?;
     }
     Ok(())
 }
@@ -1401,6 +1458,7 @@ pub fn run_headless_tcp_server_with_state(bind_addr: &str, state: GameState) -> 
     let mut last_tick = Instant::now();
     let mut last_save = Instant::now();
     while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+        let mut disconnected = false;
         accept_pending_clients(&listener, &tx, &mut clients, &mut counter)?;
         for _ in 0..1024 {
             let Ok(event) = rx.try_recv() else {
@@ -1412,19 +1470,26 @@ pub fn run_headless_tcp_server_with_state(bind_addr: &str, state: GameState) -> 
                         let auth = simulation
                             .authenticate(id, hello.token.as_deref())
                             .and_then(|welcome| {
-                                write_framed_server_message(
-                                    &mut client.writer,
-                                    &ServerWireMessage::Welcome(welcome),
-                                )
+                                client.queue_message(&ServerWireMessage::Welcome(welcome), false)
                             });
                         if let Err(e) = auth {
                             eprintln!("Join rejected: {e}");
-                            let _ = write_framed_server_message(
-                                &mut client.writer,
-                                &ServerWireMessage::Rejected(NET_PROTOCOL_VERSION, e.to_string()),
-                            );
-                            clients.retain(|c| c.client_id != id);
+                            // Let the writer deliver the rejection before it closes.
+                            // This connection never becomes an authenticated actor.
+                            if client
+                                .queue_message(
+                                    &ServerWireMessage::Rejected(
+                                        NET_PROTOCOL_VERSION,
+                                        e.to_string(),
+                                    ),
+                                    true,
+                                )
+                                .is_err()
+                            {
+                                clients.retain(|c| c.client_id != id);
+                            }
                             simulation.unregister_client(id);
+                            disconnected = true;
                         } else {
                             client.authenticated = true;
                         }
@@ -1444,10 +1509,11 @@ pub fn run_headless_tcp_server_with_state(bind_addr: &str, state: GameState) -> 
                     }
                 }
                 ServerEvent::Disconnected(id) => {
-                    clients.retain(|c| c.client_id != id);
-                    simulation.unregister_client(id);
-                    if let Err(e) = simulation.save() {
-                        eprintln!("Server save failed; retaining player data in memory: {e}");
+                    // Both socket threads report closure; handle it only once.
+                    if let Some(index) = clients.iter().position(|c| c.client_id == id) {
+                        clients.swap_remove(index);
+                        simulation.unregister_client(id);
+                        disconnected = true;
                     }
                 }
             }
@@ -1483,22 +1549,22 @@ pub fn run_headless_tcp_server_with_state(bind_addr: &str, state: GameState) -> 
                     &mut clients[index],
                     simulation.state(),
                     &snapshot,
-                    &payload,
+                    payload,
                 )
                 .is_err()
                 {
                     let id = clients[index].client_id;
                     clients.swap_remove(index);
                     simulation.unregister_client(id);
-                    if let Err(e) = simulation.save() {
-                        eprintln!("Server disconnect save failed; data retained: {e}");
-                    }
+                    disconnected = true;
                 } else {
                     index += 1;
                 }
             }
         }
-        if last_save.elapsed() >= Duration::from_secs(45) {
+        // A group of stalled readers must not force one synced checkpoint each.
+        // Player records are retained immediately; commit the batch once per loop.
+        if disconnected || last_save.elapsed() >= Duration::from_secs(45) {
             if let Err(e) = simulation.save() {
                 eprintln!("Server autosave failed; retaining data: {e}");
             }
@@ -1516,6 +1582,92 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
     use std::io::Cursor;
+
+    #[test]
+    fn outbound_frames_keep_order_and_rejection_is_written_before_close() {
+        let (tx, rx) = mpsc::sync_channel(CLIENT_OUTBOUND_QUEUE_PACKETS);
+        for (payload, close_after) in [(vec![1, 2], false), (vec![3, 4], true), (vec![5], false)] {
+            tx.send(QueuedPacket {
+                payload,
+                close_after,
+            })
+            .unwrap();
+        }
+        drop(tx);
+        let mut output = Vec::new();
+        drain_client_packets(&mut output, rx).unwrap();
+        let mut input = Cursor::new(output);
+        assert_eq!(read_framed_payload(&mut input).unwrap(), vec![1, 2]);
+        assert_eq!(read_framed_payload(&mut input).unwrap(), vec![3, 4]);
+        assert_eq!(input.position() as usize, input.get_ref().len());
+    }
+
+    #[test]
+    fn blocked_socket_writer_does_not_block_the_bounded_producer() {
+        struct GatedWriter {
+            entered: mpsc::SyncSender<()>,
+            release: mpsc::Receiver<()>,
+            waiting: bool,
+            bytes: Vec<u8>,
+        }
+        impl Write for GatedWriter {
+            fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+                if self.waiting {
+                    self.entered.send(()).unwrap();
+                    self.release
+                        .recv_timeout(Duration::from_secs(5))
+                        .map_err(io::Error::other)?;
+                    self.waiting = false;
+                }
+                self.bytes.extend_from_slice(bytes);
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
+        }
+        let (tx, rx) = mpsc::sync_channel(CLIENT_OUTBOUND_QUEUE_PACKETS);
+        let (entered_tx, entered_rx) = mpsc::sync_channel(1);
+        let (release_tx, release_rx) = mpsc::sync_channel(1);
+        let worker = thread::spawn(move || {
+            let mut writer = GatedWriter {
+                entered: entered_tx,
+                release: release_rx,
+                waiting: true,
+                bytes: Vec::new(),
+            };
+            drain_client_packets(&mut writer, rx).unwrap();
+            writer.bytes
+        });
+        tx.try_send(QueuedPacket {
+            payload: vec![0],
+            close_after: false,
+        })
+        .unwrap();
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        for _ in 0..CLIENT_OUTBOUND_QUEUE_PACKETS {
+            tx.try_send(QueuedPacket {
+                payload: vec![1],
+                close_after: false,
+            })
+            .unwrap();
+        }
+        assert!(matches!(
+            tx.try_send(QueuedPacket {
+                payload: vec![2],
+                close_after: false
+            }),
+            Err(mpsc::TrySendError::Full(_))
+        ));
+        release_tx.send(()).unwrap();
+        drop(tx);
+        let mut input = Cursor::new(worker.join().unwrap());
+        assert_eq!(read_framed_payload(&mut input).unwrap(), vec![0]);
+        for _ in 0..CLIENT_OUTBOUND_QUEUE_PACKETS {
+            assert_eq!(read_framed_payload(&mut input).unwrap(), vec![1]);
+        }
+        assert_eq!(input.position() as usize, input.get_ref().len());
+    }
 
     #[test]
     fn client_input_roundtrip_codec() {

@@ -32,13 +32,14 @@ from capture_terminal_art import Screen, raster
 
 
 class TerminalGame:
-    def __init__(self, binary, save_root, artifacts, world_id=None, address=None):
+    def __init__(self, binary, save_root, artifacts, world_id=None, address=None, env_overrides=None):
         self.binary = str(binary)
         self.artifacts = artifacts
         artifacts.mkdir(parents=True, exist_ok=True)
         self.env = dict(os.environ, TERM="xterm-256color", TERMCRAFT_SAVE_DIR=str(save_root))
         self.env.pop("NO_COLOR", None)
         self.env.pop("TERMCRAFT_DIRECTOR", None)
+        self.env.update(env_overrides or {})
         self.master, self.slave = pty.openpty()
         fcntl.ioctl(self.slave, termios.TIOCSWINSZ, struct.pack("HHHH", 48, 160, 0, 0))
         self.before = termios.tcgetattr(self.slave)

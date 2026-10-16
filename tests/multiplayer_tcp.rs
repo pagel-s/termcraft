@@ -215,7 +215,8 @@ fn eight_players_with_delayed_link_and_stalled_readers_keep_server_responsive() 
         previous = Instant::now();
         assert!(
             worst_stall_gap < 1000.0,
-            "slow readers froze the healthy client"
+            "slow readers froze the healthy client: worst gap {worst_stall_gap:.1} ms, tick {}",
+            snapshot.tick
         );
         if snapshot.remote_players.is_empty() {
             break;
@@ -750,6 +751,22 @@ fn two_socket_players_mine_build_disconnect_and_resume_after_restart() -> io::Re
     assert_ne!(a.welcome.token, b.welcome.token);
     let first = a.until(|s| s.remote_players.len() == 1);
     b.until(|s| s.remote_players.len() == 1);
+    // An asynchronous rejection must arrive intact before the writer closes,
+    // without registering an actor or disrupting the two healthy clients.
+    let mut rejected = TcpStream::connect(&addr)?;
+    rejected.set_read_timeout(Some(Duration::from_secs(5)))?;
+    write_client_hello(
+        &mut rejected,
+        &ClientHello {
+            protocol: NET_PROTOCOL_VERSION,
+            token: Some("0".repeat(32)),
+        },
+    )?;
+    assert!(
+        matches!(read_framed_server_message(&mut rejected)?, ServerWireMessage::Rejected(_, message) if message.contains("unrecognized"))
+    );
+    assert_eq!(rejected.read(&mut [0])?, 0);
+    a.until(|s| s.remote_players.len() == 1);
     assert!(
         first.player.x.abs() < 2.0,
         "unexpected fixture spawn {}",

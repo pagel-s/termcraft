@@ -37,6 +37,10 @@ include = [
     "/scripts/test_ssh_join.py",
     "/scripts/test_native_archive.py",
     "/scripts/test_lantern_trial.py",
+    "/scripts/test_storage_recovery.py",
+    "/scripts/storage_faults.c",
+    "/scripts/test_terminal_input.py",
+    "/scripts/capture_terminal_art.py",
     "/scripts/generate_world.py",
     "/scripts/demo_director.py",
 ]

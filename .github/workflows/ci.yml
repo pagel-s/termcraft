@@ -43,6 +43,9 @@ jobs:
       - name: Play Lantern Run through normal CLI tools
         run: python3 scripts/test_lantern_trial.py --binary target/debug/termcraft
 
+      - name: Exercise checkpoint write failures and interrupted commits
+        run: python3 scripts/test_storage_recovery.py --binary target/debug/termcraft
+
       - name: Test optional world provider adapters (offline)
         run: python3 -m unittest discover -s scripts -p 'test_generate_world.py'
 
