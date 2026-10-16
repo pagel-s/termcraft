@@ -101,12 +101,14 @@ pub(crate) fn sync_directory(path: &Path) -> io::Result<()> {
 }
 
 fn private_directory(path: &Path) -> io::Result<()> {
-    let mut builder = fs::DirBuilder::new();
+    let builder = fs::DirBuilder::new();
     #[cfg(unix)]
-    {
+    let builder = {
         use std::os::unix::fs::DirBuilderExt;
+        let mut builder = builder;
         builder.mode(0o700);
-    }
+        builder
+    };
     builder.create(path)
 }
 
