@@ -1,0 +1,20 @@
+{
+  "actual_bucket_place_and_pickup": true,
+  "adjacent_lava_source_cooled": true,
+  "complete_drain_after_pickup": true,
+  "filling_650_ticks_cpu_ms": 4.551032,
+  "full_supplied_water_survives_reopen": true,
+  "idle_world_1000_ticks_ms": 0.9707929999999999,
+  "limits": "Staged native geometry/player poses, actual bucket commands and world ticks. CPU work excludes terminal presentation, disk and WAN.",
+  "nearest_drop": true,
+  "no_rise_above_source": true,
+  "opening_outlet_lowers_pool_closing_it_refills": true,
+  "partial_fill_continues_after_reopen": true,
+  "save_reopen_preserves_flow_levels": true,
+  "scenes": 10,
+  "source_height_in_connected_vessels": true,
+  "status": "passed",
+  "supplied_pool_drains_after_actual_bucket_pickup": true,
+  "vertical_waterfall": true,
+  "views_per_scene": 3
+}

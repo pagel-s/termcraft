@@ -20,6 +20,7 @@ The intended progression is:
 | Action | Control |
 | --- | --- |
 | Move | `A` / `D` or left/right arrows |
+| Sprint | Tap, release, then quickly hold the same direction again |
 | Jump / swim up | `W`, `Up`, or `Space` |
 | Sneak toggle | `X` |
 | Sneak hold | `Shift` |
@@ -30,6 +31,8 @@ The intended progression is:
 | Use hovered block fallback | `F` |
 | Settings menu | `O` |
 | Performance diagnostics | `F3` |
+| Zoom in / out | `=` or `+` / `-` |
+| Cycle world view | `F4` |
 | AI game master chat (local / co-op host) | `T` |
 | Quit / close UI | `Q` or `Esc` |
 
@@ -37,6 +40,13 @@ The unreleased development build keeps detailed counters behind `F3`. See
 [Performance and Foundation Checks](performance.md) for timing definitions and
 local measurements. Save warnings appear in the HUD; travel is cancelled if the
 source world cannot be saved.
+
+Hold a direction once to walk. Double-tap and hold it to sprint; releasing,
+reversing, sneaking or dropping to three food icons stops sprinting. Shift is
+sneak, not sprint. The HUD shows `Sprint ON` / `OFF`. A legacy input timeout
+clears the pending double tap so delayed OS repeat does not start sprinting.
+Intentional double-tap sprint requires directional key-up events (`keys:release`
+in F3); the repeat-only fallback cannot reliably distinguish that gesture.
 
 The experimental native chat accepts requests for battles, mobs, local ambience,
 weather and structures with a configured director. Typing pauses single-player;
@@ -152,11 +162,19 @@ sparkles update less often to reduce distracting repainting.
 
 ## Art and movement review
 
-F4 cycles pixel overview, wide pixels and close detail. All three colour views use
-the same artwork; only their resolution changes. `NO_COLOR` retains glyphs. Use a color
-terminal at least 140×44 for the detailed view; 160×48 is a useful starting size.
+Use `=` or `+` to zoom in and `-` to zoom out. From the default Overview, one `=`
+selects Detail and shows the full character artwork. `F4` also cycles Overview,
+Wide and Detail. The header names the active view. Each color view retains its
+resolution when the terminal font or window changes: Detail stays detailed at
+80×24, 120×40 and larger sizes, including in the End. A smaller window shows less
+world instead of silently replacing the figure. Use Overview/Wide for arena
+context; 160×48 is a useful starting size. `NO_COLOR` retains the explicitly
+labelled glyph mode and disables color-view zoom.
 F3 reports keyboard release support. Try walking, abrupt reversal, tap/held jumps,
 low ceilings and wall landings before comparing the camera in both views.
+The timing counters include local rendering/terminal output. In co-op, tick time
+measures client prediction, not the remote server. `keys:repeat` means the bounded
+legacy input fallback is active; `keys:release` confirms real movement key-up.
 See [Movement and art review](feel-and-art.md) for current captures, the test route
 and remaining limitations.
 

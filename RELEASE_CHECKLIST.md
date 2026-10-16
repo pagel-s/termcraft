@@ -179,3 +179,15 @@ opening/closure, barriers, chunk seams, tick-window movement and separated co-op
 regions. Native save/reopen and real TCP replication/pickup/restart are checked.
 Require matching protocol **15** builds. Human swimming/shoreline/boat feel,
 finite conserved volume, currents and waterlogged blocks remain separate gates.
+
+## View and input follow-up, 16 October
+
+Direct zoom and visible view names replace hidden terminal-size downgrades.
+Detailed characters are exercised through real native/co-op input and 80×24 /
+120×40 / 160×48 resizing. Walking, intentional double-tap sprint, delayed legacy
+repeat, run/jump, release and focus loss are checked in the same PTY harness.
+Frame pacing includes rendering/flush work, and co-op F3 records client timings.
+Pressure follows actual wet connections; the movement fixture is isolated from
+external generated sources. Fresh platform CI must qualify this correction to
+the previous Windows/ARM Mac water-route comparison failure. Human Warp feel
+remains a separate acceptance step. [Review](docs/design/view-controls-2026-10-16/README.md).

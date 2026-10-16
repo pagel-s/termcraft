@@ -101,6 +101,7 @@ paru -S termcraft
 ## Controls Snapshot
 
 - `A` / `D` or arrow keys: move
+- Hold a direction to walk; tap, release, then quickly hold it again to sprint
 - `W` / `Up` / `Space`: jump or swim up
 - `X`: toggle sneak
 - `E`: inventory
@@ -109,6 +110,8 @@ paru -S termcraft
 - `Right Click`: place / interact
 - `F`: explicit hovered-block use fallback if right click is unreliable in the current terminal
 - `O`: settings menu
+- `=` / `+` and `-`: zoom in/out in the development build; `F4` cycles views
+- `F3`: development timing/input diagnostics
 - `Q` / `Esc`: close UI or quit from world view
 
 Developer/test shortcuts currently available:

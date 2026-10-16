@@ -66,8 +66,14 @@ writes retain data in memory for retry.
 
 ## Terminal pixel art and finer control
 
+The active view is now labelled, with `=`/`+` and `-` for direct zoom. Full Detail
+remains available at compact terminal sizes and in the End; enlarging the terminal
+font no longer silently swaps it for a reduced figure. Holding a direction walks;
+double-tap-and-hold sprints. Delayed legacy OS repeat no longer triggers sprint
+after an input timeout. The HUD includes the sprint gesture.
+
 The close view uses a shared pixel atlas for blocks and creatures across all
-dimensions. Larger terminals show 8×8 pixel blocks and proportioned humanoids;
+dimensions. Detail shows 8×8 pixel blocks and proportioned humanoids;
 cutaway interiors, terrain edges and fresh hut roofs improve structure readability.
 Existing saved structures keep their geometry. **F4** switches close/wide views.
 

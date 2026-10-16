@@ -70,16 +70,21 @@ together: the updated movement rules use **network protocol 15**.
 - Jump beside a wall and under a ceiling. The player now moves vertically relative
   to the easing camera; co-op predicts jump, landing and collision locally.
 - Switch focus while holding movement. Focus loss clears held controls.
-- The default is a pixel overview at 100×32 and above. F4 cycles overview →
-  wide pixels → detailed pixels. Detail uses 8×8 block pixels at 140×44 and above;
-  the default overview shows twice as much world horizontally. Smaller terminals
-  use reduced pixel artwork. `NO_COLOR` retains glyphs. HUD and inventory retain their normal resolution.
+- The default is Overview. Press `=`/`+` once for Detail, or `-` for Wide; `F4`
+  cycles Overview → Wide → Detail. The header labels the view. Detail uses full
+  8×8 block pixels even at 80×24 and in the End. Window/font resizing changes how
+  much world fits, without reducing the selected sprite resolution. `NO_COLOR`
+  retains labelled glyphs. HUD and inventory retain their normal resolution.
+- Hold A/D or an arrow to walk; tap, release and quickly hold the same direction
+  to sprint. Releasing, reversing or sneaking stops it. More than three food icons
+  are required. Initial OS repeat after a legacy timeout cannot trigger sprint.
 - Mine/place around negative world coordinates, then repeat after F4 and a resize.
   Targeting should match the visible tile.
 
 Terminals that do not send key-up events retain the repeat-based fallback. They
 cannot distinguish a short tap from a held key waiting for its first repeat.
-This pass does not claim that limitation is solved. Simulation stays at 20 ticks
+Intentional double-tap sprint requires directional key-up events. This pass does
+not claim that limitation is solved. Simulation stays at 20 ticks
 per second; the 60 fps render budget does not change survival/gameplay timers.
 
 ## Terminal feedback correction, 12 October
@@ -99,9 +104,10 @@ is retained. Target feedback says `R-click / F: use` for reachable fixtures and
 chests, furnace and beds from the ladder, without jumping across furniture tops.
 
 Frames now carry synchronized-update boundaries and avoid redundant cursor moves
-and invisible foreground changes. Frame pacing waits after the terminal flush,
-preventing slow output from immediately queuing another frame. Synchronization
-requires emulator support; CPU timings alone do not prove smooth presentation.
+and invisible foreground changes. Frame pacing waits only the remainder of the
+frame budget after rendering/flush work; slow frames add no extra sleep or catch-up
+paint burst. Synchronization requires emulator support; CPU timings alone do not
+prove smooth presentation. See the [view/input follow-up](design/view-controls-2026-10-16/README.md).
 The default pixel overview shows 40 blocks across at 160×48 instead of 20. F4 gives
 wide pixels, then optional detail. The sky uses restrained screen-space clouds,
 a stepped sun/moon and stable stars in both color overview/detail and wide views.

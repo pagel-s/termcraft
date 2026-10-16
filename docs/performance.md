@@ -1,5 +1,10 @@
 # Performance and foundation checks
 
+The view/input follow-up counts rendering and flushing toward the frame budget,
+instead of adding a full frame sleep after that work finishes. A slow frame does
+not create a catch-up paint burst. Co-op F3 now records local prediction and render
+times; those counters do not measure server CPU work or network round trips.
+
 These are local measurements of the unreleased development build on 10 October
 and 11 October 2026, not beta qualification or a comparison with a published release.
 

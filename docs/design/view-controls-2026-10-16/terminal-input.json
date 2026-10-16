@@ -1,0 +1,67 @@
+{
+  "status": "passed",
+  "binary_sha256": "aa952c22d06a19aad1b4290c455760a3cb127380d6013cf8271ef083ee3e94b2",
+  "input": [
+    {
+      "mode": "native",
+      "status": "passed",
+      "capability_positive_ascii_tap_delta": 1.03791133056,
+      "movement_course_start": {
+        "health": 20.0,
+        "hunger": 19.377466201782227,
+        "x": -33.33459934372122,
+        "y": 64.0
+      },
+      "tap_rest_drift": 0.025199680665599855,
+      "unrelated_release_rest_drift": -0.025199680665599966,
+      "confirmed_hold_delta": 3.7835294117720224,
+      "key_up_drift": 0.025285017596718973,
+      "legacy_run_jump_delta": 2.478096862257818,
+      "run_jump_repeat_delta": 16.23155407484139,
+      "run_after_jump_release_delta": 4.800000000000001,
+      "quiet_left_run_jump_delta": 16.233704498397543,
+      "focus_loss_cleared": true,
+      "walk_distance": 4.103529411765805,
+      "sprint_distance": 4.9185882353036465,
+      "sprint_double_tap_and_release": true,
+      "legacy_repeat_does_not_start_sprint": true,
+      "terminal_restored": true,
+      "keyboard_queries": 1,
+      "bytes": 22525882,
+      "synchronized_frames_started": 1196,
+      "synchronized_frames_finished": 1197
+    },
+    {
+      "mode": "coop",
+      "status": "passed",
+      "capability_positive_ascii_tap_delta": 1.0631110112256,
+      "movement_course_start": {
+        "health": 20.0,
+        "hunger": 19.345962524414062,
+        "x": -34.24719567861986,
+        "y": 64.0
+      },
+      "tap_rest_drift": 0.0,
+      "unrelated_release_rest_drift": 0.0,
+      "confirmed_hold_delta": 4.151529411764866,
+      "key_up_drift": 0.025285017599927073,
+      "legacy_run_jump_delta": 2.4631024730769795,
+      "run_jump_repeat_delta": 16.23386649839754,
+      "run_after_jump_release_delta": 4.800000000000001,
+      "quiet_left_run_jump_delta": 16.553866498397543,
+      "focus_loss_cleared": true,
+      "walk_distance": 4.42352941176487,
+      "sprint_distance": 5.750588235294334,
+      "sprint_double_tap_and_release": true,
+      "legacy_repeat_does_not_start_sprint": true,
+      "terminal_restored": true,
+      "keyboard_queries": 1,
+      "bytes": 21808003,
+      "synchronized_frames_started": 1228,
+      "synchronized_frames_finished": 1229
+    }
+  ],
+  "doors": [],
+  "limits": "Disposable Unix PTYs with synthetic capability/keypress/mouse streams and read-only director observations. Excludes emulator presentation latency, WANs, Windows native input, and human feel/art approval.",
+  "artifacts": "/tmp/termcraft-terminal-input-i0ihs4j9"
+}

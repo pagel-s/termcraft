@@ -27,8 +27,9 @@ use your system's normal controls for a downloaded executable you trust. These
 are development artifacts, with native human qualification still open.
 
 Use a terminal with raw input, a monospace font and preferably true color,
-keyboard release events and mouse support. Start at **120×40** or larger; **F4**
-changes the view and **F3** shows timing/input diagnostics.
+keyboard release events and mouse support. Start at **120×40** or larger for more
+world context. **=** selects Detail from the default Overview; **-** zooms out and
+**F4** cycles views. Detail also works at 80×24. **F3** shows timing/input diagnostics.
 
 ## Build from source
 
@@ -48,6 +49,7 @@ into your Cargo bin directory, run `cargo install --path . --locked`.
 ## First play
 
 - **A/D** or arrow keys: move; **W/Up/Space**: jump or climb.
+- Hold a direction to walk; tap, release, then quickly hold it again to sprint.
 - **E**: inventory; **Left Click**: mine/attack; **Right Click**: place/interact.
 - **F**: interact with the hovered block if right-click is unreliable.
 - **T**: game-master chat; `/help` lists commands. **Q**: save and quit.

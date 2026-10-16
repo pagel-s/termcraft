@@ -148,7 +148,7 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 
 The local executable is `/home/sebastian/projects/termcraft/termcraft`.
 The package version remains `0.1.0`; generated archives are explicitly development
-builds, not mislabeled beta artifacts. Network protocol is **14**, requiring
+builds, not mislabeled beta artifacts. Network protocol is **15**, requiring
 matching builds. New native saves use progression version **9**; back up older
 saves before testing because older executables cannot read the new format.
 
@@ -629,3 +629,22 @@ this is a source-fed hydraulic model, not conserved finite water volume. Loaded
 geometry bounds the calculation, and settled pools leave the active frontier.
 Matching protocol **15** builds are required. See the
 [basin review](docs/design/water-basins-2026-10-16/README.md) for qualification.
+
+## View, movement and pressure follow-up, 16 October
+
+Full Detail now stays at the authored sprite resolution on compact terminals and
+in the End. `=`/`+` zooms in and `-` zooms out; the header labels the selected view.
+Changing terminal font/window size changes context, without silently changing the
+selected artwork. F4 retains its existing cycle. Legacy input timeout resets the
+pending sprint tap, preventing a delayed OS repeat from starting sprint. Actual
+directional releases retain intentional double-tap-and-hold sprinting.
+
+Rendering/terminal flushing consumes the frame budget; it no longer adds a whole
+sleep after each rendered frame. Co-op diagnostics now measure client prediction
+and render work. They do not measure the server or the terminal emulator's GPU.
+
+The basin follow-up also found that pressure could cross dry air from an unrelated
+high source. Heads now propagate through actual wet connections, with one dry
+growth neighbour. The solo/co-op obstacle fixture is enclosed against unrelated
+generated terrain; the earlier Windows/ARM Mac failure requires fresh CI results.
+See the [view/input review](docs/design/view-controls-2026-10-16/README.md).

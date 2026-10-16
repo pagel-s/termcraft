@@ -1,0 +1,679 @@
+{
+  "native": {
+    "conclusion": "",
+    "headSha": "031f66e616435ed60a293c3907b6fe2a8ccb5c29",
+    "jobs": [
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 117072081456,
+        "name": "build (windows-latest, x86_64-pc-windows-msvc)",
+        "startedAt": "2026-10-16T16:13:35Z",
+        "status": "in_progress",
+        "steps": [
+          {
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/setup-python@v5",
+            "number": 3,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Install minimum supported Rust",
+            "number": 4,
+            "status": "completed"
+          },
+          {
+            "conclusion": "",
+            "name": "Verify",
+            "number": 5,
+            "status": "in_progress"
+          },
+          {
+            "conclusion": "",
+            "name": "Real loopback co-op and live MCP",
+            "number": 6,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Strict Clippy",
+            "number": 7,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Build native binary",
+            "number": 8,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Install SSH and native recovery test dependencies (Linux)",
+            "number": 9,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Check walking, sprinting and pixel views in live terminals (Linux)",
+            "number": 10,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Check storage faults and recover into a backup copy (Linux)",
+            "number": 11,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Real OpenSSH transport and rendered join (Linux)",
+            "number": 12,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Package Unix",
+            "number": 13,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Package Windows",
+            "number": 14,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Extract and run archive without Rust in PATH",
+            "number": 15,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 16,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 17,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 18,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 19,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 20,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Post Run actions/setup-python@v5",
+            "number": 39,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Post Run actions/checkout@v4",
+            "number": 40,
+            "status": "pending"
+          }
+        ],
+        "url": "https://github.com/pagel-s/termcraft/actions/runs/38930245714/job/117072081456"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 117072081817,
+        "name": "build (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+        "startedAt": "2026-10-16T16:13:35Z",
+        "status": "in_progress",
+        "steps": [
+          {
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/setup-python@v5",
+            "number": 3,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Install minimum supported Rust",
+            "number": 4,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Verify",
+            "number": 5,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Real loopback co-op and live MCP",
+            "number": 6,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Strict Clippy",
+            "number": 7,
+            "status": "completed"
+          },
+          {
+            "conclusion": "",
+            "name": "Build native binary",
+            "number": 8,
+            "status": "in_progress"
+          },
+          {
+            "conclusion": "",
+            "name": "Install SSH and native recovery test dependencies (Linux)",
+            "number": 9,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Check walking, sprinting and pixel views in live terminals (Linux)",
+            "number": 10,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Check storage faults and recover into a backup copy (Linux)",
+            "number": 11,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Real OpenSSH transport and rendered join (Linux)",
+            "number": 12,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Package Unix",
+            "number": 13,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Package Windows",
+            "number": 14,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Extract and run archive without Rust in PATH",
+            "number": 15,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 16,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 17,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 18,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 19,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 20,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Post Run actions/setup-python@v5",
+            "number": 39,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Post Run actions/checkout@v4",
+            "number": 40,
+            "status": "pending"
+          }
+        ],
+        "url": "https://github.com/pagel-s/termcraft/actions/runs/38930245714/job/117072081817"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 117072081984,
+        "name": "build (macos-14, aarch64-apple-darwin)",
+        "startedAt": "2026-10-16T16:13:41Z",
+        "status": "in_progress",
+        "steps": [
+          {
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/setup-python@v5",
+            "number": 3,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Install minimum supported Rust",
+            "number": 4,
+            "status": "completed"
+          },
+          {
+            "conclusion": "",
+            "name": "Verify",
+            "number": 5,
+            "status": "in_progress"
+          },
+          {
+            "conclusion": "",
+            "name": "Real loopback co-op and live MCP",
+            "number": 6,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Strict Clippy",
+            "number": 7,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Build native binary",
+            "number": 8,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Install SSH and native recovery test dependencies (Linux)",
+            "number": 9,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Check walking, sprinting and pixel views in live terminals (Linux)",
+            "number": 10,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Check storage faults and recover into a backup copy (Linux)",
+            "number": 11,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Real OpenSSH transport and rendered join (Linux)",
+            "number": 12,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Package Unix",
+            "number": 13,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Package Windows",
+            "number": 14,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Extract and run archive without Rust in PATH",
+            "number": 15,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 16,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 17,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 18,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 19,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 20,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Post Run actions/setup-python@v5",
+            "number": 39,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Post Run actions/checkout@v4",
+            "number": 40,
+            "status": "pending"
+          }
+        ],
+        "url": "https://github.com/pagel-s/termcraft/actions/runs/38930245714/job/117072081984"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 117072082156,
+        "name": "build (macos-15-intel, x86_64-apple-darwin)",
+        "startedAt": "2026-10-16T16:13:36Z",
+        "status": "in_progress",
+        "steps": [
+          {
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/setup-python@v5",
+            "number": 3,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Install minimum supported Rust",
+            "number": 4,
+            "status": "completed"
+          },
+          {
+            "conclusion": "",
+            "name": "Verify",
+            "number": 5,
+            "status": "in_progress"
+          },
+          {
+            "conclusion": "",
+            "name": "Real loopback co-op and live MCP",
+            "number": 6,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Strict Clippy",
+            "number": 7,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Build native binary",
+            "number": 8,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Install SSH and native recovery test dependencies (Linux)",
+            "number": 9,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Check walking, sprinting and pixel views in live terminals (Linux)",
+            "number": 10,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Check storage faults and recover into a backup copy (Linux)",
+            "number": 11,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Real OpenSSH transport and rendered join (Linux)",
+            "number": 12,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Package Unix",
+            "number": 13,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Package Windows",
+            "number": 14,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Extract and run archive without Rust in PATH",
+            "number": 15,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 16,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 17,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 18,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 19,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 20,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Post Run actions/setup-python@v5",
+            "number": 39,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Post Run actions/checkout@v4",
+            "number": 40,
+            "status": "pending"
+          }
+        ],
+        "url": "https://github.com/pagel-s/termcraft/actions/runs/38930245714/job/117072082156"
+      }
+    ],
+    "status": "in_progress",
+    "url": "https://github.com/pagel-s/termcraft/actions/runs/38930245714"
+  },
+  "general": {
+    "conclusion": "",
+    "headSha": "031f66e616435ed60a293c3907b6fe2a8ccb5c29",
+    "jobs": [
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 117072080996,
+        "name": "verify",
+        "startedAt": "2026-10-16T16:13:35Z",
+        "status": "in_progress",
+        "steps": [
+          {
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Install Rust",
+            "number": 3,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Check formatting",
+            "number": 4,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Check all targets",
+            "number": 5,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Clippy",
+            "number": 6,
+            "status": "completed"
+          },
+          {
+            "conclusion": "",
+            "name": "Test",
+            "number": 7,
+            "status": "in_progress"
+          },
+          {
+            "conclusion": "",
+            "name": "Test local multiplayer over TCP",
+            "number": 8,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Play Lantern Run through normal CLI tools",
+            "number": 9,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Exercise checkpoint write failures and interrupted commits",
+            "number": 10,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Test optional world provider adapters (offline)",
+            "number": 11,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Verify package",
+            "number": 12,
+            "status": "pending"
+          },
+          {
+            "conclusion": "",
+            "name": "Post Checkout",
+            "number": 24,
+            "status": "pending"
+          }
+        ],
+        "url": "https://github.com/pagel-s/termcraft/actions/runs/38930245503/job/117072080996"
+      }
+    ],
+    "status": "in_progress",
+    "url": "https://github.com/pagel-s/termcraft/actions/runs/38930245503"
+  }
+}
