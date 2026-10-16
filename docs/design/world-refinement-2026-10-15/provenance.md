@@ -128,3 +128,9 @@ progression; its comparison against the immediately preceding census is in the
 profile counts above describe the historical material pass, not this refresh.
 Current verification is 697 stable/MSRV tests, four TCP/MCP tests, strict Clippy,
 and real solo/co-op PTY controls, bow ammunition and food-use checks.
+
+The subsequent [ore and irrigation tuning](../ore-irrigation-tuning-2026-10-16/README.md)
+increases iron/rare-ore availability and caps connected coal veins at 12 blocks.
+The latest census is linked above; its immediate before/after comparison is in
+that tuning review. The latest verification passes 698 stable/MSRV tests and
+the actual native village crossing/door walkthrough.

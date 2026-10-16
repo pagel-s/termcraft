@@ -1,6 +1,6 @@
 # Termcraft world gallery
 
-112 scenes and 267 views. Open a section to browse; select a view link for the original image.
+112 scenes and 268 views. Open a section to browse; select a view link for the original image.
 
 [All 97 block/state comparisons](../world-refinement-2026-10-15/README.md) · [Capture notes](provenance.md)
 
@@ -1065,7 +1065,7 @@ Overworld · Generated
 
 Actual generated settlement at the fixed review seeds. Positions and time of day are staged; buildings, crops and roads are generated.
 
-[Overview](village-garden-00.png)
+[Overview](village-garden-00.png) · [Irrigation detail](village-garden-01.png)
 
 ### Desert village · full settlement
 

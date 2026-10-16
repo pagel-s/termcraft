@@ -1,6 +1,6 @@
 # Termcraft world atlas, refreshed 16 October 2026
 
-[Open the gallery](index.html). All **112 scenes and 267 views**, including six
+[Open the gallery](index.html). All **112 scenes and 268 views**, including six
 animations, were freshly captured with the current renderer. The 17 new action
 scenes show actual swings/mining, bow draw/release in both directions, eating,
 buckets, tilling/planting, a torch-lit cave and F5/F6/F7 travel at all three colour
@@ -152,3 +152,10 @@ the JSON catalog, and every scene must have a static cover. Covers load without
 JavaScript; filters and the modal are progressive enhancements. Content-stamped
 image URLs and the local server's cache headers refresh existing tabs after an
 update. [HTTP verification record](image-loads.json).
+
+## Ore and irrigation tuning
+
+This refresh captures the [increased ore availability and visible village irrigation](../ore-irrigation-tuning-2026-10-16/README.md). The garden has a soil-level water
+channel between two crop beds, with a half-block slab crossing. Its new detail
+view shows the source and supported crossing directly. All 112 scenes were
+recaptured at the tuning implementation; older image batches are not retained.
