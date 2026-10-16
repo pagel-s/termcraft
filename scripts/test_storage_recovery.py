@@ -134,8 +134,10 @@ def check_case(binary, library, template, root, fault):
     finally:
         restored.close()
     return dict(fault=fault, status='passed', hits=trace.splitlines(),
-                previous_checkpoint_preserved_until_commit=fault != 'crash-after',
-                normal_rule_inventory_restored=True, retry_after_error=not fault.startswith('crash-'))
+                checkpoint_before_retry_or_reopen='previous' if fault in (
+                    'full', 'partial', 'sync', 'crash-before') else 'new',
+                craft_in_reopened_checkpoint=changed, normal_rule_inventory_restored=True,
+                retry_after_error=fault in ('full', 'partial', 'sync'))
 
 
 def native_recovery(binary, library, template, root):

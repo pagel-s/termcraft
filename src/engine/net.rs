@@ -28,7 +28,9 @@ const MAX_PENDING_INPUTS_PER_SCHEDULED_TICK: usize = 128;
 const MAX_CLIENT_INPUT_LEAD_TICKS: u64 = SERVER_TICK_RATE * 4;
 const CLIENT_SEQUENCE_PRUNE_INTERVAL_TICKS: u64 = SERVER_TICK_RATE * 15;
 const CLIENT_SEQUENCE_STALE_TICKS: u64 = SERVER_TICK_RATE * 180;
-const CLIENT_OUTBOUND_QUEUE_PACKETS: usize = 4;
+// Allow Welcome and a full catch-up burst (snapshot + terrain per tick) even if
+// the writer has not been scheduled yet. Sustained backpressure stays bounded.
+const CLIENT_OUTBOUND_QUEUE_PACKETS: usize = 2 * SERVER_MAX_CATCHUP_TICKS_PER_LOOP as usize + 2;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ClientInputFrame {
@@ -1582,6 +1584,44 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
     use std::io::Cursor;
+
+    #[test]
+    fn outbound_queue_accepts_one_full_catchup_burst_before_writer_runs() {
+        let (tx, rx) = mpsc::sync_channel(CLIENT_OUTBOUND_QUEUE_PACKETS);
+        let welcome = encode_server_message(&ServerWireMessage::Welcome(Welcome {
+            protocol: NET_PROTOCOL_VERSION,
+            client_id: 1,
+            server_id: "fixture".into(),
+            token: "fixture".into(),
+        }))
+        .unwrap();
+        tx.try_send(QueuedPacket {
+            payload: welcome.clone(),
+            close_after: false,
+        })
+        .unwrap();
+        let mut expected = vec![welcome];
+        // Each tick can enqueue both a snapshot and a changed-terrain packet.
+        for tick in 0..SERVER_MAX_CATCHUP_TICKS_PER_LOOP {
+            for kind in 0..2 {
+                let payload = vec![tick, kind];
+                tx.try_send(QueuedPacket {
+                    payload: payload.clone(),
+                    close_after: false,
+                })
+                .expect("a catch-up burst must not be mistaken for a stalled reader");
+                expected.push(payload);
+            }
+        }
+        drop(tx);
+        let mut bytes = Vec::new();
+        drain_client_packets(&mut bytes, rx).unwrap();
+        let mut input = Cursor::new(bytes);
+        for payload in expected {
+            assert_eq!(read_framed_payload(&mut input).unwrap(), payload);
+        }
+        assert_eq!(input.position() as usize, input.get_ref().len());
+    }
 
     #[test]
     fn outbound_frames_keep_order_and_rejection_is_written_before_close() {
