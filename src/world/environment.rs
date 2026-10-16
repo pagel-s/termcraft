@@ -102,6 +102,7 @@ pub fn write(root: &Path, regions: &[Region]) -> Result<(), String> {
     ));
     let result = (|| -> std::io::Result<()> {
         std::fs::create_dir_all(root)?;
+        crate::checkpoint::protect(&path)?;
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -109,7 +110,8 @@ pub fn write(root: &Path, regions: &[Region]) -> Result<(), String> {
         file.write_all(&data)?;
         file.sync_all()?;
         drop(file);
-        std::fs::rename(&temp, path)
+        std::fs::rename(&temp, path)?;
+        crate::checkpoint::sync_directory(root)
     })();
     if result.is_err() {
         let _ = std::fs::remove_file(temp);

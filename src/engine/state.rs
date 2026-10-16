@@ -1614,6 +1614,7 @@ impl GameState {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
+        crate::checkpoint::protect(path)?;
         let temp_path = Self::progression_temp_path(path);
         {
             let mut file = File::create(&temp_path)?;
@@ -1624,7 +1625,7 @@ impl GameState {
             let _ = std::fs::remove_file(&temp_path);
             return Err(err);
         }
-        Ok(())
+        crate::checkpoint::sync_directory(path.parent().unwrap())
     }
 
     #[cfg(test)]
@@ -1716,7 +1717,7 @@ impl GameState {
         }
     }
 
-    pub fn save_progression(&self) {
+    pub fn save_progression(&mut self) {
         if cfg!(test) || self.cooperative() {
             return;
         }
@@ -1726,7 +1727,7 @@ impl GameState {
         }
     }
 
-    pub fn try_save_progression(&self) -> std::io::Result<()> {
+    pub fn try_save_progression(&mut self) -> std::io::Result<()> {
         // Multiplayer identities are saved by the server, never over the
         // single-player checkpoint of a named world shared through co-op.
         if self.cooperative() {
@@ -1750,13 +1751,18 @@ impl GameState {
                 "runtime checkpoint exceeds 16 MiB; previous save preserved",
             ));
         }
+        // Inventory, chests, terrain and entities belong to one recoverable
+        // checkpoint, including dimensions currently outside the active view.
+        self.save_dimension_worlds()?;
         Self::write_progression_payload_atomically(
             &self.world.save_root().join(PLAYER_PROGRESS_FILE),
             &encoded,
         )?;
+        self.save_trial()?;
+        crate::checkpoint::commit(self.world.save_root())?;
         self.runtime_revision
             .set(data.runtime.as_ref().unwrap().revision);
-        self.save_trial()
+        Ok(())
     }
 
     pub(crate) fn write_recovery_directory(&self, root: &std::path::Path) -> std::io::Result<()> {
@@ -1794,8 +1800,12 @@ impl GameState {
     }
 
     pub fn try_persist_world_and_progress(&mut self) -> std::io::Result<()> {
-        self.save_dimension_worlds()?;
-        self.try_save_progression()?;
+        if self.cooperative() {
+            self.save_dimension_worlds()?;
+            self.save_trial()?;
+        } else {
+            self.try_save_progression()?;
+        }
         self.save_error.replace(None);
         Ok(())
     }
@@ -1839,6 +1849,7 @@ impl GameState {
     }
 
     pub fn open_in_directory(root: &Path) -> std::io::Result<Self> {
+        crate::checkpoint::recover(root)?;
         let path = root.join(PLAYER_PROGRESS_FILE);
         let progress = Self::load_progression_data_from_path(&path);
         if path.try_exists()? && progress.is_none() {
@@ -1868,6 +1879,7 @@ impl GameState {
                 state.check_dimension_storage()?;
             }
         }
+        crate::checkpoint::begin(root)?;
         Ok(state)
     }
 

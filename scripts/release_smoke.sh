@@ -22,7 +22,9 @@ python3 scripts/test_lantern_trial.py --binary "${CARGO_TARGET_DIR:-target}/rele
 
 echo "[7/7] Linux checkpoint storage-fault checks"
 if [[ "${OSTYPE:-}" == linux* ]]; then
-    python3 scripts/test_storage_recovery.py --binary "${CARGO_TARGET_DIR:-target}/release/termcraft"
+    cargo build --release --locked --example storage_review
+    python3 scripts/test_storage_recovery.py --binary "${CARGO_TARGET_DIR:-target}/release/termcraft" \
+        --fixture "${CARGO_TARGET_DIR:-target}/release/examples/storage_review"
 else
     echo "Skipped Linux LD_PRELOAD faults on this platform."
 fi

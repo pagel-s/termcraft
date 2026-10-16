@@ -389,7 +389,7 @@ fn legacy_v6_upgrades_and_invalid_full_session_preserves_original_file() {
     legacy.complete_session = None;
     legacy.inventory.add_item(ItemType::Diamond, 4);
     GameState::save_progression_data_to_path(&path, &legacy).unwrap();
-    let upgraded = GameState::open_in_directory(state.world.save_root()).unwrap();
+    let mut upgraded = GameState::open_in_directory(state.world.save_root()).unwrap();
     assert!(upgraded.inventory.has_item(ItemType::Diamond, 4));
     upgraded.try_save_progression().unwrap();
     assert_eq!(

@@ -116,6 +116,7 @@ impl Chunk {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
+        crate::checkpoint::protect(path)?;
         let temp_path = Self::temp_chunk_path(path);
         {
             let mut file = File::create(&temp_path)?;
@@ -126,7 +127,7 @@ impl Chunk {
             let _ = std::fs::remove_file(&temp_path);
             return Err(err);
         }
-        Ok(())
+        crate::checkpoint::sync_directory(path.parent().unwrap())
     }
 
     fn migrate_legacy_chunk_path(legacy_path: &Path, namespaced_path: &Path) {

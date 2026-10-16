@@ -80,6 +80,91 @@ fn populate(s: &mut GameState) {
 }
 
 #[test]
+fn persistence_failed_checkpoint_restores_chest_player_and_build_together() {
+    let (_fixture, mut s) = fixture();
+    let root = s.world.save_root().to_path_buf();
+    s.world.set_block(5, 63, BlockType::Chest);
+    s.world
+        .chest_inventory_mut(5, 63)
+        .unwrap()
+        .add_item(ItemType::Diamond, 4);
+    s.try_persist_world_and_progress().unwrap();
+    s.world
+        .chest_inventory_mut(5, 63)
+        .unwrap()
+        .remove_item(ItemType::Diamond, 1);
+    s.inventory.add_item(ItemType::Diamond, 1);
+    s.world.load_chunks_around(-40);
+    s.world.set_block(-40, 63, BlockType::Planks);
+    assert_eq!(s.world.get_block(-40, 63), BlockType::Planks);
+    // Eviction writes are part of the unfinished checkpoint too, even though
+    // these chunks have left memory before the player save fails.
+    s.world.trim_chunk_cache(&[4096], 64).unwrap();
+    let obstruction = root.join("player_progression.bin.tmp");
+    std::fs::create_dir(&obstruction).unwrap();
+    assert!(s.try_persist_world_and_progress().is_err());
+    std::fs::remove_dir(obstruction).unwrap();
+    drop(s);
+    for _ in 0..2 {
+        let mut restored = GameState::open_in_directory(&root).unwrap();
+        restored.world.load_chunks_around(-40);
+        assert!(!restored.inventory.has_item(ItemType::Diamond, 1));
+        assert!(
+            restored
+                .world
+                .chest_inventory(5, 63)
+                .unwrap()
+                .has_item(ItemType::Diamond, 4),
+            "chest and inventory came from different checkpoints"
+        );
+        assert_ne!(restored.world.get_block(-40, 63), BlockType::Planks);
+        restored.try_persist_world_and_progress().unwrap();
+    }
+}
+
+#[test]
+fn persistence_failed_world_checkpoint_restores_visited_runtime_and_portal_history() {
+    let (_fixture, mut s) = fixture();
+    let root = s.world.save_root().to_path_buf();
+    let dimensions = [Dimension::Overworld, Dimension::Nether, Dimension::End];
+    for dimension in dimensions {
+        s.select_dimension(dimension);
+        s.world.load_chunks_around(0);
+        populate(&mut s);
+        s.world.set_block(5, 60, BlockType::Planks);
+    }
+    s.select_dimension(Dimension::Overworld);
+    s.portal_links.insert((0, 0, 64), (2, 80));
+    s.try_persist_world_and_progress().unwrap();
+    let expected = serde_json::to_value(RuntimeCheckpoint::capture(&s)).unwrap();
+    for dimension in dimensions {
+        s.select_dimension(dimension);
+        s.cows.clear();
+        s.item_entities.clear();
+        s.world_tick += 100;
+        s.ender_dragon.as_mut().unwrap().health = 13.0;
+        s.world.set_block(5, 60, BlockType::Cobblestone);
+    }
+    s.select_dimension(Dimension::Overworld);
+    s.portal_links.clear();
+    let obstruction = root.join("player_progression.bin.tmp");
+    std::fs::create_dir(&obstruction).unwrap();
+    assert!(s.try_persist_world_and_progress().is_err());
+    drop(s);
+    // Recovery must also tolerate the failed writer's obstructed .tmp path.
+    let mut restored = GameState::open_in_directory(&root).unwrap();
+    std::fs::remove_dir(obstruction).unwrap();
+    let actual = serde_json::to_value(RuntimeCheckpoint::capture(&restored)).unwrap();
+    assert_eq!(actual["dimensions"], expected["dimensions"]);
+    assert_eq!(restored.portal_links.get(&(0, 0, 64)), Some(&(2, 80)));
+    for dimension in dimensions {
+        restored.select_dimension(dimension);
+        restored.world.load_chunks_around(0);
+        assert_eq!(restored.world.get_block(5, 60), BlockType::Planks);
+    }
+}
+
+#[test]
 fn persistence_restores_every_entity_family_and_frozen_dimension_clock() {
     let (_fixture, mut s) = fixture();
     populate(&mut s);

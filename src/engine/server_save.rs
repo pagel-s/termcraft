@@ -79,6 +79,8 @@ impl ServerSave {
         }
         Ok(save)
     }
+    /// Publish player records and finish their world checkpoint. The owner must
+    /// flush every dimension and sidecar first (as ServerSimulation::save does).
     pub fn write(&self, root: &Path) -> io::Result<()> {
         if let Some(runtime) = &self.runtime {
             runtime.validate().map_err(io::Error::other)?;
@@ -89,6 +91,7 @@ impl ServerSave {
                 "server save exceeds 16 MiB; previous save preserved",
             ));
         }
+        crate::checkpoint::protect(&root.join("server-state.json"))?;
         let temp = root.join(format!(
             ".server-state-{}-{}.tmp",
             std::process::id(),
@@ -106,11 +109,13 @@ impl ServerSave {
             f.write_all(&data)?;
             f.sync_all()?;
             drop(f);
-            std::fs::rename(&temp, root.join("server-state.json"))
+            std::fs::rename(&temp, root.join("server-state.json"))?;
+            crate::checkpoint::sync_directory(root)
         })();
         if result.is_err() {
             let _ = std::fs::remove_file(temp);
         }
-        result
+        result?;
+        crate::checkpoint::commit(root)
     }
 }

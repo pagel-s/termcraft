@@ -535,6 +535,7 @@ impl ServerSimulation {
     }
 
     pub fn load_persistent(&mut self) -> io::Result<()> {
+        crate::checkpoint::begin(self.state.world.save_root())?;
         let saved = ServerSave::read(&self.state)?;
         let native_runtime = super::state::RuntimeCheckpoint::capture(&self.state);
         saved

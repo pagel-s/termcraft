@@ -561,6 +561,7 @@ impl World {
                 let seeds = Self::create_world_seed_data();
                 let bytes = bincode::serialize(&seeds).map_err(std::io::Error::other)?;
                 std::fs::create_dir_all(root)?;
+                crate::checkpoint::protect(&path)?;
                 // Publish a fully written seed without replacing another
                 // writer's file or exposing a partially written seed to readers.
                 let temp = root.join(format!(
@@ -576,7 +577,10 @@ impl World {
                     file.write_all(&bytes)?;
                     file.sync_all()?;
                     match std::fs::hard_link(&temp, &path) {
-                        Ok(()) => Ok(seeds),
+                        Ok(()) => {
+                            crate::checkpoint::sync_directory(root)?;
+                            Ok(seeds)
+                        }
                         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
                             let bytes = std::fs::read(&path)?;
                             bincode::deserialize(&bytes).map_err(std::io::Error::other)

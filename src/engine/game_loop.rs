@@ -142,10 +142,10 @@ impl GameLoop {
     }
 
     fn persist_session(&mut self) -> std::io::Result<()> {
-        self.state.try_persist_world_and_progress()?;
         self.director
             .save(&self.state)
-            .map_err(std::io::Error::other)
+            .map_err(std::io::Error::other)?;
+        self.state.try_persist_world_and_progress()
     }
 
     pub fn run(&mut self, renderer: &mut Renderer) -> std::io::Result<()> {

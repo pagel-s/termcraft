@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@ static int (*next_fsync)(int);
 static int (*next_rename)(const char *, const char *);
 static pthread_once_t initialized = PTHREAD_ONCE_INIT;
 static atomic_int partial_writes;
+static atomic_int renames;
 static void initialize(void) {
     next_write = dlsym(RTLD_NEXT, "write");
     next_fsync = dlsym(RTLD_NEXT, "fsync");
@@ -26,7 +28,16 @@ static int target(const char *path) {
     const char *root = getenv("TERMCRAFT_TEST_FAULT_ROOT");
     if (!root || !*root || strncmp(root, path, strlen(root)) || path[strlen(root)] != '/') return 0;
     const char *base = strrchr(path, '/');
-    return base && !strcmp(base + 1, "player_progression.bin.tmp");
+    if (!base) return 0;
+    const char *selector = getenv("TERMCRAFT_TEST_FAULT_FILE");
+    if (!selector) selector = "player_progression.bin.tmp";
+    const char *relative = path + strlen(root) + 1;
+    if (!strcmp(selector, "all")) return 1;
+    if (!strcmp(selector, "commit")) return !strcmp(relative, ".world-checkpoint/complete.tmp");
+    if (!strcmp(selector, "restore")) return strstr(base + 1, ".restore-") != NULL;
+    if (!strcmp(selector, "chunks")) return !strchr(relative, '/') && strstr(relative, "_chunk_") && strstr(relative, ".bin.tmp");
+    if (!strcmp(selector, "server")) return !strchr(relative, '/') && !strncmp(relative, ".server-state-", 14);
+    return !strcmp(relative, selector);
 }
 static int target_fd(int fd) {
     char proc[64], path[4096];
@@ -63,6 +74,11 @@ ssize_t write(int fd, const void *bytes, size_t size) {
             }
             mark("partial-enospc\n"); errno = ENOSPC; return -1;
         }
+        if (!strcmp(fault, "freeze-write") && size > 1) {
+            ssize_t result = next_write(fd, bytes, size / 2);
+            mark("freeze-partial-write\n"); raise(SIGSTOP);
+            return result;
+        }
         if (!strcmp(fault, "slow")) {
             mark("slow-write-enter\n");
             struct timespec delay = { .tv_sec = 0, .tv_nsec = 300000000 };
@@ -83,6 +99,19 @@ int rename(const char *source, const char *destination) {
     pthread_once(&initialized, initialize);
     if (target(source)) {
         char fault[64]; mode(fault, sizeof(fault));
+        if (!strncmp(fault, "freeze-", 7) || !strcmp(fault, "rename")) {
+            const char *after = getenv("TERMCRAFT_TEST_FAULT_AFTER");
+            int nth = after ? atoi(after) : 1;
+            if (atomic_fetch_add(&renames, 1) + 1 == nth) {
+                if (!strcmp(fault, "rename")) { mark("rename-eio\n"); errno = EIO; return -1; }
+                if (!strcmp(fault, "freeze-before")) { mark("freeze-before-rename\n"); raise(SIGSTOP); }
+                if (!strcmp(fault, "freeze-after")) {
+                    int result = next_rename(source, destination);
+                    if (!result) { mark("freeze-after-rename\n"); raise(SIGSTOP); }
+                    return result;
+                }
+            }
+        }
         if (!strcmp(fault, "crash-before")) { mark("crash-before-rename\n"); _exit(97); }
         if (!strcmp(fault, "crash-after")) {
             int result = next_rename(source, destination);

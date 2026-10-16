@@ -1,3 +1,4 @@
+mod checkpoint;
 pub mod engine;
 pub mod entities;
 pub mod generator;

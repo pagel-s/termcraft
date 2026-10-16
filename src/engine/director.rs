@@ -334,6 +334,7 @@ impl Config {
             rand::random::<u64>()
         ));
         let result = (|| -> std::io::Result<()> {
+            crate::checkpoint::protect(&root.join(CONFIG_FILE))?;
             let mut file = std::fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
@@ -341,7 +342,8 @@ impl Config {
             file.write_all(&data)?;
             file.sync_all()?;
             drop(file);
-            std::fs::rename(&temp, root.join(CONFIG_FILE))
+            std::fs::rename(&temp, root.join(CONFIG_FILE))?;
+            crate::checkpoint::sync_directory(root)
         })();
         if result.is_err() {
             let _ = std::fs::remove_file(temp);
@@ -458,6 +460,7 @@ impl Director {
                 let root=state.world.save_root();
                 let path=root.join(CONFIG_FILE);
                 if path.try_exists().map_err(|e|e.to_string())? {
+                    crate::checkpoint::protect(&path).map_err(|e|e.to_string())?;
                     std::fs::rename(path,root.join(format!("director.backup-{}-{}.json",std::process::id(),rand::random::<u64>()))).map_err(|e|e.to_string())?;
                 }
                 let next=Config::default();next.write(root)?;self.config=next;self.config_valid=true;self.config_dirty=false;
@@ -520,8 +523,10 @@ impl Director {
                     }
                 }
                 // Keep the journal if saving fails, so the operation can be retried.
+                let mut next = self.config.clone(); next.edits.pop();
+                next.write(state.world.save_root())?;
                 state.try_persist_world_and_progress().map_err(|e| format!("Undo is in memory; save failed: {e}"))?;
-                self.config.edits.pop(); self.config_dirty=true; self.config.write(state.world.save_root())?; self.config_dirty=false;
+                self.config = next; self.config_dirty=false;
                 self.tell(state, format!("Removed {changed} unchanged structure blocks; kept {} edited/storage blocks. Weather, ambience and mobs are not undone.", edits.len() - changed));
             }
             _ if request.starts_with("/auto ") => {
@@ -533,6 +538,12 @@ impl Director {
                 self.tell(state, format!("Proactive {preference}: up to three events this session, at least two minutes apart, after exploring a new area. /pause stops them."));
             }
             _ => return Err("Unknown chat command. Type /help.".into()),
+        }
+        if matches!(request, "/pause" | "/request-only" | "/reset") || request.starts_with("/auto ")
+        {
+            state
+                .try_persist_world_and_progress()
+                .map_err(|e| format!("Preferences are in memory; save failed: {e}"))?;
         }
         Ok(())
     }
@@ -944,10 +955,11 @@ impl Director {
         }
         self.config = next;
         self.config_dirty = true;
-        let save = state
-            .try_persist_world_and_progress()
-            .map_err(|e| e.to_string())
-            .and_then(|()| self.config.write(state.world.save_root()));
+        let save = self.config.write(state.world.save_root()).and_then(|()| {
+            state
+                .try_persist_world_and_progress()
+                .map_err(|e| e.to_string())
+        });
         match save {
             Ok(()) => {
                 self.config_dirty = false;

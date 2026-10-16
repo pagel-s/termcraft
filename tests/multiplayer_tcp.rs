@@ -424,6 +424,9 @@ fn live_game_master_uses_mcp_without_second_save_owner_and_rejects_stale_plans()
 }
 impl Server {
     fn start(root: &std::path::Path, addr: &str) -> Self {
+        Self::start_with_env(root, addr, &[])
+    }
+    fn start_with_env(root: &std::path::Path, addr: &str, env: &[(&str, String)]) -> Self {
         let log = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -432,6 +435,7 @@ impl Server {
         let child = Command::new(env!("CARGO_BIN_EXE_termcraft"))
             .args(["world", "serve", "tcp", addr])
             .env("TERMCRAFT_SAVE_DIR", root)
+            .envs(env.iter().map(|(key, value)| (*key, value)))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(log)
@@ -479,6 +483,196 @@ struct Client {
     incoming: mpsc::Receiver<ServerWireMessage>,
     welcome: Welcome,
     sequence: u32,
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "requires real TCP, C compiler, LD_PRELOAD and SIGKILL; disposable hosted worlds"]
+fn interrupted_hosted_checkpoint_keeps_three_players_and_dimensions_together() -> io::Result<()> {
+    use termcraft::{
+        engine::{
+            server_save::{ServerSave, token},
+            state::PlayerSession,
+        },
+        world::{Dimension, World, block::BlockType, item::ItemStack},
+    };
+    let root = std::env::temp_dir().join(format!("termcraft-storage-tcp-{}", token()));
+    std::fs::create_dir(&root)?;
+    let library = root.join("faults.so");
+    assert!(
+        Command::new("cc")
+            .args([
+                "-std=c11", "-shared", "-fPIC", "-O2", "-Wall", "-Wextra", "-Werror", "-pthread"
+            ])
+            .arg(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/scripts/storage_faults.c"
+            ))
+            .args(["-ldl", "-o"])
+            .arg(&library)
+            .status()?
+            .success()
+    );
+    let dimensions = [Dimension::Overworld, Dimension::Nether, Dimension::End];
+    let snapshots = [
+        SnapshotDimension::Overworld,
+        SnapshotDimension::Nether,
+        SnapshotDimension::End,
+    ];
+    let mut results = Vec::new();
+    for (index, (selector, mode, committed)) in [
+        ("chunks", "freeze-after", false),
+        ("server", "full", false),
+        ("server", "freeze-before", false),
+        ("server", "freeze-after", false),
+        ("commit", "freeze-before", false),
+        ("commit", "freeze-after", true),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let saves = root.join(format!("case-{index}"));
+        let mut recipe = WorldRecipe::example();
+        recipe.terrain = Terrain::Plains;
+        recipe.relief = 0;
+        recipe.regions.clear();
+        recipe.landmarks.clear();
+        let world = WorldStore::new(saves.join("worlds"))
+            .create("tcp", "Storage fault fixture", &recipe)
+            .unwrap();
+        for dimension in dimensions {
+            let mut terrain = World::open_in_directory(dimension, &world)?;
+            terrain.load_chunks_around(0);
+            for x in -8..=8 {
+                for y in 52..=64 {
+                    terrain.set_block(
+                        x,
+                        y,
+                        if y == 64 {
+                            BlockType::StoneBricks
+                        } else {
+                            BlockType::Air
+                        },
+                    );
+                }
+            }
+            terrain.try_save_all()?;
+        }
+        let mut state = GameState::open_in_directory(&world)?;
+        state.apply_client_command(ClientCommand::ToggleRuleMobSpawning);
+        state.player.x = 0.5;
+        state.player.y = 64.0;
+        state.inventory.slots.fill(None);
+        state.inventory.slots[0] = Some(ItemStack {
+            item_type: ItemType::Cobblestone,
+            count: 32,
+            durability: None,
+        });
+        let tokens = [token(), token(), token()];
+        let mut saved = ServerSave::read(&state)?;
+        for (identity, dimension) in tokens.iter().zip(dimensions) {
+            saved
+                .players
+                .insert(identity.clone(), PlayerSession::capture(&state));
+            saved.dimensions.insert(identity.clone(), dimension);
+        }
+        state.try_persist_world_and_progress()?;
+        saved.write(&world)?;
+        drop(state);
+        let probe = TcpListener::bind("127.0.0.1:0")?;
+        let addr = probe.local_addr()?.to_string();
+        drop(probe);
+        let control = saves.join("fault-mode");
+        let marker = saves.join("fault-hit");
+        std::fs::write(&control, "off")?;
+        let mut server = Server::start_with_env(
+            &saves,
+            &addr,
+            &[
+                ("LD_PRELOAD", library.display().to_string()),
+                ("TERMCRAFT_TEST_FAULT_ROOT", world.display().to_string()),
+                (
+                    "TERMCRAFT_TEST_FAULT_CONTROL",
+                    control.display().to_string(),
+                ),
+                ("TERMCRAFT_TEST_FAULT_MARKER", marker.display().to_string()),
+                ("TERMCRAFT_TEST_FAULT_FILE", selector.into()),
+            ],
+        );
+        let mut players: Vec<_> = tokens
+            .iter()
+            .map(|t| Client::connect(&addr, Some(t.clone())))
+            .collect();
+        for (player, dimension) in players.iter().zip(snapshots) {
+            player.until(|s| s.dimension == dimension && count(s, ItemType::Cobblestone) == 32);
+        }
+        for player in &mut players {
+            player.send(ClientCommand::UseAt(3, 63));
+            player.until(|s| count(s, ItemType::Cobblestone) == 31);
+        }
+        std::fs::write(&control, mode)?;
+        drop(players); // Real disconnects trigger the normal shared save path.
+        let deadline = Instant::now() + Duration::from_secs(12);
+        while !marker.exists() {
+            assert!(
+                server.0.try_wait()?.is_none(),
+                "server exited before fault gate"
+            );
+            assert!(
+                Instant::now() < deadline,
+                "fault gate timeout: {selector}/{mode}"
+            );
+            thread::sleep(Duration::from_millis(5));
+        }
+        let pid = server.0.id();
+        server.0.kill()?;
+        let status = server.0.wait()?;
+        use std::os::unix::process::ExitStatusExt;
+        assert_eq!(status.signal(), Some(9));
+        // Only this test's dead process can have its stale ownership lease removed.
+        assert_eq!(
+            std::fs::read_to_string(world.join(".session.lock"))?.trim(),
+            pid.to_string()
+        );
+        std::fs::remove_file(world.join(".session.lock"))?;
+        for _ in 0..2 {
+            let mut server = Server::start(&saves, &addr);
+            let players: Vec<_> = tokens
+                .iter()
+                .map(|t| Client::connect(&addr, Some(t.clone())))
+                .collect();
+            for (player, dimension) in players.iter().zip(snapshots) {
+                player.until(|s| {
+                    s.dimension == dimension
+                        && count(s, ItemType::Cobblestone) == if committed { 31 } else { 32 }
+                });
+            }
+            server.stop();
+            drop(players);
+            for dimension in dimensions {
+                let mut terrain = World::open_in_directory(dimension, &world)?;
+                terrain.load_chunks_around(0);
+                assert_eq!(
+                    terrain.get_block(3, 63),
+                    if committed {
+                        BlockType::Cobblestone
+                    } else {
+                        BlockType::Air
+                    }
+                );
+            }
+        }
+        results.push(serde_json::json!({"selector":selector,"fault":mode,"outcome":if committed {"new"} else {"previous"},"status":"passed"}));
+    }
+    if let Some(report) = std::env::var_os("TERMCRAFT_HOSTED_STORAGE_REPORT") {
+        std::fs::write(
+            report,
+            serde_json::to_vec_pretty(
+                &serde_json::json!({"status":"passed","cases":results,"players":3,"dimensions":3,"restarts_per_case":2,"transport":"real TCP","termination":"SIGKILL","actions":"normal UseAt placement; staged inventories and floor"}),
+            )?,
+        )?;
+    }
+    std::fs::remove_dir_all(root)
 }
 impl Drop for Client {
     fn drop(&mut self) {
