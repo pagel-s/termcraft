@@ -1,0 +1,19 @@
+   Compiling termcraft v0.1.0 (/home/sebastian/projects/termcraft)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.17s
+     Running unittests src/lib.rs (/tmp/termcraft-build-20261015/debug/deps/termcraft-a59d39c87217e09b)
+
+running 1 test
+
+thread 'world::tests::deepest_regions_do_not_aggregate_many_pockets_of_the_same_ore' (298) panicked at src/world/mod.rs:8929:21:
+aggregated IronOre: 57 at chunk -27, seed 1337
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test world::tests::deepest_regions_do_not_aggregate_many_pockets_of_the_same_ore ... FAILED
+
+failures:
+
+failures:
+    world::tests::deepest_regions_do_not_aggregate_many_pockets_of_the_same_ore
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 749 filtered out; finished in 0.33s
+
+error: test failed, to rerun pass `--lib`

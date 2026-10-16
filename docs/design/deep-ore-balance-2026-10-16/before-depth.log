@@ -1,0 +1,18 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running unittests src/lib.rs (/tmp/termcraft-build-20261015/debug/deps/termcraft-a59d39c87217e09b)
+
+running 1 test
+
+thread 'world::tests::common_ores_taper_in_the_bottom_layers_instead_of_continuing_to_richen' (311) panicked at src/world/mod.rs:8961:17:
+common ore 0 floods bottom, seed 1337: mid=0.022172717463190505, bottom=0.01608678006124783
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test world::tests::common_ores_taper_in_the_bottom_layers_instead_of_continuing_to_richen ... FAILED
+
+failures:
+
+failures:
+    world::tests::common_ores_taper_in_the_bottom_layers_instead_of_continuing_to_richen
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 749 filtered out; finished in 3.48s
+
+error: test failed, to rerun pass `--lib`

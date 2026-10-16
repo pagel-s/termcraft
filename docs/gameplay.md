@@ -66,6 +66,18 @@ These are available in-game:
 - `L`: toggle keep inventory
 - `O`: open the settings menu
 
+## Mining and ore depth
+
+Fresh terrain uses small, spaced ore deposits. Coal and iron supply early and
+middle-depth mining, then taper near bedrock. Redstone, gold and diamond become
+more relevant deeper down, in smaller deposits. Ordinary and custom recipe worlds
+share the distribution, including redstone in recipe worlds. Going to the bottom
+does not keep increasing every ore's abundance.
+
+This applies to newly generated chunks. Saved terrain and already mined areas
+keep their contents. For an immediate comparison, use a new world or explore
+beyond previously generated terrain. See the [depth and clustering review](design/deep-ore-balance-2026-10-16/README.md).
+
 ## Inventory And Crafting
 
 The inventory UI supports more than simple click-swap behavior.

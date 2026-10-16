@@ -1,0 +1,52 @@
+[
+  {
+    "caption": "Actual seeded cave geometry; a temporary supported torch is added when possible for inspection.",
+    "category": "Underground",
+    "dimension": "Overworld",
+    "id": "ore-cave",
+    "images": [
+      {
+        "ansi": "ore-cave-overview-200x60.ansi",
+        "height": 60,
+        "view": "overview",
+        "width": 200
+      },
+      {
+        "ansi": "ore-cave-detail-160x48.ansi",
+        "height": 48,
+        "view": "detail",
+        "width": 160
+      }
+    ],
+    "origin": "Generated + light",
+    "source": "examples/world_review.rs",
+    "title": "Ore-bearing cave",
+    "x": -239.5,
+    "y": 53.0
+  },
+  {
+    "caption": "Actual seeded cave geometry; a temporary supported torch is added when possible for inspection.",
+    "category": "Underground",
+    "dimension": "Overworld",
+    "id": "deep-cave",
+    "images": [
+      {
+        "ansi": "deep-cave-overview-200x60.ansi",
+        "height": 60,
+        "view": "overview",
+        "width": 200
+      },
+      {
+        "ansi": "deep-cave-detail-160x48.ansi",
+        "height": 48,
+        "view": "detail",
+        "width": 160
+      }
+    ],
+    "origin": "Generated + light",
+    "source": "examples/world_review.rs",
+    "title": "Deep underground",
+    "x": -479.5,
+    "y": 103.0
+  }
+]

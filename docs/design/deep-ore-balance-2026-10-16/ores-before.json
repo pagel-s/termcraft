@@ -1,0 +1,7744 @@
+[
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 58,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          33,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 1878,
+        "occupied_64_column_regions": [
+          4,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          4,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          29,
+          13,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 12093,
+        "occupied_64_column_regions": [
+          7,
+          4,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          15,
+          3,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          245,
+          39,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 27863,
+        "occupied_64_column_regions": [
+          33,
+          10,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          61,
+          10,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          508,
+          147,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 29589,
+        "occupied_64_column_regions": [
+          35,
+          29,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          20,
+          43,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          209,
+          199,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 26143,
+        "occupied_64_column_regions": [
+          26,
+          23,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          59,
+          14,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          730,
+          104,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 29299,
+        "occupied_64_column_regions": [
+          40,
+          22,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          49,
+          73,
+          2,
+          0,
+          0
+        ],
+        "counts": [
+          365,
+          432,
+          33,
+          0,
+          0
+        ],
+        "host_rock": 28445,
+        "occupied_64_column_regions": [
+          41,
+          36,
+          6,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          55,
+          46,
+          1,
+          2,
+          0
+        ],
+        "counts": [
+          474,
+          205,
+          14,
+          2,
+          0
+        ],
+        "host_rock": 27264,
+        "occupied_64_column_regions": [
+          38,
+          38,
+          3,
+          1,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          46,
+          19,
+          0,
+          8,
+          0
+        ],
+        "counts": [
+          689,
+          372,
+          18,
+          24,
+          0
+        ],
+        "host_rock": 29628,
+        "occupied_64_column_regions": [
+          40,
+          30,
+          7,
+          4,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          41,
+          157,
+          2,
+          2,
+          0
+        ],
+        "counts": [
+          388,
+          710,
+          9,
+          11,
+          0
+        ],
+        "host_rock": 27104,
+        "occupied_64_column_regions": [
+          37,
+          41,
+          5,
+          4,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          74,
+          37,
+          10,
+          1,
+          14
+        ],
+        "counts": [
+          1124,
+          379,
+          67,
+          9,
+          43
+        ],
+        "host_rock": 30441,
+        "occupied_64_column_regions": [
+          46,
+          46,
+          12,
+          3,
+          10
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          54,
+          130,
+          10,
+          15,
+          36
+        ],
+        "counts": [
+          540,
+          677,
+          81,
+          177,
+          99
+        ],
+        "host_rock": 28823,
+        "occupied_64_column_regions": [
+          52,
+          51,
+          18,
+          13,
+          17
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          9,
+          91,
+          9,
+          5,
+          2
+        ],
+        "counts": [
+          441,
+          776,
+          32,
+          38,
+          7
+        ],
+        "host_rock": 23976,
+        "occupied_64_column_regions": [
+          40,
+          47,
+          8,
+          5,
+          4
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Desert": [
+        11110,
+        [
+          225,
+          165,
+          20,
+          0,
+          1
+        ]
+      ],
+      "ExtremeHills": [
+        8728,
+        [
+          243,
+          75,
+          0,
+          5,
+          0
+        ]
+      ],
+      "Forest": [
+        11417,
+        [
+          138,
+          251,
+          4,
+          0,
+          0
+        ]
+      ],
+      "Jungle": [
+        2742,
+        [
+          6,
+          18,
+          0,
+          0,
+          25
+        ]
+      ],
+      "Ocean": [
+        10384,
+        [
+          128,
+          149,
+          9,
+          0,
+          0
+        ]
+      ],
+      "Plains": [
+        182776,
+        [
+          3217,
+          2305,
+          148,
+          132,
+          97
+        ]
+      ],
+      "River": [
+        42123,
+        [
+          844,
+          555,
+          26,
+          9,
+          4
+        ]
+      ],
+      "Swamp": [
+        6434,
+        [
+          172,
+          32,
+          4,
+          0,
+          0
+        ]
+      ],
+      "Taiga": [
+        21895,
+        [
+          434,
+          317,
+          22,
+          96,
+          2
+        ]
+      ],
+      "Tundra": [
+        24995,
+        [
+          368,
+          186,
+          21,
+          19,
+          20
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.2151029748283753,
+      "ore_stats": [
+        {
+          "empty_regions": 38,
+          "max": 45,
+          "median": 3,
+          "p95": 30
+        },
+        {
+          "empty_regions": 50,
+          "max": 94,
+          "median": 4,
+          "p95": 46
+        },
+        {
+          "empty_regions": 101,
+          "max": 14,
+          "median": 0,
+          "p95": 6
+        },
+        {
+          "empty_regions": 113,
+          "max": 67,
+          "median": 0,
+          "p95": 12
+        },
+        {
+          "empty_regions": 108,
+          "max": 21,
+          "median": 0,
+          "p95": 4
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      483,
+      627,
+      34,
+      33,
+      52
+    ],
+    "connected_veins": [
+      {
+        "count": 1379,
+        "max": 12,
+        "median": 3,
+        "p95": 11
+      },
+      {
+        "count": 1283,
+        "max": 17,
+        "median": 2,
+        "p95": 10
+      },
+      {
+        "count": 88,
+        "max": 11,
+        "median": 2,
+        "p95": 9
+      },
+      {
+        "count": 66,
+        "max": 12,
+        "median": 3,
+        "p95": 11
+      },
+      {
+        "count": 60,
+        "max": 10,
+        "median": 1,
+        "p95": 9
+      }
+    ],
+    "counts": [
+      [
+        33,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        991,
+        398,
+        0,
+        0,
+        0
+      ],
+      [
+        2258,
+        1113,
+        65,
+        26,
+        0
+      ],
+      [
+        2493,
+        2542,
+        189,
+        235,
+        149
+      ]
+    ],
+    "generator": "classic",
+    "host_rock": [
+      1936,
+      95688,
+      114636,
+      110344
+    ],
+    "minimum_y": [
+      27,
+      38,
+      72,
+      87,
+      106
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      1337,
+      7331,
+      9917,
+      4444
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          36,
+          20,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          949,
+          510,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 16095,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          181,
+          89,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1605,
+          805,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 28083,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          187,
+          100,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1637,
+          798,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 27470,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          177,
+          83,
+          0,
+          19,
+          0
+        ],
+        "counts": [
+          1636,
+          816,
+          0,
+          120,
+          0
+        ],
+        "host_rock": 27780,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          57,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          186,
+          93,
+          0,
+          30,
+          0
+        ],
+        "counts": [
+          1680,
+          821,
+          0,
+          222,
+          0
+        ],
+        "host_rock": 27698,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          62,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          187,
+          84,
+          0,
+          17,
+          11
+        ],
+        "counts": [
+          1642,
+          792,
+          0,
+          198,
+          81
+        ],
+        "host_rock": 27831,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          62,
+          46
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          205,
+          93,
+          0,
+          24,
+          19
+        ],
+        "counts": [
+          1604,
+          815,
+          0,
+          201,
+          181
+        ],
+        "host_rock": 27678,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          62,
+          59
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          137,
+          73,
+          0,
+          24,
+          17
+        ],
+        "counts": [
+          1449,
+          731,
+          0,
+          179,
+          192
+        ],
+        "host_rock": 24636,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          60,
+          62
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Plains": [
+        207271,
+        [
+          12202,
+          6088,
+          0,
+          920,
+          454
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.14609571788413098,
+      "ore_stats": [
+        {
+          "empty_regions": 0,
+          "max": 42,
+          "median": 24,
+          "p95": 32
+        },
+        {
+          "empty_regions": 0,
+          "max": 22,
+          "median": 12,
+          "p95": 18
+        },
+        {
+          "empty_regions": 128,
+          "max": 0,
+          "median": 0,
+          "p95": 0
+        },
+        {
+          "empty_regions": 10,
+          "max": 10,
+          "median": 3,
+          "p95": 6
+        },
+        {
+          "empty_regions": 11,
+          "max": 9,
+          "median": 3,
+          "p95": 6
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      1296,
+      635,
+      0,
+      114,
+      47
+    ],
+    "connected_veins": [
+      {
+        "count": 10740,
+        "max": 8,
+        "median": 1,
+        "p95": 2
+      },
+      {
+        "count": 5778,
+        "max": 4,
+        "median": 1,
+        "p95": 1
+      },
+      {
+        "count": 0,
+        "max": null,
+        "median": null,
+        "p95": null
+      },
+      {
+        "count": 906,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      },
+      {
+        "count": 450,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      }
+    ],
+    "counts": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        5827,
+        2929,
+        0,
+        120,
+        0
+      ],
+      [
+        6375,
+        3159,
+        0,
+        800,
+        454
+      ]
+    ],
+    "generator": "recipe",
+    "host_rock": [
+      0,
+      0,
+      99428,
+      107843
+    ],
+    "minimum_y": [
+      65,
+      65,
+      128,
+      91,
+      109
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      1337,
+      7331,
+      9917,
+      4444
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 49,
+        "occupied_64_column_regions": [
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          5,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          26,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 1470,
+        "occupied_64_column_regions": [
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          9,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          44,
+          11,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 12286,
+        "occupied_64_column_regions": [
+          10,
+          4,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          10,
+          15,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          120,
+          46,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 28101,
+        "occupied_64_column_regions": [
+          23,
+          15,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          52,
+          25,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          491,
+          258,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 29447,
+        "occupied_64_column_regions": [
+          30,
+          34,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          30,
+          61,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          222,
+          188,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 26227,
+        "occupied_64_column_regions": [
+          32,
+          32,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          63,
+          20,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          827,
+          139,
+          1,
+          0,
+          0
+        ],
+        "host_rock": 29675,
+        "occupied_64_column_regions": [
+          40,
+          25,
+          1,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          39,
+          76,
+          7,
+          0,
+          0
+        ],
+        "counts": [
+          409,
+          393,
+          12,
+          0,
+          0
+        ],
+        "host_rock": 28152,
+        "occupied_64_column_regions": [
+          35,
+          32,
+          6,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          51,
+          59,
+          0,
+          1,
+          0
+        ],
+        "counts": [
+          523,
+          271,
+          0,
+          1,
+          0
+        ],
+        "host_rock": 27175,
+        "occupied_64_column_regions": [
+          46,
+          37,
+          0,
+          1,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          92,
+          20,
+          6,
+          1,
+          0
+        ],
+        "counts": [
+          818,
+          258,
+          41,
+          53,
+          0
+        ],
+        "host_rock": 29308,
+        "occupied_64_column_regions": [
+          43,
+          30,
+          12,
+          6,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          64,
+          170,
+          14,
+          12,
+          0
+        ],
+        "counts": [
+          473,
+          749,
+          43,
+          48,
+          0
+        ],
+        "host_rock": 26398,
+        "occupied_64_column_regions": [
+          44,
+          43,
+          10,
+          9,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          121,
+          42,
+          8,
+          7,
+          8
+        ],
+        "counts": [
+          857,
+          404,
+          45,
+          31,
+          21
+        ],
+        "host_rock": 30185,
+        "occupied_64_column_regions": [
+          41,
+          42,
+          14,
+          5,
+          7
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          59,
+          145,
+          8,
+          19,
+          15
+        ],
+        "counts": [
+          424,
+          692,
+          79,
+          91,
+          64
+        ],
+        "host_rock": 28665,
+        "occupied_64_column_regions": [
+          42,
+          49,
+          21,
+          12,
+          16
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          10,
+          90,
+          0,
+          1,
+          1
+        ],
+        "counts": [
+          414,
+          814,
+          34,
+          7,
+          6
+        ],
+        "host_rock": 23719,
+        "occupied_64_column_regions": [
+          47,
+          42,
+          5,
+          2,
+          3
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Desert": [
+        1887,
+        [
+          44,
+          19,
+          0,
+          0,
+          0
+        ]
+      ],
+      "ExtremeHills": [
+        10262,
+        [
+          150,
+          139,
+          7,
+          0,
+          2
+        ]
+      ],
+      "Forest": [
+        6715,
+        [
+          89,
+          105,
+          0,
+          7,
+          0
+        ]
+      ],
+      "Jungle": [
+        4872,
+        [
+          84,
+          139,
+          0,
+          4,
+          0
+        ]
+      ],
+      "Ocean": [
+        9813,
+        [
+          217,
+          151,
+          11,
+          37,
+          0
+        ]
+      ],
+      "Plains": [
+        181167,
+        [
+          3370,
+          2087,
+          179,
+          108,
+          79
+        ]
+      ],
+      "River": [
+        36443,
+        [
+          572,
+          515,
+          20,
+          2,
+          0
+        ]
+      ],
+      "Swamp": [
+        9744,
+        [
+          172,
+          167,
+          1,
+          18,
+          0
+        ]
+      ],
+      "Taiga": [
+        23622,
+        [
+          404,
+          375,
+          32,
+          4,
+          2
+        ]
+      ],
+      "Tundra": [
+        36332,
+        [
+          548,
+          526,
+          5,
+          51,
+          8
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.2171837708830549,
+      "ore_stats": [
+        {
+          "empty_regions": 40,
+          "max": 57,
+          "median": 3,
+          "p95": 28
+        },
+        {
+          "empty_regions": 47,
+          "max": 86,
+          "median": 5,
+          "p95": 42
+        },
+        {
+          "empty_regions": 103,
+          "max": 16,
+          "median": 0,
+          "p95": 6
+        },
+        {
+          "empty_regions": 116,
+          "max": 24,
+          "median": 0,
+          "p95": 6
+        },
+        {
+          "empty_regions": 109,
+          "max": 24,
+          "median": 0,
+          "p95": 3
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      596,
+      732,
+      43,
+      41,
+      24
+    ],
+    "connected_veins": [
+      {
+        "count": 1352,
+        "max": 12,
+        "median": 3,
+        "p95": 10
+      },
+      {
+        "count": 1323,
+        "max": 16,
+        "median": 2,
+        "p95": 10
+      },
+      {
+        "count": 100,
+        "max": 11,
+        "median": 1,
+        "p95": 10
+      },
+      {
+        "count": 70,
+        "max": 11,
+        "median": 2,
+        "p95": 10
+      },
+      {
+        "count": 36,
+        "max": 11,
+        "median": 1,
+        "p95": 8
+      }
+    ],
+    "counts": [
+      [
+        28,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        877,
+        503,
+        0,
+        0,
+        0
+      ],
+      [
+        2577,
+        1061,
+        54,
+        54,
+        0
+      ],
+      [
+        2168,
+        2659,
+        201,
+        177,
+        91
+      ]
+    ],
+    "generator": "classic",
+    "host_rock": [
+      1519,
+      96061,
+      114310,
+      108967
+    ],
+    "minimum_y": [
+      23,
+      38,
+      71,
+      83,
+      107
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      42,
+      91,
+      27,
+      18
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          38,
+          19,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          907,
+          482,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 16087,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          206,
+          86,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1643,
+          842,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 28110,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          155,
+          88,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1624,
+          836,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 27867,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          163,
+          107,
+          0,
+          16,
+          0
+        ],
+        "counts": [
+          1589,
+          797,
+          0,
+          141,
+          0
+        ],
+        "host_rock": 27630,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          56,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          185,
+          98,
+          0,
+          23,
+          0
+        ],
+        "counts": [
+          1548,
+          763,
+          0,
+          196,
+          0
+        ],
+        "host_rock": 27378,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          62,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          177,
+          92,
+          0,
+          26,
+          14
+        ],
+        "counts": [
+          1693,
+          818,
+          0,
+          215,
+          90
+        ],
+        "host_rock": 27697,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          60,
+          48
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          202,
+          96,
+          0,
+          24,
+          18
+        ],
+        "counts": [
+          1625,
+          800,
+          0,
+          191,
+          210
+        ],
+        "host_rock": 27464,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          61,
+          60
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          176,
+          89,
+          0,
+          24,
+          17
+        ],
+        "counts": [
+          1464,
+          711,
+          0,
+          165,
+          139
+        ],
+        "host_rock": 24441,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          61,
+          52
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Forest": [
+        206674,
+        [
+          12093,
+          6049,
+          0,
+          908,
+          439
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.1323529411764706,
+      "ore_stats": [
+        {
+          "empty_regions": 0,
+          "max": 38,
+          "median": 24,
+          "p95": 31
+        },
+        {
+          "empty_regions": 0,
+          "max": 20,
+          "median": 12,
+          "p95": 18
+        },
+        {
+          "empty_regions": 128,
+          "max": 0,
+          "median": 0,
+          "p95": 0
+        },
+        {
+          "empty_regions": 10,
+          "max": 7,
+          "median": 3,
+          "p95": 6
+        },
+        {
+          "empty_regions": 7,
+          "max": 8,
+          "median": 3,
+          "p95": 6
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      1302,
+      675,
+      0,
+      113,
+      49
+    ],
+    "connected_veins": [
+      {
+        "count": 10709,
+        "max": 6,
+        "median": 1,
+        "p95": 2
+      },
+      {
+        "count": 5734,
+        "max": 5,
+        "median": 1,
+        "p95": 2
+      },
+      {
+        "count": 0,
+        "max": null,
+        "median": null,
+        "p95": null
+      },
+      {
+        "count": 900,
+        "max": 3,
+        "median": 1,
+        "p95": 1
+      },
+      {
+        "count": 432,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      }
+    ],
+    "counts": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        5763,
+        2957,
+        0,
+        141,
+        0
+      ],
+      [
+        6330,
+        3092,
+        0,
+        767,
+        439
+      ]
+    ],
+    "generator": "recipe",
+    "host_rock": [
+      0,
+      0,
+      99694,
+      106980
+    ],
+    "minimum_y": [
+      65,
+      65,
+      128,
+      91,
+      109
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      42,
+      91,
+      27,
+      18
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 116,
+        "occupied_64_column_regions": [
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          35,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 2729,
+        "occupied_64_column_regions": [
+          6,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          90,
+          13,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 11989,
+        "occupied_64_column_regions": [
+          12,
+          3,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          30,
+          3,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          318,
+          23,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 27624,
+        "occupied_64_column_regions": [
+          33,
+          7,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          39,
+          11,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          419,
+          132,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 29693,
+        "occupied_64_column_regions": [
+          36,
+          24,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          25,
+          34,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          173,
+          139,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 26160,
+        "occupied_64_column_regions": [
+          29,
+          23,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          59,
+          5,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          640,
+          92,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 29340,
+        "occupied_64_column_regions": [
+          40,
+          20,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          39,
+          85,
+          3,
+          0,
+          0
+        ],
+        "counts": [
+          396,
+          438,
+          12,
+          0,
+          0
+        ],
+        "host_rock": 28344,
+        "occupied_64_column_regions": [
+          40,
+          40,
+          5,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          44,
+          44,
+          1,
+          0,
+          0
+        ],
+        "counts": [
+          408,
+          202,
+          2,
+          5,
+          0
+        ],
+        "host_rock": 27123,
+        "occupied_64_column_regions": [
+          44,
+          33,
+          2,
+          1,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          98,
+          29,
+          4,
+          1,
+          0
+        ],
+        "counts": [
+          814,
+          283,
+          76,
+          61,
+          0
+        ],
+        "host_rock": 29633,
+        "occupied_64_column_regions": [
+          44,
+          37,
+          9,
+          5,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          33,
+          108,
+          7,
+          7,
+          0
+        ],
+        "counts": [
+          369,
+          449,
+          36,
+          32,
+          0
+        ],
+        "host_rock": 26402,
+        "occupied_64_column_regions": [
+          36,
+          38,
+          8,
+          6,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          98,
+          24,
+          8,
+          1,
+          1
+        ],
+        "counts": [
+          961,
+          367,
+          47,
+          22,
+          12
+        ],
+        "host_rock": 29727,
+        "occupied_64_column_regions": [
+          40,
+          44,
+          10,
+          7,
+          3
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          64,
+          105,
+          16,
+          15,
+          17
+        ],
+        "counts": [
+          460,
+          678,
+          99,
+          149,
+          59
+        ],
+        "host_rock": 28384,
+        "occupied_64_column_regions": [
+          46,
+          49,
+          17,
+          18,
+          14
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          18,
+          86,
+          1,
+          0,
+          0
+        ],
+        "counts": [
+          322,
+          783,
+          50,
+          31,
+          0
+        ],
+        "host_rock": 23844,
+        "occupied_64_column_regions": [
+          38,
+          42,
+          9,
+          4,
+          0
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Desert": [
+        15944,
+        [
+          200,
+          192,
+          11,
+          50,
+          2
+        ]
+      ],
+      "ExtremeHills": [
+        28249,
+        [
+          287,
+          206,
+          38,
+          18,
+          3
+        ]
+      ],
+      "Forest": [
+        11252,
+        [
+          272,
+          60,
+          5,
+          4,
+          1
+        ]
+      ],
+      "Jungle": [
+        5130,
+        [
+          8,
+          21,
+          0,
+          1,
+          11
+        ]
+      ],
+      "Ocean": [
+        22684,
+        [
+          372,
+          326,
+          23,
+          28,
+          4
+        ]
+      ],
+      "Plains": [
+        139213,
+        [
+          2840,
+          1632,
+          138,
+          129,
+          39
+        ]
+      ],
+      "River": [
+        40717,
+        [
+          582,
+          398,
+          51,
+          21,
+          3
+        ]
+      ],
+      "Swamp": [
+        12735,
+        [
+          107,
+          129,
+          8,
+          6,
+          0
+        ]
+      ],
+      "Taiga": [
+        9964,
+        [
+          131,
+          205,
+          9,
+          25,
+          0
+        ]
+      ],
+      "Tundra": [
+        35220,
+        [
+          607,
+          430,
+          39,
+          18,
+          8
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.22,
+      "ore_stats": [
+        {
+          "empty_regions": 39,
+          "max": 44,
+          "median": 3,
+          "p95": 26
+        },
+        {
+          "empty_regions": 49,
+          "max": 86,
+          "median": 3,
+          "p95": 47
+        },
+        {
+          "empty_regions": 101,
+          "max": 16,
+          "median": 0,
+          "p95": 8
+        },
+        {
+          "empty_regions": 105,
+          "max": 50,
+          "median": 0,
+          "p95": 8
+        },
+        {
+          "empty_regions": 113,
+          "max": 27,
+          "median": 0,
+          "p95": 1
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      550,
+      534,
+      40,
+      24,
+      18
+    ],
+    "connected_veins": [
+      {
+        "count": 1339,
+        "max": 12,
+        "median": 3,
+        "p95": 10
+      },
+      {
+        "count": 1153,
+        "max": 16,
+        "median": 2,
+        "p95": 9
+      },
+      {
+        "count": 99,
+        "max": 12,
+        "median": 2,
+        "p95": 10
+      },
+      {
+        "count": 73,
+        "max": 12,
+        "median": 3,
+        "p95": 11
+      },
+      {
+        "count": 31,
+        "max": 10,
+        "median": 1,
+        "p95": 9
+      }
+    ],
+    "counts": [
+      [
+        36,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1000,
+        307,
+        0,
+        0,
+        0
+      ],
+      [
+        2258,
+        1015,
+        90,
+        66,
+        0
+      ],
+      [
+        2112,
+        2277,
+        232,
+        234,
+        71
+      ]
+    ],
+    "generator": "classic",
+    "host_rock": [
+      2845,
+      95466,
+      114440,
+      108357
+    ],
+    "minimum_y": [
+      23,
+      38,
+      75,
+      83,
+      108
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      9182,
+      461,
+      7803,
+      59
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          43,
+          24,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          949,
+          451,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 16080,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          185,
+          75,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1619,
+          823,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 28370,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          190,
+          96,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1734,
+          833,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 28086,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          156,
+          88,
+          0,
+          15,
+          0
+        ],
+        "counts": [
+          1682,
+          782,
+          0,
+          136,
+          0
+        ],
+        "host_rock": 28238,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          58,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          159,
+          70,
+          0,
+          15,
+          0
+        ],
+        "counts": [
+          1744,
+          779,
+          0,
+          186,
+          0
+        ],
+        "host_rock": 28057,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          64,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          163,
+          61,
+          0,
+          23,
+          10
+        ],
+        "counts": [
+          1661,
+          791,
+          0,
+          202,
+          74
+        ],
+        "host_rock": 28432,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          62,
+          48
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          153,
+          68,
+          0,
+          20,
+          10
+        ],
+        "counts": [
+          1619,
+          800,
+          0,
+          206,
+          180
+        ],
+        "host_rock": 28332,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          61,
+          58
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          143,
+          82,
+          0,
+          18,
+          18
+        ],
+        "counts": [
+          1420,
+          738,
+          0,
+          167,
+          186
+        ],
+        "host_rock": 24607,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          61,
+          60
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Desert": [
+        210202,
+        [
+          12428,
+          5997,
+          0,
+          897,
+          440
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.14496314496314497,
+      "ore_stats": [
+        {
+          "empty_regions": 0,
+          "max": 41,
+          "median": 24,
+          "p95": 33
+        },
+        {
+          "empty_regions": 0,
+          "max": 22,
+          "median": 12,
+          "p95": 18
+        },
+        {
+          "empty_regions": 128,
+          "max": 0,
+          "median": 0,
+          "p95": 0
+        },
+        {
+          "empty_regions": 9,
+          "max": 10,
+          "median": 3,
+          "p95": 6
+        },
+        {
+          "empty_regions": 9,
+          "max": 9,
+          "median": 3,
+          "p95": 6
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      1192,
+      564,
+      0,
+      91,
+      38
+    ],
+    "connected_veins": [
+      {
+        "count": 10964,
+        "max": 5,
+        "median": 1,
+        "p95": 2
+      },
+      {
+        "count": 5686,
+        "max": 4,
+        "median": 1,
+        "p95": 1
+      },
+      {
+        "count": 0,
+        "max": null,
+        "median": null,
+        "p95": null
+      },
+      {
+        "count": 887,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      },
+      {
+        "count": 437,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      }
+    ],
+    "counts": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        5984,
+        2889,
+        0,
+        136,
+        0
+      ],
+      [
+        6444,
+        3108,
+        0,
+        761,
+        440
+      ]
+    ],
+    "generator": "recipe",
+    "host_rock": [
+      0,
+      0,
+      100774,
+      109428
+    ],
+    "minimum_y": [
+      65,
+      65,
+      128,
+      91,
+      109
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      9182,
+      461,
+      7803,
+      59
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          5,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 1369,
+        "occupied_64_column_regions": [
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          5,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          45,
+          9,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 11572,
+        "occupied_64_column_regions": [
+          7,
+          4,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          21,
+          4,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          163,
+          49,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 28489,
+        "occupied_64_column_regions": [
+          31,
+          14,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          59,
+          15,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          489,
+          206,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 29709,
+        "occupied_64_column_regions": [
+          37,
+          32,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          22,
+          32,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          197,
+          173,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 25758,
+        "occupied_64_column_regions": [
+          29,
+          28,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          96,
+          6,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          639,
+          82,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 29388,
+        "occupied_64_column_regions": [
+          40,
+          20,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          48,
+          66,
+          6,
+          0,
+          0
+        ],
+        "counts": [
+          390,
+          401,
+          27,
+          0,
+          0
+        ],
+        "host_rock": 28461,
+        "occupied_64_column_regions": [
+          45,
+          36,
+          6,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          52,
+          40,
+          0,
+          2,
+          0
+        ],
+        "counts": [
+          490,
+          250,
+          2,
+          2,
+          0
+        ],
+        "host_rock": 27616,
+        "occupied_64_column_regions": [
+          43,
+          40,
+          2,
+          1,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          76,
+          27,
+          3,
+          7,
+          0
+        ],
+        "counts": [
+          664,
+          453,
+          22,
+          33,
+          0
+        ],
+        "host_rock": 29917,
+        "occupied_64_column_regions": [
+          41,
+          41,
+          5,
+          6,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          25,
+          189,
+          2,
+          13,
+          0
+        ],
+        "counts": [
+          370,
+          877,
+          21,
+          34,
+          0
+        ],
+        "host_rock": 26826,
+        "occupied_64_column_regions": [
+          41,
+          50,
+          10,
+          8,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          41,
+          25,
+          4,
+          1,
+          12
+        ],
+        "counts": [
+          837,
+          375,
+          45,
+          9,
+          37
+        ],
+        "host_rock": 30241,
+        "occupied_64_column_regions": [
+          41,
+          45,
+          11,
+          3,
+          7
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          39,
+          103,
+          3,
+          8,
+          22
+        ],
+        "counts": [
+          409,
+          629,
+          58,
+          38,
+          100
+        ],
+        "host_rock": 29087,
+        "occupied_64_column_regions": [
+          40,
+          49,
+          14,
+          11,
+          15
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          16,
+          59,
+          4,
+          1,
+          4
+        ],
+        "counts": [
+          393,
+          508,
+          48,
+          17,
+          18
+        ],
+        "host_rock": 24159,
+        "occupied_64_column_regions": [
+          41,
+          37,
+          11,
+          3,
+          4
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Desert": [
+        21938,
+        [
+          330,
+          245,
+          6,
+          4,
+          14
+        ]
+      ],
+      "Forest": [
+        11104,
+        [
+          159,
+          202,
+          9,
+          8,
+          0
+        ]
+      ],
+      "Jungle": [
+        2848,
+        [
+          50,
+          35,
+          0,
+          0,
+          0
+        ]
+      ],
+      "Ocean": [
+        6326,
+        [
+          83,
+          52,
+          0,
+          0,
+          0
+        ]
+      ],
+      "Plains": [
+        151610,
+        [
+          2326,
+          1897,
+          105,
+          78,
+          84
+        ]
+      ],
+      "River": [
+        66552,
+        [
+          1000,
+          794,
+          66,
+          15,
+          23
+        ]
+      ],
+      "Swamp": [
+        9435,
+        [
+          170,
+          92,
+          2,
+          15,
+          4
+        ]
+      ],
+      "Taiga": [
+        16464,
+        [
+          303,
+          246,
+          11,
+          3,
+          2
+        ]
+      ],
+      "Tundra": [
+        36315,
+        [
+          670,
+          449,
+          24,
+          10,
+          28
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.20588235294117646,
+      "ore_stats": [
+        {
+          "empty_regions": 45,
+          "max": 46,
+          "median": 3,
+          "p95": 25
+        },
+        {
+          "empty_regions": 48,
+          "max": 68,
+          "median": 3,
+          "p95": 33
+        },
+        {
+          "empty_regions": 103,
+          "max": 18,
+          "median": 0,
+          "p95": 7
+        },
+        {
+          "empty_regions": 116,
+          "max": 17,
+          "median": 0,
+          "p95": 4
+        },
+        {
+          "empty_regions": 109,
+          "max": 16,
+          "median": 0,
+          "p95": 9
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      500,
+      566,
+      22,
+      32,
+      38
+    ],
+    "connected_veins": [
+      {
+        "count": 1261,
+        "max": 12,
+        "median": 3,
+        "p95": 10
+      },
+      {
+        "count": 1281,
+        "max": 15,
+        "median": 2,
+        "p95": 9
+      },
+      {
+        "count": 81,
+        "max": 11,
+        "median": 2,
+        "p95": 8
+      },
+      {
+        "count": 45,
+        "max": 11,
+        "median": 2,
+        "p95": 7
+      },
+      {
+        "count": 54,
+        "max": 10,
+        "median": 2,
+        "p95": 9
+      }
+    ],
+    "counts": [
+      [
+        5,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        894,
+        437,
+        0,
+        0,
+        0
+      ],
+      [
+        2183,
+        1186,
+        51,
+        35,
+        0
+      ],
+      [
+        2009,
+        2389,
+        172,
+        98,
+        155
+      ]
+    ],
+    "generator": "classic",
+    "host_rock": [
+      1369,
+      95528,
+      115382,
+      110313
+    ],
+    "minimum_y": [
+      28,
+      38,
+      73,
+      83,
+      106
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      7,
+      11,
+      13,
+      17
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          36,
+          27,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          971,
+          486,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 16112,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          198,
+          96,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1703,
+          824,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 28357,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          171,
+          81,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1644,
+          820,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 27732,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          157,
+          89,
+          0,
+          16,
+          0
+        ],
+        "counts": [
+          1581,
+          825,
+          0,
+          144,
+          0
+        ],
+        "host_rock": 28046,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          61,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          180,
+          96,
+          0,
+          22,
+          0
+        ],
+        "counts": [
+          1603,
+          787,
+          0,
+          211,
+          0
+        ],
+        "host_rock": 27606,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          64,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          186,
+          93,
+          0,
+          23,
+          7
+        ],
+        "counts": [
+          1658,
+          827,
+          0,
+          212,
+          65
+        ],
+        "host_rock": 28041,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          63,
+          43
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          186,
+          89,
+          0,
+          30,
+          27
+        ],
+        "counts": [
+          1610,
+          787,
+          0,
+          208,
+          234
+        ],
+        "host_rock": 27774,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          61,
+          64
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          170,
+          77,
+          0,
+          16,
+          22
+        ],
+        "counts": [
+          1425,
+          738,
+          0,
+          180,
+          191
+        ],
+        "host_rock": 24527,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          56,
+          62
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Tundra": [
+        208195,
+        [
+          12195,
+          6094,
+          0,
+          955,
+          490
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.15151515151515152,
+      "ore_stats": [
+        {
+          "empty_regions": 0,
+          "max": 39,
+          "median": 24,
+          "p95": 33
+        },
+        {
+          "empty_regions": 0,
+          "max": 23,
+          "median": 12,
+          "p95": 17
+        },
+        {
+          "empty_regions": 128,
+          "max": 0,
+          "median": 0,
+          "p95": 0
+        },
+        {
+          "empty_regions": 8,
+          "max": 8,
+          "median": 3,
+          "p95": 6
+        },
+        {
+          "empty_regions": 2,
+          "max": 8,
+          "median": 3,
+          "p95": 6
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      1284,
+      648,
+      0,
+      107,
+      56
+    ],
+    "connected_veins": [
+      {
+        "count": 10753,
+        "max": 7,
+        "median": 1,
+        "p95": 2
+      },
+      {
+        "count": 5753,
+        "max": 5,
+        "median": 1,
+        "p95": 2
+      },
+      {
+        "count": 0,
+        "max": null,
+        "median": null,
+        "p95": null
+      },
+      {
+        "count": 945,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      },
+      {
+        "count": 483,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      }
+    ],
+    "counts": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        5899,
+        2955,
+        0,
+        144,
+        0
+      ],
+      [
+        6296,
+        3139,
+        0,
+        811,
+        490
+      ]
+    ],
+    "generator": "recipe",
+    "host_rock": [
+      0,
+      0,
+      100247,
+      107948
+    ],
+    "minimum_y": [
+      65,
+      65,
+      128,
+      91,
+      109
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      7,
+      11,
+      13,
+      17
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          5,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 207,
+        "occupied_64_column_regions": [
+          3,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          3,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          65,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 3850,
+        "occupied_64_column_regions": [
+          6,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          37,
+          5,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 12493,
+        "occupied_64_column_regions": [
+          10,
+          3,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          37,
+          8,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          275,
+          44,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 27206,
+        "occupied_64_column_regions": [
+          37,
+          13,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          62,
+          12,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          551,
+          184,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 29489,
+        "occupied_64_column_regions": [
+          41,
+          21,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          29,
+          38,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          155,
+          140,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 26116,
+        "occupied_64_column_regions": [
+          27,
+          26,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          67,
+          17,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          645,
+          114,
+          1,
+          0,
+          0
+        ],
+        "host_rock": 29710,
+        "occupied_64_column_regions": [
+          42,
+          19,
+          1,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          48,
+          59,
+          4,
+          0,
+          0
+        ],
+        "counts": [
+          430,
+          372,
+          32,
+          0,
+          0
+        ],
+        "host_rock": 28718,
+        "occupied_64_column_regions": [
+          39,
+          39,
+          8,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          54,
+          36,
+          2,
+          0,
+          0
+        ],
+        "counts": [
+          557,
+          133,
+          10,
+          2,
+          0
+        ],
+        "host_rock": 27457,
+        "occupied_64_column_regions": [
+          41,
+          36,
+          4,
+          1,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          75,
+          26,
+          9,
+          13,
+          0
+        ],
+        "counts": [
+          895,
+          281,
+          31,
+          36,
+          0
+        ],
+        "host_rock": 29441,
+        "occupied_64_column_regions": [
+          46,
+          38,
+          9,
+          7,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          58,
+          142,
+          9,
+          6,
+          0
+        ],
+        "counts": [
+          349,
+          591,
+          34,
+          23,
+          0
+        ],
+        "host_rock": 25882,
+        "occupied_64_column_regions": [
+          37,
+          43,
+          7,
+          7,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          106,
+          29,
+          13,
+          2,
+          2
+        ],
+        "counts": [
+          927,
+          225,
+          35,
+          17,
+          4
+        ],
+        "host_rock": 29318,
+        "occupied_64_column_regions": [
+          47,
+          42,
+          11,
+          6,
+          4
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          47,
+          152,
+          11,
+          11,
+          24
+        ],
+        "counts": [
+          412,
+          626,
+          76,
+          66,
+          51
+        ],
+        "host_rock": 28360,
+        "occupied_64_column_regions": [
+          48,
+          47,
+          14,
+          9,
+          14
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          14,
+          82,
+          3,
+          2,
+          1
+        ],
+        "counts": [
+          367,
+          743,
+          39,
+          11,
+          19
+        ],
+        "host_rock": 23987,
+        "occupied_64_column_regions": [
+          44,
+          48,
+          8,
+          3,
+          4
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Desert": [
+        3089,
+        [
+          34,
+          32,
+          1,
+          0,
+          0
+        ]
+      ],
+      "ExtremeHills": [
+        43060,
+        [
+          768,
+          432,
+          18,
+          38,
+          9
+        ]
+      ],
+      "Forest": [
+        14265,
+        [
+          199,
+          144,
+          22,
+          7,
+          3
+        ]
+      ],
+      "Jungle": [
+        1813,
+        [
+          27,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "Ocean": [
+        19217,
+        [
+          311,
+          153,
+          3,
+          0,
+          1
+        ]
+      ],
+      "Plains": [
+        154029,
+        [
+          2771,
+          1683,
+          158,
+          96,
+          48
+        ]
+      ],
+      "River": [
+        38815,
+        [
+          720,
+          537,
+          29,
+          11,
+          8
+        ]
+      ],
+      "Swamp": [
+        15232,
+        [
+          313,
+          111,
+          7,
+          0,
+          0
+        ]
+      ],
+      "Taiga": [
+        8195,
+        [
+          163,
+          72,
+          0,
+          3,
+          0
+        ]
+      ],
+      "Tundra": [
+        24519,
+        [
+          364,
+          294,
+          20,
+          0,
+          5
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.17258883248730963,
+      "ore_stats": [
+        {
+          "empty_regions": 43,
+          "max": 37,
+          "median": 3,
+          "p95": 24
+        },
+        {
+          "empty_regions": 48,
+          "max": 67,
+          "median": 3,
+          "p95": 48
+        },
+        {
+          "empty_regions": 103,
+          "max": 22,
+          "median": 0,
+          "p95": 6
+        },
+        {
+          "empty_regions": 116,
+          "max": 34,
+          "median": 0,
+          "p95": 2
+        },
+        {
+          "empty_regions": 109,
+          "max": 13,
+          "median": 0,
+          "p95": 3
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      601,
+      601,
+      51,
+      34,
+      27
+    ],
+    "connected_veins": [
+      {
+        "count": 1431,
+        "max": 12,
+        "median": 3,
+        "p95": 10
+      },
+      {
+        "count": 1147,
+        "max": 15,
+        "median": 2,
+        "p95": 9
+      },
+      {
+        "count": 97,
+        "max": 11,
+        "median": 1,
+        "p95": 10
+      },
+      {
+        "count": 58,
+        "max": 11,
+        "median": 2,
+        "p95": 10
+      },
+      {
+        "count": 36,
+        "max": 8,
+        "median": 1,
+        "p95": 7
+      }
+    ],
+    "counts": [
+      [
+        70,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1018,
+        373,
+        0,
+        0,
+        0
+      ],
+      [
+        2527,
+        900,
+        74,
+        38,
+        0
+      ],
+      [
+        2055,
+        2185,
+        184,
+        117,
+        74
+      ]
+    ],
+    "generator": "classic",
+    "host_rock": [
+      4057,
+      95304,
+      115326,
+      107547
+    ],
+    "minimum_y": [
+      23,
+      38,
+      71,
+      83,
+      110
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      2026,
+      133,
+      777,
+      909
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 1485,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          41,
+          18,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          957,
+          465,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 18709,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          188,
+          102,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1639,
+          876,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 28207,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          183,
+          109,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1687,
+          857,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 28115,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          157,
+          98,
+          0,
+          21,
+          0
+        ],
+        "counts": [
+          1587,
+          824,
+          0,
+          114,
+          0
+        ],
+        "host_rock": 28029,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          50,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          178,
+          89,
+          0,
+          17,
+          0
+        ],
+        "counts": [
+          1592,
+          815,
+          0,
+          210,
+          0
+        ],
+        "host_rock": 27816,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          62,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          172,
+          84,
+          0,
+          17,
+          9
+        ],
+        "counts": [
+          1598,
+          788,
+          0,
+          204,
+          82
+        ],
+        "host_rock": 27794,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          62,
+          43
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          175,
+          80,
+          0,
+          32,
+          34
+        ],
+        "counts": [
+          1640,
+          800,
+          0,
+          256,
+          220
+        ],
+        "host_rock": 28217,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          64,
+          62
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          163,
+          86,
+          0,
+          24,
+          22
+        ],
+        "counts": [
+          1485,
+          749,
+          0,
+          172,
+          173
+        ],
+        "host_rock": 24485,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          60,
+          62
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "ExtremeHills": [
+        212857,
+        [
+          12185,
+          6174,
+          0,
+          956,
+          475
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.15053763440860216,
+      "ore_stats": [
+        {
+          "empty_regions": 0,
+          "max": 36,
+          "median": 24,
+          "p95": 32
+        },
+        {
+          "empty_regions": 0,
+          "max": 25,
+          "median": 12,
+          "p95": 19
+        },
+        {
+          "empty_regions": 128,
+          "max": 0,
+          "median": 0,
+          "p95": 0
+        },
+        {
+          "empty_regions": 2,
+          "max": 7,
+          "median": 3,
+          "p95": 6
+        },
+        {
+          "empty_regions": 8,
+          "max": 8,
+          "median": 3,
+          "p95": 6
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      1257,
+      666,
+      0,
+      111,
+      65
+    ],
+    "connected_veins": [
+      {
+        "count": 10705,
+        "max": 6,
+        "median": 1,
+        "p95": 2
+      },
+      {
+        "count": 5811,
+        "max": 5,
+        "median": 1,
+        "p95": 2
+      },
+      {
+        "count": 0,
+        "max": null,
+        "median": null,
+        "p95": null
+      },
+      {
+        "count": 950,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      },
+      {
+        "count": 474,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      }
+    ],
+    "counts": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        5870,
+        3022,
+        0,
+        114,
+        0
+      ],
+      [
+        6315,
+        3152,
+        0,
+        842,
+        475
+      ]
+    ],
+    "generator": "recipe",
+    "host_rock": [
+      0,
+      1485,
+      103060,
+      108312
+    ],
+    "minimum_y": [
+      65,
+      65,
+      128,
+      91,
+      109
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      2026,
+      133,
+      777,
+      909
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 115,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          4,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          51,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 2068,
+        "occupied_64_column_regions": [
+          4,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          6,
+          3,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          40,
+          9,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 11095,
+        "occupied_64_column_regions": [
+          9,
+          5,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          33,
+          4,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          209,
+          28,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 27574,
+        "occupied_64_column_regions": [
+          24,
+          8,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          72,
+          15,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          494,
+          142,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 29363,
+        "occupied_64_column_regions": [
+          37,
+          27,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          29,
+          48,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          208,
+          139,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 26040,
+        "occupied_64_column_regions": [
+          32,
+          20,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          41,
+          1,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          602,
+          95,
+          1,
+          0,
+          0
+        ],
+        "host_rock": 30099,
+        "occupied_64_column_regions": [
+          41,
+          20,
+          1,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          23,
+          84,
+          2,
+          0,
+          0
+        ],
+        "counts": [
+          316,
+          431,
+          12,
+          0,
+          0
+        ],
+        "host_rock": 28530,
+        "occupied_64_column_regions": [
+          40,
+          33,
+          3,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          48,
+          53,
+          4,
+          0,
+          0
+        ],
+        "counts": [
+          550,
+          194,
+          10,
+          0,
+          0
+        ],
+        "host_rock": 27212,
+        "occupied_64_column_regions": [
+          43,
+          38,
+          4,
+          0,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          59,
+          26,
+          0,
+          1,
+          0
+        ],
+        "counts": [
+          1035,
+          298,
+          8,
+          29,
+          0
+        ],
+        "host_rock": 29592,
+        "occupied_64_column_regions": [
+          44,
+          29,
+          2,
+          8,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          32,
+          149,
+          4,
+          20,
+          0
+        ],
+        "counts": [
+          356,
+          622,
+          11,
+          52,
+          0
+        ],
+        "host_rock": 26299,
+        "occupied_64_column_regions": [
+          39,
+          42,
+          7,
+          9,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          124,
+          41,
+          7,
+          2,
+          11
+        ],
+        "counts": [
+          891,
+          330,
+          87,
+          9,
+          57
+        ],
+        "host_rock": 29681,
+        "occupied_64_column_regions": [
+          40,
+          46,
+          13,
+          4,
+          10
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          69,
+          101,
+          15,
+          11,
+          18
+        ],
+        "counts": [
+          511,
+          586,
+          60,
+          70,
+          108
+        ],
+        "host_rock": 28732,
+        "occupied_64_column_regions": [
+          44,
+          46,
+          16,
+          8,
+          17
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          9,
+          62,
+          4,
+          8,
+          2
+        ],
+        "counts": [
+          320,
+          630,
+          36,
+          31,
+          6
+        ],
+        "host_rock": 23835,
+        "occupied_64_column_regions": [
+          34,
+          46,
+          13,
+          5,
+          3
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Desert": [
+        4170,
+        [
+          11,
+          28,
+          0,
+          0,
+          0
+        ]
+      ],
+      "ExtremeHills": [
+        22435,
+        [
+          401,
+          191,
+          16,
+          0,
+          22
+        ]
+      ],
+      "Forest": [
+        13824,
+        [
+          254,
+          155,
+          5,
+          10,
+          3
+        ]
+      ],
+      "Jungle": [
+        10507,
+        [
+          195,
+          148,
+          3,
+          5,
+          3
+        ]
+      ],
+      "Ocean": [
+        17104,
+        [
+          358,
+          118,
+          4,
+          17,
+          0
+        ]
+      ],
+      "Plains": [
+        166518,
+        [
+          2933,
+          1892,
+          134,
+          114,
+          98
+        ]
+      ],
+      "River": [
+        39548,
+        [
+          770,
+          298,
+          18,
+          11,
+          0
+        ]
+      ],
+      "Swamp": [
+        27354,
+        [
+          380,
+          435,
+          40,
+          34,
+          38
+        ]
+      ],
+      "Taiga": [
+        5778,
+        [
+          113,
+          75,
+          2,
+          0,
+          7
+        ]
+      ],
+      "Tundra": [
+        12997,
+        [
+          168,
+          164,
+          3,
+          0,
+          0
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.18769230769230769,
+      "ore_stats": [
+        {
+          "empty_regions": 48,
+          "max": 41,
+          "median": 2,
+          "p95": 28
+        },
+        {
+          "empty_regions": 54,
+          "max": 73,
+          "median": 3,
+          "p95": 42
+        },
+        {
+          "empty_regions": 100,
+          "max": 9,
+          "median": 0,
+          "p95": 5
+        },
+        {
+          "empty_regions": 115,
+          "max": 14,
+          "median": 0,
+          "p95": 8
+        },
+        {
+          "empty_regions": 109,
+          "max": 24,
+          "median": 0,
+          "p95": 5
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      549,
+      587,
+      36,
+      42,
+      31
+    ],
+    "connected_veins": [
+      {
+        "count": 1369,
+        "max": 12,
+        "median": 3,
+        "p95": 10
+      },
+      {
+        "count": 1169,
+        "max": 16,
+        "median": 2,
+        "p95": 9
+      },
+      {
+        "count": 80,
+        "max": 11,
+        "median": 2,
+        "p95": 9
+      },
+      {
+        "count": 50,
+        "max": 12,
+        "median": 3,
+        "p95": 9
+      },
+      {
+        "count": 54,
+        "max": 10,
+        "median": 2,
+        "p95": 9
+      }
+    ],
+    "counts": [
+      [
+        51,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        951,
+        318,
+        0,
+        0,
+        0
+      ],
+      [
+        2503,
+        1018,
+        31,
+        29,
+        0
+      ],
+      [
+        2078,
+        2168,
+        194,
+        162,
+        171
+      ]
+    ],
+    "generator": "classic",
+    "host_rock": [
+      2183,
+      94072,
+      115433,
+      108547
+    ],
+    "minimum_y": [
+      24,
+      38,
+      71,
+      89,
+      106
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      65535,
+      65536,
+      8191,
+      97
+    ]
+  },
+  {
+    "bands": "world Y 0–31 / 32–63 / 64–95 / 96–127 (downward)",
+    "bands8": [
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          7
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          8,
+          15
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          16,
+          23
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          24,
+          31
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          32,
+          39
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          40,
+          47
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          48,
+          55
+        ]
+      },
+      {
+        "cave_exposed": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 0,
+        "occupied_64_column_regions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          56,
+          63
+        ]
+      },
+      {
+        "cave_exposed": [
+          31,
+          10,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          945,
+          490,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 16122,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          64,
+          71
+        ]
+      },
+      {
+        "cave_exposed": [
+          165,
+          109,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1588,
+          834,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 28189,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          72,
+          79
+        ]
+      },
+      {
+        "cave_exposed": [
+          180,
+          79,
+          0,
+          0,
+          0
+        ],
+        "counts": [
+          1593,
+          787,
+          0,
+          0,
+          0
+        ],
+        "host_rock": 27617,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          80,
+          87
+        ]
+      },
+      {
+        "cave_exposed": [
+          176,
+          89,
+          0,
+          21,
+          0
+        ],
+        "counts": [
+          1647,
+          795,
+          0,
+          149,
+          0
+        ],
+        "host_rock": 27673,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          59,
+          0
+        ],
+        "y": [
+          88,
+          95
+        ]
+      },
+      {
+        "cave_exposed": [
+          178,
+          91,
+          0,
+          17,
+          0
+        ],
+        "counts": [
+          1611,
+          814,
+          0,
+          175,
+          0
+        ],
+        "host_rock": 27611,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          62,
+          0
+        ],
+        "y": [
+          96,
+          103
+        ]
+      },
+      {
+        "cave_exposed": [
+          197,
+          89,
+          0,
+          22,
+          9
+        ],
+        "counts": [
+          1643,
+          822,
+          0,
+          200,
+          73
+        ],
+        "host_rock": 27911,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          61,
+          44
+        ],
+        "y": [
+          104,
+          111
+        ]
+      },
+      {
+        "cave_exposed": [
+          182,
+          104,
+          0,
+          29,
+          20
+        ],
+        "counts": [
+          1596,
+          848,
+          0,
+          201,
+          201
+        ],
+        "host_rock": 27772,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          61,
+          63
+        ],
+        "y": [
+          112,
+          119
+        ]
+      },
+      {
+        "cave_exposed": [
+          160,
+          73,
+          0,
+          18,
+          18
+        ],
+        "counts": [
+          1496,
+          679,
+          0,
+          195,
+          180
+        ],
+        "host_rock": 24424,
+        "occupied_64_column_regions": [
+          64,
+          64,
+          0,
+          62,
+          59
+        ],
+        "y": [
+          120,
+          127
+        ]
+      }
+    ],
+    "biomes": {
+      "Plains": [
+        207319,
+        [
+          12119,
+          6069,
+          0,
+          920,
+          454
+        ]
+      ]
+    },
+    "bottom_32_column_regions": {
+      "maximum_total_ore_fraction_of_host_rock": 0.13970588235294118,
+      "ore_stats": [
+        {
+          "empty_regions": 0,
+          "max": 38,
+          "median": 24,
+          "p95": 34
+        },
+        {
+          "empty_regions": 0,
+          "max": 22,
+          "median": 12,
+          "p95": 17
+        },
+        {
+          "empty_regions": 128,
+          "max": 0,
+          "median": 0,
+          "p95": 0
+        },
+        {
+          "empty_regions": 5,
+          "max": 7,
+          "median": 3,
+          "p95": 6
+        },
+        {
+          "empty_regions": 6,
+          "max": 7,
+          "median": 3,
+          "p95": 6
+        }
+      ],
+      "regions": 128,
+      "y": [
+        112,
+        126
+      ]
+    },
+    "cave_exposed": [
+      1269,
+      644,
+      0,
+      107,
+      47
+    ],
+    "connected_veins": [
+      {
+        "count": 10710,
+        "max": 5,
+        "median": 1,
+        "p95": 2
+      },
+      {
+        "count": 5726,
+        "max": 4,
+        "median": 1,
+        "p95": 2
+      },
+      {
+        "count": 0,
+        "max": null,
+        "median": null,
+        "p95": null
+      },
+      {
+        "count": 914,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      },
+      {
+        "count": 451,
+        "max": 2,
+        "median": 1,
+        "p95": 1
+      }
+    ],
+    "counts": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        5773,
+        2906,
+        0,
+        149,
+        0
+      ],
+      [
+        6346,
+        3163,
+        0,
+        771,
+        454
+      ]
+    ],
+    "generator": "recipe",
+    "host_rock": [
+      0,
+      0,
+      99601,
+      107718
+    ],
+    "minimum_y": [
+      65,
+      65,
+      128,
+      91,
+      109
+    ],
+    "ore_order": [
+      "coal",
+      "iron",
+      "redstone",
+      "gold",
+      "diamond"
+    ],
+    "seeds": [
+      65535,
+      65536,
+      8191,
+      97
+    ]
+  }
+]

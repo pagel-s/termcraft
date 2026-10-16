@@ -225,6 +225,12 @@ level, with a walkable slab crossing. Buckets no longer fall back to hidden face
 See the [ore and irrigation review](design/ore-irrigation-tuning-2026-10-16/README.md)
 for the census, comparison images and native walkthrough.
 
+A subsequent depth-balance pass replaces broad patches with independently seeded,
+spaced deposits. Coal and iron taper near bedrock; deep regions have a more varied
+mix of small redstone, gold and diamond finds. Recipe worlds share this balance
+instead of using a separate scattered-ore formula. Existing chunks are preserved.
+[Six-seed ordinary/recipe census and regression checks](design/deep-ore-balance-2026-10-16/README.md).
+
 Entity/encounter persistence also retains partial Lantern Run kills and surviving
 guards, game-master wave membership, destroyed End crystals and dragon health.
 See the [persistence review](design/entity-persistence-2026-10-16/README.md).

@@ -648,3 +648,19 @@ high source. Heads now propagate through actual wet connections, with one dry
 growth neighbour. The solo/co-op obstacle fixture is enclosed against unrelated
 generated terrain; the earlier Windows/ARM Mac failure requires fresh CI results.
 See the [view/input review](docs/design/view-controls-2026-10-16/README.md).
+
+## Deep ore balance follow-up, 16 October
+
+The previous vein-size cap still allowed broad noise patches to aggregate many
+small deposits of the same ore near bedrock. Deposits now have independent seeded
+placement, shape and type, with coal/iron depth taper and smaller rare deposits.
+Ordinary and recipe worlds share the rules; recipe terrain now generates redstone.
+The six-seed survey samples both generators and all recipe terrains. In ordinary
+worlds, the largest sampled bottom section falls from 94 iron blocks to 19.
+Saved chunks remain intact; fresh generation gets the new distribution.
+
+All 750 tests pass on stable and Rust 1.88, with strict Clippy and six real TCP/MCP
+checks. Fresh platform CI must qualify the ore source. The preceding view/input
+source now passes its entire four-platform native matrix, including Windows and
+ARM Mac's formerly failing water-route check. Human mining/progression pacing
+remains a playtest gate. [Review and exact evidence](docs/design/deep-ore-balance-2026-10-16/README.md).

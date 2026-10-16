@@ -191,3 +191,13 @@ Pressure follows actual wet connections; the movement fixture is isolated from
 external generated sources. Fresh platform CI must qualify this correction to
 the previous Windows/ARM Mac water-route comparison failure. Human Warp feel
 remains a separate acceptance step. [Review](docs/design/view-controls-2026-10-16/README.md).
+
+## Deep ore distribution follow-up, 16 October
+
+The [ore review](docs/design/deep-ore-balance-2026-10-16/README.md) checks eight-row
+depth bands, cave exposure, ore amounts in bottom sections, connected veins across
+chunk seams and all five recipe terrains. Coal/iron taper near bedrock and rare
+finds remain discoverable. The 750-test stable/MSRV suites, strict Clippy and six
+real TCP/MCP integrations pass. The preceding view/input native matrix is fully
+green; fresh CI must qualify the ore source. Test fresh chunks or a new world for
+human mining pace and resource progression, since saved terrain is preserved.
