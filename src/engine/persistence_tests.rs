@@ -393,3 +393,27 @@ fn persistence_nearby_loot_survives_death_respawn_and_reopen() {
         3
     );
 }
+
+#[test]
+fn persistence_travel_dismounts_without_moving_boats_between_worlds() {
+    let (_fixture, mut s) = fixture();
+    s.boats.push(Boat::new(12.5, 64.0));
+    s.mounted_boat = Some(0);
+    s.fishing_bobber_active = true;
+    s.travel_dimension(Dimension::Nether);
+    assert!(s.mounted_boat.is_none());
+    assert!(!s.fishing_bobber_active);
+    assert!(s.boats.is_empty());
+    s.boats.push(Boat::new(8.5, 60.0));
+    s.mounted_boat = Some(0);
+    s.travel_dimension(Dimension::Overworld);
+    assert!(s.mounted_boat.is_none());
+    assert_eq!(s.boats[0].x, 12.5);
+    s.try_persist_world_and_progress().unwrap();
+    let mut restored = GameState::open_in_directory(s.world.save_root()).unwrap();
+    assert!(restored.mounted_boat.is_none());
+    assert_eq!(restored.boats[0].x, 12.5);
+    restored.travel_dimension(Dimension::Nether);
+    assert_eq!(restored.boats[0].x, 8.5);
+    assert!(restored.mounted_boat.is_none());
+}

@@ -83,7 +83,21 @@ assert 49.1<=s['player']['x']<50.4,s['player']
 slot=next(i for i,e in enumerate(s['inventory']) if e and e['item_type']=='Planks')
 s=call('select_slot',{'slot':slot})
 show(s,'abutment approach')
-s=act(5,direction='right',jump=True);s=act(8)
+# Combat/chest traversal can leave us airborne at the approach coordinate.
+# A jump request made there expires before landing; observe a real takeoff surface.
+abutment_wait_ticks=0
+for _ in range(40):
+ if s['player']['grounded']:break
+ s=act(1);abutment_wait_ticks+=1
+assert s['player']['grounded'],('no takeoff surface',s['player'])
+s=act(5,direction='right',jump=True)
+for _ in range(12):
+ if s['player']['x']>=51.25:break
+ s=act(1,direction='right')
+for _ in range(40):
+ if s['player']['grounded']:break
+ s=act(1)
+assert s['player']['grounded'] and 51.0<=s['player']['x']<51.8 and abs(s['player']['y']-63)<.01,('abutment landing failed',s['player'])
 show(s,'abutment top')
 for x in [52,53]:
  before=sum(e['count'] for e in s['inventory'] if e and e['item_type']=='Planks')
@@ -109,7 +123,7 @@ show(s,'signal')
 assert s['trial']['stage']=='complete',s['trial']
 call('leave_world',{});s=call('enter_world',{'id':'audit'});assert s['trial']['stage']=='complete'
 call('leave_world',{});p.stdin.close();p.wait(timeout=8)
-report={'status':'passed','binary_sha256':hashlib.sha256(pathlib.Path(binary).read_bytes()).hexdigest(),'calls':seq,'simulated_ticks':simulated_ticks,'stage':s['trial']['stage'],'player':s['player'],'normal_inventory_and_placement_rules':True,'save_reopen':True,'limits':'Deterministic scripted actions with known map coordinates through real stdio MCP. No teleport/loadout or state edits. Excludes human enjoyment and emulator/WAN latency.'}
+report={'status':'passed','binary_sha256':hashlib.sha256(pathlib.Path(binary).read_bytes()).hexdigest(),'calls':seq,'simulated_ticks':simulated_ticks,'stage':s['trial']['stage'],'player':s['player'],'abutment_wait_ticks':abutment_wait_ticks,'abutment_landing_observed':True,'normal_inventory_and_placement_rules':True,'save_reopen':True,'limits':'Scripted actions reacting to normal observations with known map coordinates through real stdio MCP. No teleport/loadout or state edits. Excludes human enjoyment and emulator/WAN latency.'}
 if args.keep_world:report['world_root']=str(root)
 if args.report:args.report.write_text(json.dumps(report,indent=2)+'\n')
 print(json.dumps(report))

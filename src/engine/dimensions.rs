@@ -163,6 +163,13 @@ impl GameState {
         self.current_dimension = dimension;
     }
     pub(super) fn travel_dimension(&mut self, dimension: Dimension) {
+        if dimension != self.current_dimension {
+            // Player references index the current world's vectors/coordinates.
+            // Keep the boat in its source world, never mount a destination boat
+            // that happens to occupy the same vector index.
+            self.mounted_boat = None;
+            self.clear_fishing_line();
+        }
         self.select_dimension(dimension);
         if let Some(id) = self.active_peer {
             self.cooperative_dimensions.insert(id, dimension);

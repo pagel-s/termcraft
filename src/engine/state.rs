@@ -4074,6 +4074,7 @@ impl GameState {
         self.player.health = self.player.max_health;
         self.player.hunger = self.player.max_hunger;
 
+        self.mounted_boat = None;
         self.travel_dimension(Dimension::Overworld);
         let (spawn_x, spawn_y) = self.resolve_overworld_spawn_location();
         self.player.x = spawn_x as f64 + 0.5;
