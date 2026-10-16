@@ -26,7 +26,24 @@ impl World {
     /// Reverse shortest paths preserve destination attenuation (air 1, solid 3).
     /// No source can contribute from beyond 14 cells, so work is strictly bounded.
     pub fn block_light_at(&self, x: i32, y: i32) -> u8 {
+        self.light_at(x, y, 0)
+    }
+
+    /// Artificial light plus daylight entering caves/windows, with bounded propagation.
+    pub fn light_at(&self, x: i32, y: i32, skylight: u8) -> u8 {
         const WIDTH: usize = 31;
+        let mut sky_floor = [CHUNK_HEIGHT as i32; WIDTH];
+        if skylight > 0 {
+            for (column, floor) in sky_floor.iter_mut().enumerate() {
+                let wx = x + column as i32 - 15;
+                *floor = (0..CHUNK_HEIGHT as i32)
+                    .find(|&wy| {
+                        let block = self.get_block(wx, wy);
+                        block.is_solid() && block != BlockType::Glass
+                    })
+                    .unwrap_or(CHUNK_HEIGHT as i32);
+            }
+        }
         let mut costs = [u8::MAX; WIDTH * WIDTH];
         let center = 15 * WIDTH + 15;
         costs[center] = 0;
@@ -45,7 +62,12 @@ impl World {
                 continue;
             }
             let block = self.get_block(wx, wy);
-            brightest = brightest.max(block.emitted_light().saturating_sub(cost));
+            let emission = block.emitted_light().max(if wy < sky_floor[index % WIDTH] {
+                skylight.min(15)
+            } else {
+                0
+            });
+            brightest = brightest.max(emission.saturating_sub(cost));
             let next_cost = cost + if block.is_solid() { 3 } else { 1 };
             if next_cost >= 15 {
                 continue;
@@ -72,6 +94,25 @@ impl World {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn daylight_reaches_under_a_cave_lip_without_passing_through_the_roof() {
+        let mut world = World::network_replica(super::super::Dimension::Overworld);
+        for cx in -2..=2 {
+            world.apply_chunk_column_snapshot(
+                cx,
+                &vec![BlockType::Air; super::super::CHUNK_WIDTH * CHUNK_HEIGHT],
+            );
+        }
+        for x in 0..=48 {
+            for y in 0..20 {
+                world.set_block(x, y, BlockType::Stone);
+            }
+        }
+        assert!(world.light_at(1, 21, 15) > 0);
+        assert_eq!(world.light_at(20, 21, 15), 0);
+        assert_eq!(world.block_light_at(1, 21), 0);
+    }
+
     #[test]
     fn light_falls_off_through_air_and_stone_and_tracks_source_removal() {
         let mut world = World::network_replica(super::super::Dimension::Overworld);

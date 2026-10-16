@@ -1238,9 +1238,7 @@ impl World {
                                     // Chance to grow based on moisture
                                     let grow_chance = if moisture > 0 { 0.05 } else { 0.0125 };
                                     if rng.gen_bool(grow_chance)
-                                        && ((self.farming_skylight >= 9
-                                            && self.has_open_sky(wx, wy))
-                                            || self.block_light_at(wx, wy) >= 9)
+                                        && self.light_at(wx, wy, self.farming_skylight) >= 9
                                     {
                                         changes.push((wx, wy, BlockType::Crops(stage + 1)));
                                     }

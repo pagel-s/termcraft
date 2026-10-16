@@ -7993,7 +7993,8 @@ impl GameState {
             })
             .filter(|&y| !daylight || !self.world.has_open_sky(x, y - 1))
             .filter(|&y| {
-                self.world.block_light_at(x, y - 1) == 0 && self.world.block_light_at(x, y - 2) == 0
+                self.world.light_at(x, y - 1, if daylight { 15 } else { 0 }) == 0
+                    && self.world.light_at(x, y - 2, if daylight { 15 } else { 0 }) == 0
             })
             .min_by_key(|&y| (y - reference_y).abs())
             .map(|y| y as f64 - 0.1)

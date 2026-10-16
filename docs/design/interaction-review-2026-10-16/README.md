@@ -16,7 +16,8 @@ chosen pixel artwork and corrects the actual interaction paths.
   Downsampling is mirrored after sampling, so turning no longer changes the body
   silhouette. F5/F6/F7 use the regular world and renderer paths, not alternate art.
 - **Cave spawning:** new Overworld hostiles require no artificial light at their
-  body cells. Daytime surface spawning is rejected, while dark caves can spawn
+  body cells. Propagated daylight at cave entrances also prevents natural spawning.
+  Daytime surface spawning is rejected, while dark caves can spawn
   during the day. Floors are selected near the current cave level. Natural spawns
   stay at least 24 blocks from players. Dungeon and silverfish spawners activate
   within 20 blocks, respect light, wait 4.5–7.5 seconds between attempts, keep four
@@ -30,7 +31,7 @@ chosen pixel artwork and corrects the actual interaction paths.
   regeneration requires solid ground or source water beneath. Buckets can pour
   at the player's feet and pick the source back up. Clicking farmland with seeds
   plants above that soil, regardless of approach direction. Unsupported mature
-  wheat drops wheat and seed. Crop growth requires daylight access or artificial
+  wheat drops wheat and seed. Crop growth requires propagated daylight or artificial
   light level 9; hydrated/dry growth averages about 140/560 seconds to maturity.
   Soil dries more slowly. The existing four-block, shallow-root irrigation rule
   remains compatible with village beds and their subsurface channels.
@@ -41,10 +42,10 @@ chosen pixel artwork and corrects the actual interaction paths.
   before/after census files. These are fresh chunks; existing saved deposits and
   structures are not regenerated.
 
-Verification: 696 Rust tests; four real localhost TCP/MCP integration tests;
+Verification: 697 Rust tests; four real localhost TCP/MCP integration tests;
 Linux native/cooperative PTY movement, jump, focus and all-view door checks.
-`native-input.json` records the movement/door checks before the final held-gear
-lighting correction. `native-actions.json` checks the final game build in both
+`native-input.json` records the movement/door checks before the final held-gear and cave-entrance
+lighting corrections. `native-actions.json` checks the current game build in both
 solo and co-op PTYs: all three zooms draw the bow, shots consume exactly one arrow,
 and aiming at distant terrain still allows eating. Terminal restoration passes. Native save v8 and
 server checkpoint v2 remain compatible; transient presentation state is not saved.

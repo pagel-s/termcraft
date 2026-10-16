@@ -261,7 +261,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     // Confirm held gear uses the same readable cave fill as the body.
     for x in -20..=20 {
-        s.world.set_block(x, 34, BlockType::Stone);
+        for y in 0..40 {
+            s.world.set_block(
+                x,
+                y,
+                if y <= 34 {
+                    BlockType::Stone
+                } else {
+                    BlockType::Air
+                },
+            );
+        }
     }
     s.world.set_block(-2, 39, BlockType::Torch);
     s.time_of_day = 22000.0;

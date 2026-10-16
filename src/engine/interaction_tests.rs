@@ -9,7 +9,9 @@ fn cave() -> GameState {
             .apply_chunk_column_snapshot(cx, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
     }
     for x in -24..=24 {
-        s.world.set_block(x, 55, BlockType::Stone);
+        for y in 35..=55 {
+            s.world.set_block(x, y, BlockType::Stone);
+        }
         s.world.set_block(x, 60, BlockType::Stone);
     }
     s.player.x = 18.5;
@@ -23,7 +25,9 @@ fn cave_spawning_requires_darkness_and_checks_the_local_floor() {
     s.world.set_block(1, 59, BlockType::Torch);
     assert_eq!(s.dark_spawn_floor_near(0, 60, 4, true), None);
     s.world.set_block(1, 59, BlockType::Air);
-    s.world.set_block(0, 55, BlockType::Air);
+    for y in 35..=55 {
+        s.world.set_block(0, y, BlockType::Air);
+    }
     assert_eq!(s.dark_spawn_floor_near(0, 60, 4, true), None);
     assert_eq!(s.dark_spawn_floor_near(0, 60, 4, false), Some(59.9));
 }

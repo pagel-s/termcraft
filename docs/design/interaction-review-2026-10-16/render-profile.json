@@ -1,0 +1,266 @@
+{
+  "color_mode": "color",
+  "limits": "Real renderer and ANSI encoding to a counting writer; excludes emulator presentation, kernel I/O, simulation, model and networking.",
+  "results": [
+    {
+      "bytes": 52060,
+      "frames": 210,
+      "p50_ms": 0.907253,
+      "p95_ms": 0.927987,
+      "p99_ms": 1.119879,
+      "scene": "daylight",
+      "viewport": [
+        120,
+        40
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 120266,
+      "frames": 210,
+      "p50_ms": 2.148672,
+      "p95_ms": 2.188629,
+      "p99_ms": 2.270732,
+      "scene": "daylight",
+      "viewport": [
+        200,
+        60
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 119688,
+      "frames": 210,
+      "p50_ms": 1.1053689999999998,
+      "p95_ms": 1.1264319999999999,
+      "p99_ms": 1.237499,
+      "scene": "storm",
+      "viewport": [
+        120,
+        40
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 270463,
+      "frames": 210,
+      "p50_ms": 2.641997,
+      "p95_ms": 4.334962,
+      "p99_ms": 4.7017500000000005,
+      "scene": "storm",
+      "viewport": [
+        200,
+        60
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 137320,
+      "frames": 210,
+      "p50_ms": 1.125158,
+      "p95_ms": 1.144871,
+      "p99_ms": 1.2348599999999998,
+      "scene": "torch_cave",
+      "viewport": [
+        120,
+        40
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 267024,
+      "frames": 210,
+      "p50_ms": 2.636796,
+      "p95_ms": 2.681686,
+      "p99_ms": 2.818492,
+      "scene": "torch_cave",
+      "viewport": [
+        200,
+        60
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 83589,
+      "frames": 210,
+      "p50_ms": 1.139113,
+      "p95_ms": 1.163071,
+      "p99_ms": 1.234392,
+      "scene": "rooms",
+      "viewport": [
+        120,
+        40
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 171048,
+      "frames": 210,
+      "p50_ms": 2.5260510000000003,
+      "p95_ms": 2.5648530000000003,
+      "p99_ms": 2.640162,
+      "scene": "rooms",
+      "viewport": [
+        200,
+        60
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 77109,
+      "frames": 210,
+      "p50_ms": 1.040439,
+      "p95_ms": 1.05639,
+      "p99_ms": 1.206896,
+      "scene": "village",
+      "viewport": [
+        120,
+        40
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 155293,
+      "frames": 210,
+      "p50_ms": 2.32023,
+      "p95_ms": 4.0939499999999995,
+      "p99_ms": 4.422243,
+      "scene": "village",
+      "viewport": [
+        200,
+        60
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 63217,
+      "frames": 210,
+      "p50_ms": 1.0101520000000002,
+      "p95_ms": 1.074654,
+      "p99_ms": 1.1917099999999998,
+      "scene": "dense_mobs",
+      "viewport": [
+        120,
+        40
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 138310,
+      "frames": 210,
+      "p50_ms": 2.3079419999999997,
+      "p95_ms": 2.39942,
+      "p99_ms": 2.552701,
+      "scene": "dense_mobs",
+      "viewport": [
+        200,
+        60
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 62301,
+      "frames": 210,
+      "p50_ms": 1.1700490000000001,
+      "p95_ms": 1.245131,
+      "p99_ms": 1.33808,
+      "scene": "dense_items",
+      "viewport": [
+        120,
+        40
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 136126,
+      "frames": 210,
+      "p50_ms": 2.491073,
+      "p95_ms": 2.638534,
+      "p99_ms": 2.664738,
+      "scene": "dense_items",
+      "viewport": [
+        200,
+        60
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 55106,
+      "frames": 210,
+      "p50_ms": 0.5410820000000001,
+      "p95_ms": 0.596189,
+      "p99_ms": 0.671707,
+      "scene": "nether",
+      "viewport": [
+        120,
+        40
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 134055,
+      "frames": 210,
+      "p50_ms": 1.225199,
+      "p95_ms": 1.321187,
+      "p99_ms": 1.3917840000000001,
+      "scene": "nether",
+      "viewport": [
+        200,
+        60
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 43448,
+      "frames": 210,
+      "p50_ms": 0.421711,
+      "p95_ms": 0.44557800000000003,
+      "p99_ms": 0.490395,
+      "scene": "end",
+      "viewport": [
+        120,
+        40
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 110639,
+      "frames": 210,
+      "p50_ms": 0.980526,
+      "p95_ms": 1.052967,
+      "p99_ms": 1.094459,
+      "scene": "end",
+      "viewport": [
+        200,
+        60
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 98778,
+      "frames": 210,
+      "p50_ms": 0.38738100000000003,
+      "p95_ms": 0.404441,
+      "p99_ms": 0.45414099999999996,
+      "scene": "end_dragon",
+      "viewport": [
+        120,
+        40
+      ],
+      "write_calls": 210
+    },
+    {
+      "bytes": 143539,
+      "frames": 210,
+      "p50_ms": 0.838141,
+      "p95_ms": 0.926226,
+      "p99_ms": 1.0357610000000002,
+      "scene": "end_dragon",
+      "viewport": [
+        200,
+        60
+      ],
+      "write_calls": 210
+    }
+  ]
+}

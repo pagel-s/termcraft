@@ -1,6 +1,6 @@
 {
   "status": "passed",
-  "binary_sha256": "25e171bebdb033993bcb94307a1ea65fb80aeb4a0ec9be6eb9185991acb0b2c3",
+  "binary_sha256": "8a22b48da8adac2e0e43ddb3be764265b2a585008e996294491796823d9e6194",
   "checks": [
     {
       "mode": "native",
@@ -16,12 +16,12 @@
         61
       ],
       "distant_food_use": true,
-      "captures": "/tmp/termcraft-action-input-ymks577t/native/captures",
+      "captures": "/tmp/termcraft-action-input-70sjwzys/native/captures",
       "terminal_restored": true,
       "keyboard_queries": 1,
-      "bytes": 494614,
-      "synchronized_frames_started": 409,
-      "synchronized_frames_finished": 410
+      "bytes": 495232,
+      "synchronized_frames_started": 408,
+      "synchronized_frames_finished": 409
     },
     {
       "mode": "coop",
@@ -37,12 +37,12 @@
         61
       ],
       "distant_food_use": true,
-      "captures": "/tmp/termcraft-action-input-ymks577t/coop/captures",
+      "captures": "/tmp/termcraft-action-input-70sjwzys/coop/captures",
       "terminal_restored": true,
       "keyboard_queries": 1,
-      "bytes": 430377,
-      "synchronized_frames_started": 383,
-      "synchronized_frames_finished": 384
+      "bytes": 429176,
+      "synchronized_frames_started": 385,
+      "synchronized_frames_finished": 386
     }
   ],
   "limits": "Real PTY actions and screen captures; pose change, ammunition and food counts checked. Does not measure emulator latency or establish art acceptance."
