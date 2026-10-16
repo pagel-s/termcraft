@@ -1,10 +1,15 @@
-# Termcraft world atlas, 15 October 2026
+# Termcraft world atlas, refreshed 16 October 2026
 
-[Open the gallery](index.html). It contains **95 scenes and 213 views**, including
-three animations, refreshed after the swamp, frontal-dragon, ore and material
-refinements, the Nether/gallery follow-up in `846ea2e`, and the portal/glowstone
-behavior checks on `beta/terminal-reborn`. All 95 scenes were recaptured from
-[`d48fe93`](https://github.com/pagel-s/termcraft/commit/d48fe93f8d4f384e73e17ceed42c616a3b0f6cc6), including the new crystal/portal materials and eight independent co-op scenes.
+[Open the gallery](index.html). All **112 scenes and 267 views**, including six
+animations, were freshly captured with the current renderer. The 17 new action
+scenes show actual swings/mining, bow draw/release in both directions, eating,
+buckets, tilling/planting, a torch-lit cave and F5/F6/F7 travel at all three colour
+zooms. Three new motion sequences show those actions continuously. The middle
+colour zoom now retains the pixel art rather than switching to legacy glyphs.
+
+See the [interaction review](../interaction-review-2026-10-16/README.md) for the
+simulation fixes, ore census and actual native/co-op PTY checks. Source, capture
+binary, input and output hashes are recorded in [evidence.json](evidence.json).
 
 The original gallery checkpoint is preserved in Git at `40f3e11`. This refresh
 captures current gameplay/art: Swamp hummocks/trees/reeds, bounded ore deposits,

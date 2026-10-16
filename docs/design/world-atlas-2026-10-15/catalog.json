@@ -157,7 +157,7 @@
           "file": "biome-swamp-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "9329875537179cdc"
+          "revision": "6315d73ce0d497e2"
         },
         {
           "mode": "detail",
@@ -447,7 +447,7 @@
           "file": "coop-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "7131b2ccd9376ec9"
+          "revision": "8d93d2ab0d6ab880"
         },
         {
           "mode": "detail",
@@ -455,7 +455,7 @@
           "file": "coop-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "fc454a94bbfdb1c6"
+          "revision": "4efc3e9c4f9cf91e"
         }
       ],
       "origin": "Staged actors",
@@ -563,7 +563,7 @@
           "file": "ore-cave-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "08682d77485dc480"
+          "revision": "24a1f8683f0171a3"
         },
         {
           "mode": "detail",
@@ -571,7 +571,7 @@
           "file": "ore-cave-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "dddcacbb5de059a3"
+          "revision": "7a99629317d3006d"
         }
       ],
       "origin": "Generated + light",
@@ -592,7 +592,7 @@
           "file": "mining-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "dff4315f705f4024"
+          "revision": "43144f1ed0142a98"
         },
         {
           "mode": "detail",
@@ -600,7 +600,7 @@
           "file": "mining-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "d4f3ca1fb983368a"
+          "revision": "fca3d6b173d20ae2"
         }
       ],
       "origin": "Staged action",
@@ -621,7 +621,7 @@
           "file": "deep-cave-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "3bcd3380d39e9e96"
+          "revision": "3a120f9d2c388047"
         },
         {
           "mode": "detail",
@@ -629,7 +629,7 @@
           "file": "deep-cave-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "77631fcd6c8a324b"
+          "revision": "4c014e3bc4b3654c"
         }
       ],
       "origin": "Generated + light",
@@ -650,7 +650,7 @@
           "file": "ravine-cave-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "4e5930bbe9741b62"
+          "revision": "6e3c866f23fb3b15"
         },
         {
           "mode": "detail",
@@ -679,7 +679,7 @@
           "file": "dungeon-skeleton-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "1bfd3df3dcdf3b34"
+          "revision": "53613392f104083e"
         },
         {
           "mode": "detail",
@@ -737,7 +737,7 @@
           "file": "stronghold-panorama-00.png",
           "columns": 400,
           "rows": 80,
-          "revision": "a017d7586350c89c"
+          "revision": "37ba889297fec034"
         },
         {
           "mode": "overview",
@@ -745,7 +745,7 @@
           "file": "stronghold-panorama-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "561199ea8698c350"
+          "revision": "2e3aa52d2f095968"
         },
         {
           "mode": "detail",
@@ -774,7 +774,7 @@
           "file": "stronghold-portal-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "a43660c504ce3191"
+          "revision": "0c137fe128fc0784"
         },
         {
           "mode": "detail",
@@ -803,7 +803,7 @@
           "file": "stronghold-library-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "f37f4040ded9d11e"
+          "revision": "75d1d29ccdc56ac9"
         },
         {
           "mode": "detail",
@@ -832,7 +832,7 @@
           "file": "stronghold-silverfish-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "226feb29d385eb49"
+          "revision": "72c42e6b74551e8f"
         },
         {
           "mode": "detail",
@@ -861,7 +861,7 @@
           "file": "stronghold-staging-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "138c26c1d21363d2"
+          "revision": "321151e82808a7b4"
         },
         {
           "mode": "detail",
@@ -869,7 +869,7 @@
           "file": "stronghold-staging-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "df0fa02ec35888ae"
+          "revision": "2cbfc497392276b9"
         }
       ],
       "origin": "Generated",
@@ -890,7 +890,7 @@
           "file": "stronghold-upper-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "dbfc9a0a3f480586"
+          "revision": "11434f358ef6c976"
         },
         {
           "mode": "detail",
@@ -898,7 +898,7 @@
           "file": "stronghold-upper-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "74598560e3a6e0bc"
+          "revision": "2e4799974d4ed4d0"
         }
       ],
       "origin": "Generated",
@@ -919,7 +919,7 @@
           "file": "stronghold-active-portal-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "85f6b3c8b9b620e7"
+          "revision": "d9d7c64e9cb1088e"
         },
         {
           "mode": "detail",
@@ -1584,12 +1584,12 @@
           "revision": "b4c83ddb756ad695"
         },
         {
-          "mode": "glyphs",
-          "label": "Glyphs",
+          "mode": "wide",
+          "label": "Wide",
           "file": "glowstone-dark-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "060be431f24a22e6"
+          "revision": "3f90dfd3cee3d70b"
         },
         {
           "mode": "detail",
@@ -1618,15 +1618,15 @@
           "file": "glowstone-lit-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "c931630346109789"
+          "revision": "173dfe2db29eee0d"
         },
         {
-          "mode": "glyphs",
-          "label": "Glyphs",
+          "mode": "wide",
+          "label": "Wide",
           "file": "glowstone-lit-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "e5ca2a4a241fb99d"
+          "revision": "bb0316f34dd5cf50"
         },
         {
           "mode": "detail",
@@ -1634,7 +1634,7 @@
           "file": "glowstone-lit-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "ec506a0cedca6300"
+          "revision": "ae0f2e667fd4b520"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1655,15 +1655,15 @@
           "file": "portal-ignition-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "9ecdfa04165e68ef"
+          "revision": "490289d82946b023"
         },
         {
-          "mode": "glyphs",
-          "label": "Glyphs",
+          "mode": "wide",
+          "label": "Wide",
           "file": "portal-ignition-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "dc1df6b2af1cd86d"
+          "revision": "f44067b4023b4743"
         },
         {
           "mode": "detail",
@@ -1671,7 +1671,7 @@
           "file": "portal-ignition-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "107502310ca3cc49"
+          "revision": "8cfba4042a3df714"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1692,15 +1692,15 @@
           "file": "portal-nether-arrival-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "1aa854c048806e30"
+          "revision": "2692ceee4bc37afc"
         },
         {
-          "mode": "glyphs",
-          "label": "Glyphs",
+          "mode": "wide",
+          "label": "Wide",
           "file": "portal-nether-arrival-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "1e19ff9fd94b313b"
+          "revision": "79e2302f89a12f31"
         },
         {
           "mode": "detail",
@@ -1708,7 +1708,7 @@
           "file": "portal-nether-arrival-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "69185bbc9821d003"
+          "revision": "c6d906bd4fcead01"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1729,15 +1729,15 @@
           "file": "portal-return-workshop-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "980fc4af31f06a62"
+          "revision": "c87b300482d89e77"
         },
         {
-          "mode": "glyphs",
-          "label": "Glyphs",
+          "mode": "wide",
+          "label": "Wide",
           "file": "portal-return-workshop-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "92ab7fa8e827ee2f"
+          "revision": "8010052af40c5c99"
         },
         {
           "mode": "detail",
@@ -1745,7 +1745,7 @@
           "file": "portal-return-workshop-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "ffedc631ea88442b"
+          "revision": "46038b7a2ea7c5f8"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1766,15 +1766,15 @@
           "file": "portal-extinguished-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "a40c76387c5f48f6"
+          "revision": "052271d3c80f885c"
         },
         {
-          "mode": "glyphs",
-          "label": "Glyphs",
+          "mode": "wide",
+          "label": "Wide",
           "file": "portal-extinguished-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "5b602dc9f10c6551"
+          "revision": "cf2c7a7cd6776ed3"
         },
         {
           "mode": "detail",
@@ -1782,7 +1782,7 @@
           "file": "portal-extinguished-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "35b45173d99f682e"
+          "revision": "fe3ff673435a306e"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1803,15 +1803,15 @@
           "file": "portal-end-activation-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "675e082b5a563082"
+          "revision": "91f5c9a53c509748"
         },
         {
-          "mode": "glyphs",
-          "label": "Glyphs",
+          "mode": "wide",
+          "label": "Wide",
           "file": "portal-end-activation-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "a388e4a7f57a1e2a"
+          "revision": "08e9903e12b962c3"
         },
         {
           "mode": "detail",
@@ -1819,7 +1819,7 @@
           "file": "portal-end-activation-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "3391764d2198b35e"
+          "revision": "4cbc148786e89ea1"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1840,15 +1840,15 @@
           "file": "portal-end-arrival-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "5195870640c566c6"
+          "revision": "f5ed1b43adb61d05"
         },
         {
-          "mode": "glyphs",
-          "label": "Glyphs",
+          "mode": "wide",
+          "label": "Wide",
           "file": "portal-end-arrival-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "0c37a2b59c33a396"
+          "revision": "974875d33dee8d62"
         },
         {
           "mode": "detail",
@@ -1856,7 +1856,7 @@
           "file": "portal-end-arrival-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "7a569c2634e647ac"
+          "revision": "72024133d2f18354"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1877,15 +1877,15 @@
           "file": "portal-end-return-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "035d825b6fc864c5"
+          "revision": "5e82dbe6150fce08"
         },
         {
-          "mode": "glyphs",
-          "label": "Glyphs",
+          "mode": "wide",
+          "label": "Wide",
           "file": "portal-end-return-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "d94a9cd727b2ab4f"
+          "revision": "28758d63d895cb61"
         },
         {
           "mode": "detail",
@@ -1893,7 +1893,7 @@
           "file": "portal-end-return-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "fd40be468bb43852"
+          "revision": "03913623cd300fe2"
         }
       ],
       "origin": "Scripted gameplay",
@@ -1901,6 +1901,625 @@
       "title": "End portal \u00b7 stronghold return",
       "x": 640.5,
       "y": 90.9
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-sword",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-sword-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "9e9c4ff4fd06fe22"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-sword-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "4c621b67e7bdb505"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-sword-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "06fdc75325b62adc"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Sword \u00b7 swing into empty air"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-pickaxe",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-pickaxe-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "b2dbb06c5a9b1397"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-pickaxe-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "bbdc305f2d5599a0"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-pickaxe-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "4d9dd7007764758f"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Pickaxe \u00b7 mining"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-axe",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-axe-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "2fcdb1e7be3eb967"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-axe-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "801269f4e73200e1"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-axe-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "6b07bbee06098f82"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Axe \u00b7 swing"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-shovel",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-shovel-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "10a159c8c8bceb29"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-shovel-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "11e6156508ec8aaa"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-shovel-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "1f0e8509c2f0aaf5"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Shovel \u00b7 swing"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-hoe",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-hoe-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "0a753b7552453306"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-hoe-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "4c433af74c812c9a"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-hoe-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "ec7936cb1bc68cc9"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Hoe \u00b7 tilling"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-bow-right",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-bow-right-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "339b8a672d45b274"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-bow-right-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "59c4d0beba17749d"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-bow-right-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "33773b45091b56a8"
+        },
+        {
+          "mode": "motion-overview",
+          "label": "Actions in motion \u00b7 overview",
+          "file": "actions-overview.gif",
+          "columns": 160,
+          "rows": 48,
+          "revision": "c202bf36ec56460d"
+        },
+        {
+          "mode": "motion-wide",
+          "label": "Actions in motion \u00b7 wide",
+          "file": "actions-wide.gif",
+          "columns": 160,
+          "rows": 48,
+          "revision": "1d1ca052bc0d835f"
+        },
+        {
+          "mode": "motion-detail",
+          "label": "Actions in motion \u00b7 detail",
+          "file": "actions-detail.gif",
+          "columns": 160,
+          "rows": 48,
+          "revision": "3af5ad9f41a4b1d7"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Bow \u00b7 fully drawn, aimed and nocked"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-bow-right-release",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-bow-right-release-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "8006f9c2972ba627"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-bow-right-release-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "d6c93e33a170d63b"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-bow-right-release-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "baac722556d13e1c"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Bow \u00b7 release and arrow"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-bow-left",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-bow-left-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "4a3ec20f48f271b6"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-bow-left-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "efcba0d478993f2a"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-bow-left-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "8063fa872494eb17"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Bow \u00b7 fully drawn, aimed and nocked"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-bow-left-release",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-bow-left-release-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "ada9379a02107f74"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-bow-left-release-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "b59ec8fea679e58b"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-bow-left-release-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "53416deb406f02f6"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Bow \u00b7 release and arrow"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-eating",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-eating-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "9618f27a8a5599a3"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-eating-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "f4f18049d66a62cc"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-eating-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "482d42876f244405"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Eating \u00b7 last bread remains visible"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-pouring",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-pouring-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "158ea461e053900a"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-pouring-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "7ce0c98ddf631ea1"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-pouring-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "339b086227427136"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Bucket \u00b7 water source placement"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-tilling",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-tilling-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "9052f40e88fd28f3"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-tilling-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "d05785524a8ebe63"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-tilling-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "ed9ca2d2a2a61c04"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Hoe \u00b7 irrigated farmland"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-planting",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-planting-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "4cac1646b097c555"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-planting-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "cd06cb4d48b62f5f"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-planting-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "9a1ea7cc088d9066"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Seeds \u00b7 click farmland to plant"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-cave-bow",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-cave-bow-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "930a562c1b2d34eb"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-cave-bow-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "60001deaff3184db"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-cave-bow-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "2f46c93faaecf6c4"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Bow \u00b7 torch-lit cave"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Nether",
+      "id": "action-travel-nether",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-travel-nether-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "c7c581d98e6c1471"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-travel-nether-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "30bbaa0135b54793"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-travel-nether-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "347ee0db5bf917e0"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Quick travel \u00b7 same pixel renderer"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "End",
+      "id": "action-travel-end",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-travel-end-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "946dcef07966a9b2"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-travel-end-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "c4dc20edd591cf93"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-travel-end-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "5774920805835866"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Quick travel \u00b7 same pixel renderer"
+    },
+    {
+      "caption": "Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.",
+      "category": "Actions & tools",
+      "dimension": "Overworld",
+      "id": "action-travel-overworld",
+      "images": [
+        {
+          "mode": "overview",
+          "label": "Overview",
+          "file": "action-travel-overworld-00.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "3ccf972fd219869f"
+        },
+        {
+          "mode": "wide",
+          "label": "Wide",
+          "file": "action-travel-overworld-01.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "55565998a5900412"
+        },
+        {
+          "mode": "detail",
+          "label": "Detail",
+          "file": "action-travel-overworld-02.png",
+          "columns": 160,
+          "rows": 48,
+          "revision": "30e0f93aa577e6c6"
+        }
+      ],
+      "origin": "Scripted gameplay",
+      "source": "examples/interaction_review.rs",
+      "title": "Quick travel \u00b7 same pixel renderer"
     },
     {
       "caption": "Staged room, frame and starting tools; normal ignition/travel/movement commands. This view uses the native client's snapshot and terrain handlers. Socket transport is tested separately; this is not a human co-op recording.",
@@ -1914,7 +2533,7 @@
           "file": "coop-together-player-1-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "92fea6fec905a75b"
+          "revision": "717e33f3a15f1141"
         },
         {
           "mode": "detail",
@@ -1922,7 +2541,7 @@
           "file": "coop-together-player-1-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "c972a7e470b11f7f"
+          "revision": "8eb66798c2c41964"
         }
       ],
       "origin": "Scripted replicated gameplay",
@@ -1943,7 +2562,7 @@
           "file": "coop-together-player-2-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "46f425cb3ab0e546"
+          "revision": "e42c1b8ac1bdf8fa"
         },
         {
           "mode": "detail",
@@ -1951,7 +2570,7 @@
           "file": "coop-together-player-2-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "9276e45191de84fd"
+          "revision": "7b04f54fa5fc599f"
         }
       ],
       "origin": "Scripted replicated gameplay",
@@ -1972,7 +2591,7 @@
           "file": "coop-apart-player-1-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "3ca4fa84456e198e"
+          "revision": "f8eff871ce4dbcf1"
         },
         {
           "mode": "detail",
@@ -1980,7 +2599,7 @@
           "file": "coop-apart-player-1-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "d879b3dcb0348092"
+          "revision": "12fc30b9c91dff9d"
         }
       ],
       "origin": "Scripted replicated gameplay",
@@ -2001,7 +2620,7 @@
           "file": "coop-apart-player-2-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "91a90f0b62197d53"
+          "revision": "eba8cd6e9092575e"
         },
         {
           "mode": "detail",
@@ -2009,7 +2628,7 @@
           "file": "coop-apart-player-2-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "4f69bf2bde5c3132"
+          "revision": "289b965e2aaf0a39"
         }
       ],
       "origin": "Scripted replicated gameplay",
@@ -2030,7 +2649,7 @@
           "file": "coop-nether-player-1-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "993edaa5cb062c91"
+          "revision": "128080f1c7f0ef58"
         },
         {
           "mode": "detail",
@@ -2038,7 +2657,7 @@
           "file": "coop-nether-player-1-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "6b85d09e1726a6c8"
+          "revision": "379ec33aea93b218"
         }
       ],
       "origin": "Scripted replicated gameplay",
@@ -2059,7 +2678,7 @@
           "file": "coop-nether-player-2-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "d76ca305b456359f"
+          "revision": "d98ba13d9f7e1532"
         },
         {
           "mode": "detail",
@@ -2067,7 +2686,7 @@
           "file": "coop-nether-player-2-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "2df472d38740b480"
+          "revision": "f824ad9135d40adc"
         }
       ],
       "origin": "Scripted replicated gameplay",
@@ -2088,7 +2707,7 @@
           "file": "coop-return-player-1-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "9f8cb8771fa2d1e3"
+          "revision": "90072322c64df3d3"
         },
         {
           "mode": "detail",
@@ -2096,7 +2715,7 @@
           "file": "coop-return-player-1-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "0341b1771c4daef2"
+          "revision": "16478baefe06749d"
         }
       ],
       "origin": "Scripted replicated gameplay",
@@ -2117,7 +2736,7 @@
           "file": "coop-return-player-2-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "cbedbfa094d04a92"
+          "revision": "18ce59711fb55e1c"
         },
         {
           "mode": "detail",
@@ -2125,7 +2744,7 @@
           "file": "coop-return-player-2-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "c0173be7c436abc0"
+          "revision": "8135353a88aaf7b2"
         }
       ],
       "origin": "Scripted replicated gameplay",
@@ -2594,7 +3213,7 @@
           "file": "entities-poses-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "2af7af9c89d3152e"
+          "revision": "7df831977757baf2"
         },
         {
           "mode": "normal",
@@ -2602,7 +3221,7 @@
           "file": "entities-poses-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "d53988c094a920d7"
+          "revision": "8e33e96df52871fb"
         },
         {
           "mode": "small",
@@ -2610,7 +3229,7 @@
           "file": "entities-poses-02.png",
           "columns": 120,
           "rows": 40,
-          "revision": "972943267319a318"
+          "revision": "57aceadf34040e18"
         }
       ]
     },
@@ -2664,7 +3283,7 @@
           "file": "trial-camp-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "40f31ee621b1330d"
+          "revision": "782a64c655cb9f12"
         }
       ]
     },
@@ -2683,7 +3302,7 @@
           "file": "trial-combat-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "29300848a83b235f"
+          "revision": "6f3c2fbc322aae97"
         },
         {
           "mode": "hurt",
@@ -2691,7 +3310,7 @@
           "file": "trial-combat-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "229c4e05f59f50be"
+          "revision": "3f4f6764183823f8"
         },
         {
           "mode": "strike",
@@ -2699,7 +3318,7 @@
           "file": "trial-combat-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "4358c8ac26da1989"
+          "revision": "5816d3aee268fe59"
         },
         {
           "mode": "follow-through",
@@ -2707,7 +3326,7 @@
           "file": "trial-combat-03.png",
           "columns": 160,
           "rows": 48,
-          "revision": "256dbf90c1794c57"
+          "revision": "40993d5bb1dfec76"
         },
         {
           "mode": "recovery",
@@ -2715,7 +3334,7 @@
           "file": "trial-combat-04.png",
           "columns": 160,
           "rows": 48,
-          "revision": "08963d09f418a86b"
+          "revision": "3de884dc71115488"
         }
       ]
     },
@@ -2734,7 +3353,7 @@
           "file": "trial-jump-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "4d602dfd73bf5da4"
+          "revision": "e62537cec9059766"
         },
         {
           "mode": "descent",
@@ -2742,7 +3361,7 @@
           "file": "trial-jump-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "af66aaee6b7015c8"
+          "revision": "1da7d99486432654"
         }
       ]
     },
@@ -2761,7 +3380,7 @@
           "file": "trial-ravine-00.png",
           "columns": 160,
           "rows": 48,
-          "revision": "2ca44d9e315a56e6"
+          "revision": "e45c2afd133570f3"
         }
       ]
     },
@@ -2918,6 +3537,21 @@
         "file": "shelter-snow.gif",
         "frames": 48,
         "limits": "Staged renderer samples, not achieved FPS or an emulator recording."
+      },
+      {
+        "file": "actions-overview.gif",
+        "frames": 64,
+        "limits": "Actual scripted actions; software renderer samples, not terminal latency."
+      },
+      {
+        "file": "actions-wide.gif",
+        "frames": 64,
+        "limits": "Actual scripted actions; software renderer samples, not terminal latency."
+      },
+      {
+        "file": "actions-detail.gif",
+        "frames": 64,
+        "limits": "Actual scripted actions; software renderer samples, not terminal latency."
       }
     ],
     "limits": "Generated terrain, staged actors, inspection cutaways and progression fixtures are explicitly labelled."

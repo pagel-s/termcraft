@@ -117,3 +117,14 @@ Baseline overview captures were produced before editing this checkpoint, at
 `40f3e11`. Per-block crop bounds come from the public screen-to-world mapping of
 the identical current fixture. Exact input/source/output hashes and check results
 are recorded in [evidence.json](evidence.json).
+
+## Refresh — 16 October 2026
+
+All current block samples and the three environment comparisons were recaptured
+with the current pixel renderer. The original Before images remain historical.
+The updated [ore census](ores-after.json) uses smaller pockets and preserved depth
+progression; its comparison against the immediately preceding census is in the
+[interaction review](../interaction-review-2026-10-16/README.md). The older test and
+profile counts above describe the historical material pass, not this refresh.
+Current verification is 697 stable/MSRV tests, four TCP/MCP tests, strict Clippy,
+and real solo/co-op PTY controls, bow ammunition and food-use checks.

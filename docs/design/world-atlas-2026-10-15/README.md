@@ -1,6 +1,6 @@
 # Termcraft world gallery
 
-95 scenes and 213 views. Open a section to browse; select a view link for the original image.
+112 scenes and 267 views. Open a section to browse; select a view link for the original image.
 
 [All 97 block/state comparisons](../world-refinement-2026-10-15/README.md) · [Capture notes](provenance.md)
 
@@ -245,7 +245,7 @@ Overworld · Scripted gameplay
 
 A roofed, unlit review room at night. Compare the next scene at the same zoom.
 
-[Overview](glowstone-dark-00.png) · [Glyphs](glowstone-dark-01.png) · [Detail](glowstone-dark-02.png)
+[Overview](glowstone-dark-00.png) · [Wide](glowstone-dark-01.png) · [Detail](glowstone-dark-02.png)
 
 ### Glowstone · placed and lighting the room
 
@@ -255,7 +255,7 @@ Overworld · Scripted gameplay
 
 Glowstone placed through the ordinary use command under a supported ceiling. The warm light comes from the live renderer.
 
-[Overview](glowstone-lit-00.png) · [Glyphs](glowstone-lit-01.png) · [Detail](glowstone-lit-02.png)
+[Overview](glowstone-lit-00.png) · [Wide](glowstone-lit-01.png) · [Detail](glowstone-lit-02.png)
 
 ### Nether portal · actual ignition
 
@@ -265,7 +265,7 @@ Overworld · Scripted gameplay
 
 A staged obsidian frame ignited with Flint and Steel through the real use command; six active tiles, not a painted portal.
 
-[Overview](portal-ignition-00.png) · [Glyphs](portal-ignition-01.png) · [Detail](portal-ignition-02.png)
+[Overview](portal-ignition-00.png) · [Wide](portal-ignition-01.png) · [Detail](portal-ignition-02.png)
 
 ### Nether portal · destination
 
@@ -275,7 +275,7 @@ Nether · Scripted gameplay
 
 Actual portal travel generated and linked this arrival portal in the Nether. No travel shortcut was used.
 
-[Overview](portal-nether-arrival-00.png) · [Glyphs](portal-nether-arrival-01.png) · [Detail](portal-nether-arrival-02.png)
+[Overview](portal-nether-arrival-00.png) · [Wide](portal-nether-arrival-01.png) · [Detail](portal-nether-arrival-02.png)
 
 ### Nether portal · workshop preserved
 
@@ -285,7 +285,7 @@ Overworld · Scripted gameplay
 
 Return through the linked portal after saving and reopening in the Nether. Glowstone, the roof, the chest and its three diamonds survive the round trip.
 
-[Overview](portal-return-workshop-00.png) · [Glyphs](portal-return-workshop-01.png) · [Detail](portal-return-workshop-02.png)
+[Overview](portal-return-workshop-00.png) · [Wide](portal-return-workshop-01.png) · [Detail](portal-return-workshop-02.png)
 
 ### Nether portal · broken frame extinguished
 
@@ -295,7 +295,7 @@ Overworld · Scripted gameplay
 
 One side of the frame was removed through the world-edit path. All six portal tiles extinguished together; the glowstone still lights the room.
 
-[Overview](portal-extinguished-00.png) · [Glyphs](portal-extinguished-01.png) · [Detail](portal-extinguished-02.png)
+[Overview](portal-extinguished-00.png) · [Wide](portal-extinguished-01.png) · [Detail](portal-extinguished-02.png)
 
 ### End portal · twelve Eyes of Ender
 
@@ -305,7 +305,7 @@ Overworld · Scripted gameplay
 
 A staged empty frame filled through twelve real use commands. The game consumed the Eyes and activated the complete opening.
 
-[Overview](portal-end-activation-00.png) · [Glyphs](portal-end-activation-01.png) · [Detail](portal-end-activation-02.png)
+[Overview](portal-end-activation-00.png) · [Wide](portal-end-activation-01.png) · [Detail](portal-end-activation-02.png)
 
 ### End portal · safe arrival
 
@@ -315,7 +315,7 @@ End · Scripted gameplay
 
 Actual travel through the activated End portal, landing on the generated island with cleared headroom. This capture precedes the dragon encounter update.
 
-[Overview](portal-end-arrival-00.png) · [Glyphs](portal-end-arrival-01.png) · [Detail](portal-end-arrival-02.png)
+[Overview](portal-end-arrival-00.png) · [Wide](portal-end-arrival-01.png) · [Detail](portal-end-arrival-02.png)
 
 ### End portal · stronghold return
 
@@ -325,7 +325,7 @@ Overworld · Scripted gameplay
 
 Actual interaction with the generated bedrock return portal, returning to the Overworld stronghold. The boss was not defeated in this scripted travel check.
 
-[Overview](portal-end-return-00.png) · [Glyphs](portal-end-return-01.png) · [Detail](portal-end-return-02.png)
+[Overview](portal-end-return-00.png) · [Wide](portal-end-return-01.png) · [Detail](portal-end-return-02.png)
 
 ### Lantern Run · starting camp
 
@@ -741,6 +741,181 @@ Overworld · Recipe world
 The built-in declarative world recipe, with its authored tower and regional terrain. No LLM was called to create this gallery.
 
 [Overview](recipe-tower-00.png) · [Detail](recipe-tower-01.png)
+
+</details>
+
+<details>
+<summary>Actions & tools · 17 scenes</summary>
+
+### Sword · swing into empty air
+
+Overworld · Scripted gameplay
+
+![Sword · swing into empty air](action-sword-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-sword-00.png) · [Wide](action-sword-01.png) · [Detail](action-sword-02.png)
+
+### Pickaxe · mining
+
+Overworld · Scripted gameplay
+
+![Pickaxe · mining](action-pickaxe-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-pickaxe-00.png) · [Wide](action-pickaxe-01.png) · [Detail](action-pickaxe-02.png)
+
+### Axe · swing
+
+Overworld · Scripted gameplay
+
+![Axe · swing](action-axe-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-axe-00.png) · [Wide](action-axe-01.png) · [Detail](action-axe-02.png)
+
+### Shovel · swing
+
+Overworld · Scripted gameplay
+
+![Shovel · swing](action-shovel-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-shovel-00.png) · [Wide](action-shovel-01.png) · [Detail](action-shovel-02.png)
+
+### Hoe · tilling
+
+Overworld · Scripted gameplay
+
+![Hoe · tilling](action-hoe-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-hoe-00.png) · [Wide](action-hoe-01.png) · [Detail](action-hoe-02.png)
+
+### Bow · fully drawn, aimed and nocked
+
+Overworld · Scripted gameplay
+
+![Bow · fully drawn, aimed and nocked](action-bow-right-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-bow-right-00.png) · [Wide](action-bow-right-01.png) · [Detail](action-bow-right-02.png) · [Actions in motion · overview](actions-overview.gif) · [Actions in motion · wide](actions-wide.gif) · [Actions in motion · detail](actions-detail.gif)
+
+### Bow · release and arrow
+
+Overworld · Scripted gameplay
+
+![Bow · release and arrow](action-bow-right-release-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-bow-right-release-00.png) · [Wide](action-bow-right-release-01.png) · [Detail](action-bow-right-release-02.png)
+
+### Bow · fully drawn, aimed and nocked
+
+Overworld · Scripted gameplay
+
+![Bow · fully drawn, aimed and nocked](action-bow-left-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-bow-left-00.png) · [Wide](action-bow-left-01.png) · [Detail](action-bow-left-02.png)
+
+### Bow · release and arrow
+
+Overworld · Scripted gameplay
+
+![Bow · release and arrow](action-bow-left-release-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-bow-left-release-00.png) · [Wide](action-bow-left-release-01.png) · [Detail](action-bow-left-release-02.png)
+
+### Eating · last bread remains visible
+
+Overworld · Scripted gameplay
+
+![Eating · last bread remains visible](action-eating-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-eating-00.png) · [Wide](action-eating-01.png) · [Detail](action-eating-02.png)
+
+### Bucket · water source placement
+
+Overworld · Scripted gameplay
+
+![Bucket · water source placement](action-pouring-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-pouring-00.png) · [Wide](action-pouring-01.png) · [Detail](action-pouring-02.png)
+
+### Hoe · irrigated farmland
+
+Overworld · Scripted gameplay
+
+![Hoe · irrigated farmland](action-tilling-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-tilling-00.png) · [Wide](action-tilling-01.png) · [Detail](action-tilling-02.png)
+
+### Seeds · click farmland to plant
+
+Overworld · Scripted gameplay
+
+![Seeds · click farmland to plant](action-planting-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-planting-00.png) · [Wide](action-planting-01.png) · [Detail](action-planting-02.png)
+
+### Bow · torch-lit cave
+
+Overworld · Scripted gameplay
+
+![Bow · torch-lit cave](action-cave-bow-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-cave-bow-00.png) · [Wide](action-cave-bow-01.png) · [Detail](action-cave-bow-02.png)
+
+### Quick travel · same pixel renderer
+
+Nether · Scripted gameplay
+
+![Quick travel · same pixel renderer](action-travel-nether-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-travel-nether-00.png) · [Wide](action-travel-nether-01.png) · [Detail](action-travel-nether-02.png)
+
+### Quick travel · same pixel renderer
+
+End · Scripted gameplay
+
+![Quick travel · same pixel renderer](action-travel-end-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-travel-end-00.png) · [Wide](action-travel-end-01.png) · [Detail](action-travel-end-02.png)
+
+### Quick travel · same pixel renderer
+
+Overworld · Scripted gameplay
+
+![Quick travel · same pixel renderer](action-travel-overworld-00.png)
+
+Actual normal action commands, pixel renderer at three zooms. Scene and inventory staged in a disposable save.
+
+[Overview](action-travel-overworld-00.png) · [Wide](action-travel-overworld-01.png) · [Detail](action-travel-overworld-02.png)
 
 </details>
 

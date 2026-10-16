@@ -1,10 +1,280 @@
 {
   "status": "passed",
   "transport": "HTTP",
-  "resources": 520,
-  "images": 510,
-  "decoded_frames": 611,
+  "resources": 574,
+  "images": 564,
+  "decoded_frames": 788,
   "checks": [
+    {
+      "url": "world-atlas-2026-10-15/action-axe-00.png?v=2fcdb1e7be3eb967",
+      "sha256": "2fcdb1e7be3eb9679efba25682b4c4c5eaaae9158b6a9c64970d2b6bbdf08f72",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-axe-01.png?v=801269f4e73200e1",
+      "sha256": "801269f4e73200e10d3f83b92430939bc1c3bc11317ab2d521c823d9ff9dfb7e",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-axe-02.png?v=6b07bbee06098f82",
+      "sha256": "6b07bbee06098f82a854c19ad228fa3a6a11451cc78c90f7c79d3bb63ed479fa",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-left-00.png?v=4a3ec20f48f271b6",
+      "sha256": "4a3ec20f48f271b64f7c23c73e61a5220ef4bed2a71c27ba8048e861878bbdc6",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-left-01.png?v=efcba0d478993f2a",
+      "sha256": "efcba0d478993f2a43ebe932e9eb0638f9637fc06f8932b3415ce5938a1ab024",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-left-02.png?v=8063fa872494eb17",
+      "sha256": "8063fa872494eb170957b65983b9ec447acfb03c593ae92a5e7591a1518fd064",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-left-release-00.png?v=ada9379a02107f74",
+      "sha256": "ada9379a02107f746b9552c4d16e830cd0da0c6d2d69c5739cd56457bfff82b7",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-left-release-01.png?v=b59ec8fea679e58b",
+      "sha256": "b59ec8fea679e58b03241aa28e99c822272b7556134746840935cf62255bd3d3",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-left-release-02.png?v=53416deb406f02f6",
+      "sha256": "53416deb406f02f623420acbd911d02260097648fe196ce5f0c98bea56adf2d8",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-right-00.png?v=339b8a672d45b274",
+      "sha256": "339b8a672d45b2742b44842cd19aa532ef8c9fbb4a13cb28cc42c5365f11cd4d",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-right-01.png?v=59c4d0beba17749d",
+      "sha256": "59c4d0beba17749d8d942105a5a2e4130b90ade0d834bf0558cc1cf783310154",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-right-02.png?v=33773b45091b56a8",
+      "sha256": "33773b45091b56a8b3359abf6db6fe97a9066f025d3dbdec14f73cefd99f6e5a",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-right-release-00.png?v=8006f9c2972ba627",
+      "sha256": "8006f9c2972ba627c58edd3f804baed951b07d56fb89e56a17ee62b547e12f65",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-right-release-01.png?v=d6c93e33a170d63b",
+      "sha256": "d6c93e33a170d63bd20dcb0b7c882d0b8a811e51204a52447d1e674f8a5473fa",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-bow-right-release-02.png?v=baac722556d13e1c",
+      "sha256": "baac722556d13e1c7c246332d1864cecb1863ca6f39c89499af37e828b19749e",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-cave-bow-00.png?v=930a562c1b2d34eb",
+      "sha256": "930a562c1b2d34eb8923e9e772d8fb93c141b92ed436211eff79d608e07dbd18",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-cave-bow-01.png?v=60001deaff3184db",
+      "sha256": "60001deaff3184dbb2f0cea3fa4b6eabc9b1331a55dd40bc24426fce5299571e",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-cave-bow-02.png?v=2f46c93faaecf6c4",
+      "sha256": "2f46c93faaecf6c46f4d88f1b7615dd5a52b14a199bb10878f4c007248a512c4",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-eating-00.png?v=9618f27a8a5599a3",
+      "sha256": "9618f27a8a5599a39e079c512ecfe8846d804c8a1ceddd76fde3f7c0ad7bbf7e",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-eating-01.png?v=f4f18049d66a62cc",
+      "sha256": "f4f18049d66a62cc42569fac791fb0a60e7cf7fe8fbbb0f068b0976716a03879",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-eating-02.png?v=482d42876f244405",
+      "sha256": "482d42876f244405146682beb3bbc19bca69b31508d6c6c0dbe47afd47dd3990",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-hoe-00.png?v=0a753b7552453306",
+      "sha256": "0a753b7552453306cc0ed4b5df4a1767534230bb22ea19ebfce126a09c109144",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-hoe-01.png?v=4c433af74c812c9a",
+      "sha256": "4c433af74c812c9a79d016db629f2c197bd91402bc6aa3f3bfafac6cbdba16c6",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-hoe-02.png?v=ec7936cb1bc68cc9",
+      "sha256": "ec7936cb1bc68cc9b2e0c29a08d148fe591a09a62f3ff303563f9a783372d403",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-pickaxe-00.png?v=b2dbb06c5a9b1397",
+      "sha256": "b2dbb06c5a9b1397891325da362ed61886c093a2719b1407dc456af285a1d0dd",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-pickaxe-01.png?v=bbdc305f2d5599a0",
+      "sha256": "bbdc305f2d5599a082bf6b03e8082fc754771a25f070077e3ad889089c2efdc4",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-pickaxe-02.png?v=4d9dd7007764758f",
+      "sha256": "4d9dd7007764758f860df03cb340a79f611b292581b58495efc08b6998e1510f",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-planting-00.png?v=4cac1646b097c555",
+      "sha256": "4cac1646b097c555aecd10c6ba1573ca4dacef922fc56249f8b23a585f31f673",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-planting-01.png?v=cd06cb4d48b62f5f",
+      "sha256": "cd06cb4d48b62f5f16fda25c7295473451e09a26cc0768e315c7c3ff23d9ec94",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-planting-02.png?v=9a1ea7cc088d9066",
+      "sha256": "9a1ea7cc088d90669376cb18757a337a9d6d7ad30a45a70c6782ca6ab5ffec13",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-pouring-00.png?v=158ea461e053900a",
+      "sha256": "158ea461e053900a67978fb2afa5af3de6bf58cb030574217afc0703d86b5355",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-pouring-01.png?v=7ce0c98ddf631ea1",
+      "sha256": "7ce0c98ddf631ea1f2140f37650fd8311b532675dc1a1949eb0dd9745e9f7ae1",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-pouring-02.png?v=339b086227427136",
+      "sha256": "339b086227427136bae739df8840d834be44a7ad58e190f1354cf8a9833a9c2f",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-shovel-00.png?v=10a159c8c8bceb29",
+      "sha256": "10a159c8c8bceb297c94c7c90377980c5020eee191f20af48919b571a790b323",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-shovel-01.png?v=11e6156508ec8aaa",
+      "sha256": "11e6156508ec8aaa4a7de66a1914956b891d4b0a234bef7aa7b16027bfddb727",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-shovel-02.png?v=1f0e8509c2f0aaf5",
+      "sha256": "1f0e8509c2f0aaf51672e8cda9c2538431c70c4a6fcd12e399bde89e1df2484c",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-sword-00.png?v=9e9c4ff4fd06fe22",
+      "sha256": "9e9c4ff4fd06fe22a412c175c661ce306ff36e002f73c36d2f81afc5e5f60afd",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-sword-01.png?v=4c621b67e7bdb505",
+      "sha256": "4c621b67e7bdb50577f6fdcac3eac58629e0b7343f872415355b2b8f06cb6ce8",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-sword-02.png?v=06fdc75325b62adc",
+      "sha256": "06fdc75325b62adc0911af9ffd045d15b5158a14b2f13e740fd9963edea428d5",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-tilling-00.png?v=9052f40e88fd28f3",
+      "sha256": "9052f40e88fd28f3efaa71a7bec4d5433a48ad681889179866298ae7959abaae",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-tilling-01.png?v=d05785524a8ebe63",
+      "sha256": "d05785524a8ebe637c44b72c36ac26ee244b1b996f311d5c05cfb166eea2b6f5",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-tilling-02.png?v=ed9ca2d2a2a61c04",
+      "sha256": "ed9ca2d2a2a61c048204347d6bbeabbbf1edc89fa9a531595bbf005d08377a76",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-travel-end-00.png?v=946dcef07966a9b2",
+      "sha256": "946dcef07966a9b2d9b7fd1e47d58903325189dc990b8825c3e4542b0d85f4b3",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-travel-end-01.png?v=c4dc20edd591cf93",
+      "sha256": "c4dc20edd591cf9338e438ac77ade40c77346b8db778fcc5bbf42f1268f5bae8",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-travel-end-02.png?v=5774920805835866",
+      "sha256": "57749208058358667fb18b3487ebcc396e1bcd528daf203653d2da884f5eeb8e",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-travel-nether-00.png?v=c7c581d98e6c1471",
+      "sha256": "c7c581d98e6c1471c166fb26760f0f16bf6c81f1fad98eddb37b3dd7b58f013b",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-travel-nether-01.png?v=30bbaa0135b54793",
+      "sha256": "30bbaa0135b5479386e78914f6add53fcaecec63830e53800d1955c3e8e596cf",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-travel-nether-02.png?v=347ee0db5bf917e0",
+      "sha256": "347ee0db5bf917e0d3181c0ff967a1d50fc5de7d8b20a97256e507caacdda680",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-travel-overworld-00.png?v=3ccf972fd219869f",
+      "sha256": "3ccf972fd219869fdb5d2994333749e5870dc43745dc64c226a20516734853d1",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-travel-overworld-01.png?v=55565998a5900412",
+      "sha256": "55565998a59004120faed4429b7bfd092f5797273a47704e0c447c6191086fce",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/action-travel-overworld-02.png?v=30e0f93aa577e6c6",
+      "sha256": "30e0f93aa577e6c62312987a3fefd02212373fcd784ed767a60918802f538f9c",
+      "image_frames": 1
+    },
+    {
+      "url": "world-atlas-2026-10-15/actions-detail.gif?v=3af5ad9f41a4b1d7",
+      "sha256": "3af5ad9f41a4b1d755f5ada881fe07f17c2a1181e9c7381983cc067097fc1b42",
+      "image_frames": 51
+    },
+    {
+      "url": "world-atlas-2026-10-15/actions-overview.gif?v=c202bf36ec56460d",
+      "sha256": "c202bf36ec56460d2335c1b6129b6d08448594a4e20ac66241903c1382a2d47f",
+      "image_frames": 42
+    },
+    {
+      "url": "world-atlas-2026-10-15/actions-wide.gif?v=1d1ca052bc0d835f",
+      "sha256": "1d1ca052bc0d835fc9d415f7a22169a96301e29588ea0a28891f8e6b0d492286",
+      "image_frames": 33
+    },
     {
       "url": "world-atlas-2026-10-15/biome-desert-00.png?v=4851c96833d29877",
       "sha256": "4851c96833d29877c67254f9b34bd8561725eae7c4a0799483f2ac3ca7cd8e0a",
@@ -76,8 +346,8 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/biome-swamp-00.png?v=9329875537179cdc",
-      "sha256": "9329875537179cdc319be779727b4c13be38bc79b6aff967b9de118d94f35aa3",
+      "url": "world-atlas-2026-10-15/biome-swamp-00.png?v=6315d73ce0d497e2",
+      "sha256": "6315d73ce0d497e26d1d77018d4b9c7f066ea68f057a31ee689d4b57ad904c6d",
       "image_frames": 1
     },
     {
@@ -117,97 +387,97 @@
     },
     {
       "url": "world-atlas-2026-10-15/catalog.json",
-      "sha256": "7404e83ca25912fec932415675c0aab27ef88903e8dc943b6843d6709486ce71",
+      "sha256": "8fca063fc240ae926e5197d5050fdae633d1a5b63c5179a5b3782a1eaacbf298",
       "image_frames": 0
     },
     {
-      "url": "world-atlas-2026-10-15/coop-00.png?v=7131b2ccd9376ec9",
-      "sha256": "7131b2ccd9376ec9180633e59d4b60aebc81bc3848024f5780d43b5de21eaa4e",
+      "url": "world-atlas-2026-10-15/coop-00.png?v=8d93d2ab0d6ab880",
+      "sha256": "8d93d2ab0d6ab8808f424e0cf0cac69b96184f6c7105016e0f44d2afa7685d80",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-01.png?v=fc454a94bbfdb1c6",
-      "sha256": "fc454a94bbfdb1c6957348bae3fa6353da920b9a49913edae8fa7ed6210714ca",
+      "url": "world-atlas-2026-10-15/coop-01.png?v=4efc3e9c4f9cf91e",
+      "sha256": "4efc3e9c4f9cf91e5ca701f419c423a959b5ca82d5083b8e4928b98250d77dbd",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-apart-player-1-00.png?v=3ca4fa84456e198e",
-      "sha256": "3ca4fa84456e198e9014e36087ffe1d28d2ec9ccc0727e8800bf7bad2586cc93",
+      "url": "world-atlas-2026-10-15/coop-apart-player-1-00.png?v=f8eff871ce4dbcf1",
+      "sha256": "f8eff871ce4dbcf1a592da428234ea9fd6bc3c827858bda02251f503e1b54dac",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-apart-player-1-01.png?v=d879b3dcb0348092",
-      "sha256": "d879b3dcb034809284e29b96d1f142f42083b904d08f35176caa9a59d147f4c6",
+      "url": "world-atlas-2026-10-15/coop-apart-player-1-01.png?v=12fc30b9c91dff9d",
+      "sha256": "12fc30b9c91dff9d461ce167c49bd37fdf147b7d4f2c7ed727d0c0a4da1f5868",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-apart-player-2-00.png?v=91a90f0b62197d53",
-      "sha256": "91a90f0b62197d530b7e173e83b9848456982cf3cc03424863bfb26b1177ee8c",
+      "url": "world-atlas-2026-10-15/coop-apart-player-2-00.png?v=eba8cd6e9092575e",
+      "sha256": "eba8cd6e9092575e93643c0309155dfcca73d1ec6f883456afca5f03a2f51034",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-apart-player-2-01.png?v=4f69bf2bde5c3132",
-      "sha256": "4f69bf2bde5c313288fef4760ec120a0eaf62c4fa3b01b2c6de27fafc50dcf2f",
+      "url": "world-atlas-2026-10-15/coop-apart-player-2-01.png?v=289b965e2aaf0a39",
+      "sha256": "289b965e2aaf0a3944b5a6dcd5309ea7d9a252bbeac6c968b5b03ec2e9ce48a8",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-nether-player-1-00.png?v=993edaa5cb062c91",
-      "sha256": "993edaa5cb062c91b9550c78b5a9f57f72782e915bfdbfd56a97731090f2bd90",
+      "url": "world-atlas-2026-10-15/coop-nether-player-1-00.png?v=128080f1c7f0ef58",
+      "sha256": "128080f1c7f0ef58dd2b113cf8bbfc70226db49b976f7ea21231363e33027e42",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-nether-player-1-01.png?v=6b85d09e1726a6c8",
-      "sha256": "6b85d09e1726a6c8cdbeb9188fee6948b4cf0b18f9d83e97670d282c381d9df2",
+      "url": "world-atlas-2026-10-15/coop-nether-player-1-01.png?v=379ec33aea93b218",
+      "sha256": "379ec33aea93b21830730e48e7faf61cb56b6cedba65eb3c8e10c0fea27048fd",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-nether-player-2-00.png?v=d76ca305b456359f",
-      "sha256": "d76ca305b456359f4f368a32b588f79a6b35cca97ecd08fe1ee503ced340d382",
+      "url": "world-atlas-2026-10-15/coop-nether-player-2-00.png?v=d98ba13d9f7e1532",
+      "sha256": "d98ba13d9f7e1532e9d8678473c0996e366055a2686f880faed5450146e6b665",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-nether-player-2-01.png?v=2df472d38740b480",
-      "sha256": "2df472d38740b48007febaa492a7f67e36cc4219a48439c55352dda43514272a",
+      "url": "world-atlas-2026-10-15/coop-nether-player-2-01.png?v=f824ad9135d40adc",
+      "sha256": "f824ad9135d40adc06a804e16e09db1dbdd8217f436030d084b066122323986c",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-return-player-1-00.png?v=9f8cb8771fa2d1e3",
-      "sha256": "9f8cb8771fa2d1e37c15260ea6f309ea75c7a1a11e48da5b7b75dc5e7d4d2ae4",
+      "url": "world-atlas-2026-10-15/coop-return-player-1-00.png?v=90072322c64df3d3",
+      "sha256": "90072322c64df3d34ee1b9a310acaaa88326d5b305bd90d7a003a95b414f5eb4",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-return-player-1-01.png?v=0341b1771c4daef2",
-      "sha256": "0341b1771c4daef2e35d7757060df33ec4945e811ae4c9d35082e5d1829bcb0e",
+      "url": "world-atlas-2026-10-15/coop-return-player-1-01.png?v=16478baefe06749d",
+      "sha256": "16478baefe06749d7b8a601aa7e9292b58048a84c93d93c163fb2b42f72bfa6a",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-return-player-2-00.png?v=cbedbfa094d04a92",
-      "sha256": "cbedbfa094d04a925e47cabc7898ff397713ab5f13b1bad63dea2be50fb6f67c",
+      "url": "world-atlas-2026-10-15/coop-return-player-2-00.png?v=18ce59711fb55e1c",
+      "sha256": "18ce59711fb55e1cb2a172479f775754c51c95b3a6aabfc5e147757650ef37d0",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-return-player-2-01.png?v=c0173be7c436abc0",
-      "sha256": "c0173be7c436abc08d810e134b47b6f353a929c304e0618f39e6e61c94aeac57",
+      "url": "world-atlas-2026-10-15/coop-return-player-2-01.png?v=8135353a88aaf7b2",
+      "sha256": "8135353a88aaf7b220404dc96c0c40785d6452e89b88a81904553ab40c3a5a0a",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-together-player-1-00.png?v=92fea6fec905a75b",
-      "sha256": "92fea6fec905a75b1067197813f7eb8768f7932cf6e0db6940bfee3817e604be",
+      "url": "world-atlas-2026-10-15/coop-together-player-1-00.png?v=717e33f3a15f1141",
+      "sha256": "717e33f3a15f1141a1edf5bc133c3c69d1fbe8a490de880a390fbd4318925c7e",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-together-player-1-01.png?v=c972a7e470b11f7f",
-      "sha256": "c972a7e470b11f7fa6e78262d980a37bd71a90a1c25fe008c4d047a97fd22fdd",
+      "url": "world-atlas-2026-10-15/coop-together-player-1-01.png?v=8eb66798c2c41964",
+      "sha256": "8eb66798c2c41964f3023a1109d1f0e538a166182686be9ed96522c20faf4804",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-together-player-2-00.png?v=46f425cb3ab0e546",
-      "sha256": "46f425cb3ab0e546a9cb9ad45dc5b36c899d3b9fda1485c44616cfe30fa53975",
+      "url": "world-atlas-2026-10-15/coop-together-player-2-00.png?v=e42c1b8ac1bdf8fa",
+      "sha256": "e42c1b8ac1bdf8facb54ad9ccf5f71080d60018c57a6303838854c03c85cc795",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/coop-together-player-2-01.png?v=9276e45191de84fd",
-      "sha256": "9276e45191de84fdc9e39ea5421814bb13ce8ff15555bf20d408efb51ab1559a",
+      "url": "world-atlas-2026-10-15/coop-together-player-2-01.png?v=7b04f54fa5fc599f",
+      "sha256": "7b04f54fa5fc599fb3fdef2066a165905bc3b1c840dfc29e13a716583e11d8e8",
       "image_frames": 1
     },
     {
@@ -221,13 +491,13 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/deep-cave-00.png?v=3bcd3380d39e9e96",
-      "sha256": "3bcd3380d39e9e96c353424198d3371f4ba6fcc08f5ddf74996e0c525c290b9c",
+      "url": "world-atlas-2026-10-15/deep-cave-00.png?v=3a120f9d2c388047",
+      "sha256": "3a120f9d2c388047c99eb6b2f4a2eeb68dcb02e46758f6ecf4a8c81fd08be530",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/deep-cave-01.png?v=77631fcd6c8a324b",
-      "sha256": "77631fcd6c8a324b5c3bea158d6ade0299c082b6e52157a0a0ab3f6777cfbb23",
+      "url": "world-atlas-2026-10-15/deep-cave-01.png?v=4c014e3bc4b3654c",
+      "sha256": "4c014e3bc4b3654c99721157afa18297b0a00ae4eec1341eb77c3fc4d230dbc0",
       "image_frames": 1
     },
     {
@@ -241,8 +511,8 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/dungeon-skeleton-00.png?v=1bfd3df3dcdf3b34",
-      "sha256": "1bfd3df3dcdf3b34ee177ee17015e62fb9efdfebb199041feba856ef8cf734d8",
+      "url": "world-atlas-2026-10-15/dungeon-skeleton-00.png?v=53613392f104083e",
+      "sha256": "53613392f104083e17f14615d1da94a0ce7b1faf6b245b34b9fb2a052ac9d0b4",
       "image_frames": 1
     },
     {
@@ -421,18 +691,18 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/entities-poses-00.png?v=2af7af9c89d3152e",
-      "sha256": "2af7af9c89d3152ee2e4b36426be8cf109f35205d360069628f078f45421a10c",
+      "url": "world-atlas-2026-10-15/entities-poses-00.png?v=7df831977757baf2",
+      "sha256": "7df831977757baf24735d2d9989f58c3961f376cfaf8e5d628b7c1a5f0dcfa06",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/entities-poses-01.png?v=d53988c094a920d7",
-      "sha256": "d53988c094a920d78ff200d825577fda03409940dc42f2a48c045ef2effaeeae",
+      "url": "world-atlas-2026-10-15/entities-poses-01.png?v=8e33e96df52871fb",
+      "sha256": "8e33e96df52871fbd23524db839db4b57bb57ee347955d19d7d2e3d0115cf50f",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/entities-poses-02.png?v=972943267319a318",
-      "sha256": "972943267319a3183addfff1bd55004c033e8b456149125ab0a93bf32f3c1397",
+      "url": "world-atlas-2026-10-15/entities-poses-02.png?v=57aceadf34040e18",
+      "sha256": "57aceadf34040e188bbbabaed3a42b441868a8c6879d75d85cc2faab534d79ee",
       "image_frames": 1
     },
     {
@@ -467,7 +737,7 @@
     },
     {
       "url": "world-atlas-2026-10-15/evidence.json",
-      "sha256": "6a9e332ba277837fdd35eedca5a33151cbf790b250fd50b3f40ec638ee3a2db8",
+      "sha256": "c81e5692997f4748ece586db5b68a001825af55f7991319a28e92ce87be398f1",
       "image_frames": 0
     },
     {
@@ -551,8 +821,8 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/glowstone-dark-01.png?v=060be431f24a22e6",
-      "sha256": "060be431f24a22e684a661b6299eaeaf74f7c54da730ace91e59e6af556952b8",
+      "url": "world-atlas-2026-10-15/glowstone-dark-01.png?v=3f90dfd3cee3d70b",
+      "sha256": "3f90dfd3cee3d70bed0e8abf144363d3ff9fe2ef22a9adae3eeef889583a7b06",
       "image_frames": 1
     },
     {
@@ -561,23 +831,23 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/glowstone-lit-00.png?v=c931630346109789",
-      "sha256": "c9316303461097899c8f130b8c288f1dcea1e3846bcefba624860dfe684894ae",
+      "url": "world-atlas-2026-10-15/glowstone-lit-00.png?v=173dfe2db29eee0d",
+      "sha256": "173dfe2db29eee0de8787e7406a0b6470ec1c70c51868b3705f7fb2b7b039ea1",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/glowstone-lit-01.png?v=e5ca2a4a241fb99d",
-      "sha256": "e5ca2a4a241fb99d33698f9d9c338ff89035a55e1c391a413b5e28d0e9b51d07",
+      "url": "world-atlas-2026-10-15/glowstone-lit-01.png?v=bb0316f34dd5cf50",
+      "sha256": "bb0316f34dd5cf500b6f26e430fe544116288016b7e2de29b57eefc11a0ced53",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/glowstone-lit-02.png?v=ec506a0cedca6300",
-      "sha256": "ec506a0cedca6300bbacb55121847d61bb457ea556be982b1ad0a3046bec5be5",
+      "url": "world-atlas-2026-10-15/glowstone-lit-02.png?v=ae0f2e667fd4b520",
+      "sha256": "ae0f2e667fd4b520e06c4ca3e8de07f266ba86c590a4ce7534b4d4ac03ecd6f6",
       "image_frames": 1
     },
     {
       "url": "world-atlas-2026-10-15/index.html",
-      "sha256": "c854fe4ecef02d383da84bfddc17a502f847b0030d32aa5301f83343c6cc2ece",
+      "sha256": "c2b0671374a8798b39a498b93c52cd21c77075c49358629a37f0e43f7e4c05a9",
       "image_frames": 0
     },
     {
@@ -606,13 +876,13 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/mining-00.png?v=dff4315f705f4024",
-      "sha256": "dff4315f705f4024fdde5044f773999638d93ca35e1890229d1b957f8b7074bb",
+      "url": "world-atlas-2026-10-15/mining-00.png?v=43144f1ed0142a98",
+      "sha256": "43144f1ed0142a9816f90787c75b815199ecf7b475bfc0cfb8dea39a3adf3f01",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/mining-01.png?v=d4f3ca1fb983368a",
-      "sha256": "d4f3ca1fb983368a3c2b09c34ebcfbd5b795b00e92a1c14304922703bc62a767",
+      "url": "world-atlas-2026-10-15/mining-01.png?v=fca3d6b173d20ae2",
+      "sha256": "fca3d6b173d20ae29bd5656eef3e756b1d5d77a9d2dd5e2220bbb0e1c42863c0",
       "image_frames": 1
     },
     {
@@ -681,118 +951,118 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/ore-cave-00.png?v=08682d77485dc480",
-      "sha256": "08682d77485dc480288bface6354741d5fe9cb3f7a85b603a561502413fec420",
+      "url": "world-atlas-2026-10-15/ore-cave-00.png?v=24a1f8683f0171a3",
+      "sha256": "24a1f8683f0171a3a1feabc49dd03a08e9feb1d8c3b47105037cc3cb98e7e7d3",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/ore-cave-01.png?v=dddcacbb5de059a3",
-      "sha256": "dddcacbb5de059a34c02f31c013ba5b0d15f4ba8caeb4f18c4f0062d6fa3706e",
+      "url": "world-atlas-2026-10-15/ore-cave-01.png?v=7a99629317d3006d",
+      "sha256": "7a99629317d3006d1b681c9a63813e28976e0ab1adc0059caf32cdec5f4d3df3",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-end-activation-00.png?v=675e082b5a563082",
-      "sha256": "675e082b5a563082754990b11750cd3ed2d1458065b145e629740ede3538eec2",
+      "url": "world-atlas-2026-10-15/portal-end-activation-00.png?v=91f5c9a53c509748",
+      "sha256": "91f5c9a53c5097483572900af114cc23c731a1f81a81a144d5298c9b8470bbd6",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-end-activation-01.png?v=a388e4a7f57a1e2a",
-      "sha256": "a388e4a7f57a1e2a269d07e4d298249f56ef7b291ae0957c2142c25ce063f441",
+      "url": "world-atlas-2026-10-15/portal-end-activation-01.png?v=08e9903e12b962c3",
+      "sha256": "08e9903e12b962c33f9d3e823ffc6635bf541ee5e3b9b916140d31723d3c031d",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-end-activation-02.png?v=3391764d2198b35e",
-      "sha256": "3391764d2198b35ecc8cfd8f378d48bc57c113156f34c818b982ea068c85b109",
+      "url": "world-atlas-2026-10-15/portal-end-activation-02.png?v=4cbc148786e89ea1",
+      "sha256": "4cbc148786e89ea1569f07a52a93edf239256dd7e5ee82c9b68d23558748b5d3",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-end-arrival-00.png?v=5195870640c566c6",
-      "sha256": "5195870640c566c69d9c09c0436af096d0d1a0d717e476e7a8217748c5453525",
+      "url": "world-atlas-2026-10-15/portal-end-arrival-00.png?v=f5ed1b43adb61d05",
+      "sha256": "f5ed1b43adb61d050721f6881dfe4da55b2c4235216dbeb3ef0a95f6977a5a0d",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-end-arrival-01.png?v=0c37a2b59c33a396",
-      "sha256": "0c37a2b59c33a39689d0a501a7d38f089ccc650df47aa3aafb028467bbf50c27",
+      "url": "world-atlas-2026-10-15/portal-end-arrival-01.png?v=974875d33dee8d62",
+      "sha256": "974875d33dee8d62f29048b5f135f729ed1005bc6b69cb6f2721c5157d23a16a",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-end-arrival-02.png?v=7a569c2634e647ac",
-      "sha256": "7a569c2634e647acb8d69284a206c5d819ed84933084508700b0419f3556137d",
+      "url": "world-atlas-2026-10-15/portal-end-arrival-02.png?v=72024133d2f18354",
+      "sha256": "72024133d2f1835460c47cd57251c3dcbd66712e83d40a5c9cdf13c97d546428",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-end-return-00.png?v=035d825b6fc864c5",
-      "sha256": "035d825b6fc864c51c89e3624bc24e787de0af69ee8081107aa53ad665f2ee7e",
+      "url": "world-atlas-2026-10-15/portal-end-return-00.png?v=5e82dbe6150fce08",
+      "sha256": "5e82dbe6150fce083ee4117184b068e06e9977bcf293bc06fce9ddcbeb132841",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-end-return-01.png?v=d94a9cd727b2ab4f",
-      "sha256": "d94a9cd727b2ab4f2079b7e893a4392da020fc6e959e1d97d8b0cc16c6e9e5df",
+      "url": "world-atlas-2026-10-15/portal-end-return-01.png?v=28758d63d895cb61",
+      "sha256": "28758d63d895cb617e1b6e2233a4cc1aa25cd65480cc189c56cfc3988e4d9422",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-end-return-02.png?v=fd40be468bb43852",
-      "sha256": "fd40be468bb43852869260152ce0e0716b44eaa515c671a0daffba4e98af97c8",
+      "url": "world-atlas-2026-10-15/portal-end-return-02.png?v=03913623cd300fe2",
+      "sha256": "03913623cd300fe2a539d1aa224132afb77eed8346fc625dd173e81d0576b3d2",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-extinguished-00.png?v=a40c76387c5f48f6",
-      "sha256": "a40c76387c5f48f64837496f72f307a1ec0b3737312c2dac878cd1e11a55713e",
+      "url": "world-atlas-2026-10-15/portal-extinguished-00.png?v=052271d3c80f885c",
+      "sha256": "052271d3c80f885cd9e49c67467850990fa8cefe3c7c3c3299ed8073d85c5a6e",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-extinguished-01.png?v=5b602dc9f10c6551",
-      "sha256": "5b602dc9f10c6551728ea90f47e81f020655b391c7ed4a4584475a1541a8accd",
+      "url": "world-atlas-2026-10-15/portal-extinguished-01.png?v=cf2c7a7cd6776ed3",
+      "sha256": "cf2c7a7cd6776ed37c0178e49a5e1bcccd5a0ad7745a3efefb9efb64d57a4b9b",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-extinguished-02.png?v=35b45173d99f682e",
-      "sha256": "35b45173d99f682ef1d47ff181aa68fcfca4d2db975e830af3d1ba49d8469b57",
+      "url": "world-atlas-2026-10-15/portal-extinguished-02.png?v=fe3ff673435a306e",
+      "sha256": "fe3ff673435a306ea21d3d641f3a18ab629ce89ebe542e2b71739aad094e5ada",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-ignition-00.png?v=9ecdfa04165e68ef",
-      "sha256": "9ecdfa04165e68ef2f228af2a66b2fb9a0a8bd1d1c54f361bdfdb3200bcdf62e",
+      "url": "world-atlas-2026-10-15/portal-ignition-00.png?v=490289d82946b023",
+      "sha256": "490289d82946b0231705c25ae196b45e8a3d1f585732c1c3f7484145c288543b",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-ignition-01.png?v=dc1df6b2af1cd86d",
-      "sha256": "dc1df6b2af1cd86d69bb6a877d9696e0c71c256f577f5aca75f003be360ede37",
+      "url": "world-atlas-2026-10-15/portal-ignition-01.png?v=f44067b4023b4743",
+      "sha256": "f44067b4023b4743e6f33eaf0a5ffda56c659fb537ca5c96a3aac7795a6025ed",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-ignition-02.png?v=107502310ca3cc49",
-      "sha256": "107502310ca3cc498cabe449524791e5f6ffe0a089f22d61f68a4be7f8e608ce",
+      "url": "world-atlas-2026-10-15/portal-ignition-02.png?v=8cfba4042a3df714",
+      "sha256": "8cfba4042a3df7148bcbc1f970211468146416452cccdf4054bdff8926d6f3fc",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-nether-arrival-00.png?v=1aa854c048806e30",
-      "sha256": "1aa854c048806e301fef324d1dca3c0ab7aa08f0740efc0c532cab31d33aed98",
+      "url": "world-atlas-2026-10-15/portal-nether-arrival-00.png?v=2692ceee4bc37afc",
+      "sha256": "2692ceee4bc37afc024eb2167100c2e0746d98f5b9ab25e1c6428fe58139c9ee",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-nether-arrival-01.png?v=1e19ff9fd94b313b",
-      "sha256": "1e19ff9fd94b313b3372b0e218a923fd986d1469a2833d2b9a288948ad134530",
+      "url": "world-atlas-2026-10-15/portal-nether-arrival-01.png?v=79e2302f89a12f31",
+      "sha256": "79e2302f89a12f31bd0c58c8a1b5683c9042e1630973fdf51d0b054472adb713",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-nether-arrival-02.png?v=69185bbc9821d003",
-      "sha256": "69185bbc9821d003a8daba94299ee422cfe53bce61f06758d6b07d1dcad5e016",
+      "url": "world-atlas-2026-10-15/portal-nether-arrival-02.png?v=c6d906bd4fcead01",
+      "sha256": "c6d906bd4fcead0196c7deeee185cd9f92e7439e5272ce8998d03d05a9d48902",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-return-workshop-00.png?v=980fc4af31f06a62",
-      "sha256": "980fc4af31f06a62974e3eee8e9146a8dec8a16c18fa9e1c44330ebb7e9b1a55",
+      "url": "world-atlas-2026-10-15/portal-return-workshop-00.png?v=c87b300482d89e77",
+      "sha256": "c87b300482d89e7773abc2f2a69f32380054fe8f768e5631e796c48b36d49251",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-return-workshop-01.png?v=92ab7fa8e827ee2f",
-      "sha256": "92ab7fa8e827ee2fc81ba2f3c837b0c4857b3ea8dc2385d47a36c878a61b5bf5",
+      "url": "world-atlas-2026-10-15/portal-return-workshop-01.png?v=8010052af40c5c99",
+      "sha256": "8010052af40c5c99dfa12de471f308d2c0309b3bb6a744161de6291a4e436b47",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/portal-return-workshop-02.png?v=ffedc631ea88442b",
-      "sha256": "ffedc631ea88442bd6def69348d98984ccff285c771eed19673af6a175bae598",
+      "url": "world-atlas-2026-10-15/portal-return-workshop-02.png?v=46038b7a2ea7c5f8",
+      "sha256": "46038b7a2ea7c5f8b7c8b6f7c7d7f17455310f2e3b909e863ab718fd24a8ef6e",
       "image_frames": 1
     },
     {
@@ -807,12 +1077,12 @@
     },
     {
       "url": "world-atlas-2026-10-15/provenance.md",
-      "sha256": "74c6161d2878ce84aaf907b518e6100e8e23645b97ae539cba40d7bb46936890",
+      "sha256": "640c06f9d974ea2eae170abb7bf7e19b29ea55f7e31e4f4cc19a9720fd676008",
       "image_frames": 0
     },
     {
-      "url": "world-atlas-2026-10-15/ravine-cave-00.png?v=4e5930bbe9741b62",
-      "sha256": "4e5930bbe9741b62c43fa8af34fa0691b35d567a47679b6b98258e47fa7dbdd7",
+      "url": "world-atlas-2026-10-15/ravine-cave-00.png?v=6e3c866f23fb3b15",
+      "sha256": "6e3c866f23fb3b153a5e59a88bac475e094bdbb615e8b9d8e0ef9fd89c611d73",
       "image_frames": 1
     },
     {
@@ -881,8 +1151,8 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/stronghold-active-portal-00.png?v=85f6b3c8b9b620e7",
-      "sha256": "85f6b3c8b9b620e7b8f7c0e92133ced6fdef23b08c2f116547541ac4c8f85acf",
+      "url": "world-atlas-2026-10-15/stronghold-active-portal-00.png?v=d9d7c64e9cb1088e",
+      "sha256": "d9d7c64e9cb1088e47b6a87a5f8b3301380292428aa5a27d85fa27a168a45ea7",
       "image_frames": 1
     },
     {
@@ -891,8 +1161,8 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/stronghold-library-00.png?v=f37f4040ded9d11e",
-      "sha256": "f37f4040ded9d11ed0151cc05cfdd00da9945cb326cfd13e8cccb13455fa416f",
+      "url": "world-atlas-2026-10-15/stronghold-library-00.png?v=75d1d29ccdc56ac9",
+      "sha256": "75d1d29ccdc56ac936a1fe0651eedd98225c3e59435bb038c170f290d419d301",
       "image_frames": 1
     },
     {
@@ -901,13 +1171,13 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/stronghold-panorama-00.png?v=a017d7586350c89c",
-      "sha256": "a017d7586350c89c7f3724f335cff577c643771d7807563b8b9d0666d360ac93",
+      "url": "world-atlas-2026-10-15/stronghold-panorama-00.png?v=37ba889297fec034",
+      "sha256": "37ba889297fec0349ca9827216b14f085a440ed3aeda30b55c0694640b05b6df",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/stronghold-panorama-01.png?v=561199ea8698c350",
-      "sha256": "561199ea8698c35014c59cb36a568d6af320f49955295c59bdb8d9a22de3b838",
+      "url": "world-atlas-2026-10-15/stronghold-panorama-01.png?v=2e3aa52d2f095968",
+      "sha256": "2e3aa52d2f0959681dd7db7b2162ccec87c0f0078211cfda854fb3361a126b32",
       "image_frames": 1
     },
     {
@@ -916,8 +1186,8 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/stronghold-portal-00.png?v=a43660c504ce3191",
-      "sha256": "a43660c504ce3191be6316a13f8183676ebafb41dfe724f479e449d7ee870050",
+      "url": "world-atlas-2026-10-15/stronghold-portal-00.png?v=0c137fe128fc0784",
+      "sha256": "0c137fe128fc0784c9a245a103c7b0a414729a6da89c94696e001a273a8b6c9b",
       "image_frames": 1
     },
     {
@@ -926,8 +1196,8 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/stronghold-silverfish-00.png?v=226feb29d385eb49",
-      "sha256": "226feb29d385eb49241d099d83ec008bddbbc914053add8f5107a38781342039",
+      "url": "world-atlas-2026-10-15/stronghold-silverfish-00.png?v=72c42e6b74551e8f",
+      "sha256": "72c42e6b74551e8f7af006a30fc603ffcdd4285bb450e8a878ce9fa4d2dbf7e6",
       "image_frames": 1
     },
     {
@@ -936,23 +1206,23 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/stronghold-staging-00.png?v=138c26c1d21363d2",
-      "sha256": "138c26c1d21363d2e576843d90ccc0f4a07712965fc26fab73bb488c68b824f3",
+      "url": "world-atlas-2026-10-15/stronghold-staging-00.png?v=321151e82808a7b4",
+      "sha256": "321151e82808a7b4ed1faca2e2294b28ef2960523f6d427ee397c75cbf7d0c60",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/stronghold-staging-01.png?v=df0fa02ec35888ae",
-      "sha256": "df0fa02ec35888aef7c02ff85359aefdbceb1781b589148e5a0785d0fc1eb2ab",
+      "url": "world-atlas-2026-10-15/stronghold-staging-01.png?v=2cbfc497392276b9",
+      "sha256": "2cbfc497392276b9460c8050e7bc7888b58a40e0e9cd9a70265645bb30dbf291",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/stronghold-upper-00.png?v=dbfc9a0a3f480586",
-      "sha256": "dbfc9a0a3f480586d44f7dcf1d65399f9c137b0610da970f8c8263fea03d1588",
+      "url": "world-atlas-2026-10-15/stronghold-upper-00.png?v=11434f358ef6c976",
+      "sha256": "11434f358ef6c976d38d71c0f2de8331b05feac90fc8774a7ec59e7da6c5190e",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/stronghold-upper-01.png?v=74598560e3a6e0bc",
-      "sha256": "74598560e3a6e0bcda5f97e6fa2a983e2f65f0a89cefcd4bdab0cd76e48c68c2",
+      "url": "world-atlas-2026-10-15/stronghold-upper-01.png?v=2e4799974d4ed4d0",
+      "sha256": "2e4799974d4ed4d0e6ae82185bf6e3701f983b4e6e44b4784c4791c62a5e21ac",
       "image_frames": 1
     },
     {
@@ -976,48 +1246,48 @@
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/trial-camp-00.png?v=40f31ee621b1330d",
-      "sha256": "40f31ee621b1330d335ef33e56486cfcd40bc567319adbbd6279fe44b327b3da",
+      "url": "world-atlas-2026-10-15/trial-camp-00.png?v=782a64c655cb9f12",
+      "sha256": "782a64c655cb9f12aa2b912e1b222f4634264918727a2b9fd2896400818ea0a4",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/trial-combat-00.png?v=29300848a83b235f",
-      "sha256": "29300848a83b235f1275ac7edb35b90f97ad4121a7307ce78d4ebc1b9639eeec",
+      "url": "world-atlas-2026-10-15/trial-combat-00.png?v=6f3c2fbc322aae97",
+      "sha256": "6f3c2fbc322aae971b2e62e97d25551f93f428e6e7e8720fa43e4fe62acabd76",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/trial-combat-01.png?v=229c4e05f59f50be",
-      "sha256": "229c4e05f59f50be19bd60cbce15140b9f04c8fa933155b46b41519c8256e9a8",
+      "url": "world-atlas-2026-10-15/trial-combat-01.png?v=3f4f6764183823f8",
+      "sha256": "3f4f6764183823f861f1a7b937d5a909f005689377fe38c11082c678c971d43d",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/trial-combat-02.png?v=4358c8ac26da1989",
-      "sha256": "4358c8ac26da1989be8df500f444f514e53eef4b467a1a7d7bb39c5af82db7e4",
+      "url": "world-atlas-2026-10-15/trial-combat-02.png?v=5816d3aee268fe59",
+      "sha256": "5816d3aee268fe5946477b8cefbcf2f60d006112a835685f339e509171725b12",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/trial-combat-03.png?v=256dbf90c1794c57",
-      "sha256": "256dbf90c1794c5754c789c994ccde4cc39c723adec2372799eeeab31ab04a1c",
+      "url": "world-atlas-2026-10-15/trial-combat-03.png?v=40993d5bb1dfec76",
+      "sha256": "40993d5bb1dfec769cdb3c61062276bdf7a7cf65fe1a8955feb166336b711d8a",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/trial-combat-04.png?v=08963d09f418a86b",
-      "sha256": "08963d09f418a86b0bb265138aa18feb9d2ca3c87da64f80fe9a80f5180e4f3c",
+      "url": "world-atlas-2026-10-15/trial-combat-04.png?v=3de884dc71115488",
+      "sha256": "3de884dc7111548832ef52b6ad67740df9e5fa11884a15192c964673dce343a9",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/trial-jump-00.png?v=4d602dfd73bf5da4",
-      "sha256": "4d602dfd73bf5da45283d4fa5baf0047a071bc13ff5baed40c357a9cf68206c3",
+      "url": "world-atlas-2026-10-15/trial-jump-00.png?v=e62537cec9059766",
+      "sha256": "e62537cec9059766912f35cb5919c36e65e123717005561e8a894c46f809f5a0",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/trial-jump-01.png?v=af66aaee6b7015c8",
-      "sha256": "af66aaee6b7015c85fa4e6585baa0f01c6915bbd51f882b6e89d2071668ac223",
+      "url": "world-atlas-2026-10-15/trial-jump-01.png?v=1da7d99486432654",
+      "sha256": "1da7d9948643265474b823c83696c356bbbab86164cf1dfb2333195cc8267bf4",
       "image_frames": 1
     },
     {
-      "url": "world-atlas-2026-10-15/trial-ravine-00.png?v=2ca44d9e315a56e6",
-      "sha256": "2ca44d9e315a56e6c263978158316ceb86464dea194e95fae1a33c78983734e4",
+      "url": "world-atlas-2026-10-15/trial-ravine-00.png?v=e45c2afd133570f3",
+      "sha256": "e45c2afd133570f3a516cef50f761ba6fa7b5e092153abf5aa1914436c4f1868",
       "image_frames": 1
     },
     {
@@ -1107,7 +1377,7 @@
     },
     {
       "url": "world-refinement-2026-10-15/biome-swamp-now.png",
-      "sha256": "9329875537179cdc319be779727b4c13be38bc79b6aff967b9de118d94f35aa3",
+      "sha256": "6315d73ce0d497e26d1d77018d4b9c7f066ea68f057a31ee689d4b57ad904c6d",
       "image_frames": 1
     },
     {
@@ -1416,13 +1686,13 @@
       "image_frames": 1
     },
     {
-      "url": "world-refinement-2026-10-15/block-020-detail.png?v=beaa15560971c9c9",
-      "sha256": "beaa15560971c9c964a0b268fdd42ba5e739c941e938d92aafb74dd0de8e289a",
+      "url": "world-refinement-2026-10-15/block-020-detail.png?v=daaf26bce83c5bf8",
+      "sha256": "daaf26bce83c5bf873eae35a682e90bced3fb9668b693569ff70435a54b521eb",
       "image_frames": 1
     },
     {
-      "url": "world-refinement-2026-10-15/block-020-now.png?v=6fa39822a5106f9e",
-      "sha256": "6fa39822a5106f9e14dcb922dc8c67e0c633c1de44d15f7dd662d9f7d83c3763",
+      "url": "world-refinement-2026-10-15/block-020-now.png?v=a3696ae45657b69d",
+      "sha256": "a3696ae45657b69d9cd9f6f292d4532c0a8fd9b2613c255c93959b846b9b96ad",
       "image_frames": 1
     },
     {
@@ -1926,13 +2196,13 @@
       "image_frames": 1
     },
     {
-      "url": "world-refinement-2026-10-15/block-054-detail.png?v=c9dd8980a51572be",
-      "sha256": "c9dd8980a51572beb9f3b0731661d9c9672a05ea6489507f05c4361862bafb58",
+      "url": "world-refinement-2026-10-15/block-054-detail.png?v=da611f2b7d5c9e27",
+      "sha256": "da611f2b7d5c9e27203e6cdc1adbfea5994d0c5f3f8f609538b17a9535b0e899",
       "image_frames": 1
     },
     {
-      "url": "world-refinement-2026-10-15/block-054-now.png?v=9b552e58b57a65ea",
-      "sha256": "9b552e58b57a65ea3ef5f9c6da9fde395271d29261826f60aaf65b8ec950b445",
+      "url": "world-refinement-2026-10-15/block-054-now.png?v=66991efe13a06bbc",
+      "sha256": "66991efe13a06bbc9eabe94ade44674e1ccd23491c2f416d02b9f432e9e8ba96",
       "image_frames": 1
     },
     {
@@ -2577,22 +2847,22 @@
     },
     {
       "url": "world-refinement-2026-10-15/end-dragon-now.png",
-      "sha256": "43f326b641ab86e658406c28e1e946c4e11150ece29ef0df82f4e4981143c6b8",
+      "sha256": "6bfcd5201daea0de95b2b83954082381f2c838ffba4597e86723bcad43f1948c",
       "image_frames": 1
     },
     {
       "url": "world-refinement-2026-10-15/evidence.json",
-      "sha256": "7c973eaa077a0f86cdc4ea0b2b32031df0414a7172d586e94615cf7de56fb313",
+      "sha256": "a846f7c41ffc508972678c1252418dd651005eeb006d9a5af09078777cca7609",
       "image_frames": 0
     },
     {
       "url": "world-refinement-2026-10-15/index.html",
-      "sha256": "d7c4976d2ebff2531087df1b025aedba4df86a493dba95027a7b43d387877e9b",
+      "sha256": "9ad76f1bc79c432e9353482f6965cadee41e978b8d4d51e27cd00e9ee0006d25",
       "image_frames": 0
     },
     {
       "url": "world-refinement-2026-10-15/ores-after.json",
-      "sha256": "47703fb373cafb3d981e7d4883e6231e2a16efbcc593087bcca4d01bd6a6ff61",
+      "sha256": "767e1fc19395eaefb6e0b850dd9b5a74820ae362cef4dab54aa37b9efc9520b5",
       "image_frames": 0
     },
     {
@@ -2602,7 +2872,7 @@
     },
     {
       "url": "world-refinement-2026-10-15/provenance.md",
-      "sha256": "d170d5cf27e25b3f00252a695435f63e51016b1414b3745256510a744d6e1fd4",
+      "sha256": "02be0bdc8d84d4875a8a72dbb6b40ded67440c6a4a62018e5e5858733e0ca6f4",
       "image_frames": 0
     }
   ],
