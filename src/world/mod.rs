@@ -3195,20 +3195,20 @@ impl World {
                 + common_exposure_bonus
                 - Self::overworld_ore_breakup_score(perlin, world_x, current_y, 0.12, 100.0) * 0.05;
 
-        let ore = if current_y > 104 && diamond_score > 0.62 {
+        let ore = if current_y > 104 && diamond_score > 0.60 {
             Some(BlockType::DiamondOre)
-        } else if current_y > 82 && gold_score > 0.63 {
+        } else if current_y > 82 && gold_score > 0.61 {
             Some(BlockType::GoldOre)
         } else if current_y >= REDSTONE_ORE_MIN_Y
-            && redstone_score > (0.68 - redstone_depth_t * 0.12)
+            && redstone_score > (0.66 - redstone_depth_t * 0.12)
         {
             Some(BlockType::RedstoneOre)
         } else if current_y >= OVERWORLD_IRON_ORE_MIN_Y
-            && iron_score > (0.52 - iron_depth_t * 0.05)
+            && iron_score > (0.50 - iron_depth_t * 0.05)
             && iron_gate > 0.0
         {
             Some(BlockType::IronOre)
-        } else if coal_score > 0.48 {
+        } else if coal_score > 0.46 {
             Some(BlockType::CoalOre)
         } else {
             None
@@ -3221,7 +3221,7 @@ impl World {
         // prevent a noise lobe becoming dozens of exposed blocks in 2D.
         // Coordinates are global so deposits have the same limits at chunk seams.
         let (width, height, salt) = match block {
-            BlockType::CoalOre => (7, 6, 11u32),
+            BlockType::CoalOre => (5, 4, 11u32),
             BlockType::IronOre => (6, 5, 29),
             BlockType::DiamondOre => (5, 4, 71),
             _ => (5, 4, 43),
@@ -9165,7 +9165,7 @@ mod tests {
                     }
                 }
                 assert!(
-                    size <= [48, 30, 20, 20, 16][o],
+                    size <= [12, 30, 20, 20, 16][o],
                     "oversized {block:?} pocket: {size}, seed={seed}"
                 );
             }

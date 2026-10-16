@@ -76,8 +76,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     capture(&s, &out, "settlement", 480, 32)?;
     capture(&s, &out, "square", 200, 40)?;
-    s.player.x = (site.center_x + 39) as f64;
+    s.player.x = (site.center_x + 39) as f64 + 0.5;
+    s.player.y = site.ground_y as f64 - 0.5;
     capture(&s, &out, "garden", 160, 48)?;
+    let mut detail = Renderer::with_size(160, 48);
+    detail.toggle_zoom();
+    detail.toggle_zoom();
+    let mut bytes = Vec::new();
+    detail.render_to(&s, 0.0, &mut bytes)?;
+    fs::write(out.join("garden-detail-160x48.ansi"), bytes)?;
     if let Some(desert) = sites
         .iter()
         .find(|v| v.biome == termcraft::world::BiomeType::Desert)
@@ -98,7 +105,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(
         out.join("village.json"),
         serde_json::to_vec_pretty(
-            &serde_json::json!({"seed":[1337,7331,9917,4444],"center_x":site.center_x,"ground_y":site.ground_y,"biome":format!("{:?}",site.biome),"buildings":metadata,"review_root":root,"staged_player_positions":true,"play":"Set TERMCRAFT_SAVE_DIR to review_root and run termcraft"}),
+            &serde_json::json!({"seed":[1337,7331,9917,4444],"center_x":site.center_x,"ground_y":site.ground_y,"biome":format!("{:?}",site.biome),"buildings":metadata,"irrigation":{"channel_x":site.center_x+39,"water_y":site.ground_y,"crossing_surface_y":site.ground_y as f64-0.5},"review_root":root,"staged_player_positions":true,"play":"Set TERMCRAFT_SAVE_DIR to review_root and run termcraft"}),
         )?,
     )?;
     println!("Native review save: {}", root.display());

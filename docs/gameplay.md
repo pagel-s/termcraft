@@ -159,3 +159,15 @@ F3 reports keyboard release support. Try walking, abrupt reversal, tap/held jump
 low ceilings and wall landings before comparing the camera in both views.
 See [Movement and art review](feel-and-art.md) for current captures, the test route
 and remaining limitations.
+
+## Irrigating a field
+
+Dig a one-block-deep trench beside farmland and pour a water bucket into the open
+cell. Water within four blocks hydrates the soil. New village gardens show a
+channel at soil level between two crop beds, with a half-block slab crossing.
+Older saved fields with shallow buried irrigation remain hydrated.
+
+A bucket aimed at a solid block uses the facing surface only. If that surface is
+occupied, clear a visible trench or aim at another exposed surface; the bucket
+will stay full rather than pouring underneath or behind the block. Click farmland
+with seeds to plant directly above it.

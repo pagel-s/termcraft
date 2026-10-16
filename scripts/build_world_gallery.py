@@ -99,7 +99,8 @@ def main():
         ('desert-cottage', 'Desert village cottage', 'desert-cottage-160x48.ansi')]:
         extra(id_, title, 'Overworld', 'Villages', 'Generated',
               'Actual generated settlement at the fixed review seeds. Positions and time of day are staged; buildings, crops and roads are generated.',
-              'villages', [('panorama' if '480x32' in filename else 'overview', 'Full settlement' if '480x32' in filename else 'Overview', filename)])
+              'villages', [('panorama' if '480x32' in filename else 'overview', 'Full settlement' if '480x32' in filename else 'Overview', filename)]
+              + ([('detail', 'Irrigation detail', 'garden-detail-160x48.ansi')] if id_ == 'village-garden' else []))
     for name, title in [('humanoids', 'Hostile mobs and villagers'), ('farm', 'Farm animals'), ('small', 'Small cave and water creatures'),
                         ('nether', 'Nether creature lineup'), ('props', 'Boat, drops and projectiles'), ('cave', 'Torch-lit creature encounter'),
                         ('night', 'Night creature encounter'), ('poses', 'Damage, crouching and alert poses'), ('farm_states', 'Sheared sheep and alert wolf')]:

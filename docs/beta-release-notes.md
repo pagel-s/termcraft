@@ -194,3 +194,9 @@ consistent pixels at every colour zoom, light-aware cave spawns, walk-in Nether
 portals, source-preserving fluids and direct seed placement on farmland. Co-op
 action poses require matching **protocol 14** clients and server. See the
 [interaction review](design/interaction-review-2026-10-16/README.md).
+
+Following ore/farming feedback, fresh terrain has more iron and rare ores and coal
+veins capped at 12 blocks. New village gardens expose their irrigation at soil
+level, with a walkable slab crossing. Buckets no longer fall back to hidden faces.
+See the [ore and irrigation review](design/ore-irrigation-tuning-2026-10-16/README.md)
+for the census, comparison images and native walkthrough.

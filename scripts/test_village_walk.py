@@ -92,6 +92,7 @@ try:
     doors = sorted(x for b in fixture['buildings'] for x in (b['left'], b['right']))
     clicked = []
     heights = []
+    positions = []
     os.write(master, b'\x1b[100;1:1u')  # Enhanced D press, followed by normal OS repeat events.
     begun = time.monotonic()
     last_repeat = begun
@@ -102,6 +103,7 @@ try:
         player = call('director_observe', {})['context']['player']
         x = player['x']
         heights.append(player['y'])
+        positions.append((x,player['y']))
         if x >= fixture['center_x'] + 46:
             break
         for door in doors:
@@ -124,7 +126,15 @@ try:
     pump(.2)
     end = call('director_observe', {})['context']['player']
     assert clicked == doors, (clicked, doors)
-    assert max(abs(y - fixture['ground_y']) for y in heights) < .15, heights
+    irrigation = fixture.get('irrigation')
+    if irrigation:
+        ground = fixture['ground_y']
+        center = irrigation['channel_x'] + .5
+        assert all(ground-.501 <= y <= ground+.01 for _,y in positions), positions
+        assert all(abs(y-ground)<.15 or abs(x-center)<=2 for x,y in positions), positions
+        assert any(abs(x-center)<=1 and abs(y-irrigation['crossing_surface_y'])<.01 for x,y in positions), 'slab crossing was not traversed'
+    else:
+        assert max(abs(y - fixture['ground_y']) for y in heights) < .15, heights
     raster(screen).save(root / 'native-village-160x48.png')
     os.write(master, b'q')
     pump(.4)
@@ -134,7 +144,7 @@ try:
               'start': start, 'end': end, 'walked_blocks': end['x'] - start['x'],
               'doors_opened_with_mouse': clicked, 'jump_events': 0, 'pauses_to_aim_at_doors': True,
               'max_feet_deviation': max(abs(y - fixture['ground_y']) for y in heights),
-              'terminal_restored': True, 'artifacts': str(root),
+              'irrigation_crossing': irrigation, 'terminal_restored': True, 'artifacts': str(root),
               'limits': 'Local PTY with enhanced held-key and actual SGR mouse input. Read-only director observations. Copied generated review save, spawning/daylight disabled. Excludes emulator/WAN latency and human enjoyment.'}
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))

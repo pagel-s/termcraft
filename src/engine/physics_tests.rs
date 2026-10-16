@@ -589,6 +589,7 @@ fn generated_village_is_walkable_both_ways_using_normal_door_commands() {
         s.apply_client_command(ClientCommand::SetMoveRight(direction > 0.0));
         s.apply_client_command(ClientCommand::SetMoveLeft(direction < 0.0));
         let mut crossed = false;
+        let mut crossed_bridge = false;
         for _ in 0..420 {
             for (left, right, _) in site.buildings() {
                 for door in [left, right] {
@@ -603,18 +604,34 @@ fn generated_village_is_walkable_both_ways_using_normal_door_commands() {
                 }
             }
             s.update(0, 0);
+            let bridge_x = (site.center_x + 39) as f64 + 0.5;
+            let near_bridge = (s.player.x - bridge_x).abs() <= 2.0;
             assert!(
-                (s.player.y - g as f64).abs() < 0.01,
+                s.player.y <= g as f64 + 0.01 && s.player.y >= g as f64 - 0.501,
                 "unexpected fall/step at {},{}",
                 s.player.x,
                 s.player.y
             );
+            if near_bridge {
+                crossed_bridge |= (s.player.y - (g as f64 - 0.5)).abs() < 0.01;
+            } else {
+                assert!(
+                    (s.player.y - g as f64).abs() < 0.01,
+                    "unexpected raised street away from irrigation at {},{}",
+                    s.player.x,
+                    s.player.y
+                );
+            }
             if (s.player.x - site.center_x as f64) * direction >= 46.0 {
                 crossed = true;
                 break;
             }
         }
         assert!(crossed, "settlement corridor blocked at {}", s.player.x);
+        assert!(
+            crossed_bridge,
+            "irrigation bridge was not crossed in direction {direction}"
+        );
         s.apply_client_command(ClientCommand::ClearDirectionalInput);
     }
     drop(s);

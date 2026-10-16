@@ -6696,15 +6696,28 @@ impl GameState {
             ]
         };
 
-        candidate_offsets.into_iter().find_map(|(ox, oy)| {
-            let nx = clicked_x + ox;
-            let ny = clicked_y + oy;
-            self.world
-                .get_block(nx, ny)
-                .is_replaceable()
-                .then_some((nx, ny))
-                .filter(|(tx, ty)| self.has_adjacent_placement_anchor(*tx, *ty))
-        })
+        // A bucket must use the face the player aimed at. Falling back to the
+        // opposite face can put water into an unseen pocket underneath a field.
+        let candidate_count = if matches!(
+            self.current_hotbar_item_type(),
+            Some(ItemType::WaterBucket | ItemType::LavaBucket)
+        ) {
+            1
+        } else {
+            4
+        };
+        candidate_offsets
+            .into_iter()
+            .take(candidate_count)
+            .find_map(|(ox, oy)| {
+                let nx = clicked_x + ox;
+                let ny = clicked_y + oy;
+                self.world
+                    .get_block(nx, ny)
+                    .is_replaceable()
+                    .then_some((nx, ny))
+                    .filter(|(tx, ty)| self.has_adjacent_placement_anchor(*tx, *ty))
+            })
     }
 
     fn entity_intersects_block(

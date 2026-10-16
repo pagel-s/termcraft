@@ -351,8 +351,10 @@ impl World {
                 );
                 put(chunk, start, x, g + 1, BlockType::StoneBricks);
             }
-            put(chunk, start, center + 39, g + 1, BlockType::Water(8));
-            put(chunk, start, center + 39, g + 2, BlockType::StoneBricks);
+            // A visible, one-cell-deep channel irrigates four plots on each side.
+            // The slab crossing keeps the street traversable with an ordinary half-step.
+            put(chunk, start, center + 39, g, BlockType::Water(8));
+            put(chunk, start, center + 39, g - 1, BlockType::StoneSlab);
             for x in [
                 center - 44,
                 center - 22,
@@ -453,13 +455,19 @@ mod tests {
         let g = site.ground_y;
         for x in site.center_x - 47..=site.center_x + 47 {
             assert!(
-                at(&blocks, x, g).is_solid(),
+                at(&blocks, x, g).is_solid()
+                    || (x == site.center_x + 39
+                        && at(&blocks, x, g) == BlockType::Water(8)
+                        && at(&blocks, x, g - 1) == BlockType::StoneSlab),
                 "missing street support at {x}"
             );
             for y in [g - 1, g - 2] {
                 assert!(
                     !at(&blocks, x, y).is_solid()
-                        || matches!(at(&blocks, x, y), BlockType::WoodDoor(false)),
+                        || matches!(at(&blocks, x, y), BlockType::WoodDoor(false))
+                        || (x == site.center_x + 39
+                            && y == g - 1
+                            && at(&blocks, x, y) == BlockType::StoneSlab),
                     "blocked corridor {x},{y}"
                 );
             }
@@ -522,7 +530,12 @@ mod tests {
         for _ in 0..100 {
             w.update(site.center_x + 39);
         }
+        assert_eq!(w.get_block(site.center_x + 39, g), BlockType::Water(8));
+        assert_eq!(w.get_block(site.center_x + 39, g - 1), BlockType::StoneSlab);
         for x in site.center_x + 35..=site.center_x + 43 {
+            if x == site.center_x + 39 {
+                continue;
+            }
             assert_eq!(w.get_block(x, g), BlockType::Farmland(7));
             assert!(matches!(w.get_block(x, g - 1), BlockType::Crops(_)));
         }

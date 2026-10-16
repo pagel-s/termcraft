@@ -193,6 +193,40 @@ mod tests {
         assert!(s.inventory.slots[0].is_some());
     }
     #[test]
+    fn buckets_do_not_fall_back_to_hidden_space_under_clicked_soil() {
+        for bucket in [ItemType::WaterBucket, ItemType::LavaBucket] {
+            let mut s = room();
+            hold(&mut s, bucket);
+            s.world.set_block(3, 40, BlockType::Farmland(7));
+            s.world.set_block(2, 40, BlockType::WoodDoor(true));
+            s.world.set_block(3, 39, BlockType::Stone);
+            s.world.set_block(3, 41, BlockType::Air);
+            let before = s.inventory.slots[0].clone();
+            // An open gate is transparent to aiming, but cannot be replaced by a bucket.
+            // The old face fallback selected the hidden space below the soil.
+            s.interact_block(3, 40, false);
+            assert_eq!(s.world.get_block(3, 41), BlockType::Air);
+            assert_eq!(s.inventory.slots[0], before);
+            // Dig a visible trench beside the soil, then pour into that exact cell.
+            s.world.set_block(2, 40, BlockType::Air);
+            s.player.x = 1.5;
+            s.interact_block(2, 40, false);
+            assert_eq!(
+                s.world.get_block(2, 40),
+                if bucket == ItemType::WaterBucket {
+                    BlockType::Water(8)
+                } else {
+                    BlockType::Lava(8)
+                }
+            );
+            assert_eq!(
+                s.inventory.slots[0].as_ref().unwrap().item_type,
+                ItemType::Bucket
+            );
+        }
+    }
+
+    #[test]
     fn planting_clicked_farmland_from_side_and_pouring_water_at_feet_work() {
         let mut s = room();
         s.world.set_block(2, 40, BlockType::Farmland(7));
