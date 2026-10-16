@@ -1,0 +1,34 @@
+{
+  "source_commit": "fa7d105a89652c607dbcf457842a2e6c72c947ff",
+  "samples_per_save_case": 20,
+  "cases": [
+    {
+      "entity_count": 64,
+      "native_save_p95_ms": 0.017,
+      "server_save_p95_ms": 0.0181,
+      "native_bytes": 3632,
+      "server_bytes": 9120,
+      "native_open_with_server_checkpoint_ms": 0.2148
+    },
+    {
+      "entity_count": 512,
+      "native_save_p95_ms": 0.0652,
+      "server_save_p95_ms": 0.0566,
+      "native_bytes": 23792,
+      "server_bytes": 47646,
+      "native_open_with_server_checkpoint_ms": 0.2721
+    },
+    {
+      "entity_count": 2048,
+      "native_save_p95_ms": 0.0789,
+      "server_save_p95_ms": 0.2115,
+      "native_bytes": 92912,
+      "server_bytes": 180732,
+      "native_open_with_server_checkpoint_ms": 0.5479
+    }
+  ],
+  "complete_entity_and_age_roundtrip": true,
+  "profile_source_sha256": "fea34e981c788274ec833b1691c4bdb316e35557c7beec181bb545d8cca832a4",
+  "limits": "Release-library timings on local tmpfs, including a sync call but not physical-disk durability/latency; staged loose items, one co-op actor, 20 saves per case. Not emulator/WAN latency, worst-case disks or 64 identities.",
+  "filesystem": "tmpfs"
+}

@@ -26,7 +26,8 @@ cannot read the new checkpoints. Network protocol remains **14**.
   selects the newest entity state across hosting/solo transitions in one save root,
   so an older mode checkpoint does not resurrect loot already collected in another.
 - Held player controls, bow/mining actions and riding/fishing references are
-  released on entry. Boats themselves remain present.
+  released on entry and actual travel/respawn. Boats themselves remain in their
+  source dimension, even when another world has a boat at the same vector index.
 
 ## Save boundaries and review corrections
 
@@ -43,9 +44,9 @@ reject invalid/unsupported records without overwriting them. A failed source
 checkpoint cancels portal travel; the failed attempt no longer consumes cooldown.
 
 Review covered serialization scope, native/server ownership, repeated reloads,
-portal rollback, partial waves, End regeneration, death drops and compatibility.
+portal rollback, partial waves, End regeneration, loose loot through death/respawn and compatibility.
 The native encoder borrows its captured vectors instead of cloning them again.
-The [tests](https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/src/engine/persistence_tests.rs) and cooperative dimension
+The [tests](https://github.com/pagel-s/termcraft/blob/fa7d105a89652c607dbcf457842a2e6c72c947ff/src/engine/persistence_tests.rs) and cooperative dimension
 regressions use disposable saves; the TCP test launches/stops/restarts the actual
 server and collects loot through ordinary movement commands.
 
@@ -61,3 +62,26 @@ cargo test --locked --test multiplayer_tcp -- --ignored
 Exact build identity and final results are recorded in `evidence.json`. Automated
 checks do not establish human gameplay quality, all-terminal feel or whole-world
 crash consistency.
+
+## Collected verification
+
+The final source passes **713 unit tests** on stable Rust and Rust 1.88, formatting
+and strict all-target Clippy on both. All **five real TCP/MCP process tests** pass,
+including the new server restart/ordinary-movement pickup/restart regression.
+Native and co-op PTYs pass all-view bow, ammunition, food and terminal restoration
+checks. The extracted Linux archive launches without Rust and saves/reopens through
+MCP. The offline crate package verifies and strict documentation builds.
+
+Lantern Run completes and reopens through the real CLI, including five repeat
+runs. Its script now observes landing before the next jump at the bridge abutment;
+that repairs the earlier CI failure caused by requesting takeoff while airborne.
+The gameplay rules and coordinates are exercised through normal tools.
+
+[Evidence](evidence.json), [terminal actions](native-actions.json),
+[native archive](native-archive.json), [trial](lantern-run.json) and
+[repeated trials](lantern-run-repeats.json) retain the exact source/binary identity.
+The [profile](profile.json) and its [source](profile.rs) cover 64/512/2048 loose
+entities with complete age/state round trips. Those timings use **tmpfs** and do
+not represent physical-disk durability or terminal/WAN latency. The
+[CI snapshot](ci-at-verification.json) explicitly records still-running platform
+workflows; local verification is separate from their eventual results.

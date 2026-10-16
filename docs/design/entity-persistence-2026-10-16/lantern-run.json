@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "binary_sha256": "b5a6f00bbfd51a56b48f9573866a400b800d918f5a67818fc264abc725edc5c9",
+  "calls": 218,
+  "simulated_ticks": 518,
+  "stage": "complete",
+  "player": {
+    "experience": 1,
+    "grounded": true,
+    "health": 14.180004119873047,
+    "hunger": 14.879849433898926,
+    "x": 62.634924756465516,
+    "y": 64.0
+  },
+  "abutment_wait_ticks": 6,
+  "abutment_landing_observed": true,
+  "normal_inventory_and_placement_rules": true,
+  "save_reopen": true,
+  "limits": "Scripted actions reacting to normal observations with known map coordinates through real stdio MCP. No teleport/loadout or state edits. Excludes human enjoyment and emulator/WAN latency."
+}
