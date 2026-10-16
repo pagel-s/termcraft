@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "repetitions_per_test": 20,
+  "tests": [
+    "test_day_villager_leaves_hut_through_side_door_and_recloses_it",
+    "test_night_villager_enters_hut_through_side_door_and_recloses_it",
+    "test_villager_auto_step_crosses_single_block_obstacle"
+  ],
+  "total": 60,
+  "fixture": "isolated replica with clear fixed weather/time and no generated settlements",
+  "assertions_weakened": false
+}

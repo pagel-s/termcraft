@@ -561,7 +561,41 @@ native and hosted play in the same save root. Separate native/shared inventories
 retain their existing identities. Invalid records are rejected, failed checkpoints
 keep the previous inventory/entity pair, and failed travel no longer consumes its
 cooldown. This completes the entity/loose-item/encounter persistence follow-up;
-whole-world crash consistency and broader recovery qualification remain open.
+whole-world crash consistency and physical-storage qualification remain open.
 
 [Implementation, scope and reproduction](docs/design/entity-persistence-2026-10-16/README.md)
 record the regression checks, real-server restart/pickup test and final build identity.
+
+## Slow-client isolation and checkpoint recovery, 16 October
+
+The latest native workflow exposed a real Intel Mac stalled-reader freeze after
+the earlier four-platform success. Source `52861f6` moves all server socket writes
+to bounded per-player writer queues, preserves packet order and rejection delivery,
+and batches disconnect saves. The original one-second healthy-client assertion is
+unchanged. All five real TCP/MCP tests pass locally; a two-minute eight-player run
+has a worst healthy update gap of 56 ms during seven stalled-reader disconnections.
+This measures application update arrivals in the fixture, not input latency or WAN
+quality.
+
+Linux fault injection now exercises checkpoint ENOSPC, partial/slow writes, fsync
+failure and process exit at either side of rename using normal CLI crafting and
+reopen. A real native failed-save exit restores the terminal and produces a private
+emergency copy; overlay into a second backup copy retains unsaved movement through
+two reopenings. The fault library is test-only, scoped to a disposable checkpoint.
+These checks join CI and the local smoke gate; they do not prove whole-world
+transactions or physical-disk durability.
+
+The updated local executable passes 716 stable/MSRV unit checks, strict Clippy,
+native/shared input and action PTYs, real SSH joining and no-Rust Linux archive
+checks. [Exact evidence and current platform results](docs/design/reliability-2026-10-16/README.md)
+are retained separately from earlier candidates. Human feel/art acceptance, a
+full survival campaign, sustained human co-op, WANs and live model quality remain
+the main release gates.
+
+General CI passes on the networking source, and Intel Mac now passes its real
+co-op/MCP regression. Windows and ARM Mac complete native qualification. The
+same matrix catches a random Linux door fixture: a generated neighboring village
+reassigns the test villager's home. `b35fe15` isolates the day/night door and step
+routes without relaxing their assertions; all 60 repeated checks and both full
+unit suites pass. Fresh native CI is running for that correction; its pending
+stages remain unqualified. No production villager behavior changed.

@@ -1,0 +1,49 @@
+{
+  "status": "passed",
+  "binary_sha256": "8ac58c856dc2976ec8fdd8ef5354affcf71588973f8259d507fca3f42569eade",
+  "checks": [
+    {
+      "mode": "native",
+      "views": [
+        "overview",
+        "wide",
+        "detail"
+      ],
+      "bow_pose_changed": true,
+      "arrows_after_shots": [
+        63,
+        62,
+        61
+      ],
+      "distant_food_use": true,
+      "captures": "/tmp/termcraft-action-input-2r_yqwrt/native/captures",
+      "terminal_restored": true,
+      "keyboard_queries": 1,
+      "bytes": 497270,
+      "synchronized_frames_started": 418,
+      "synchronized_frames_finished": 419
+    },
+    {
+      "mode": "coop",
+      "views": [
+        "overview",
+        "wide",
+        "detail"
+      ],
+      "bow_pose_changed": true,
+      "arrows_after_shots": [
+        63,
+        62,
+        61
+      ],
+      "distant_food_use": true,
+      "captures": "/tmp/termcraft-action-input-2r_yqwrt/coop/captures",
+      "terminal_restored": true,
+      "keyboard_queries": 1,
+      "bytes": 431491,
+      "synchronized_frames_started": 434,
+      "synchronized_frames_finished": 435
+    }
+  ],
+  "limits": "Real PTY actions and screen captures; pose change, ammunition and food counts checked. Does not measure emulator latency or establish art acceptance."
+}

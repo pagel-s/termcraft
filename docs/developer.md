@@ -169,6 +169,9 @@ Useful operational files:
   temporary keys/config/saves, no host daemon or account changes
 - `scripts/test_native_archive.py`: standalone extraction/hash/runtime/PTY check
   shared by the four-platform artifact workflow
+- `scripts/test_storage_recovery.py`: Linux checkpoint ENOSPC/partial-write,
+  sync-error, slow-write and interrupted-rename checks through real CLI/MCP;
+  optional native PTY recovery into a backup copy
 - `docs/beta-release-notes.md`: unpublished player-facing development draft
 - `.github/workflows/ci.yml`: formatting, checks, tests, and package dry-run
 - `.github/workflows/publish.yml`: tag-triggered crates.io publish workflow
@@ -206,6 +209,21 @@ Use `TERMCRAFT_NETWORK_SOAK_SECONDS=120` and `TERMCRAFT_NETWORK_REPORT=/tmp/netw
 for a longer measured run; default duration is 12 seconds. A human hour and clean
 native-platform qualification remain separate. See the release checklist before
 changing version labels or publishing artifacts.
+
+On Linux, checkpoint fault checks require a C compiler and use only disposable
+worlds. The test compiles `scripts/storage_faults.c` into a temporary interposer;
+it is opt-in for its child processes and matches only their checkpoint path.
+It fills no disk and changes no mount or running game. The native recovery check
+also needs Pillow and PTY/loopback permission:
+
+```sh
+python3 scripts/test_storage_recovery.py --binary target/release/termcraft
+python3 scripts/test_storage_recovery.py --binary target/release/termcraft --native-recovery --report /tmp/storage-qualification.json
+```
+
+These tests verify checkpoint publication/retry and the documented backup-copy
+overlay workflow. They do not establish physical-disk power-loss durability or
+atomicity across chunks, metadata and checkpoints.
 
 ## Generated village review
 

@@ -147,9 +147,10 @@ sizes vary slightly; it is not an exact output-parity benchmark. One trial faile
 without retained stderr and was retried; its cause is unknown. The
 [raw runs](assets/coop-snapshot-profile-2026-10-15.json) preserve these limits.
 
-Further qualification remains: slow/full storage, actual terminals and SSH links,
-a wall-clock co-op soak, natural entity populations, fluids/redstone, complete
-progression and model latency/task quality. Unit regressions cover ladder holding,
+Further qualification remains: physical slow/full storage, actual terminals and
+WAN links, natural entity populations, fluids/redstone, complete progression and
+model latency/task quality. Automated wall-clock co-op and local encrypted SSH
+checks are recorded below. Unit regressions cover ladder holding,
 ledge momentum, release braking, fall damage and high-speed collisions; movement
 feel, swimming, boats and passive-mob parity still need hands-on play.
 
@@ -180,3 +181,20 @@ rejection, restart/reconnect, dropped-link terminal restoration and tunnel clean
 pass. Setup is in `RELEASE_CHECKLIST.md` in the source checkout. These tests do
 not change host services or qualify remote accounts/WAN behavior. Raw reports
 and the interactive Codex-director check: [qualification evidence](assets/qualification-2026-10-11.json).
+
+## Slow-client isolation, 16 October
+
+An Intel Mac native workflow failed the healthy-player responsiveness assertion
+with seven authenticated readers that stopped consuming snapshots. Previously,
+socket writes ran directly on the simulation thread; platform timeout granularity
+could compound stalls across clients. Each client now has a fourteen-packet bounded
+queue drained by its own writer thread. Queue overflow disconnects that client;
+socket writes and partial frames cannot block simulation. Rejection messages use
+the same ordered writer, and disconnect checkpoint saves are batched per loop.
+
+The existing one-second assertion is unchanged. A two-minute Linux eight-player
+run passes, with direct/delayed snapshot-gap p95 of 55.8/76.0 ms and a worst healthy
+gap of 56.4 ms during removal of seven stalled readers. The stalled phase takes
+11.4 seconds, including socket-buffer saturation. These are application arrival
+gaps on flat terrain without natural spawning or terminal rendering, rather than
+input latency or human/WAN qualification. [Reports and platform results](design/reliability-2026-10-16/README.md).

@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "archive": "termcraft-0.1.0-dev-x86_64-unknown-linux-gnu.tar.gz",
+  "target": "x86_64-unknown-linux-gnu",
+  "archive_sha256": "b8d5cf76bc4abc33c0472454fa4b6344f86fd9b188ca2b107305397fc2eb8f85",
+  "binary_sha256": "8ac58c856dc2976ec8fdd8ef5354affcf71588973f8259d507fca3f42569eade",
+  "manifest_files_verified": 1238,
+  "empty_path_runtime": true,
+  "absolute_mcp_config": true,
+  "stepped_mcp_save_reopen": true,
+  "launcher_arguments_from_spaced_path": true,
+  "unix_launcher_default_trial": true,
+  "unix_native_terminal_restore": true,
+  "limits": "Automated archive/runtime check; real terminal input, clean OS compatibility and human gameplay remain separate."
+}

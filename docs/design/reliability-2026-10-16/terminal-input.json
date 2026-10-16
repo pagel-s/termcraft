@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "binary_sha256": "8ac58c856dc2976ec8fdd8ef5354affcf71588973f8259d507fca3f42569eade",
+  "input": [
+    {
+      "mode": "native",
+      "status": "passed",
+      "capability_positive_ascii_tap_delta": 1.03791133056,
+      "tap_rest_drift": 0.025199680665599855,
+      "unrelated_release_rest_drift": -0.025199680665599966,
+      "confirmed_hold_delta": 4.103529411765807,
+      "key_up_drift": 0.05855477759886085,
+      "legacy_run_jump_delta": 2.4780968622578183,
+      "run_jump_repeat_delta": 15.913704498397543,
+      "run_after_jump_release_delta": 4.800000000000004,
+      "quiet_left_run_jump_delta": 15.912634074841392,
+      "focus_loss_cleared": true,
+      "terminal_restored": true,
+      "keyboard_queries": 1,
+      "bytes": 12461090,
+      "synchronized_frames_started": 521,
+      "synchronized_frames_finished": 522
+    },
+    {
+      "mode": "coop",
+      "status": "passed",
+      "capability_positive_ascii_tap_delta": 1.0631110112256,
+      "tap_rest_drift": 0.0,
+      "unrelated_release_rest_drift": 0.0,
+      "confirmed_hold_delta": 4.1515294117648756,
+      "key_up_drift": 0.025285017599927073,
+      "legacy_run_jump_delta": 2.4631024730769826,
+      "run_jump_repeat_delta": 16.23386649839754,
+      "run_after_jump_release_delta": 4.800000000000001,
+      "quiet_left_run_jump_delta": 16.553866498397543,
+      "focus_loss_cleared": true,
+      "terminal_restored": true,
+      "keyboard_queries": 1,
+      "bytes": 11403297,
+      "synchronized_frames_started": 511,
+      "synchronized_frames_finished": 512
+    }
+  ],
+  "doors": [],
+  "limits": "Disposable Unix PTYs with synthetic capability/keypress/mouse streams and read-only director observations. Excludes emulator presentation latency, WANs, Windows native input, and human feel/art approval."
+}

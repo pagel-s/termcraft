@@ -1,0 +1,40 @@
+attempt 1
+
+running 1 test
+test engine::state::tests::test_day_villager_leaves_hut_through_side_door_and_recloses_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 715 filtered out; finished in 0.75s
+
+
+attempt 2
+
+running 1 test
+test engine::state::tests::test_day_villager_leaves_hut_through_side_door_and_recloses_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 715 filtered out; finished in 0.73s
+
+
+attempt 3
+
+running 1 test
+test engine::state::tests::test_day_villager_leaves_hut_through_side_door_and_recloses_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 715 filtered out; finished in 0.36s
+
+
+attempt 4
+
+running 1 test
+test engine::state::tests::test_day_villager_leaves_hut_through_side_door_and_recloses_it ... FAILED
+
+failures:
+
+failures:
+    engine::state::tests::test_day_villager_leaves_hut_through_side_door_and_recloses_it
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 715 filtered out; finished in 1.14s
+
+
+thread 'engine::state::tests::test_day_villager_leaves_hut_through_side_door_and_recloses_it' (19) panicked at src/engine/state.rs:21594:9:
+day door fixture: villager=Villager { x: 4.7009942626953105, y: 10.0, vx: 0.0, vy: 0.0, grounded: true, facing_right: true, jump_cooldown: 7, wander_timer: 0, age: 160, health: 20.0, hit_timer: 0, last_player_damage_tick: 0, home_x: 41, home_y: 30 }, weather=Clear
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

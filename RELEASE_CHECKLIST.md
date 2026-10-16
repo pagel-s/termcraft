@@ -20,6 +20,9 @@ See [BETA_RELEASE_PLAN.md](BETA_RELEASE_PLAN.md) for results and limitations and
   reconnect/restart and dropped-link cleanup; retain the fixture JSON report.
 - [x] Eight-player wall-clock network soak, delayed/jittered buffers and stalled
   readers; retain the JSON report. This is separate from human play.
+- [x] Linux process-scoped checkpoint ENOSPC/partial/slow/sync-error and
+  interrupted-rename checks; native failed-save terminal restoration and recovery
+  into a second backup copy, followed by two normal reopenings.
 
 Run core gates with `./scripts/release_smoke.sh`. Socket tests need loopback
 permission and create disposable worlds. For a longer network run:
@@ -49,7 +52,7 @@ This uses the real OpenSSH client, temporary keys/known-hosts/config, an encrypt
 loopback Paramiko endpoint and isolated saves. It changes no host account/service
 and exposes no public listener. It does not qualify remote account administration.
 
-## Latest automated follow-up
+## Earlier automated follow-up
 
 The independent-dimension and portal-material candidate is `d48fe93`, protocol 13,
 native checkpoint v8 and server checkpoint v2. The local executable is updated.
@@ -83,7 +86,7 @@ failures. Test copies of saves: older builds cannot open progression v9.
   `termcraft trial`; its normal-rule CLI completion is automated, human acceptance
   remains open.
 - [ ] **Classic survival:** fresh world through dragon/credits; early resources,
-  storage/workstations, death/respawn, v1–7 save upgrades, dimension travel and
+  storage/workstations, death/respawn, v1–8 save upgrades, dimension travel and
   reopen. Developer loadouts/teleports do not count as a playthrough.
 - [ ] **Physics feel:** walk/stop/sprint/jump, fast wall/ceiling impacts, stairs,
   sneaking at both ledges, ladders, knockback, fall damage, swimming/drowning,
@@ -102,7 +105,9 @@ failures. Test copies of saves: older builds cannot open progression v9.
   build/extract/checksum archives, launch without Rust, and test keyboard, mouse,
   glyphs, colors, 120×40/200×60 resize, disconnect and orderly shutdown.
 - [ ] **Backup/recovery:** follow the [recovery guide](docs/world-format.md#recovering-into-a-copy)
-  on disposable copies; exercise interrupted writes and slow/full storage.
+  on representative disposable worlds; exercise physical slow/full storage and
+  whole-world interruption. The automated Linux checkpoint faults and native
+  backup-copy overlay path above pass; broad disk/dimension consistency remains.
 - [ ] **Onboarding/demo:** an uncoached player joins, gathers/builds and requests
   a change; record real shared play/screenshots. Label automated fixtures honestly.
 
@@ -132,3 +137,26 @@ across restarts and dimension travel, alongside inventories. Offline time pauses
 The newer runtime revision wins across native/hosted transitions. This supersedes
 the earlier session-only limitation, without completing whole-world crash or human
 play qualification. See [the review and evidence](docs/design/entity-persistence-2026-10-16/README.md).
+
+## Slow-client and storage reliability follow-up, 16 October
+
+Candidate source `52861f6` addresses the Intel Mac stalled-reader failure in
+[run 38883123226](https://github.com/pagel-s/termcraft/actions/runs/38883123226).
+Socket writes now drain bounded per-player queues on separate threads; a blocked
+reader cannot hold the simulation in a socket write. Disconnection saves are
+batched, and rejection frames are delivered before closing. Protocol 14 and save
+formats v9/v3 are unchanged.
+
+716 unit checks pass on stable/Rust 1.88, with strict Clippy on both. Five real
+TCP/MCP tests, a two-minute eight-player soak, native/shared input and action PTYs,
+encrypted OpenSSH joining, Linux archive runtime, offline crate verification and
+checkpoint fault/recovery checks pass. The local executable is updated. Exact
+source/binary identities, platform results and limits are in the
+[reliability review](docs/design/reliability-2026-10-16/README.md).
+
+The networking source passes general CI and the previously failing Intel Mac
+co-op/MCP step; Windows and ARM Mac finish their native jobs. Linux exposes an
+unrelated generated-village home reassignment in a door-test fixture. `b35fe15`
+isolates that fixture and its neighboring route tests; 60 repeat checks and both
+716-test suites pass. The [fresh native matrix](https://github.com/pagel-s/termcraft/actions/runs/38889843430)
+is still running at evidence collection. Pending stages are not qualified.

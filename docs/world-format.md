@@ -150,8 +150,11 @@ See the [implementation review](design/entity-persistence-2026-10-16/README.md).
 Progression writes also sync a temporary file before rename. Autosave errors are
 shown in the native HUD and retried on the next save interval. Dimension travel
 is cancelled when saving the source world fails. Individual atomic files do not
-form a transaction across chunks, progression and dimensions; filesystem/directory
-durability and crash recovery still need qualification.
+form a transaction across chunks, progression and dimensions; physical-disk and
+directory durability still need qualification. Linux process tests now exercise
+ENOSPC, partial writes, sync errors, delayed writes and process exit immediately
+before/after checkpoint rename, with normal CLI crafting and save/reopen.
+See the [reliability review](design/reliability-2026-10-16/README.md).
 
 ## Compatibility Notes
 
@@ -227,3 +230,9 @@ Recovery combines files from different points in time. Inspect neighboring
 chunks and progression carefully; it cannot restore a whole-world transaction
 or missing terrain/entity history from before the last checkpoint. A successful
 open is not proof of consistency.
+
+The Linux native PTY regression exercises a real failed quit save, terminal
+restoration and a private emergency copy. It backs up the original, overlays
+the recovered files into a second copy, and reopens that copy twice through the
+checked loader. This qualifies that bounded recovery path; it does not establish
+consistency for every chunk/dimension after a physical storage failure.

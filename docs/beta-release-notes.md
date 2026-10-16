@@ -13,6 +13,10 @@ and storage. Progress survives reconnect and orderly server restart. The launche
 manages the SSH tunnel and stable reconnect identity and restores your terminal
 when the connection ends.
 
+Slow readers now have bounded output queues drained independently of simulation,
+so a stalled connection cannot hold the world in a socket write. Queue overflow
+disconnects that reader, and grouped disconnects share a checkpoint save.
+
 Use an existing SSH account with forwarding permission and matching builds.
 Keep the game port on loopback; no public hosting/accounts are provisioned.
 See [co-op](multiplayer.md) and [joining](distribution.md).
