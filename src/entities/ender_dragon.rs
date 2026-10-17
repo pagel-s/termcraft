@@ -1,3 +1,4 @@
+use super::end_crystal::EndCrystal;
 use crate::world::World;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
@@ -24,6 +25,16 @@ pub struct EnderDragon {
 }
 
 impl EnderDragon {
+    /// Regeneration does not stack with crystal count: show one readable tether
+    /// to the nearest active crystal instead of a fan across the whole arena.
+    pub fn healing_crystal<'a>(&self, crystals: &'a [EndCrystal]) -> Option<&'a EndCrystal> {
+        let distance = |c: &EndCrystal| (c.x - self.x).powi(2) + (c.y - self.y).powi(2);
+        crystals
+            .iter()
+            .filter(|c| c.health > 0.0)
+            .min_by(|a, b| distance(a).total_cmp(&distance(b)))
+    }
+
     /// Head, armored torso and haunches in the frontal eight-pixels-per-block art.
     /// Decorative wings/tail do not give the boss invisible extra attack reach.
     pub fn hit_regions(&self) -> [[f64; 4]; 3] {
@@ -202,6 +213,18 @@ mod tests {
         block::BlockType,
         chunk::{CHUNK_HEIGHT, CHUNK_WIDTH},
     };
+
+    #[test]
+    fn healing_tether_tracks_the_nearest_surviving_crystal() {
+        use super::EndCrystal;
+        let dragon = EnderDragon::new(0.5, 18.0);
+        let mut crystals = vec![EndCrystal::new(-14.0, 24.0), EndCrystal::new(6.0, 22.0)];
+        assert_eq!(dragon.healing_crystal(&crystals).unwrap().x, 6.0);
+        crystals[1].health = 0.0;
+        assert_eq!(dragon.healing_crystal(&crystals).unwrap().x, -14.0);
+        crystals[0].health = 0.0;
+        assert!(dragon.healing_crystal(&crystals).is_none());
+    }
 
     fn old_arena() -> World {
         let mut world = World::network_replica(Dimension::End);

@@ -7,6 +7,65 @@ use termcraft::{
     world::{Dimension, World, block::BlockType},
 };
 
+fn pty_fixture(
+    root: &Path,
+    address: &str,
+    dimension: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use termcraft::{
+        engine::{
+            server_save::{ServerSave, token},
+            state::PlayerSession,
+        },
+        world::recipe::WorldRecipe,
+        worlds::WorldStore,
+    };
+    let mut recipe = WorldRecipe::example();
+    recipe.regions.clear();
+    recipe.landmarks.clear();
+    let path = WorldStore::new(root.join("worlds")).create(
+        "terminal-input",
+        "Dimension terminal check",
+        &recipe,
+    )?;
+    for name in ["overworld", "nether", "end"] {
+        fs::write(
+            path.join(format!("{name}_world_seed.bin")),
+            bincode::serialize(&[1337u32, 7331, 9917, 4444])?,
+        )?;
+    }
+    let mut s = GameState::open_in_directory(&path)?;
+    s.dismiss_startup_splash();
+    s.apply_client_command(ClientCommand::EquipDiamondLoadout);
+    s.apply_client_command(match dimension {
+        "Nether" => ClientCommand::TravelToNether,
+        "End" => ClientCommand::TravelToEnd,
+        _ => return Err("fixture dimension must be Nether or End".into()),
+    });
+    s.try_persist_world_and_progress()?;
+    let mut saved = ServerSave::read(&s)?;
+    let identity = token();
+    saved
+        .players
+        .insert(identity.clone(), PlayerSession::capture(&s));
+    saved
+        .dimensions
+        .insert(identity.clone(), s.current_dimension);
+    saved.write(&path)?;
+    let hash = address.bytes().fold(0xcbf29ce484222325u64, |h, c| {
+        (h ^ u64::from(c)).wrapping_mul(0x100000001b3)
+    });
+    let clients = root.join("clients");
+    fs::create_dir_all(&clients)?;
+    fs::write(
+        clients.join(format!("{hash:016x}-terminal-input-test.json")),
+        serde_json::to_vec(
+            &serde_json::json!({"address":address,"profile":"terminal-input-test","server_id":saved.id,"token":identity}),
+        )?,
+    )?;
+    Ok(())
+}
+
 fn capture(s: &GameState, out: &Path, name: &str) -> std::io::Result<()> {
     for (w, h, zoom) in [(120, 40, 0), (160, 48, 0), (200, 60, 1), (160, 48, 2)] {
         let mut r = Renderer::with_size(w, h);
@@ -21,6 +80,14 @@ fn capture(s: &GameState, out: &Path, name: &str) -> std::io::Result<()> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<_> = std::env::args().collect();
+    if args.get(1).is_some_and(|v| v == "--pty-fixture") {
+        return pty_fixture(
+            Path::new(args.get(2).ok_or("root required")?),
+            args.get(3).ok_or("address required")?,
+            args.get(4).ok_or("dimension required")?,
+        );
+    }
     let out = std::path::PathBuf::from(std::env::args().nth(1).ok_or("output directory required")?);
     fs::create_dir_all(&out)?;
     let root = std::env::temp_dir().join(format!("tc-encounter-{}", rand::random::<u64>()));

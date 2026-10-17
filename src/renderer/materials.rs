@@ -660,14 +660,14 @@ impl Renderer {
                 Self::rgb((255, 238, 189)),
             ));
         }
-        if let Some(dragon) = &state.ender_dragon {
-            for crystal in &state.end_crystals {
-                lines.push((
-                    project(crystal.x, crystal.y - 0.5),
-                    project(dragon.x, dragon.y - 1.4),
-                    Self::rgb((168, 94, 184)),
-                ));
-            }
+        if let Some(dragon) = &state.ender_dragon
+            && let Some(crystal) = dragon.healing_crystal(&state.end_crystals)
+        {
+            lines.push((
+                project(crystal.x, crystal.y - 0.5),
+                project(dragon.x, dragon.y - 1.4),
+                Self::rgb((168, 94, 184)),
+            ));
         }
         for ((x0, y0), (x1, y1), color) in lines {
             let steps = x0.abs_diff(x1).max(y0.abs_diff(y1)).min(1024);

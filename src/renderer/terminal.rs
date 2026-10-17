@@ -1692,7 +1692,7 @@ impl Renderer {
             if let Some(dragon) = &state.ender_dragon {
                 let dragon_sx = (dragon.x * 2.0).round() as i32 - view_char_x + screen_center_x - 2;
                 let dragon_sy = dragon.y.floor() as i32 - view_char_y + screen_center_y - 1;
-                for crystal in &state.end_crystals {
+                if let Some(crystal) = dragon.healing_crystal(&state.end_crystals) {
                     let c_sx = (crystal.x * 2.0).round() as i32 - view_char_x + screen_center_x;
                     let c_sy = crystal.y.floor() as i32 - view_char_y + screen_center_y;
                     let steps = ((dragon_sx - c_sx).abs().max((dragon_sy - c_sy).abs())).min(26);
