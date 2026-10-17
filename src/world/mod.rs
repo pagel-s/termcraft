@@ -267,6 +267,7 @@ impl PartialOrd for ChunkRequest {
 
 pub struct World {
     replica: bool,
+    end_tower_refinement_done: bool,
     pub(crate) farming_skylight: u8,
     simulation_centers: Vec<i32>,
     replica_biomes: HashMap<i32, BiomeType>,
@@ -483,6 +484,7 @@ impl World {
 
         Self {
             replica: false,
+            end_tower_refinement_done: false,
             farming_skylight: 15,
             simulation_centers: Vec::new(),
             replica_biomes: HashMap::new(),
@@ -4552,7 +4554,16 @@ impl World {
         }
     }
 
-    fn build_end_chunk_with_noise(mut chunk: Chunk, chunk_x: i32, perlin: &Perlin) -> Chunk {
+    fn build_end_chunk_with_noise(chunk: Chunk, chunk_x: i32, perlin: &Perlin) -> Chunk {
+        Self::build_end_arena_chunk(chunk, chunk_x, perlin, false)
+    }
+
+    fn build_end_arena_chunk(
+        mut chunk: Chunk,
+        chunk_x: i32,
+        perlin: &Perlin,
+        legacy: bool,
+    ) -> Chunk {
         let c_start = chunk_x * CHUNK_WIDTH as i32;
 
         for x in 0..CHUNK_WIDTH {
@@ -4595,7 +4606,12 @@ impl World {
         // a column, cap or tunnel (the outer towers cross chunk boundaries).
         for (idx, &tower_x) in END_TOWER_XS.iter().enumerate() {
             let base_y = (34.0 + perlin.get([tower_x as f64 * 0.08, 700.0]) * 2.0) as i32;
-            let top_y = base_y - [14, 11, 13, 16][idx];
+            let heights = if legacy {
+                [14, 11, 13, 16]
+            } else {
+                [9, 7, 8, 10]
+            };
+            let top_y = base_y - heights[idx];
             for wx in tower_x - 3..=tower_x + 3 {
                 if wx < c_start || wx >= c_start + CHUNK_WIDTH as i32 {
                     continue;
@@ -4613,7 +4629,7 @@ impl World {
                         },
                     );
                 }
-                if (wx - tower_x).abs() <= 2 {
+                if (wx - tower_x).abs() <= if legacy { 2 } else { 1 } {
                     for wy in top_y..base_y - 3 {
                         chunk.set_block(lx, wy as usize, BlockType::Obsidian);
                     }
@@ -4623,7 +4639,9 @@ impl World {
                     }
                 }
                 // Slightly wider crown, well above the walking route.
-                chunk.set_block(lx, top_y as usize, BlockType::Obsidian);
+                if (wx - tower_x).abs() <= if legacy { 3 } else { 2 } {
+                    chunk.set_block(lx, top_y as usize, BlockType::Obsidian);
+                }
                 if wx == tower_x {
                     chunk.set_block(lx, (top_y - 1) as usize, BlockType::Glowstone);
                 }
@@ -4670,6 +4688,69 @@ impl World {
         }
 
         chunk
+    }
+
+    /// Upgrade only untouched canonical pillars, including the old initializer's
+    /// fixed-Y doorway. Any mined/placed block in the footprint opts that pillar
+    /// out. Ordinary dirty-chunk checkpointing persists these edits safely.
+    pub(crate) fn refine_legacy_end_towers(&mut self) -> Vec<(i32, f64)> {
+        if self.dimension != Dimension::End || self.replica || self.end_tower_refinement_done {
+            return Vec::new();
+        }
+        self.load_chunks_for_spawn_search(0, 40);
+        if self.check_storage().is_err() {
+            return Vec::new();
+        }
+        self.end_tower_refinement_done = true;
+        let mut old = HashMap::new();
+        let mut new = HashMap::new();
+        for x in -31i32..=31 {
+            let cx = x.div_euclid(CHUNK_WIDTH as i32);
+            old.entry(cx).or_insert_with(|| {
+                Self::build_end_arena_chunk(Chunk::new(cx, "end"), cx, &self.perlin, true)
+            });
+            new.entry(cx).or_insert_with(|| {
+                Self::build_end_arena_chunk(Chunk::new(cx, "end"), cx, &self.perlin, false)
+            });
+        }
+        let mut moved = Vec::new();
+        for (idx, tower_x) in END_TOWER_XS.into_iter().enumerate() {
+            let base = (34.0 + self.perlin.get([tower_x as f64 * 0.08, 700.0]) * 2.0) as i32;
+            let old_top = base - [14, 11, 13, 16][idx];
+            let new_top = base - [9, 7, 8, 10][idx];
+            let mut pristine = true;
+            let mut initialized = true;
+            for x in tower_x - 3..=tower_x + 3 {
+                let cx = x.div_euclid(CHUNK_WIDTH as i32);
+                let lx = x.rem_euclid(CHUNK_WIDTH as i32) as usize;
+                for y in old_top - 2..=base + 2 {
+                    let expected = old[&cx].get_block(lx, y as usize);
+                    let actual = self.get_block(x, y);
+                    pristine &= actual == expected;
+                    let backfilled = if (x - tower_x).abs() <= 1
+                        && (31..=33).contains(&y)
+                        && expected == BlockType::Obsidian
+                    {
+                        BlockType::Air
+                    } else {
+                        expected
+                    };
+                    initialized &= actual == backfilled;
+                }
+            }
+            if !pristine && !initialized {
+                continue;
+            }
+            for x in tower_x - 3..=tower_x + 3 {
+                let cx = x.div_euclid(CHUNK_WIDTH as i32);
+                let lx = x.rem_euclid(CHUNK_WIDTH as i32) as usize;
+                for y in old_top - 2..=base + 2 {
+                    self.set_block(x, y, new[&cx].get_block(lx, y as usize));
+                }
+            }
+            moved.push((tower_x, (new_top - old_top) as f64));
+        }
+        moved
     }
 
     fn set_nether_fortress_block(
@@ -6054,6 +6135,8 @@ impl World {
             &fortress_layout,
         );
 
+        Self::add_nether_floor_fissures(&mut chunk, chunk_x, perlin, cave_perlin);
+
         // Deterministic glowstone clusters embedded in upper netherrack bands.
         for x in 1..(CHUNK_WIDTH - 1) {
             let world_x = chunk_x * CHUNK_WIDTH as i32 + x as i32;
@@ -6089,6 +6172,63 @@ impl World {
         );
         Self::build_nether_fortress(&mut chunk, chunk_x, perlin);
         chunk
+    }
+
+    /// Small, sealed volcanic basins at walking height. Their world-coordinate
+    /// anchors and shared liquid level also work when a basin crosses a seam.
+    /// Fortresses and the subsequent authored landmarks retain their routes.
+    fn add_nether_floor_fissures(
+        chunk: &mut Chunk,
+        chunk_x: i32,
+        perlin: &Perlin,
+        cave_perlin: &Perlin,
+    ) {
+        let start = chunk_x * CHUNK_WIDTH as i32;
+        let end = start + CHUNK_WIDTH as i32;
+        for cell in (start - 8).div_euclid(64)..=(end + 8).div_euclid(64) {
+            let offset = (perlin.get([cell as f64 * 0.73, 425.0]) * 7.0).round() as i32;
+            let center = cell * 64 + 32 + offset;
+            let layout = Self::nether_fortress_layout(
+                perlin,
+                center.div_euclid(CHUNK_WIDTH as i32 * NETHER_FORTRESS_REGION_CHUNKS),
+            );
+            if (center - layout.center_x).abs() <= NETHER_FORTRESS_HALF_SPAN_BLOCKS + 48 {
+                continue;
+            }
+            let (_, drop) = Self::nether_chamber_room_shape(perlin, center);
+            let floor = ((NETHER_CAVERN_FLOOR_BASE_Y as f64
+                + perlin.get([center as f64 * 0.016, 392.0]) * NETHER_CAVERN_FLOOR_VARIATION
+                + cave_perlin.get([center as f64 * 0.055, 393.0])
+                    * NETHER_CAVERN_FLOOR_DETAIL_VARIATION)
+                .round() as i32
+                + drop)
+                .clamp(42, 86);
+            for wx in center - 2..=center + 2 {
+                if wx < start || wx >= end {
+                    continue;
+                }
+                let lx = (wx - start) as usize;
+                for y in floor - 2..=floor + 3 {
+                    let block = if y >= floor + 2 {
+                        BlockType::Netherrack
+                    } else if (wx - center).abs() <= 1 {
+                        if y == floor + 1 {
+                            BlockType::Lava(8)
+                        } else {
+                            BlockType::Air
+                        }
+                    } else if y >= floor {
+                        BlockType::Netherrack
+                    } else {
+                        BlockType::Air
+                    };
+                    chunk.set_block(lx, y as usize, block);
+                }
+                if wx == center - 2 {
+                    chunk.set_block(lx, (floor - 1) as usize, BlockType::Fire(8));
+                }
+            }
+        }
     }
 }
 
@@ -9346,14 +9486,16 @@ mod tests {
                 })
                 .unwrap()
                 + 3;
-            assert!((11..=16).contains(&(floor - top)));
+            assert!((7..=10).contains(&(floor - top)));
             assert_eq!(world.get_block(tower_x, top - 1), BlockType::Glowstone);
             for x in tower_x - 3..=tower_x + 3 {
-                assert_eq!(
-                    world.get_block(x, top),
-                    BlockType::Obsidian,
-                    "crown at chunk seam"
-                );
+                if (x - tower_x).abs() <= 2 {
+                    assert_eq!(
+                        world.get_block(x, top),
+                        BlockType::Obsidian,
+                        "crown at chunk seam"
+                    );
+                }
                 for y in floor - 3..floor {
                     assert_eq!(
                         world.get_block(x, y),
@@ -9362,13 +9504,109 @@ mod tests {
                     );
                 }
                 assert!(world.get_block(x, floor).is_solid());
-                if (x - tower_x).abs() <= 2 {
+                if (x - tower_x).abs() <= 1 {
                     for y in top..floor - 3 {
                         assert_eq!(world.get_block(x, y), BlockType::Obsidian);
                     }
                 }
             }
         }
+    }
+
+    #[test]
+    fn pristine_legacy_pillars_resize_once_and_survive_reload_without_touching_builds() {
+        for backfilled in [false, true] {
+            let root = storage_test_root();
+            let mut world = World::open_in_directory(Dimension::End, &root).unwrap();
+            for cx in -2..=2 {
+                let mut chunk =
+                    World::build_end_arena_chunk(Chunk::new(cx, "end"), cx, &world.perlin, true);
+                chunk.set_save_root(&root);
+                world.chunks.insert(cx, chunk);
+            }
+            if backfilled {
+                for tower in END_TOWER_XS {
+                    for x in tower - 1..=tower + 1 {
+                        for y in 31..=33 {
+                            if world.get_block(x, y) == BlockType::Obsidian {
+                                world.set_block(x, y, BlockType::Air);
+                            }
+                        }
+                    }
+                }
+            }
+            let altered_top = (2..40)
+                .find(|&y| world.get_block(-14, y) == BlockType::Obsidian)
+                .unwrap();
+            world.set_block(-14, altered_top, BlockType::StoneBricks);
+            world.set_block(4, 25, BlockType::Chest);
+            world.try_save_all().unwrap();
+            drop(world);
+            let mut world = World::open_in_directory(Dimension::End, &root).unwrap();
+            let upgraded = world.refine_legacy_end_towers();
+            assert_eq!(upgraded, vec![(-28, 5.0), (14, 5.0), (28, 6.0)]);
+            assert_eq!(world.get_block(-14, altered_top), BlockType::StoneBricks);
+            assert_eq!(world.get_block(-14, altered_top + 1), BlockType::Obsidian);
+            assert_eq!(world.get_block(4, 25), BlockType::Chest);
+            for (x, _) in upgraded {
+                let cx = x.div_euclid(CHUNK_WIDTH as i32);
+                let expected =
+                    World::build_end_arena_chunk(Chunk::new(cx, "end"), cx, &world.perlin, false);
+                for y in 2..40 {
+                    assert_eq!(
+                        world.get_block(x, y),
+                        expected.get_block(x.rem_euclid(CHUNK_WIDTH as i32) as usize, y as usize)
+                    );
+                }
+            }
+            assert!(world.refine_legacy_end_towers().is_empty());
+            world.try_save_all().unwrap();
+            drop(world);
+            let mut world = World::open_in_directory(Dimension::End, &root).unwrap();
+            assert!(world.refine_legacy_end_towers().is_empty());
+            assert_eq!(world.get_block(-14, altered_top), BlockType::StoneBricks);
+            assert_eq!(world.get_block(4, 25), BlockType::Chest);
+            drop(world);
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[test]
+    fn nether_fissures_share_a_sealed_source_level_across_chunk_seams() {
+        let perlin = Perlin::new(1337);
+        let cave = Perlin::new(4444);
+        let mut world = World::network_replica(Dimension::Nether);
+        for cx in 0..=1 {
+            let mut chunk = Chunk::new(cx, "nether");
+            World::add_nether_floor_fissures(&mut chunk, cx, &perlin, &cave);
+            world.chunks.insert(cx, chunk);
+        }
+        let level = (35..92)
+            .find(|&y| world.get_block(32, y) == BlockType::Lava(8))
+            .unwrap();
+        for x in 31..=33 {
+            assert_eq!(world.get_block(x, level), BlockType::Lava(8));
+            assert_eq!(world.get_block(x, level + 1), BlockType::Netherrack);
+            assert_eq!(world.get_block(x, level - 1), BlockType::Air);
+        }
+        for x in [30, 34] {
+            assert_eq!(world.get_block(x, level), BlockType::Netherrack);
+        }
+        for _ in 0..60 {
+            world.update_fluids(0);
+            world.update_heat(0);
+        }
+        for x in 26..=38 {
+            for y in level - 3..=level + 3 {
+                let lava = matches!(world.get_block(x, y), BlockType::Lava(_));
+                assert_eq!(
+                    lava,
+                    (31..=33).contains(&x) && y == level,
+                    "leaking basin at {x},{y}"
+                );
+            }
+        }
+        assert!(matches!(world.get_block(30, level - 2), BlockType::Fire(_)));
     }
 
     #[test]

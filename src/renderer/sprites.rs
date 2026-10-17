@@ -1051,7 +1051,21 @@ impl Renderer {
                         as f64
                         / (2 * scale) as f64;
                     let covered = state.world.get_block(wx.floor() as i32, wy.floor() as i32);
+                    // The frontal wings extend toward the viewer. During a
+                    // close pass they cover the pillar face instead of being
+                    // chopped off by it. The head/body still use normal terrain
+                    // occlusion and full-body navigation in the simulation.
+                    let foreground_wing = matches!(actor.kind, SpriteKind::Dragon)
+                        && actor.variant
+                        && actor
+                            .world_position
+                            .is_some_and(|(x, _)| (wx - x).abs() > 1.5)
+                        && matches!(
+                            covered,
+                            super::BlockType::Obsidian | super::BlockType::Glowstone
+                        );
                     if covered != super::BlockType::Glass
+                        && !foreground_wing
                         && state
                             .world
                             .collision_boxes_at(wx.floor() as i32, wy.floor() as i32)
@@ -1890,6 +1904,39 @@ mod tests {
         side.render_to(&state, 0.0, &mut Vec::new()).unwrap();
         assert!(live.back_buffer == front.back_buffer);
         assert!(live.back_buffer != side.back_buffer);
+    }
+
+    #[test]
+    fn frontal_wings_pass_in_front_of_pillars_but_still_respect_other_terrain() {
+        for (block, foreground) in [
+            (super::super::BlockType::Obsidian, true),
+            (super::super::BlockType::Stone, false),
+        ] {
+            let mut state = fixture();
+            state.current_dimension = crate::world::Dimension::End;
+            for y in 2..7 {
+                state.world.set_block(3, y, block);
+            }
+            state.ender_dragon = Some(crate::entities::ender_dragon::EnderDragon::new(100.0, 7.0));
+            let mut baseline = Renderer::with_size(160, 48);
+            baseline.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+            state.ender_dragon = Some(crate::entities::ender_dragon::EnderDragon::new(0.5, 7.0));
+            let mut actual = Renderer::with_size(160, 48);
+            actual.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+            let (vx, vy, cx, cy, scale) = actual.world_view.unwrap();
+            let sx = 3 * scale * 2 - vx + cx;
+            let mut changed = 0;
+            for by in 2..7 {
+                let sy = by * scale - vy + cy;
+                for dy in 0..scale {
+                    for dx in 0..scale * 2 {
+                        let i = (sy + dy) as usize * 160 + (sx + dx) as usize;
+                        changed += usize::from(actual.back_buffer[i] != baseline.back_buffer[i]);
+                    }
+                }
+            }
+            assert_eq!(changed > 0, foreground, "wing depth at {block:?}");
+        }
     }
 
     #[test]

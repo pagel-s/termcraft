@@ -1,0 +1,122 @@
+//! Actual generated terrain and engine-driven dragon flight in disposable saves.
+//! Player positions and invulnerability are staged; dragon motion is simulated.
+use std::{fs, path::Path};
+use termcraft::{
+    engine::{command::ClientCommand, state::GameState},
+    renderer::Renderer,
+    world::{Dimension, World, block::BlockType},
+};
+
+fn capture(s: &GameState, out: &Path, name: &str) -> std::io::Result<()> {
+    for (w, h, zoom) in [(120, 40, 0), (160, 48, 0), (200, 60, 1), (160, 48, 2)] {
+        let mut r = Renderer::with_size(w, h);
+        for _ in 0..zoom {
+            r.toggle_zoom();
+        }
+        let mut bytes = Vec::new();
+        r.render_to(s, 0.0, &mut bytes)?;
+        fs::write(out.join(format!("{name}-z{zoom}-{w}x{h}.ansi")), bytes)?;
+    }
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let out = std::path::PathBuf::from(std::env::args().nth(1).ok_or("output directory required")?);
+    fs::create_dir_all(&out)?;
+    let root = std::env::temp_dir().join(format!("tc-encounter-{}", rand::random::<u64>()));
+    fs::create_dir(&root)?;
+    let seeds = bincode::serialize(&[1337u32, 7331, 9917, 4444])?;
+    for name in ["overworld", "nether", "end"] {
+        fs::write(root.join(format!("{name}_world_seed.bin")), &seeds)?;
+    }
+    let mut s = GameState::open_in_directory(&root)?;
+    s.dismiss_startup_splash();
+    s.apply_client_command(ClientCommand::ToggleRuleMobSpawning);
+    s.current_dimension = Dimension::End;
+    s.world = World::open_in_directory(Dimension::End, &root)?;
+    s.world.load_chunks_for_spawn_search(0, 100);
+    s.player.x = 6.5;
+    s.player.y = (2..60)
+        .find(|&y| s.world.get_block(6, y).is_solid())
+        .unwrap() as f64;
+    s.player.grounded = true;
+    let anchor_y = s.player.y;
+    let mut trajectory = Vec::new();
+    let mut tick_us = Vec::new();
+    let mut contact_ticks = 0;
+    let mut renderer = Renderer::with_size(200, 60);
+    renderer.toggle_zoom(); // Wide view holds the whole generated arena.
+    for tick in 0..2400 {
+        s.player.x = 6.5;
+        s.player.y = anchor_y;
+        s.player.vx = 0.0;
+        s.player.vy = 0.0;
+        s.player.grounded = true;
+        s.player.health = 20.0;
+        s.player.hunger = 20.0;
+        let start = std::time::Instant::now();
+        s.update(0, 0);
+        tick_us.push(start.elapsed().as_secs_f64() * 1_000_000.0);
+        contact_ticks += usize::from(s.player.health < 20.0);
+        if tick % 10 == 0 {
+            let d = s.ender_dragon.as_ref().ok_or("dragon missing")?;
+            trajectory.push(serde_json::json!({"tick":tick,"x":d.x,"y":d.y,"vx":d.vx,"vy":d.vy,"phase":format!("{:?}",d.phase)}));
+        }
+        if [0, 240, 480, 960, 1440, 1920].contains(&tick) {
+            capture(&s, &out, &format!("end-{tick:04}"))?;
+        }
+        if tick % 4 == 0 && tick < 800 {
+            let mut bytes = Vec::new();
+            renderer.render_to(&s, 0.0, &mut bytes)?;
+            fs::write(
+                out.join(format!("flight-{:03}-200x60.ansi", tick / 4)),
+                bytes,
+            )?;
+        }
+    }
+    fs::write(
+        out.join("trajectory.json"),
+        serde_json::to_vec_pretty(&trajectory)?,
+    )?;
+    tick_us.sort_by(f64::total_cmp);
+    fs::write(
+        out.join("simulation.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "ticks":tick_us.len(),"contact_ticks":contact_ticks,"p50_tick_us":tick_us[tick_us.len()/2],"p95_tick_us":tick_us[tick_us.len()*95/100],"max_tick_us":tick_us.last(),
+            "limits":"Real generated arena and engine ticks. Fixed invulnerable player; no terminal emulator, input latency or human fight qualification."
+        }))?,
+    )?;
+
+    s.current_dimension = Dimension::Nether;
+    s.ender_dragon = None;
+    s.end_crystals.clear();
+    s.world = World::open_in_directory(Dimension::Nether, &root)?;
+    let mut positions = Vec::new();
+    for target_x in [0, 48, 96, 176, 256, -48, -144] {
+        let x = target_x;
+        s.world.load_chunks_for_spawn_search(x, 64);
+        let (x, y) = (x - 8..=x + 8)
+            .flat_map(|x| (35..92).map(move |y| (x, y)))
+            .filter(|&(x, y)| {
+                s.world.get_block(x, y).is_solid()
+                    && s.world.get_block(x, y - 1) == BlockType::Air
+                    && s.world.get_block(x, y - 2) == BlockType::Air
+            })
+            .min_by_key(|&(x, y)| (x - target_x).abs() * 100 + (y - 60).abs())
+            .ok_or("no nether floor")?;
+        s.player.x = x as f64 + 0.5;
+        s.player.y = y as f64;
+        s.player.vx = 0.0;
+        s.player.vy = 0.0;
+        s.player.grounded = true;
+        capture(&s, &out, &format!("nether-{target_x}"))?;
+        positions.push(serde_json::json!({"scene":target_x,"x":s.player.x,"y":s.player.y}));
+    }
+    fs::write(
+        out.join("nether-positions.json"),
+        serde_json::to_vec_pretty(&positions)?,
+    )?;
+    drop(s);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}

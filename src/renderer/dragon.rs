@@ -306,70 +306,68 @@ const fn build_front_frames() -> [Frame; 7] {
             y += 1;
         }
 
-        // A foreshortened tail and rear haunches give the hovering torso depth.
+        // Lean keel-shaped chest, long forearms and tucked rear legs. The
+        // wing span stays imposing without a round, oversized humanoid torso.
         outlined(
             art,
-            &[(28, 29), (35, 29), (35, 34), (33, 39), (30, 39), (28, 34)],
+            &[(30, 29), (33, 29), (34, 34), (32, 39), (31, 39), (29, 34)],
             b'c',
             b'U',
         );
-        line(art, (31, 32), (31, 38), b'V');
+        line(art, (31, 33), (32, 38), b'V');
         outlined(
             art,
-            &[(26, 28), (29, 32), (26, 36), (19, 37), (21, 33)],
+            &[(28, 28), (30, 31), (27, 35), (22, 36), (24, 33)],
             b'Q',
             b'U',
         );
         outlined(
             art,
-            &[(37, 28), (34, 32), (37, 36), (44, 37), (42, 33)],
+            &[(35, 28), (33, 31), (36, 35), (41, 36), (39, 33)],
             b'Q',
             b'U',
         );
-        paired_line(art, (21, 34), (25, 33), b'K');
-        paired_line(art, (20, 36), (20, 37), b'w');
-        paired_line(art, (23, 35), (23, 37), b'w');
-        paired_line(art, (26, 35), (26, 36), b'w');
-
-        // Broad shoulder armor, overlapping breast plates, and forward talons.
+        paired_line(art, (24, 34), (27, 33), b'K');
+        paired_line(art, (23, 35), (23, 36), b'w');
+        paired_line(art, (26, 34), (26, 36), b'w');
         outlined(
             art,
             &[
-                (25, 19),
-                (38, 19),
-                (41, 25),
-                (38, 31),
-                (35, 34),
-                (28, 34),
-                (25, 31),
-                (22, 25),
+                (28, 20),
+                (35, 20),
+                (38, 24),
+                (35, 30),
+                (33, 34),
+                (30, 34),
+                (28, 30),
+                (25, 24),
             ],
             b'Q',
             b'U',
         );
         polygon(
             art,
-            &[(27, 22), (36, 22), (36, 28), (33, 33), (30, 33), (27, 28)],
+            &[(29, 22), (34, 22), (34, 28), (32, 33), (31, 33), (29, 28)],
             b'c',
         );
-        paired_line(art, (25, 23), (29, 25), b'K');
-        paired_line(art, (27, 26), (30, 28), b'V');
-        paired_line(art, (28, 29), (31, 31), b'K');
+        paired_line(art, (27, 23), (30, 25), b'K');
+        paired_line(art, (29, 26), (31, 28), b'V');
+        paired_line(art, (29, 29), (31, 31), b'K');
         outlined(
             art,
-            &[(25, 23), (28, 25), (26, 28), (25, 30), (21, 29), (22, 26)],
+            &[(26, 22), (28, 24), (26, 27), (25, 30), (23, 29), (24, 25)],
             b'Q',
             b'U',
         );
         outlined(
             art,
-            &[(38, 23), (35, 25), (37, 28), (38, 30), (42, 29), (41, 26)],
+            &[(37, 22), (35, 24), (37, 27), (38, 30), (40, 29), (39, 25)],
             b'Q',
             b'U',
         );
-        paired_line(art, (22, 26), (25, 26), b'K');
-        paired_line(art, (22, 28), (22, 30), b'w');
-        paired_line(art, (24, 28), (24, 30), b'w');
+        paired_line(art, (24, 25), (26, 24), b'K');
+        paired_line(art, (23, 29), (23, 31), b'w');
+        paired_line(art, (25, 29), (25, 31), b'w');
 
         // Swept horns frame a heavy wedge skull rather than a flat bat face.
         outlined(
@@ -388,57 +386,57 @@ const fn build_front_frames() -> [Frame; 7] {
         outlined(
             art,
             &[
-                (25, 10),
-                (29, 8),
-                (34, 8),
-                (38, 10),
-                (41, 14),
-                (39, 19),
-                (35, 23),
-                (28, 23),
-                (24, 19),
-                (22, 14),
+                (26, 10),
+                (30, 8),
+                (33, 8),
+                (37, 10),
+                (39, 14),
+                (37, 19),
+                (34, 23),
+                (29, 23),
+                (26, 19),
+                (24, 14),
             ],
             b'Q',
             b'U',
         );
         polygon(
             art,
-            &[(29, 10), (34, 10), (35, 14), (32, 17), (28, 14)],
+            &[(30, 10), (33, 10), (34, 14), (32, 17), (29, 14)],
             b'c',
         );
-        paired_line(art, (25, 11), (29, 13), b'K');
-        paired_line(art, (24, 13), (29, 15), b'U');
-        paired_line(art, (26, 14), (29, 15), b'e');
-        paired_line(art, (26, 15), (28, 15), b'e');
-        paired_line(art, (24, 16), (26, 18), b'K');
+        paired_line(art, (26, 11), (30, 13), b'K');
+        paired_line(art, (26, 13), (30, 15), b'U');
+        paired_line(art, (27, 14), (30, 15), b'e');
+        paired_line(art, (27, 15), (29, 15), b'e');
+        paired_line(art, (26, 16), (27, 18), b'K');
 
         // Dark open maw, paired fangs, nostrils and a ridged chin.
         polygon(
             art,
             &[
-                (25, 17),
-                (29, 18),
-                (34, 18),
-                (38, 17),
-                (37, 22),
-                (34, 24),
-                (29, 24),
-                (26, 22),
+                (26, 17),
+                (30, 18),
+                (33, 18),
+                (37, 17),
+                (36, 22),
+                (33, 24),
+                (30, 24),
+                (27, 22),
             ],
             b'X',
         );
         // A lit top plane and darker front give the muzzle forward projection.
         polygon(
             art,
-            &[(28, 16), (35, 16), (38, 18), (35, 20), (28, 20), (25, 18)],
+            &[(29, 16), (34, 16), (37, 18), (34, 20), (29, 20), (26, 18)],
             b'Q',
         );
-        polygon(art, &[(28, 16), (35, 16), (36, 17), (27, 17)], b'K');
-        paired_line(art, (28, 18), (29, 18), b'X');
-        paired_line(art, (27, 20), (28, 22), b'w');
-        paired_line(art, (29, 23), (29, 24), b'w');
-        paired_line(art, (28, 24), (31, 25), b'K');
+        polygon(art, &[(29, 16), (34, 16), (35, 17), (28, 17)], b'K');
+        paired_line(art, (29, 18), (30, 18), b'X');
+        paired_line(art, (28, 20), (29, 22), b'w');
+        paired_line(art, (30, 23), (30, 24), b'w');
+        paired_line(art, (29, 24), (31, 25), b'K');
         pose += 1;
     }
     frames

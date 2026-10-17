@@ -9443,6 +9443,13 @@ impl GameState {
     }
 
     fn ensure_end_boss_entities(&mut self) {
+        for (tower_x, delta_y) in self.world.refine_legacy_end_towers() {
+            for crystal in &mut self.end_crystals {
+                if (crystal.x - (tower_x as f64 + 0.5)).abs() < 0.1 {
+                    crystal.y += delta_y;
+                }
+            }
+        }
         if self.current_dimension != Dimension::End
             || self.end_boss_initialized
             || self.dragon_defeated
@@ -9453,14 +9460,6 @@ impl GameState {
         self.end_crystals.clear();
         for tower_x in END_TOWER_XS {
             self.world.load_chunks_around(tower_x);
-            // Backfill legacy End chunks: widen old tower feet into a real 2D arch.
-            for wx in (tower_x - 1)..=(tower_x + 1) {
-                for passage_y in 31..=33 {
-                    if self.world.get_block(wx, passage_y) == BlockType::Obsidian {
-                        self.world.set_block(wx, passage_y, BlockType::Air);
-                    }
-                }
-            }
             let mut crystal_y = None;
             for y in 2..96 {
                 if self.world.get_block(tower_x, y) == BlockType::Glowstone
@@ -9524,29 +9523,7 @@ impl GameState {
         let dragon_contact_cooldown = self.scaled_hostile_cooldown(16);
         if let Some(dragon) = self.ender_dragon.as_mut() {
             dragon.update_ai(self.player.x, self.player.y, crystal_count);
-
-            let mut next_x = dragon.x + dragon.vx;
-            let mut next_y = dragon.y + dragon.vy;
-
-            if self
-                .world
-                .get_block(next_x.floor() as i32, (dragon.y - 1.0).floor() as i32)
-                .is_solid()
-            {
-                dragon.vx = -dragon.vx * 0.45;
-                next_x = dragon.x + dragon.vx;
-            }
-            if self
-                .world
-                .get_block(dragon.x.floor() as i32, next_y.floor() as i32)
-                .is_solid()
-            {
-                dragon.vy = -dragon.vy * 0.45;
-                next_y = dragon.y + dragon.vy;
-            }
-
-            dragon.x = next_x.clamp(-72.0, 72.0);
-            dragon.y = next_y.clamp(8.0, 52.0);
+            dragon.advance_flight(&self.world, self.player.x);
 
             if crystal_count > 0
                 && dragon.health > 0.0
