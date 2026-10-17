@@ -687,14 +687,24 @@ impl Renderer {
             return;
         }
         let frame = dragon::front_frame(elapsed as f64 * 0.16, false);
+        let palette = ActorSprite::mob(0, 0, SpriteKind::Dragon, true, 0.0, 0, Color::White);
         let width = (16 * scale).max(8);
         let height = (10 * scale).max(5);
         let breakup = ((elapsed - 24.0) / 56.0).clamp(0.0, 1.6);
         for dy in 0..height {
             for dx in 0..width {
-                let sx = (dx as usize * dragon::WIDTH / width as usize).min(dragon::WIDTH - 1);
-                let sy = (dy as usize * dragon::HEIGHT / height as usize).min(dragon::HEIGHT - 1);
-                let token = frame[sy][sx];
+                let sx = ((dx as usize * 2 + 1) * dragon::WIDTH / (width as usize * 2))
+                    .min(dragon::WIDTH - 1);
+                let sy = ((dy as usize * 2 + 1) * dragon::HEIGHT / (height as usize * 2))
+                    .min(dragon::HEIGHT - 1);
+                let mut token = frame[sy][sx];
+                let x0 = dx as usize * dragon::WIDTH / width as usize;
+                let x1 = ((dx as usize + 1) * dragon::WIDTH).div_ceil(width as usize);
+                let y0 = dy as usize * dragon::HEIGHT / height as usize;
+                let y1 = ((dy as usize + 1) * dragon::HEIGHT).div_ceil(height as usize);
+                if (y0..y1).any(|sy| (x0..x1).any(|sx| frame[sy][sx] == b'e')) {
+                    token = b'e';
+                }
                 if token == b' ' || token == 0 {
                     continue;
                 }
@@ -711,12 +721,8 @@ impl Renderer {
                 if py < 4 || py >= bottom {
                     continue;
                 }
-                let base = match token {
-                    b'e' => (255, 87, 232),
-                    b'h' | b'b' => (190, 185, 211),
-                    b'V' => (111, 66, 146),
-                    b'X' => (13, 11, 23),
-                    _ => (47, 32, 66),
+                let Some(base) = palette.color(token).and_then(Renderer::color_rgb) else {
+                    continue;
                 };
                 let crack = if ((sx + sy * 3) % 11) < 2 {
                     ((elapsed - 12.0) / 30.0).clamp(0.0, 1.0)
