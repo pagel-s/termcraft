@@ -373,6 +373,12 @@ impl GameLoop {
                                             self.clear_horizontal_input_state();
                                         }
                                     }
+                                    KeyCode::Char('v' | 'V') => {
+                                        self.state.apply_client_command(ClientCommand::DropItem(
+                                            key_event.modifiers.contains(KeyModifiers::SHIFT)
+                                                || key_event.code == KeyCode::Char('V'),
+                                        ));
+                                    }
                                     KeyCode::Up | KeyCode::Char(' ') => {
                                         self.handle_jump_press(Instant::now(), false);
                                     }

@@ -675,6 +675,65 @@ fn palette(
 }
 
 impl Renderer {
+    pub(super) fn draw_victory_dragon(
+        &mut self,
+        x: i32,
+        feet: i32,
+        scale: i32,
+        elapsed: f32,
+        bottom: i32,
+    ) {
+        if elapsed > 112.0 {
+            return;
+        }
+        let frame = dragon::front_frame(elapsed as f64 * 0.16, false);
+        let width = (16 * scale).max(8);
+        let height = (10 * scale).max(5);
+        let breakup = ((elapsed - 24.0) / 56.0).clamp(0.0, 1.6);
+        for dy in 0..height {
+            for dx in 0..width {
+                let sx = (dx as usize * dragon::WIDTH / width as usize).min(dragon::WIDTH - 1);
+                let sy = (dy as usize * dragon::HEIGHT / height as usize).min(dragon::HEIGHT - 1);
+                let token = frame[sy][sx];
+                if token == b' ' || token == 0 {
+                    continue;
+                }
+                let hash = ((sx * 73 + sy * 151) % 97) as f32 / 97.0;
+                if elapsed > 62.0 && hash < (elapsed - 62.0) / 60.0 {
+                    continue;
+                }
+                let cx = dx as f32 - width as f32 * 0.5;
+                let cy = dy as f32 - height as f32 * 0.5;
+                let drift = breakup * breakup * (0.45 + hash);
+                let px = x + (cx * (1.0 + drift)).round() as i32;
+                let py = feet - height
+                    + (dy as f32 + cy * drift - breakup * scale as f32 * 1.2).round() as i32;
+                if py < 4 || py >= bottom {
+                    continue;
+                }
+                let base = match token {
+                    b'e' => (255, 87, 232),
+                    b'h' | b'b' => (190, 185, 211),
+                    b'V' => (111, 66, 146),
+                    b'X' => (13, 11, 23),
+                    _ => (47, 32, 66),
+                };
+                let crack = if ((sx + sy * 3) % 11) < 2 {
+                    ((elapsed - 12.0) / 30.0).clamp(0.0, 1.0)
+                } else {
+                    breakup * 0.45
+                };
+                let color = Renderer::rgb(Renderer::lerp_rgb(base, (241, 204, 255), crack));
+                let color = self.blend_pixel(
+                    px,
+                    py,
+                    color,
+                    1.0 - ((elapsed - 78.0) / 34.0).clamp(0.0, 1.0),
+                );
+                self.put_pixel(px, py, color);
+            }
+        }
+    }
     // Keep wide color views on the same support-aware torch art as the detailed
     // views, while preserving classic glyph rendering when color is disabled.
     pub(super) fn render_wide_torches(
@@ -775,7 +834,7 @@ impl Renderer {
         }
     }
 
-    fn blend_pixel(&self, x: i32, y: i32, color: Color, amount: f32) -> Color {
+    pub(super) fn blend_pixel(&self, x: i32, y: i32, color: Color, amount: f32) -> Color {
         if x < 0 || y < 0 || x >= self.width as i32 || y >= self.height as i32 * 2 {
             return color;
         }
@@ -1336,7 +1395,14 @@ impl Renderer {
             let is_tool = item.max_durability().is_some()
                 && !matches!(item, ItemType::FlintAndSteel | ItemType::Shears);
             let size = if is_tool {
-                (h * 0.58).max(2.0)
+                let sword = matches!(
+                    item,
+                    ItemType::WoodSword
+                        | ItemType::StoneSword
+                        | ItemType::IronSword
+                        | ItemType::DiamondSword
+                );
+                (h * if sword { 0.51 } else { 0.58 }).max(2.0)
             } else {
                 (h * 0.27).max(1.5)
             };

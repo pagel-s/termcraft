@@ -14,6 +14,7 @@ macro_rules! player_fields {
             pub fn player(&self) -> &Player { &self.player }
             pub fn inventory(&self) -> &Inventory { &self.inventory }
             pub fn hotbar_index(&self) -> u8 { self.hotbar_index }
+            pub fn hurt_ticks(&self) -> u8 { self.player_combat_hurt_cooldown }
             pub fn inventory_open(&self) -> bool { self.inventory_open }
             pub fn dead(&self) -> bool { self.death_screen_active }
             pub fn credits(&self) -> bool { self.credits_active }

@@ -122,7 +122,7 @@ impl EnderDragon {
                 let radius = 22.0 + (self.age as f64 * 0.011).sin() * 5.0;
                 (
                     0.5 + radius * angle.cos(),
-                    18.0 + 4.0 * angle.sin(),
+                    24.0 + 2.0 * angle.sin(),
                     0.18,
                     0.18,
                 )
@@ -323,6 +323,25 @@ mod tests {
         assert_eq!(dragon.healing_crystal(&crystals).unwrap().x, -14.0);
         crystals[0].health = 0.0;
         assert!(dragon.healing_crystal(&crystals).is_none());
+    }
+    #[test]
+    fn patrol_stays_near_the_pillars_instead_of_climbing_into_the_sky() {
+        let world = arena_with_towers([(-28, 23), (-14, 25), (14, 24), (28, 22)], 1, 2);
+        let mut dragon = EnderDragon::new(0.5, 24.0);
+        let mut min_y = f64::MAX;
+        for _ in 0..1600 {
+            dragon.phase = DragonPhase::Patrol;
+            dragon.phase_timer = 0;
+            dragon.update_flight(&world, 6.5, 34.0, 4);
+            assert!(dragon.flight_space_clear(&world, dragon.x, dragon.y));
+            min_y = min_y.min(dragon.y);
+            assert!(
+                dragon.y >= 20.0 && dragon.y <= 27.0,
+                "patrol feet at {}",
+                dragon.y
+            );
+        }
+        assert!(min_y < 23.0, "route must still clear the tallest pillar");
     }
 
     fn old_arena() -> World {

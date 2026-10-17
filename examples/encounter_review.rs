@@ -114,6 +114,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap() as f64;
     s.player.grounded = true;
     let anchor_y = s.player.y;
+    if args.iter().any(|arg| arg == "--victory") {
+        s.update(0, 0);
+        s.end_crystals.clear();
+        let dragon = s.ender_dragon.as_mut().ok_or("dragon missing")?;
+        dragon.x = 2.5;
+        dragon.y = 27.0;
+        dragon.health = 0.0;
+        s.update(0, 0); // Actual boss-death path starts the shared sequence/rewards.
+        let mut renderer = Renderer::with_size(160, 48);
+        for tick in 0..=140 {
+            let mut bytes = Vec::new();
+            renderer.render_to(&s, 0.0, &mut bytes)?;
+            fs::write(out.join(format!("victory-{tick:03}-160x48.ansi")), bytes)?;
+            if [0, 18, 36, 60, 90, 120, 140].contains(&tick) {
+                capture(&s, &out, &format!("finale-{tick:03}"))?;
+            }
+            s.player.health = 20.0;
+            s.update(0, 0);
+        }
+        fs::write(
+            out.join("victory.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "frames":141,"tick_ms":50,"dragon_defeated":s.has_defeated_dragon(),
+                "sequence_finished":s.end_victory_sequence_state().is_none(),
+                "limits":"Actual engine boss-death path and unmodified terminal renderer. Kill and player position staged in a disposable seed-1337 world; excludes live human combat/emulator timing."
+            }))?,
+        )?;
+        fs::remove_dir_all(root)?;
+        return Ok(());
+    }
     let mut trajectory = Vec::new();
     let mut tick_us = Vec::new();
     let mut contact_ticks = 0;

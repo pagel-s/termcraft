@@ -136,6 +136,7 @@ pub(crate) fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerS
             client_id: remote.client_id,
             action: remote.action,
             held_item: remote.held_item,
+            hurt_ticks: remote.hurt_ticks,
             x: remote.player.x,
             y: remote.player.y,
             vx: remote.player.vx,
@@ -544,6 +545,14 @@ fn run_tcp_client_loop(
                                     ClientCommand::ToggleSneak,
                                 );
                             }
+                            KeyCode::Char('v' | 'V') => queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::DropItem(
+                                    key_event.modifiers.contains(KeyModifiers::SHIFT)
+                                        || key_event.code == KeyCode::Char('V'),
+                                ),
+                            ),
                             KeyCode::Delete if state.inventory_open => queue_client_command(
                                 &mut prediction,
                                 &mut pending_outbound,

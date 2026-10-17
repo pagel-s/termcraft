@@ -28,6 +28,7 @@ use crate::entities::zombie_pigman::ZombiePigman;
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeEntities {
+    end_victory: Option<(u16, f64, f64)>,
     zombies: Vec<Zombie>,
     creepers: Vec<Creeper>,
     skeletons: Vec<Skeleton>,
@@ -59,6 +60,7 @@ impl RuntimeEntities {
     pub fn capture(state: &GameState, center: f64) -> Self {
         let mut remaining = 512usize;
         Self {
+            end_victory: state.end_victory_sequence_state(),
             zombies: state
                 .zombies
                 .iter()
@@ -263,6 +265,7 @@ impl RuntimeEntities {
         }
     }
     pub fn apply(&self, state: &mut GameState) {
+        state.set_replicated_end_victory(self.end_victory);
         state.zombies = self.zombies.clone();
         state.creepers = self.creepers.clone();
         state.skeletons = self.skeletons.clone();
@@ -289,5 +292,28 @@ impl RuntimeEntities {
         state.end_crystals = self.end_crystals.clone();
         state.ender_dragon = self.ender_dragon.clone();
         state.lightning_bolts = self.lightning_bolts.clone();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn victory_and_reflected_fireballs_survive_the_binary_snapshot() {
+        let mut s = GameState::new();
+        s.set_replicated_end_victory(Some((90, 2.5, 27.0)));
+        let mut f = Fireball::new(1.0, 20.0, 0.48, 0.0);
+        f.reflected = true;
+        s.fireballs.push(f.clone());
+        let packet = RuntimeEntities::capture(&s, 0.0);
+        let bytes = bincode::serialize(&packet).unwrap();
+        let packet: RuntimeEntities = bincode::deserialize(&bytes).unwrap();
+        let mut view = GameState::network_view();
+        packet.apply(&mut view);
+        assert_eq!(view.end_victory_sequence_state(), Some((90, 2.5, 27.0)));
+        assert_eq!(view.fireballs, [f]);
+        s.set_replicated_end_victory(None);
+        RuntimeEntities::capture(&s, 0.0).apply(&mut view);
+        assert_eq!(view.end_victory_sequence_state(), None);
     }
 }

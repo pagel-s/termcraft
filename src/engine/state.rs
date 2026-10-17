@@ -8,6 +8,8 @@ mod trial;
 pub use trial::{Trial, TrialStage};
 #[path = "combat.rs"]
 mod combat;
+#[path = "drops.rs"]
+mod drops;
 use super::command::ClientCommand;
 use crate::entities::arrow::Arrow;
 use crate::entities::blaze::Blaze;
@@ -197,6 +199,7 @@ pub struct RemotePlayerState {
     pub client_id: u16,
     pub action: Option<super::action::ActionVisual>,
     pub held_item: Option<ItemType>,
+    pub hurt_ticks: u8,
     pub x: f64,
     pub y: f64,
     pub vx: f64,
@@ -2476,6 +2479,7 @@ impl GameState {
         let reduction = (armor_points * 0.04).clamp(0.0, 0.8);
         let adjusted = (amount * (1.0 - reduction)).max(0.1);
         self.player.health -= adjusted;
+        self.player_combat_hurt_cooldown = self.player_combat_hurt_cooldown.max(10);
         if armor_points > 0.0 {
             self.apply_armor_wear_from_hit();
         }
@@ -2762,6 +2766,11 @@ impl GameState {
     pub fn end_victory_sequence_state(&self) -> Option<(u16, f64, f64)> {
         let (origin_x, origin_y) = self.end_victory_origin?;
         (self.end_victory_ticks > 0).then_some((self.end_victory_ticks, origin_x, origin_y))
+    }
+
+    pub(crate) fn set_replicated_end_victory(&mut self, victory: Option<(u16, f64, f64)>) {
+        self.end_victory_ticks = victory.map_or(0, |v| v.0);
+        self.end_victory_origin = victory.map(|v| (v.1, v.2));
     }
 
     pub fn has_defeated_dragon(&self) -> bool {
@@ -3761,6 +3770,9 @@ impl GameState {
 
     pub fn apply_client_command(&mut self, command: ClientCommand) {
         match command {
+            ClientCommand::DropItem(stack) => {
+                self.drop_selected_item(stack);
+            }
             ClientCommand::AimAt(_, _) => {}
             ClientCommand::CraftRecipe(index) => self.attempt_craft(index as usize),
             ClientCommand::CraftRecipeMax(index) => self.attempt_craft_max(index as usize),
@@ -9525,7 +9537,7 @@ impl GameState {
                     .push(EndCrystal::new(tower_x as f64 + 0.5, y));
             }
         }
-        self.ender_dragon = Some(EnderDragon::new(0.5, 18.0));
+        self.ender_dragon = Some(EnderDragon::new(0.5, 24.0));
         self.end_boss_initialized = true;
     }
 
@@ -9546,7 +9558,9 @@ impl GameState {
         let dragon_contact_damage = self.scaled_hostile_damage(2.5);
         let dragon_contact_cooldown = self.scaled_hostile_cooldown(16);
         if let Some(dragon) = self.ender_dragon.as_mut() {
-            dragon.update_flight(&self.world, self.player.x, self.player.y, crystal_count);
+            if dragon.health > 0.0 {
+                dragon.update_flight(&self.world, self.player.x, self.player.y, crystal_count);
+            }
 
             if crystal_count > 0
                 && dragon.health > 0.0
@@ -12803,7 +12817,26 @@ impl GameState {
             };
 
             let mut explode = false;
-            if let Some(contact) = self.terrain_segment_hit(previous.0, previous.1, fx, fy, false) {
+            let terrain = self.terrain_segment_hit(previous.0, previous.1, fx, fy, false);
+            let delta = (fx - previous.0, fy - previous.1);
+            let length2 = delta.0 * delta.0 + delta.1 * delta.1;
+            let terrain_t = terrain.map_or(f64::INFINITY, |(x, y)| {
+                if length2 > 0.0 {
+                    ((x - previous.0) * delta.0 + (y - previous.1) * delta.1) / length2
+                } else {
+                    0.0
+                }
+            });
+            let reflected = self.fireballs[i].reflected;
+            if reflected
+                && !remove_now
+                && let Some(contact) =
+                    self.hit_player_projectile_segment(previous, (fx, fy), 10.0, terrain_t)
+            {
+                (fx, fy) = contact;
+                remove_now = true;
+                explode = true;
+            } else if let Some(contact) = terrain {
                 (fx, fy) = contact;
                 remove_now = true;
                 explode = true;
@@ -12811,7 +12844,7 @@ impl GameState {
 
             let pdist =
                 ((fx - self.player.x).powi(2) + (fy - (self.player.y - 0.9)).powi(2)).sqrt();
-            if pdist < 0.95 {
+            if !reflected && pdist < 0.95 {
                 if self.apply_player_combat_damage(self.scaled_hostile_damage(1.2)) {
                     if !self.has_fire_resistance() {
                         self.player.burning_timer = self.player.burning_timer.max(55);
@@ -13354,6 +13387,31 @@ impl GameState {
             .collect();
         let mut dead_villagers = Vec::new();
         for i in 0..self.villagers.len() {
+            // Missing chunk data is not empty space. Persistent villagers must
+            // sleep while their complete current/predicted body is unloaded.
+            // Older builds let them fall below the world in evicted chunks;
+            // return that finite, recognizable state home without losing the NPC.
+            let v = &mut self.villagers[i];
+            if v.y.is_finite()
+                && v.y > CHUNK_HEIGHT as f64 + 2.0
+                && v.x.is_finite()
+                && v.x.abs() <= 1_000_000.0
+                && v.home_x.abs_diff(0) <= 1_000_000
+                && (0..128).contains(&v.home_y)
+            {
+                v.x = v.home_x as f64 + 0.5;
+                v.y = v.home_y as f64 + 1.0;
+                v.vx = 0.0;
+                v.vy = 0.0;
+                v.grounded = false;
+            }
+            let left = v.x.min(v.x + v.vx) - 0.31;
+            let right = v.x.max(v.x + v.vx) + 0.31;
+            if !self.world.is_chunk_loaded_at(left.floor() as i32)
+                || !self.world.is_chunk_loaded_at(right.floor() as i32)
+            {
+                continue;
+            }
             self.select_nearest_peer(self.villagers[i].x, self.villagers[i].y);
             if self.villagers[i].hit_timer > 0 {
                 self.villagers[i].hit_timer -= 1;
@@ -13522,6 +13580,9 @@ impl GameState {
                 (item.x, item.y, item.vx, item.vy)
             };
             self.item_entities[i].age = self.item_entities[i].age.saturating_add(1);
+            let pickup_ready = self.item_entities[i].pickup_delay == 0;
+            self.item_entities[i].pickup_delay =
+                self.item_entities[i].pickup_delay.saturating_sub(1);
             if self.item_entities[i].age > ITEM_ENTITY_DESPAWN_TICKS
                 || matches!(self.world.fluid_at_point(ix, iy), BlockType::Lava(_))
                 || matches!(
@@ -13540,7 +13601,8 @@ impl GameState {
             let dy = (self.player.y - 1.0) - iy;
             let dist = (dx * dx + dy * dy).sqrt();
             let (mut f_vx, mut f_vy) = (ivx, next_ivy);
-            let can_collect = !self.death_screen_active
+            let can_collect = pickup_ready
+                && !self.death_screen_active
                 && self.player.health > 0.0
                 && self.inventory.can_accept(self.item_entities[i].item_type);
             if can_collect && dist < 3.0 && dist > 0.001 {
@@ -13583,12 +13645,9 @@ impl GameState {
             if let Some(id) = owner {
                 self.activate_peer(id);
             }
-            let item_ent = self.item_entities.swap_remove(index);
-            if picked_up {
-                let overflow = self.inventory.add_item(item_ent.item_type, 1);
-                if overflow > 0 {
-                    self.item_entities.push(item_ent);
-                }
+            let mut item_ent = self.item_entities.swap_remove(index);
+            if picked_up && !self.collect_loose_item(&mut item_ent) {
+                self.item_entities.push(item_ent);
             }
         }
 
@@ -13852,7 +13911,7 @@ impl GameState {
             }
         }
 
-        if self.player_touches_cactus() && self.player.age.is_multiple_of(10) {
+        if self.player_touches_cactus() && self.player_combat_hurt_cooldown == 0 {
             self.apply_player_damage(1.0);
         }
     }
@@ -13904,7 +13963,8 @@ impl GameState {
         );
         if self.difficulty == Difficulty::Peaceful {
             self.player.hunger = self.player.max_hunger;
-            if self.player.health < self.player.max_health {
+            if self.player.health < self.player.max_health && self.player_combat_hurt_cooldown == 0
+            {
                 self.player.health += 0.05;
             }
         } else {
@@ -13917,7 +13977,10 @@ impl GameState {
                     let starvation_damage = (self.player.health - floor).min(0.01);
                     self.player.health = (self.player.health - starvation_damage).max(floor);
                 }
-            } else if self.player.hunger >= 18.0 && self.player.health < self.player.max_health {
+            } else if self.player.hunger >= 18.0
+                && self.player.health < self.player.max_health
+                && self.player_combat_hurt_cooldown == 0
+            {
                 self.player.health += 0.02;
             }
         }
@@ -19405,7 +19468,7 @@ mod tests {
         };
         assert_eq!(ticks, END_VICTORY_SEQUENCE_TICKS);
         assert!(origin_x.abs() < 2.0);
-        assert!((8.0..=24.0).contains(&origin_y));
+        assert!((8.0..=26.0).contains(&origin_y));
     }
 
     #[test]

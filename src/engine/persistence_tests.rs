@@ -80,6 +80,84 @@ fn populate(s: &mut GameState) {
 }
 
 #[test]
+fn persistence_villagers_sleep_without_terrain_and_recover_old_void_falls() {
+    let (_fixture, mut s) = fixture();
+    let root = s.world.save_root().to_path_buf();
+    let mut sleeping = Villager::new(8191.8, 64.0, 8191, 63);
+    sleeping.health = 7.0;
+    sleeping.vx = 0.13;
+    sleeping.vy = 0.9;
+    s.villagers.push(sleeping.clone());
+    let mut fallen = Villager::new(8192.5, 1400.0, 8192, 63);
+    fallen.health = 13.0;
+    fallen.age = 12345;
+    s.villagers.push(fallen);
+    for _ in 0..40 {
+        s.update(0, 0);
+    }
+    assert_eq!(s.villagers[0], sleeping);
+    assert_eq!((s.villagers[1].x, s.villagers[1].y), (8192.5, 64.0));
+    assert_eq!(s.villagers[1].health, 13.0);
+    assert_eq!(s.villagers[1].age, 12345);
+    s.try_persist_world_and_progress().unwrap();
+    drop(s);
+    let s = GameState::open_in_directory(&root).unwrap();
+    assert_eq!(s.villagers.len(), 2);
+    assert_eq!(s.villagers[0], sleeping);
+    assert_eq!(s.villagers[1].health, 13.0);
+}
+
+#[test]
+fn persistence_thrown_stack_and_reflected_projectile_roundtrip() {
+    let (_fixture, mut s) = fixture();
+    let root = s.world.save_root().to_path_buf();
+    s.inventory.slots[0] = Some(ItemStack {
+        item_type: ItemType::DiamondSword,
+        count: 1,
+        durability: Some(37),
+    });
+    s.inventory_enchant_levels[0] = 3;
+    s.hotbar_index = 0;
+    assert!(s.drop_selected_item(true));
+    let mut f = Fireball::new(12.0, 60.0, 0.48, 0.0);
+    f.reflected = true;
+    s.fireballs.push(f.clone());
+    let item = s.item_entities[0].clone();
+    s.try_persist_world_and_progress().unwrap();
+    drop(s);
+    let mut s = GameState::open_in_directory(&root).unwrap();
+    assert_eq!(s.fireballs, [f]);
+    assert_eq!(s.item_entities.as_slice(), std::slice::from_ref(&item));
+    let mut item = item;
+    assert!(s.collect_loose_item(&mut item));
+    assert_eq!(s.inventory.slots[0].as_ref().unwrap().durability, Some(37));
+    assert_eq!(s.inventory_enchant_levels[0], 3);
+}
+
+#[test]
+fn thrown_items_wait_two_seconds_before_any_player_can_collect_them() {
+    let (_fixture, mut s) = fixture();
+    s.inventory.slots.fill(None);
+    s.inventory_enchant_levels.fill(0);
+    s.inventory.add_item(ItemType::Wood, 1);
+    s.hotbar_index = 0;
+    assert!(s.drop_selected_item(false));
+    for _ in 0..40 {
+        let item = &s.item_entities[0];
+        s.player.x = item.x;
+        s.player.y = item.y + 1.0;
+        s.update(0, 0);
+        assert!(!s.inventory.has_item(ItemType::Wood, 1));
+    }
+    assert_eq!(s.item_entities[0].pickup_delay, 0);
+    s.player.x = s.item_entities[0].x;
+    s.player.y = s.item_entities[0].y + 1.0;
+    s.update(0, 0);
+    assert!(s.inventory.has_item(ItemType::Wood, 1));
+    assert!(s.item_entities.is_empty());
+}
+
+#[test]
 fn persistence_fire_and_ore_timers_resume_from_saved_chunk_activity() {
     let (_fixture, mut s) = fixture();
     let root = s.world.save_root().to_path_buf();

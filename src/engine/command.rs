@@ -40,4 +40,5 @@ pub enum ClientCommand {
     Brew(u8),
     ClearCraftGrid,
     CraftRecipeMax(u16),
+    DropItem(bool),
 }

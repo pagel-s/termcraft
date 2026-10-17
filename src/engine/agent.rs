@@ -233,6 +233,21 @@ impl AgentTools {
                 state.apply_client_command(ClientCommand::InventoryClick(args.slot, args.kind));
                 self.observe(8)
             }
+            "drop_item" => {
+                #[derive(Deserialize)]
+                #[serde(deny_unknown_fields)]
+                struct Drop {
+                    #[serde(default)]
+                    stack: bool,
+                }
+                let args: Drop = decode(arguments)?;
+                let state = self.state()?;
+                require_alive(state)?;
+                if !state.drop_selected_item(args.stack) {
+                    return Err("select an item in the open inventory, or hold a hotbar item; cannot drop here".into());
+                }
+                self.observe(8)
+            }
             "select_slot" => {
                 #[derive(Deserialize)]
                 #[serde(deny_unknown_fields)]
@@ -335,7 +350,7 @@ impl AgentTools {
         }?;
         if matches!(
             name,
-            "act" | "use" | "select_slot" | "craft" | "close_inventory" | "respawn"
+            "act" | "use" | "select_slot" | "craft" | "close_inventory" | "respawn" | "drop_item"
         ) {
             self.save()?;
             let state = self.state()?;
@@ -414,7 +429,7 @@ impl AgentTools {
                 (e.x - s.player.x).abs() <= radius as f64
                     && (e.y - s.player.y).abs() <= radius as f64
             })
-            .map(|e| json!({"x":e.x,"y":e.y,"item":e.item_type}))
+            .map(|e| json!({"x":e.x,"y":e.y,"item":e.item_type,"count":e.payload.as_ref().map_or(1,|p|p.stack.count),"payload":e.payload,"pickup_delay":e.pickup_delay}))
             .collect();
         Ok(json!({
             "world":session.id,"dimension":format!("{:?}",s.world.dimension),
@@ -550,6 +565,13 @@ pub fn tool_catalog() -> Vec<Value> {
     }
     let target = json!({"type":"object","additionalProperties":false,"properties":{"x":{"type":"integer"},"y":{"type":"integer"}},"required":["x","y"]});
     vec![
+        tool(
+            "drop_item",
+            "Throw one held item, or the selected item in an open inventory. stack=true throws the whole stack. Preserves tool wear/enchantments; pickup delay is two seconds.",
+            json!({"stack":{"type":"boolean","default":false}}),
+            &[],
+            false,
+        ),
         tool(
             "inventory_click",
             "Interact with an open inventory/container under normal rules. UI slots: chest slots first, then player inventory. kind 0=move/merge/swap, 1=split/place one, 2=quick move.",

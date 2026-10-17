@@ -16,6 +16,8 @@ mod nether;
 mod shading;
 #[path = "sprites.rs"]
 mod sprites;
+#[path = "victory.rs"]
+mod victory;
 #[path = "weather.rs"]
 mod weather;
 use crate::world::block::BlockType;
@@ -649,93 +651,24 @@ impl Renderer {
         }
     }
 
-    fn render_end_victory_sequence(
-        &mut self,
-        state: &GameState,
-        view_char_x: i32,
-        view_char_y: i32,
-        screen_center_x: i32,
-        screen_center_y: i32,
-        ui_y: i32,
-    ) {
+    fn render_end_victory_sequence(&mut self, state: &GameState, ui_y: i32, frame_alpha: f64) {
+        let (view_char_x, view_char_y, screen_center_x, screen_center_y, scale) =
+            self.world_view.unwrap();
         let Some((ticks_remaining, origin_x, origin_y)) = state.end_victory_sequence_state() else {
             return;
         };
 
-        let elapsed = (140u16.saturating_sub(ticks_remaining)) as f32;
-        let progress = (elapsed / 140.0).clamp(0.0, 1.0);
-        let pulse = ((elapsed * 0.24).sin() * 0.5 + 0.5).clamp(0.0, 1.0);
-        let scale = self.world_view.map_or(1, |view| view.4);
+        let elapsed = (140u16.saturating_sub(ticks_remaining)) as f32 + frame_alpha as f32;
+        let pulse = (elapsed * 0.16).sin() * 0.5 + 0.5;
         let origin_sx =
             (origin_x * 2.0 * scale as f64).round() as i32 - view_char_x + screen_center_x;
-        let origin_sy = (origin_y * scale as f64).floor() as i32 - view_char_y + screen_center_y;
-        let violet = Self::rgb(Self::lerp_rgb(
-            (168, 96, 248),
-            (255, 255, 255),
-            pulse * 0.45,
-        ));
-        let cyan = Self::rgb(Self::lerp_rgb(
-            (80, 228, 255),
-            (255, 235, 255),
-            pulse * 0.35,
-        ));
-        let gold = Self::rgb(Self::lerp_rgb(
-            (255, 188, 64),
-            (255, 240, 190),
-            pulse * 0.25,
-        ));
-
-        for beam_step in 0..9 {
-            let sy = origin_sy - beam_step;
-            if sy < 0 || sy >= ui_y {
-                continue;
-            }
-            let fg = if beam_step % 2 == 0 { violet } else { cyan };
-            self.put_char(origin_sx, sy, '|', fg, Color::Reset);
-            if beam_step > 1 {
-                self.put_char(origin_sx - 1, sy, '.', cyan, Color::Reset);
-                self.put_char(origin_sx + 1, sy, '.', cyan, Color::Reset);
-            }
-        }
-
-        for ring in 0..3 {
-            let radius = 2.0 + progress * (8.0 + ring as f32 * 6.0) - ring as f32 * 2.2;
-            if radius <= 1.0 {
-                continue;
-            }
-            for ray in 0..28 {
-                let angle = ray as f32 * 0.224 + elapsed * 0.08 + ring as f32 * 0.5;
-                let sx = origin_sx + (angle.cos() * radius * 2.0).round() as i32;
-                let sy = origin_sy + (angle.sin() * radius).round() as i32;
-                if sx < 0 || sx >= self.width as i32 || sy < 0 || sy >= ui_y {
-                    continue;
-                }
-                let fg = match ring {
-                    0 => violet,
-                    1 => cyan,
-                    _ => gold,
-                };
-                let glyph = match (ring + ray) % 3 {
-                    0 => '*',
-                    1 => '+',
-                    _ => '.',
-                };
-                self.put_char(sx, sy, glyph, fg, Color::Reset);
-            }
-        }
-
-        for shard in 0..24 {
-            let angle = shard as f32 * 0.41 + elapsed * 0.11;
-            let distance = 1.5 + progress * 18.0 + (shard % 4) as f32 * 1.2;
-            let sx = origin_sx + (angle.cos() * distance * 2.0).round() as i32;
-            let sy = origin_sy + (angle.sin() * distance).round() as i32;
-            if sx < 0 || sx >= self.width as i32 || sy < 0 || sy >= ui_y {
-                continue;
-            }
-            let fg = if shard % 2 == 0 { cyan } else { violet };
-            let glyph = if shard % 3 == 0 { '*' } else { '.' };
-            self.put_char(sx, sy, glyph, fg, Color::Reset);
-        }
+        let origin_py = (origin_y * 2.0 * scale as f64).round() as i32
+            - view_char_y * 2
+            - self.vertical_pixel_offset
+            + screen_center_y * 2;
+        self.render_victory_pixels(origin_sx, origin_py, scale, elapsed, ui_y * 2);
+        let cyan = Self::rgb((167, 228, 255));
+        let gold = Self::rgb((255, 211, 132));
 
         let (headline, subline) = Self::end_victory_banner_lines(ticks_remaining);
         let banner_y = 2;
@@ -1222,7 +1155,8 @@ impl Renderer {
         self.clear_back_buffer();
         self.actor_sprites.clear();
         let physical_size = (self.width, self.height);
-        let boss_view = state.current_dimension == Dimension::End && state.ender_dragon.is_some();
+        let boss_view = state.current_dimension == Dimension::End
+            && (state.ender_dragon.is_some() || state.end_victory_sequence_state().is_some());
         // A selected view has a fixed resolution. Font/window zoom must never
         // silently replace the detailed artwork with a reduced sprite.
         let scale = if self.pixel_colors && self.width >= 8 && self.height >= 8 {
@@ -1882,6 +1816,7 @@ impl Renderer {
                     false,
                 )
                 .with_subcell(render_remote_x, render_remote_y, scale)
+                .with_hit(remote.hurt_ticks > 5)
                 .with_label(remote.client_id)
                 .with_item(remote.held_item)
                 .with_pose(!remote.grounded)
@@ -3367,14 +3302,7 @@ impl Renderer {
         let screen_center_y = screen_center_y * scale;
         let view_char_x = physical_view_x;
         let view_char_y = physical_view_y;
-        self.render_end_victory_sequence(
-            state,
-            view_char_x,
-            view_char_y,
-            screen_center_x,
-            screen_center_y,
-            ui_y,
-        );
+        self.render_end_victory_sequence(state, ui_y, frame_alpha);
         let (hover_bx, hover_by) = self.screen_to_world(state, state.mouse_x, state.mouse_y);
         let px = render_player_x;
         let py = render_player_y - 1.0;
@@ -3728,7 +3656,7 @@ impl Renderer {
                 1,
                 0,
                 &format!(
-                    "Termcraft | {:?} | {} +/- F4 | {} | {}    {chat_hint}E: inventory{settings_hint}  F3: diagnostics",
+                    "Termcraft | {:?} | {} +/- F4 | {} | {}    {chat_hint}E: inventory  V: drop{settings_hint}  F3: diagnostics",
                     state.current_dimension,
                     self.view_name(),
                     Self::local_weather_label(state),
@@ -5218,7 +5146,7 @@ impl Renderer {
         self.put_str(
             box_x + 2,
             box_y + 2,
-            &format!("Bag {used}/27 · Hotbar 1-9 · Tab: recipes"),
+            &format!("Bag {used}/27 · V: one · Shift+V: stack · Tab: recipes"),
             if used == 27 {
                 Self::rgb((237, 201, 121))
             } else {
@@ -5953,6 +5881,7 @@ mod tests {
         state
             .remote_players
             .push(crate::engine::state::RemotePlayerState {
+                hurt_ticks: 0,
                 client_id: 7,
                 action: None,
                 held_item: None,

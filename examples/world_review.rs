@@ -289,6 +289,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     s.remote_players = [(-4, 1u16), (4, 2)]
         .into_iter()
         .map(|(dx, id)| RemotePlayerState {
+            hurt_ticks: 0,
             client_id: id,
             action: None,
             held_item: None,

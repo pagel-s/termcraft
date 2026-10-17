@@ -26,6 +26,7 @@ The intended progression is:
 | Sneak hold | `Shift` |
 | Inventory | `E` |
 | Hotbar | `1`-`9` |
+| Drop one / stack | `V` / `Shift+V` |
 | Mine / attack | `Left Click` |
 | Place / interact | `Right Click` |
 | Use hovered block fallback | `F` |
@@ -98,6 +99,11 @@ remainder after a partial merge.
 - **Delete** returns the grid to the bag when it all fits. Closing a container
   returns grid items and leaves overflow on the ground.
 
+To throw an item, select its hotbar slot and press **V** for one or **Shift+V**
+for its stack. Inside inventory, click the item first, then use the same keys.
+Thrown tools retain wear and enchantments. Everyone waits two seconds before
+picking up a thrown item; throw away from lava or fire if you want to keep it.
+
 Crafting refuses to consume ingredients when its complete output would not fit.
 A completed furnace waits for space without spending additional fuel, including
 across save/reload. Full-bag drops settle on the ground instead of orbiting the
@@ -153,7 +159,11 @@ momentum and accumulated fall distance reset during travel.
 Dimension travel works in single-player and co-op. In co-op only the interacting
 player travels; friends can follow or remain in another dimension. Terrain,
 entities, inventories and saved portal links remain separate, with one shared
-dragon encounter for players in the End. Use matching protocol-16 clients/server.
+dragon encounter for players in the End. Use matching protocol-17 clients/server.
+
+Incoming ghast and blaze fireballs can be hit with a normal left-click attack
+while within 2.6 blocks. Aim at the projectile: a successful return reverses its
+flight, deals 10 damage to the first creature hit, and cannot pass through walls.
 
 ## Travel / Test Shortcuts
 

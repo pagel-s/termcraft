@@ -41,6 +41,7 @@ include = [
     "/scripts/storage_faults.c",
     "/scripts/test_terminal_input.py",
     "/scripts/test_inventory_input.py",
+    "/scripts/test_drop_input.py",
     "/scripts/test_terminal_actions.py",
     "/scripts/test_terminal_views.py",
     "/scripts/capture_terminal_art.py",

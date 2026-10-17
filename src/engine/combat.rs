@@ -213,11 +213,20 @@ impl GameState {
         damage: f32,
         terrain_t: f64,
     ) -> bool {
+        self.hit_player_projectile_segment(from, to, damage, terrain_t)
+            .is_some()
+    }
+    pub(super) fn hit_player_projectile_segment(
+        &mut self,
+        from: (f64, f64),
+        to: (f64, f64),
+        damage: f32,
+        terrain_t: f64,
+    ) -> Option<(f64, f64)> {
         if let Some((t, target)) = self
             .first_arrow_body(from, to)
             .filter(|(t, _)| *t < terrain_t)
         {
-            let _ = t;
             self.apply_target_hit(
                 target,
                 if target == Target::Dragon {
@@ -231,11 +240,49 @@ impl GameState {
                     (to.1 - from.1 - 0.15).clamp(-0.45, 0.2),
                 )),
             );
-            return true;
+            return Some((from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t));
         }
-        false
+        None
     }
     pub(super) fn perform_melee(&mut self, mx: f64, my: f64) -> bool {
+        let eye = (self.player.x, self.player.y - 0.9);
+        let projectile = self
+            .fireballs
+            .iter()
+            .enumerate()
+            .filter(|(_, f)| {
+                !f.dead
+                    && (mx - f.x).hypot(my - f.y) <= 0.9
+                    && (eye.0 - f.x).hypot(eye.1 - f.y) <= 2.6
+                    && self
+                        .terrain_segment_hit(eye.0, eye.1, f.x, f.y, false)
+                        .is_none()
+            })
+            .min_by(|(_, a), (_, b)| {
+                ((mx - a.x).powi(2) + (my - a.y).powi(2))
+                    .total_cmp(&((mx - b.x).powi(2) + (my - b.y).powi(2)))
+            })
+            .map(|(i, _)| i);
+        if let Some(i) = projectile {
+            let f = &mut self.fireballs[i];
+            // Reverse the incoming shot. This is predictable even when the
+            // cursor has only one-block precision in an overview terminal.
+            let speed = f.vx.hypot(f.vy);
+            if speed > 0.001 {
+                f.vx = -f.vx / speed * 0.48;
+                f.vy = -f.vy / speed * 0.48;
+            } else {
+                f.vx = if self.player.facing_right {
+                    0.48
+                } else {
+                    -0.48
+                };
+                f.vy = 0.0;
+            }
+            f.reflected = true;
+            f.age = 0;
+            return true;
+        }
         let Some(target) = self.pick_combat_target(mx, my) else {
             return false;
         };
@@ -395,6 +442,43 @@ mod tests {
         assert!(!s.perform_melee(2.2, 19.1));
     }
     #[test]
+    fn fireballs_can_be_returned_to_ghasts_and_blazes_but_not_through_walls() {
+        for blaze in [false, true] {
+            let mut s = arena();
+            s.player_combat_hurt_cooldown = 0;
+            s.respawn_grace_ticks = 0;
+            if blaze {
+                s.blazes.push(Blaze::new(4.0, 20.0));
+                s.blazes[0].shoot_cooldown = 100;
+            } else {
+                s.ghasts.push(Ghast::new(4.0, 20.0));
+                s.ghasts[0].shoot_cooldown = 100;
+            }
+            s.fireballs.push(Fireball::new(1.8, 19.1, -0.3, 0.0));
+            assert!(s.perform_melee(1.5, 19.5));
+            assert!(s.fireballs[0].reflected && s.fireballs[0].vx > 0.4);
+            let health = s.player.health;
+            for _ in 0..5 {
+                s.update(0, 0);
+            }
+            assert_eq!(s.player.health, health, "returned fireball hit its player");
+            assert!(s.fireballs.is_empty());
+            if blaze {
+                assert!(s.blazes.is_empty() || s.blazes[0].health <= 10.0);
+            } else {
+                assert!(s.ghasts.is_empty() || s.ghasts[0].health <= 10.0);
+            }
+        }
+        let mut s = arena();
+        s.fireballs.push(Fireball::new(1.8, 19.1, -0.3, 0.0));
+        s.world.set_block(1, 19, BlockType::Stone);
+        assert!(!s.perform_melee(1.5, 19.5));
+        assert!(!s.fireballs[0].reflected);
+        s.world.set_block(1, 19, BlockType::Air);
+        s.fireballs[0].x = 5.0;
+        assert!(!s.perform_melee(5.0, 19.1));
+    }
+    #[test]
     fn lone_ocelot_can_jump_obstacles_without_wolves() {
         let mut s = arena();
         s.wolves.clear();
@@ -426,6 +510,35 @@ mod tests {
         let x = s.zombies[0].x;
         s.update(0, 0);
         assert!(s.zombies[0].x > x + 0.25, "AI cancelled the hit impulse");
+    }
+    #[test]
+    fn cactus_sides_and_top_damage_and_flash_without_penetrating_the_block() {
+        for (x, y) in [(0.75, 20.0), (2.25, 20.0), (1.5, 19.0)] {
+            let mut s = arena();
+            s.respawn_grace_ticks = 0;
+            s.player.x = x;
+            s.player.y = y;
+            s.world.set_block(1, 20, BlockType::Sand);
+            s.world.set_block(1, 19, BlockType::Cactus);
+            s.update(0, 0);
+            assert!(s.player.health < 20.0, "contact at {x},{y}");
+            assert!(s.player_hurt_ticks() > 5);
+            let health = s.player.health;
+            for _ in 0..5 {
+                s.update(0, 0);
+            }
+            assert_eq!(
+                s.player.health, health,
+                "contact damage must have a cooldown"
+            );
+        }
+        let mut s = arena();
+        s.respawn_grace_ticks = 0;
+        s.player.x = 0.65;
+        s.world.set_block(1, 20, BlockType::Sand);
+        s.world.set_block(1, 19, BlockType::Cactus);
+        s.update(0, 0);
+        assert_eq!(s.player.health, 20.0, "damage across an air gap");
     }
     #[test]
     fn crossing_behind_a_committed_attack_dodges_it() {

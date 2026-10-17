@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 16;
+pub const NET_PROTOCOL_VERSION: u16 = 17;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;
@@ -152,6 +152,7 @@ pub struct PeerPlayerSnapshot {
     pub player: PlayerSnapshot,
     pub action: Option<super::action::ActionVisual>,
     pub held_item: Option<ItemType>,
+    pub hurt_ticks: u8,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -717,6 +718,7 @@ impl ServerSimulation {
             .filter_map(|id| {
                 self.state.peer_session(id).map(|p| PeerPlayerSnapshot {
                     client_id: id,
+                    hurt_ticks: p.hurt_ticks(),
                     player: PlayerSnapshot::from_player(p.player()),
                     action: self.state.peer_action_visual(id, p.player().age, 0.0),
                     held_item: p.inventory().slots[p.hotbar_index() as usize]

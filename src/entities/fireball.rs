@@ -6,6 +6,8 @@ pub struct Fireball {
     pub vy: f64,
     pub age: u64,
     pub dead: bool,
+    #[serde(default)]
+    pub reflected: bool,
 }
 
 impl Fireball {
@@ -17,6 +19,7 @@ impl Fireball {
             vy,
             age: 0,
             dead: false,
+            reflected: false,
         }
     }
 

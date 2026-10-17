@@ -1,4 +1,10 @@
-use crate::world::item::ItemType;
+use crate::world::item::{ItemStack, ItemType};
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DroppedStack {
+    pub stack: ItemStack,
+    pub enchant_level: u8,
+}
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ItemEntity {
@@ -9,6 +15,10 @@ pub struct ItemEntity {
     pub item_type: ItemType,
     pub grounded: bool,
     pub age: u64, // Used for bobbing animation and despawning
+    #[serde(default)]
+    pub payload: Option<DroppedStack>,
+    #[serde(default)]
+    pub pickup_delay: u8,
 }
 
 impl ItemEntity {
@@ -21,6 +31,8 @@ impl ItemEntity {
             item_type,
             grounded: false,
             age: 0,
+            payload: None,
+            pickup_delay: 0,
         }
     }
 

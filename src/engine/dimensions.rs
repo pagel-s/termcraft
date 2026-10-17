@@ -332,8 +332,8 @@ impl DimensionCheckpoint {
         macro_rules! moving {
             ($($field:ident),*) => { $(
                 count += self.$field.len();
-                if self.$field.iter().any(|e| !valid_position(e.x, e.y) || !valid_velocity(e.vx, e.vy)) {
-                    return Err(concat!("invalid saved ", stringify!($field), "; save preserved").into());
+                if let Some(e) = self.$field.iter().find(|e| !valid_position(e.x, e.y) || !valid_velocity(e.vx, e.vy)) {
+                    return Err(format!("invalid saved {} at ({:.3}, {:.3}), velocity ({:.3}, {:.3}); save preserved", stringify!($field), e.x, e.y, e.vx, e.vy));
                 }
             )* };
         }
@@ -425,6 +425,24 @@ impl DimensionCheckpoint {
                     || !valid_position(e.x as f64, e.y_bottom as f64)
             })
             || self.item_entities.iter().any(|e| e.age > u64::MAX / 2)
+            || self.item_entities.iter().any(|e| {
+                e.payload.as_ref().is_some_and(|p| {
+                    p.stack.item_type != e.item_type
+                        || p.stack.count == 0
+                        || p.stack.count
+                            > if e.item_type.max_durability().is_some() {
+                                1
+                            } else {
+                                e.item_type.max_stack_size()
+                            }
+                        || p.enchant_level > ENCHANT_MAX_LEVEL
+                        || p.stack.durability.is_some_and(|v| {
+                            e.item_type
+                                .max_durability()
+                                .is_none_or(|max| v == 0 || v > max)
+                        })
+                })
+            })
             || self.experience_orbs.iter().any(|e| e.age > u64::MAX / 2)
             || self.arrows.iter().any(|e| e.age > u64::MAX / 2)
             || self.fireballs.iter().any(|e| e.age > u64::MAX / 2)

@@ -106,6 +106,7 @@ paru -S termcraft
 - `X`: toggle sneak
 - `E`: inventory
 - `1`-`9`: hotbar selection
+- `V`: drop one held item; `Shift+V`: drop its stack (select an item first inside inventory)
 - `Left Click`: mine / attack
 - `Right Click`: place / interact
 - `F`: explicit hovered-block use fallback if right click is unreliable in the current terminal

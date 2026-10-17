@@ -162,6 +162,78 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     s.time_of_day = 12000.0;
     s.inventory.slots.fill(None);
     let mut scenes = Vec::new();
+    // Real contact and combat feedback, after startup invulnerability expires.
+    for _ in 0..140 {
+        s.update(0, 0);
+    }
+    hold(&mut s, ItemType::IronSword);
+    s.player.x = 0.75;
+    s.world.set_block(1, 40, BlockType::Sand);
+    s.world.set_block(1, 39, BlockType::Cactus);
+    capture(
+        &s,
+        &out,
+        "cactus-before",
+        "Cactus · before contact",
+        &mut scenes,
+    )?;
+    let health = s.player.health;
+    s.update(0, 0);
+    assert!(s.player.health < health && s.player_hurt_ticks() > 5);
+    capture(
+        &s,
+        &out,
+        "cactus-hurt",
+        "Cactus · actual contact damage and hurt flash",
+        &mut scenes,
+    )?;
+    s.world.set_block(1, 39, BlockType::Air);
+    s.world.set_block(1, 40, BlockType::Grass);
+    s.player.x = 0.5;
+    for _ in 0..12 {
+        s.update(0, 0);
+    }
+    let mut ghast = termcraft::entities::ghast::Ghast::new(6.0, 40.0);
+    ghast.shoot_cooldown = 100;
+    s.ghasts.push(ghast);
+    s.fireballs
+        .push(termcraft::entities::fireball::Fireball::new(
+            1.7, 39.1, -0.3, 0.0,
+        ));
+    capture(
+        &s,
+        &out,
+        "fireball-incoming",
+        "Fireball · incoming",
+        &mut scenes,
+    )?;
+    s.apply_client_command(ClientCommand::SetPrimaryAction(true));
+    s.update(1, 39);
+    s.apply_client_command(ClientCommand::SetPrimaryAction(false));
+    assert!(s.fireballs[0].reflected && s.fireballs[0].vx > 0.0);
+    capture(
+        &s,
+        &out,
+        "fireball-return",
+        "Fireball · returned with normal melee",
+        &mut scenes,
+    )?;
+    for _ in 0..8 {
+        s.update(1, 39);
+    }
+    assert!(s.ghasts[0].health <= 10.0);
+    capture(
+        &s,
+        &out,
+        "fireball-hit",
+        "Ghast · damaged by its returned projectile",
+        &mut scenes,
+    )?;
+    s.ghasts.clear();
+    s.fireballs.clear();
+    for _ in 0..12 {
+        s.update(0, 0);
+    }
     for (item, id, title) in [
         (ItemType::IronSword, "sword", "Sword · swing into empty air"),
         (ItemType::IronPickaxe, "pickaxe", "Pickaxe · mining"),

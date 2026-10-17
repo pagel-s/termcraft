@@ -4,6 +4,35 @@
 Local binaries still report `0.1.0` and archives are marked `dev`. The repository's
 `BETA_RELEASE_PLAN.md` and `RELEASE_CHECKLIST.md` track qualification.
 
+## Throwing, damage feedback and the End finale
+
+Press **V** to throw one held item, or **Shift+V** for its stack. In inventory,
+select the item first. Stack counts, tool wear and enchantments survive pickup
+and saving. A two-second delay prevents immediately collecting the throw.
+The same normal action is available through MCP `drop_item`.
+
+Ghast and blaze fireballs can be returned with a melee hit. Returned shots use
+swept creature/terrain hits and damage creatures instead of the player.
+Cactus contact responds immediately with a cooldown; regeneration no longer
+masks the hit. Environmental damage now triggers the player hurt flash, and
+co-op peers show it too. Held swords are slightly shorter at every pixel zoom.
+
+Persistent villagers sleep at unloaded chunk boundaries. Finite villagers that
+already fell below the world in an older running build return home, preserving
+identity, health and age. Save validation remains strict and includes offending
+coordinates/velocity when it rejects an entity.
+
+The dragon patrols closer to the pillar crowns. Its seven-second death sequence
+retains the dragon silhouette as it fractures, expands into light/shock fronts,
+and highlights the return portal. Co-op snapshots carry the sequence; its clock
+and origin already persist in checkpoints. The camera keeps the encounter framing
+throughout the effect. Rewards and portal creation still occur once on death.
+
+Nether materials/backdrop apply to existing terrain after restarting the updated
+executable. New Nether floor fissures need newly generated chunks. The raised
+slim obsidian towers are in the **End**; recognized untouched older generated
+towers upgrade in place, while player-modified footprints remain intact.
+
 ## Survive and build with friends over SSH
 
 Host a shared world across the Overworld, Nether and End and join with
@@ -47,7 +76,7 @@ same linked frame or remain in another dimension. Terrain, entities, hazards,
 boats and client streaming stay local to that dimension. Saved identities reopen
 in their own dimensions, and shared portal links/dragon completion survive restart.
 The End encounter is shared; credits and respawn remain individual. Late commands
-from a previous dimension cannot place/mine there after travel. Matching protocol-16
+from a previous dimension cannot place/mine there after travel. Matching protocol-17
 builds are required. Server checkpoint v3 reads v1/v2; native checkpoint v9 reads v1–8.
 
 ## Faster rendering and clearer play
@@ -162,7 +191,7 @@ visibly full hunger bar prevents wasting another meal on a tiny drain.
 Redstone ore lights up when hit, used or stepped on and fades after activation.
 Lava and flint/steel can start local fires in flammable material; water puts them
 out. Lava/fire destroy loose items and flames respect fire resistance. New ore/fire
-block variants and batch-craft commands require matching **protocol 16** builds.
+block variants and batch-craft commands require matching **protocol 17** builds.
 [Controls and rules](gameplay.md#inventory-and-crafting).
 
 ## More predictable movement and safer saves
@@ -235,7 +264,7 @@ four-platform workflow builds development artifacts; interactive OS/terminal
 qualification remains a separate release gate.
 
 Shared play supports eight connections, 64 saved identities and independent travel
-across all three dimensions. Protocol **16** requires matching builds. Classic survival through the dragon,
+across all three dimensions. Protocol **17** requires matching builds. Classic survival through the dragon,
 sustained human co-op, remote SSH/WAN behavior, live model quality and all-platform
 terminals remain release gates. Automated results do not establish a completed
 human campaign or a viral release.
@@ -243,7 +272,7 @@ human campaign or a viral release.
 The October 16 correction adds visible misses, distinct held-tool/bow/eat/use poses,
 consistent pixels at every colour zoom, light-aware cave spawns, walk-in Nether
 portals, source-preserving fluids and direct seed placement on farmland. Co-op
-action poses require matching **protocol 16** clients and server. See the
+action poses require matching **protocol 17** clients and server. See the
 [interaction review](design/interaction-review-2026-10-16/README.md).
 
 Following ore/farming feedback, fresh terrain has more iron and rare ores and coal
