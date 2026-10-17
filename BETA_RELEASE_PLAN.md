@@ -136,7 +136,7 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 | Performance | Brightness-priority lighting with material attenuation cached once; reusable frame encoder, one output write per frame; safe exploration cache eviction around all viewers | `src/renderer/lighting.rs`, `src/renderer/terminal.rs`, `examples/render_profile.rs`, `examples/coop_profile.rs`, `docs/performance.md` |
 | Visuals | Readable solid HUD, separate sprint/target rows, terrain-preserving target tint, mining progress/reach feedback, remote player ID labels, quieter cloud/End animation; F3 diagnostics | `src/renderer/terminal.rs`, rendered PTY/ANSI captures |
 | Physics | Shared release braking without cancelling later knockback; continuous ladder climb/hold; residual-momentum sneak ledge protection; correct final landing-distance damage; swept wall/ceiling collisions | `src/engine/state.rs`, `src/engine/physics_tests.rs`, existing collision regressions |
-| Saves/recovery | Reject unreadable chunks/seeds/progression; keep failed writes dirty; cancel unsafe dimension changes; v9 native / v3 server checkpoints preserving full player state, entities, encounters and portal links; upgrade native v1–8 / server v1–2; partial emergency native recovery copy | `src/world/chunk.rs`, `src/world/mod.rs`, `src/engine/state.rs`, `docs/world-format.md` |
+| Saves/recovery | Reject unreadable chunks/seeds/progression; keep failed writes dirty; cancel unsafe dimension changes; v10 native / v4 server checkpoints preserving full player state, entities, encounters and portal links; upgrade native v1–9 / server v1–3; partial emergency native recovery copy | `src/world/chunk.rs`, `src/world/mod.rs`, `src/engine/state.rs`, `docs/world-format.md` |
 | In-game director | T chat, asynchronous typed waves/weather/time/ambience/structures, whole-plan validation/preflight, stale-area checks, cancellation, preferences, conditional structure undo | `src/engine/director.rs`, `src/engine/game_loop.rs`, `src/world/environment.rs` |
 | Existing LLM as director | `/connect` opt-in authenticated loopback bridge; six live MCP tools for context, bounded wait, requests, validated submission/results and cancellation; sole simulation writer, no second key | `src/engine/director_bridge.rs`, `src/engine/agent.rs`, `tests/multiplayer_tcp.rs`, `docs/agents.md` |
 | Personalized events | `/auto exploration|building|combat`, healthy-player/travel/modal/encounter gates, 120-second cooldown, three attempts/session; `/pause` and reset controls | `src/engine/director.rs`, cooldown regressions and prior 128-second PTY run |
@@ -148,7 +148,7 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 
 The local executable is `/home/sebastian/projects/termcraft/termcraft`.
 The package version remains `0.1.0`; generated archives are explicitly development
-builds, not mislabeled beta artifacts. Network protocol is **15**, requiring
+builds, not mislabeled beta artifacts. Network protocol is **17**, requiring
 matching builds. New native saves use progression version **10**; back up older
 saves before testing because older executables cannot read the new format.
 
@@ -697,3 +697,30 @@ solo/co-op inventory and action PTYs, storage faults/recovery and normal Lantern
 Run pass. The exact counts, snapshots, source/binary identities and platform CI
 status are in the [inventory/survival review](docs/design/inventory-survival-2026-10-16/README.md).
 Human interaction/physics acceptance remains a playtest gate.
+
+
+## Combat, save compatibility and End finale — 17 October
+
+Implemented in `734efd8`, with explicit save migration in `2315025` and retained
+dragon palette/detail in `4c5a9c6`. Current formats are native **10**, server **4**,
+network **17**, chunks **2**, journal **1**; these supersede the historical format
+numbers in earlier follow-ups.
+
+- V / Shift+V throw an item / stack, including selected inventory items. Tool
+  wear/enchantments and partial pickups persist; a two-second delay prevents
+  immediately collecting a throw. Solo/co-op PTY input checks preserve all items.
+- Normal melee can return ghast/blaze fireballs. Swept terrain/creature collision
+  applies to returned shots; environmental and remote-player hurt flashes work.
+- Villagers sleep at unloaded chunk boundaries. Recognizable old finite void
+  falls return home without discarding NPCs. Invalid save values remain rejected.
+- The dragon patrols closer to the crowns and has a shared seven-second pixel
+  breakup, light/shock fronts and portal highlight. Its death no longer changes
+  camera framing immediately. Held swords are slightly shorter.
+- A real pre-change native-v9 and server-v3 fixture tests preservation across all
+  three dimensions; current-version round trips also cover thrown tools and
+  reflected projectiles. Older save readers reject the new versions.
+
+The [actual renderer review](docs/design/combat-and-finale-2026-10-17/README.md)
+contains the finale GIF, cactus/fireball/Nether/End captures, checks and limits.
+This closes these implementation regressions, without claiming Warp/human fight
+acceptance or a qualified beta release.

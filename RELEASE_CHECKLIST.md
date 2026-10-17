@@ -136,7 +136,7 @@ failures. Test copies of saves: older builds cannot open progression v9.
 ## Entity persistence follow-up, 16 October
 
 The current candidate uses native checkpoint **v10**, server checkpoint **v4** and
-network protocol **14**. Native v1–8 and server v1/v2 upgrade on save. Mobs, boats,
+network protocol **17**. Native v1–9 and server v1–3 upgrade on save. Mobs, boats,
 loot/XP, partial director/trial encounters and End boss/crystal state now persist
 across restarts and dimension travel, alongside inventories. Offline time pauses.
 The newer runtime revision wins across native/hosted transitions. This supersedes
@@ -229,3 +229,19 @@ ore/fire timers persist and replicate. Source `e218e48` passes general CI and
 Windows/Linux/ARM Mac native jobs; Intel Mac is still running at evidence collection. The local binary uses protocol **16**.
 Test the new bag/crafting flow, food, ground pickups, ore glow and fire in actual
 play. These results do not establish human UX acceptance or a qualified release.
+
+
+## Combat/finale and format upgrade — 17 October
+
+Current native/server/network versions are **10/4/17**, superseding the historical
+numbers above. Old native v9 has a frozen binary reader; real previous-commit
+fixtures verify entities in every dimension. Server v3 JSON upgrades to v4.
+Thrown stacks and returned projectiles survive saving; downgrade readers reject
+the new versions instead of dropping stack metadata.
+
+Local validation: 799 library tests on stable and MSRV, strict all-target Clippy,
+92 renderer checks after final palette review, seven real TCP checks including
+restart/interruption recovery, and actual native/co-op V / Shift+V input with
+saved item conservation. See [visual evidence and limits](docs/design/combat-and-finale-2026-10-17/README.md).
+Human Warp presentation, extended complete fights and release qualification
+remain manual checks.

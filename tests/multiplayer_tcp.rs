@@ -681,21 +681,36 @@ impl Drop for Client {
 }
 impl Client {
     fn connect(addr: &str, token: Option<String>) -> Self {
-        let mut writer = TcpStream::connect(addr).unwrap();
-        writer
-            .set_read_timeout(Some(Duration::from_secs(5)))
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let (writer, welcome) = loop {
+            let mut writer = TcpStream::connect(addr).unwrap();
+            writer
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            write_client_hello(
+                &mut writer,
+                &ClientHello {
+                    protocol: NET_PROTOCOL_VERSION,
+                    token: token.clone(),
+                },
+            )
             .unwrap();
-        write_client_hello(
-            &mut writer,
-            &ClientHello {
-                protocol: NET_PROTOCOL_VERSION,
-                token,
-            },
-        )
-        .unwrap();
-        let ServerWireMessage::Welcome(welcome) = read_framed_server_message(&mut writer).unwrap()
-        else {
-            panic!("no welcome")
+            match read_framed_server_message(&mut writer).unwrap() {
+                ServerWireMessage::Welcome(welcome) => break (writer, welcome),
+                // An immediate reconnect may reach the Hello queue before the
+                // previous reader thread reports its closed socket. Wait only
+                // for that explicit transient condition, never an auth failure.
+                ServerWireMessage::Rejected(_, reason)
+                    if token.is_some()
+                        && reason == "this player is already connected; use another profile"
+                        && Instant::now() < deadline =>
+                {
+                    eprintln!("Waiting for disconnected profile cleanup before reconnect");
+                    let _ = writer.shutdown(Shutdown::Both);
+                    thread::sleep(Duration::from_millis(10));
+                }
+                other => panic!("expected welcome, received {other:?}"),
+            }
         };
         writer.set_read_timeout(None).unwrap();
         let mut reader = writer.try_clone().unwrap();

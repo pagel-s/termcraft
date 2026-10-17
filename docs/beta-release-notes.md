@@ -33,6 +33,8 @@ executable. New Nether floor fissures need newly generated chunks. The raised
 slim obsidian towers are in the **End**; recognized untouched older generated
 towers upgrade in place, while player-modified footprints remain intact.
 
+[Actual combat and finale captures, including the seven-second animation](design/combat-and-finale-2026-10-17/README.md).
+
 ## Survive and build with friends over SSH
 
 Host a shared world across the Overworld, Nether and End and join with

@@ -521,3 +521,10 @@ raises the slim towers two blocks and replaces reactive climbing with full-route
 clearance. Covered targets no longer pin swoops above a pillar. It includes
 overhang starts, moving targets, safe upgrades of the shorter saved towers and
 updated End atlas captures.
+
+
+The [combat/finale follow-up](design/combat-and-finale-2026-10-17/README.md) adds
+lower patrol targets, a seven-second shared dragon breakup and portal highlight,
+consistent silhouette/palette through the effect, environmental hurt feedback,
+and slightly shorter swords. The review includes actual engine/renderer animation
+and screenshots, rather than concept artwork.

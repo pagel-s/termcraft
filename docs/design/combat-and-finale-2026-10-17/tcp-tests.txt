@@ -1,0 +1,16 @@
+    Blocking waiting for file lock on build directory
+   Compiling termcraft v0.1.0 (/home/sebastian/projects/termcraft)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.85s
+     Running tests/multiplayer_tcp.rs (/tmp/termcraft-build-20261015/debug/deps/multiplayer_tcp-ec4fc0e0083530c2)
+
+running 7 tests
+test eight_players_with_delayed_link_and_stalled_readers_keep_server_responsive ... ok
+test entities_and_collected_loot_survive_real_server_restarts ... ok
+test interrupted_hosted_checkpoint_keeps_three_players_and_dimensions_together ... ok
+test live_game_master_uses_mcp_without_second_save_owner_and_rejects_stale_plans ... ok
+test portals_stream_separate_worlds_and_restore_dimensions_after_restart ... ok
+test source_height_pool_replicates_reopens_and_drains_for_both_players ... ok
+test two_socket_players_mine_build_disconnect_and_resume_after_restart ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.92s
+

@@ -182,8 +182,11 @@ def main():
         result = subprocess.run([str(binary), "mcp"], env=env, input="".join(json.dumps(c) + "\n" for c in calls),
                                 text=True, capture_output=True, timeout=15, check=True)
         responses = [json.loads(line)["result"] for line in result.stdout.splitlines()]
-        assert len(responses) == len(calls) and len(responses[0]["tools"]) == 22
-        assert "inventory_click" in {tool["name"] for tool in responses[0]["tools"]}
+        assert len(responses) == len(calls)
+        tools = responses[0]["tools"]
+        names = {tool["name"] for tool in tools}
+        assert len(names) == len(tools), "duplicate MCP tools in packaged executable"
+        assert {"inventory_click", "drop_item", "enter_world", "act", "save_world", "leave_world", "director_connect"} <= names, names
         assert all(not r.get("isError") for r in responses)
         assert responses[2]["structuredContent"]["player"]["x"] > 0.5
         assert responses[6]["structuredContent"]["player"]["x"] == responses[2]["structuredContent"]["player"]["x"]

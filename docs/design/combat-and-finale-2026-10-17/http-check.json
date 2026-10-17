@@ -1,0 +1,81 @@
+{
+  "status": "passed",
+  "resources": 15,
+  "checks": [
+    {
+      "resource": "index.html",
+      "status": 200,
+      "bytes": 13419
+    },
+    {
+      "resource": "cactus-before.png",
+      "status": 200,
+      "bytes": 29045
+    },
+    {
+      "resource": "cactus-hurt.png",
+      "status": 200,
+      "bytes": 29182
+    },
+    {
+      "resource": "end-patrol.png",
+      "status": 200,
+      "bytes": 32997
+    },
+    {
+      "resource": "nether.png",
+      "status": 200,
+      "bytes": 30103
+    },
+    {
+      "resource": "returned-fireball.png",
+      "status": 200,
+      "bytes": 30627
+    },
+    {
+      "resource": "returned-hit.png",
+      "status": 200,
+      "bytes": 30101
+    },
+    {
+      "resource": "victory-000.png",
+      "status": 200,
+      "bytes": 35352
+    },
+    {
+      "resource": "victory-018.png",
+      "status": 200,
+      "bytes": 35585
+    },
+    {
+      "resource": "victory-036.png",
+      "status": 200,
+      "bytes": 39900
+    },
+    {
+      "resource": "victory-060.png",
+      "status": 200,
+      "bytes": 40510
+    },
+    {
+      "resource": "victory-090.png",
+      "status": 200,
+      "bytes": 37993
+    },
+    {
+      "resource": "victory-120.png",
+      "status": 200,
+      "bytes": 34254
+    },
+    {
+      "resource": "victory-140.png",
+      "status": 200,
+      "bytes": 29326
+    },
+    {
+      "resource": "victory.gif",
+      "status": 200,
+      "bytes": 1618864
+    }
+  ]
+}

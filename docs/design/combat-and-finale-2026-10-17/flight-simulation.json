@@ -1,0 +1,13 @@
+{
+  "contact_ticks": 8,
+  "covered_target": false,
+  "limits": "Real generated arena and engine ticks. Fixed invulnerable player; no terminal emulator, input latency or human fight qualification.",
+  "max_tick_us": 200.04500000000002,
+  "p50_tick_us": 3.9670000000000005,
+  "p95_tick_us": 13.282,
+  "player_anchor": [
+    6.5,
+    33.0
+  ],
+  "ticks": 2400
+}
