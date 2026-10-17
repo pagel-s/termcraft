@@ -167,14 +167,18 @@ impl EnderDragon {
             let open = [0.0, side * 0.6, -side * 0.6, side * 1.2, -side * 1.2]
                 .into_iter()
                 .map(|dx| goal_x + dx)
-                .find(|&x| self.flight_space_clear(world, x, goal_y));
-            if let Some(x) = open {
-                goal_x = x;
-            } else {
-                self.phase = DragonPhase::Patrol;
-                self.phase_timer = 0;
-                self.swoop_cooldown = 70;
-                (goal_x, goal_y, speed, turn) = self.flight_goal(player_x, player_y, crystals);
+                .find(|&x| {
+                    (-72.0..=72.0).contains(&x)
+                        && Self::flight_corridor_clear(world, x, self.y.min(goal_y), x, goal_y)
+                });
+            match open {
+                Some(x) if (x - self.x).hypot(goal_y - self.y) >= 0.7 => goal_x = x,
+                _ => {
+                    self.phase = DragonPhase::Patrol;
+                    self.phase_timer = 0;
+                    self.swoop_cooldown = if crystals > 0 { 70 } else { 44 };
+                    (goal_x, goal_y, speed, turn) = self.flight_goal(player_x, player_y, crystals);
+                }
             }
         }
         let direction = if goal_x >= self.x { 1.0 } else { -1.0 };
@@ -399,6 +403,39 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn sheltered_attack_point_under_a_crown_lip_also_cancels_the_dive() {
+        let world = old_arena();
+        let mut dragon = EnderDragon::new(24.0, 18.0);
+        dragon.phase = DragonPhase::Swoop;
+        dragon.update_flight(&world, 17.35, 34.0, 4);
+        assert_eq!(dragon.phase, DragonPhase::Patrol);
+        assert!(dragon.flight_space_clear(&world, dragon.x, dragon.y));
+    }
+
+    #[test]
+    fn reaching_an_offset_attack_point_returns_to_patrol() {
+        let mut world = arena_with_towers([(-60, 10), (-50, 10), (50, 10), (60, 10)], 1, 2);
+        for y in 32..34 {
+            world.set_block(10, y, BlockType::Stone);
+        }
+        let mut dragon = EnderDragon::new(12.55, 33.4);
+        dragon.phase = DragonPhase::Swoop;
+        dragon.update_flight(&world, 11.35, 34.0, 4);
+        assert_eq!(dragon.phase, DragonPhase::Patrol);
+        assert!(dragon.flight_space_clear(&world, dragon.x, dragon.y));
+    }
+
+    #[test]
+    fn player_outside_the_arena_does_not_pin_flight_at_its_boundary() {
+        let world = old_arena();
+        let mut dragon = EnderDragon::new(0.5, 18.0);
+        dragon.phase = DragonPhase::Swoop;
+        dragon.update_flight(&world, 100_000.0, 34.0, 4);
+        assert_eq!(dragon.phase, DragonPhase::Patrol);
+        assert!(dragon.flight_space_clear(&world, dragon.x, dragon.y));
     }
 
     #[test]
