@@ -88,6 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             args.get(4).ok_or("dimension required")?,
         );
     }
+    let covered = args.iter().any(|arg| arg == "--covered");
     let out = std::path::PathBuf::from(std::env::args().nth(1).ok_or("output directory required")?);
     fs::create_dir_all(&out)?;
     let root = std::env::temp_dir().join(format!("tc-encounter-{}", rand::random::<u64>()));
@@ -102,9 +103,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     s.current_dimension = Dimension::End;
     s.world = World::open_in_directory(Dimension::End, &root)?;
     s.world.load_chunks_for_spawn_search(0, 100);
-    s.player.x = 6.5;
-    s.player.y = (2..60)
-        .find(|&y| s.world.get_block(6, y).is_solid())
+    let anchor_x: f64 = if covered { 14.5 } else { 6.5 };
+    s.player.x = anchor_x;
+    s.player.y = (29..40)
+        .find(|&y| {
+            s.world.get_block(anchor_x.floor() as i32, y).is_solid()
+                && s.world.get_block(anchor_x.floor() as i32, y - 1) == BlockType::Air
+                && s.world.get_block(anchor_x.floor() as i32, y - 2) == BlockType::Air
+        })
         .unwrap() as f64;
     s.player.grounded = true;
     let anchor_y = s.player.y;
@@ -114,7 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut renderer = Renderer::with_size(200, 60);
     renderer.toggle_zoom(); // Wide view holds the whole generated arena.
     for tick in 0..2400 {
-        s.player.x = 6.5;
+        s.player.x = anchor_x;
         s.player.y = anchor_y;
         s.player.vx = 0.0;
         s.player.vy = 0.0;
@@ -149,7 +155,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(
         out.join("simulation.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
-            "ticks":tick_us.len(),"contact_ticks":contact_ticks,"p50_tick_us":tick_us[tick_us.len()/2],"p95_tick_us":tick_us[tick_us.len()*95/100],"max_tick_us":tick_us.last(),
+            "ticks":tick_us.len(),"contact_ticks":contact_ticks,"player_anchor":[anchor_x,anchor_y],"covered_target":covered,"p50_tick_us":tick_us[tick_us.len()/2],"p95_tick_us":tick_us[tick_us.len()*95/100],"max_tick_us":tick_us.last(),
             "limits":"Real generated arena and engine ticks. Fixed invulnerable player; no terminal emulator, input latency or human fight qualification."
         }))?,
     )?;

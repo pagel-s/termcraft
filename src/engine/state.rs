@@ -9449,6 +9449,30 @@ impl GameState {
                     crystal.y += delta_y;
                 }
             }
+            if delta_y < 0.0 {
+                self.each_player(|state| {
+                    // A saved player standing on the former crown rises with
+                    // it instead of being embedded by the two added blocks.
+                    if (state.player.x - (tower_x as f64 + 0.5)).abs() < 3.0
+                        && state.entity_collides_with_world(
+                            state.player.x,
+                            state.player.y,
+                            PLAYER_HALF_WIDTH,
+                            PLAYER_HEIGHT,
+                        )
+                        && !state.entity_collides_with_world(
+                            state.player.x,
+                            state.player.y + delta_y,
+                            PLAYER_HALF_WIDTH,
+                            PLAYER_HEIGHT,
+                        )
+                    {
+                        state.player.y += delta_y;
+                        state.player.vy = 0.0;
+                        state.player.fall_distance = 0.0;
+                    }
+                });
+            }
         }
         if self.current_dimension != Dimension::End
             || self.end_boss_initialized
@@ -9522,8 +9546,7 @@ impl GameState {
         let dragon_contact_damage = self.scaled_hostile_damage(2.5);
         let dragon_contact_cooldown = self.scaled_hostile_cooldown(16);
         if let Some(dragon) = self.ender_dragon.as_mut() {
-            dragon.update_ai(self.player.x, self.player.y, crystal_count);
-            dragon.advance_flight(&self.world, self.player.x);
+            dragon.update_flight(&self.world, self.player.x, self.player.y, crystal_count);
 
             if crystal_count > 0
                 && dragon.health > 0.0
@@ -19236,6 +19259,69 @@ mod tests {
                     && state.inventory_enchant_levels[idx] == 2
             })
         }));
+    }
+
+    #[test]
+    fn raising_a_saved_pillar_moves_its_crystal_and_standing_player_safely() {
+        let root =
+            std::env::temp_dir().join(format!("termcraft-raised-pillar-{}", rand::random::<u64>()));
+        let mut state = GameState::open_in_directory(&root).unwrap();
+        state.current_dimension = Dimension::End;
+        state.world = World::open_in_directory(Dimension::End, &root).unwrap();
+        state.world.load_chunks_for_spawn_search(0, 40);
+        state.end_crystals.clear();
+        for tower in END_TOWER_XS {
+            let top = (2..40)
+                .find(|&y| state.world.get_block(tower, y) == BlockType::Obsidian)
+                .unwrap();
+            let old_top = top + 2;
+            for x in tower - 2..=tower + 2 {
+                for y in top - 1..old_top {
+                    state.world.set_block(x, y, BlockType::Air);
+                }
+                state.world.set_block(x, old_top, BlockType::Obsidian);
+            }
+            state
+                .world
+                .set_block(tower, old_top - 1, BlockType::Glowstone);
+            let mut crystal = EndCrystal::new(tower as f64 + 0.5, (old_top - 2) as f64);
+            crystal.health = 3.0;
+            state.end_crystals.push(crystal);
+            if tower == 14 {
+                state.player.x = 14.5;
+                state.player.y = (old_top - 1) as f64;
+            }
+        }
+        state.end_boss_initialized = true;
+        state.ender_dragon = Some(EnderDragon::new(6.5, 18.0));
+        let before = state.player.y;
+        state.try_persist_world_and_progress().unwrap();
+        drop(state);
+        let mut state = GameState::open_in_directory(&root).unwrap();
+        assert_eq!(state.current_dimension, Dimension::End);
+        state.ensure_end_boss_entities();
+        assert_eq!(state.player.y, before - 2.0);
+        assert!(!state.entity_collides_with_world(
+            state.player.x,
+            state.player.y,
+            PLAYER_HALF_WIDTH,
+            PLAYER_HEIGHT
+        ));
+        assert_eq!(state.end_crystals.len(), 4);
+        let crystal = state
+            .end_crystals
+            .iter()
+            .find(|c| (c.x - 14.5).abs() < 0.01)
+            .unwrap();
+        assert_eq!(crystal.y, before - 3.0);
+        assert_eq!(crystal.health, 3.0);
+        state.try_persist_world_and_progress().unwrap();
+        drop(state);
+        let state = GameState::open_in_directory(&root).unwrap();
+        assert_eq!(state.player.y, before - 2.0);
+        assert_eq!(state.end_crystals.len(), 4);
+        drop(state);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

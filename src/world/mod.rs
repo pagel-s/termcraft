@@ -126,6 +126,29 @@ pub const STRONGHOLD_PORTAL_INNER_X: i32 = STRONGHOLD_CENTER_X;
 pub const STRONGHOLD_PORTAL_INNER_Y: i32 = 86;
 pub const END_TOWER_XS: [i32; 4] = [-28, -14, 14, 28];
 
+#[derive(Clone, Copy)]
+struct EndTowerStyle {
+    heights: [i32; 4],
+    shaft_half_width: i32,
+    crown_half_width: i32,
+}
+// Historical layouts are immutable fingerprints for safe saved-terrain upgrades.
+const LEGACY_END_TOWERS: EndTowerStyle = EndTowerStyle {
+    heights: [14, 11, 13, 16],
+    shaft_half_width: 2,
+    crown_half_width: 3,
+};
+const COMPACT_END_TOWERS: EndTowerStyle = EndTowerStyle {
+    heights: [9, 7, 8, 10],
+    shaft_half_width: 1,
+    crown_half_width: 2,
+};
+const CURRENT_END_TOWERS: EndTowerStyle = EndTowerStyle {
+    heights: [11, 9, 10, 12],
+    shaft_half_width: 1,
+    crown_half_width: 2,
+};
+
 pub(crate) fn tall_grass_drops_seed_at(world_x: i32, world_y: i32) -> bool {
     ((world_x.wrapping_mul(29) ^ world_y.wrapping_mul(43)).rem_euclid(25)) < 7
 }
@@ -4555,14 +4578,14 @@ impl World {
     }
 
     fn build_end_chunk_with_noise(chunk: Chunk, chunk_x: i32, perlin: &Perlin) -> Chunk {
-        Self::build_end_arena_chunk(chunk, chunk_x, perlin, false)
+        Self::build_end_arena_chunk(chunk, chunk_x, perlin, CURRENT_END_TOWERS)
     }
 
     fn build_end_arena_chunk(
         mut chunk: Chunk,
         chunk_x: i32,
         perlin: &Perlin,
-        legacy: bool,
+        style: EndTowerStyle,
     ) -> Chunk {
         let c_start = chunk_x * CHUNK_WIDTH as i32;
 
@@ -4606,12 +4629,7 @@ impl World {
         // a column, cap or tunnel (the outer towers cross chunk boundaries).
         for (idx, &tower_x) in END_TOWER_XS.iter().enumerate() {
             let base_y = (34.0 + perlin.get([tower_x as f64 * 0.08, 700.0]) * 2.0) as i32;
-            let heights = if legacy {
-                [14, 11, 13, 16]
-            } else {
-                [9, 7, 8, 10]
-            };
-            let top_y = base_y - heights[idx];
+            let top_y = base_y - style.heights[idx];
             for wx in tower_x - 3..=tower_x + 3 {
                 if wx < c_start || wx >= c_start + CHUNK_WIDTH as i32 {
                     continue;
@@ -4629,7 +4647,7 @@ impl World {
                         },
                     );
                 }
-                if (wx - tower_x).abs() <= if legacy { 2 } else { 1 } {
+                if (wx - tower_x).abs() <= style.shaft_half_width {
                     for wy in top_y..base_y - 3 {
                         chunk.set_block(lx, wy as usize, BlockType::Obsidian);
                     }
@@ -4639,7 +4657,7 @@ impl World {
                     }
                 }
                 // Slightly wider crown, well above the walking route.
-                if (wx - tower_x).abs() <= if legacy { 3 } else { 2 } {
+                if (wx - tower_x).abs() <= style.crown_half_width {
                     chunk.set_block(lx, top_y as usize, BlockType::Obsidian);
                 }
                 if wx == tower_x {
@@ -4702,53 +4720,66 @@ impl World {
             return Vec::new();
         }
         self.end_tower_refinement_done = true;
-        let mut old = HashMap::new();
+        let profiles = [(COMPACT_END_TOWERS, false), (LEGACY_END_TOWERS, true)];
+        let mut previous = [HashMap::new(), HashMap::new()];
         let mut new = HashMap::new();
         for x in -31i32..=31 {
             let cx = x.div_euclid(CHUNK_WIDTH as i32);
-            old.entry(cx).or_insert_with(|| {
-                Self::build_end_arena_chunk(Chunk::new(cx, "end"), cx, &self.perlin, true)
-            });
+            for (index, (style, _)) in profiles.iter().enumerate() {
+                previous[index].entry(cx).or_insert_with(|| {
+                    Self::build_end_arena_chunk(Chunk::new(cx, "end"), cx, &self.perlin, *style)
+                });
+            }
             new.entry(cx).or_insert_with(|| {
-                Self::build_end_arena_chunk(Chunk::new(cx, "end"), cx, &self.perlin, false)
+                Self::build_end_arena_chunk(
+                    Chunk::new(cx, "end"),
+                    cx,
+                    &self.perlin,
+                    CURRENT_END_TOWERS,
+                )
             });
         }
         let mut moved = Vec::new();
         for (idx, tower_x) in END_TOWER_XS.into_iter().enumerate() {
             let base = (34.0 + self.perlin.get([tower_x as f64 * 0.08, 700.0]) * 2.0) as i32;
-            let old_top = base - [14, 11, 13, 16][idx];
-            let new_top = base - [9, 7, 8, 10][idx];
-            let mut pristine = true;
-            let mut initialized = true;
-            for x in tower_x - 3..=tower_x + 3 {
-                let cx = x.div_euclid(CHUNK_WIDTH as i32);
-                let lx = x.rem_euclid(CHUNK_WIDTH as i32) as usize;
-                for y in old_top - 2..=base + 2 {
-                    let expected = old[&cx].get_block(lx, y as usize);
-                    let actual = self.get_block(x, y);
-                    pristine &= actual == expected;
-                    let backfilled = if (x - tower_x).abs() <= 1
-                        && (31..=33).contains(&y)
-                        && expected == BlockType::Obsidian
-                    {
-                        BlockType::Air
-                    } else {
-                        expected
-                    };
-                    initialized &= actual == backfilled;
+            let new_top = base - CURRENT_END_TOWERS.heights[idx];
+            for (index, (style, allow_backfill)) in profiles.iter().enumerate() {
+                let old_top = base - style.heights[idx];
+                // Include the future crown/headroom too: raising an untouched
+                // pillar must not overwrite a player's build just above it.
+                let scan_top = old_top.min(new_top) - 2;
+                let (mut pristine, mut initialized) = (true, *allow_backfill);
+                for x in tower_x - 3..=tower_x + 3 {
+                    let cx = x.div_euclid(CHUNK_WIDTH as i32);
+                    let lx = x.rem_euclid(CHUNK_WIDTH as i32) as usize;
+                    for y in scan_top..=base + 2 {
+                        let expected = previous[index][&cx].get_block(lx, y as usize);
+                        let actual = self.get_block(x, y);
+                        pristine &= actual == expected;
+                        let backfilled = if (x - tower_x).abs() <= 1
+                            && (31..=33).contains(&y)
+                            && expected == BlockType::Obsidian
+                        {
+                            BlockType::Air
+                        } else {
+                            expected
+                        };
+                        initialized &= actual == backfilled;
+                    }
                 }
-            }
-            if !pristine && !initialized {
-                continue;
-            }
-            for x in tower_x - 3..=tower_x + 3 {
-                let cx = x.div_euclid(CHUNK_WIDTH as i32);
-                let lx = x.rem_euclid(CHUNK_WIDTH as i32) as usize;
-                for y in old_top - 2..=base + 2 {
-                    self.set_block(x, y, new[&cx].get_block(lx, y as usize));
+                if !pristine && !initialized {
+                    continue;
                 }
+                for x in tower_x - 3..=tower_x + 3 {
+                    let cx = x.div_euclid(CHUNK_WIDTH as i32);
+                    let lx = x.rem_euclid(CHUNK_WIDTH as i32) as usize;
+                    for y in scan_top..=base + 2 {
+                        self.set_block(x, y, new[&cx].get_block(lx, y as usize));
+                    }
+                }
+                moved.push((tower_x, f64::from(new_top - old_top)));
+                break;
             }
-            moved.push((tower_x, (new_top - old_top) as f64));
         }
         moved
     }
@@ -9470,6 +9501,82 @@ mod tests {
     }
 
     #[test]
+    fn generated_raised_arenas_keep_flight_clear_and_moving_around_every_pillar() {
+        use crate::entities::ender_dragon::EnderDragon;
+        for seed in [1337, 42, 2026] {
+            let perlin = Perlin::new(seed);
+            let mut world = World::network_replica(Dimension::End);
+            for cx in -2..=2 {
+                world.chunks.insert(
+                    cx,
+                    World::build_end_arena_chunk(
+                        Chunk::new(cx, "end"),
+                        cx,
+                        &perlin,
+                        CURRENT_END_TOWERS,
+                    ),
+                );
+            }
+            let mut dragon = EnderDragon::new(0.5, 18.0);
+            let mut positions = std::collections::VecDeque::new();
+            let mut contacts = 0;
+            for tick in 0..7200 {
+                let player_x = if tick < 2400 {
+                    6.5
+                } else if tick < 3600 {
+                    14.5
+                } else {
+                    let travel = (tick - 3600) as f64 * 0.12;
+                    -36.0 + ((travel.rem_euclid(144.0) - 72.0).abs())
+                };
+                let bx = player_x.floor() as i32;
+                let floor = (29..40)
+                    .find(|&y| {
+                        world.get_block(bx, y).is_solid()
+                            && world.get_block(bx, y - 1) == BlockType::Air
+                            && world.get_block(bx, y - 2) == BlockType::Air
+                    })
+                    .unwrap();
+                let before = (dragon.x, dragon.y);
+                dragon.update_flight(&world, player_x, floor as f64, 4);
+                assert!(
+                    dragon.flight_space_clear(&world, dragon.x, dragon.y),
+                    "body clipped terrain: seed {seed}, tick {tick}"
+                );
+                assert!(
+                    (dragon.x - before.0).abs() <= 0.321 && (dragon.y - before.1).abs() <= 0.241,
+                    "flight teleported: seed {seed}, tick {tick}"
+                );
+                positions.push_back(dragon.x);
+                if positions.len() > 120 {
+                    positions.pop_front();
+                }
+                if positions.len() == 120 {
+                    let min = positions.iter().copied().fold(f64::MAX, f64::min);
+                    let max = positions.iter().copied().fold(f64::MIN, f64::max);
+                    assert!(
+                        max - min > 0.5,
+                        "no horizontal progress for 6 seconds: seed {seed}, tick {tick}, {},{}, {:?}",
+                        dragon.x,
+                        dragon.y,
+                        dragon.phase
+                    );
+                }
+                if tick < 2400
+                    && dragon.hit_regions().iter().any(|r| {
+                        ((player_x - r[0]) / (r[2] + 0.25)).powi(2)
+                            + ((floor as f64 - 0.9 - r[1]) / (r[3] + 0.9)).powi(2)
+                            <= 1.0
+                    })
+                {
+                    contacts += 1;
+                }
+            }
+            assert!(contacts > 0, "no reachable swoop in seed {seed}");
+        }
+    }
+
+    #[test]
     fn test_end_towers_have_proportional_columns_and_continuous_passages_across_chunk_seams() {
         let mut world = World::new_for_dimension(Dimension::End);
         for tower_x in END_TOWER_XS {
@@ -9486,7 +9593,7 @@ mod tests {
                 })
                 .unwrap()
                 + 3;
-            assert!((7..=10).contains(&(floor - top)));
+            assert!((9..=12).contains(&(floor - top)));
             assert_eq!(world.get_block(tower_x, top - 1), BlockType::Glowstone);
             for x in tower_x - 3..=tower_x + 3 {
                 if (x - tower_x).abs() <= 2 {
@@ -9519,8 +9626,12 @@ mod tests {
             let root = storage_test_root();
             let mut world = World::open_in_directory(Dimension::End, &root).unwrap();
             for cx in -2..=2 {
-                let mut chunk =
-                    World::build_end_arena_chunk(Chunk::new(cx, "end"), cx, &world.perlin, true);
+                let mut chunk = World::build_end_arena_chunk(
+                    Chunk::new(cx, "end"),
+                    cx,
+                    &world.perlin,
+                    LEGACY_END_TOWERS,
+                );
                 chunk.set_save_root(&root);
                 world.chunks.insert(cx, chunk);
             }
@@ -9544,14 +9655,18 @@ mod tests {
             drop(world);
             let mut world = World::open_in_directory(Dimension::End, &root).unwrap();
             let upgraded = world.refine_legacy_end_towers();
-            assert_eq!(upgraded, vec![(-28, 5.0), (14, 5.0), (28, 6.0)]);
+            assert_eq!(upgraded, vec![(-28, 3.0), (14, 3.0), (28, 4.0)]);
             assert_eq!(world.get_block(-14, altered_top), BlockType::StoneBricks);
             assert_eq!(world.get_block(-14, altered_top + 1), BlockType::Obsidian);
             assert_eq!(world.get_block(4, 25), BlockType::Chest);
             for (x, _) in upgraded {
                 let cx = x.div_euclid(CHUNK_WIDTH as i32);
-                let expected =
-                    World::build_end_arena_chunk(Chunk::new(cx, "end"), cx, &world.perlin, false);
+                let expected = World::build_end_arena_chunk(
+                    Chunk::new(cx, "end"),
+                    cx,
+                    &world.perlin,
+                    CURRENT_END_TOWERS,
+                );
                 for y in 2..40 {
                     assert_eq!(
                         world.get_block(x, y),
@@ -9569,6 +9684,42 @@ mod tests {
             drop(world);
             std::fs::remove_dir_all(root).unwrap();
         }
+    }
+
+    #[test]
+    fn compact_pillars_rise_two_blocks_but_a_build_above_the_old_crown_opts_out() {
+        let root = storage_test_root();
+        let mut world = World::open_in_directory(Dimension::End, &root).unwrap();
+        for cx in -2..=2 {
+            let mut chunk = World::build_end_arena_chunk(
+                Chunk::new(cx, "end"),
+                cx,
+                &world.perlin,
+                COMPACT_END_TOWERS,
+            );
+            chunk.set_save_root(&root);
+            world.chunks.insert(cx, chunk);
+        }
+        let old_top = (2..40)
+            .find(|&y| world.get_block(-14, y) == BlockType::Obsidian)
+            .unwrap();
+        world.set_block(-14, old_top - 3, BlockType::StoneBricks);
+        world.try_save_all().unwrap();
+        drop(world);
+        let mut world = World::open_in_directory(Dimension::End, &root).unwrap();
+        assert_eq!(
+            world.refine_legacy_end_towers(),
+            vec![(-28, -2.0), (14, -2.0), (28, -2.0)]
+        );
+        assert_eq!(world.get_block(-14, old_top - 3), BlockType::StoneBricks);
+        assert_eq!(world.get_block(-14, old_top), BlockType::Obsidian);
+        world.try_save_all().unwrap();
+        drop(world);
+        let mut world = World::open_in_directory(Dimension::End, &root).unwrap();
+        assert!(world.refine_legacy_end_towers().is_empty());
+        assert_eq!(world.get_block(-14, old_top - 3), BlockType::StoneBricks);
+        drop(world);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
