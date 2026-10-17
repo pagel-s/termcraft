@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-17",
+  "source": "examples/world_review.rs",
+  "scope": "End scene captures only; other scenes retain their recorded provenance.",
+  "images": {
+    "end-panorama-00.png": {
+      "ansi_sha256": "51597b47a414a131687bb478c10e8be8dc944a4464f4fb0ae197b4599016f303",
+      "png_sha256": "efd667ebfd1cbe5039426f487574b27f0cfe9a74d9d1a7b963f055d35833c052"
+    },
+    "end-panorama-01.png": {
+      "ansi_sha256": "1b69f7139c9f999c8c332daaf9d8b20a3cb0125ceab68c13265ccb23d90e2a42",
+      "png_sha256": "13b38e7cb2cf433a874e0f114865245bc1623fd26fb8fe0e38754b9016481c54"
+    },
+    "end-panorama-02.png": {
+      "ansi_sha256": "470bb0b55c03fdcd7173da3ec6157229757784af76bb0c0148c3ff4ddcc52ae7",
+      "png_sha256": "f0720ba83031f10336f350c1e0b3ac28f48f7b3683c704f43c3cc297d936895d"
+    },
+    "end-tower-00.png": {
+      "ansi_sha256": "fb16de2cd33bf9b46080f3943d260e5533d8b6785565f86ba7307d497fe82f59",
+      "png_sha256": "8fd4f56ac7fb7e78f29f9c01c0bfcd3d1109c2c6d55eaea9b497d1fc5fe82e81"
+    },
+    "end-tower-01.png": {
+      "ansi_sha256": "8111fb802e95fd0c8727b37897eb73029f796ec7db738eb947334188e51a4530",
+      "png_sha256": "ca12f51a6e9d29bc51da4b000fc370cb05a84904c6d69a9dba98538bdc4a7b2c"
+    },
+    "end-return-00.png": {
+      "ansi_sha256": "e6890e729fc89f2026d8d559d141a2ce811e064d2bdb0f23635c0fa3a897e498",
+      "png_sha256": "06a27f623dc83011a90092b2034429ed1138952cc47396cc9f6f75369b131d5d"
+    },
+    "end-return-01.png": {
+      "ansi_sha256": "09ca5e80fd90387eee8e9d8d3ca5fc2efc66488153a90903a374a2b1c9091726",
+      "png_sha256": "160c12162d8faa1aa976e13df46a3cd5a59c126c143f6386ecc3af2a64cfe65e"
+    },
+    "end-edge-00.png": {
+      "ansi_sha256": "e92fb08a8cc0199cb8631f4a6d40855bb3543f153b84b880339fab8f0c95cd37",
+      "png_sha256": "f16e986823580f81010fc5fa03e86c1de250912b093b89e687dff2c028996273"
+    },
+    "end-edge-01.png": {
+      "ansi_sha256": "28b1c353a10e3deb8c0aff6b2183084b9f2c6260842cf3510b505d4112d86234",
+      "png_sha256": "67727b8a212c368db8fed920e120e603adae555f23bd348557df4d9db6fd425d"
+    },
+    "end-outer-00.png": {
+      "ansi_sha256": "a8491de67a0e483d9ddf153033d988b615b31e86a1d826dc42cde0c65da57bd7",
+      "png_sha256": "104327d00f302d76c572c93953ed07c04228fa0e1d0e41056d976c96349f3d0d"
+    },
+    "end-outer-01.png": {
+      "ansi_sha256": "79779c40f7f5cda5b54c282db5dc5df4220dd500ddecaf4d9bfd12a825d25048",
+      "png_sha256": "b28cc060069e74e13427378f01c405a274bd78d658453b6825dbb165a6f87fa6"
+    },
+    "end-dragon-00.png": {
+      "ansi_sha256": "dc0572518441f008269760a967301a40a45b60875312f69bf71782ff60148401",
+      "png_sha256": "e7aa3021522f10607f6c9216ead9aab5c3ee3e8b2a2a701f87419e7b49b6cd2c"
+    },
+    "end-front-preview-00.png": {
+      "ansi_sha256": "dc0572518441f008269760a967301a40a45b60875312f69bf71782ff60148401",
+      "png_sha256": "e7aa3021522f10607f6c9216ead9aab5c3ee3e8b2a2a701f87419e7b49b6cd2c"
+    },
+    "end-front-preview-01.png": {
+      "ansi_sha256": "bc08ced6aa68984bc4d691dffcb14b89785a522612d5713c91652712e850768a",
+      "png_sha256": "99c1b7c9b3a1937ddd4c7868f3286d6aa80a5b6ac565e874d1c54db22563206e"
+    }
+  }
+}

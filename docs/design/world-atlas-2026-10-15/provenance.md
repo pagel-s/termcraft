@@ -1,5 +1,11 @@
 # Termcraft world atlas, refreshed 16 October 2026
 
+**End refresh, 17 October:** fourteen End images now use the taller slim pillars
+and current dragon rendering. Cache revisions and the embedded scene catalog
+are refreshed together. [Capture hashes](end-refresh.json) and the
+[flight/height review](../dragon-clearance-2026-10-17/README.md) supersede the
+older End evidence below; the other scene records retain their own provenance.
+
 [Open the gallery](index.html). All **112 scenes and 268 views**, including six
 animations, were freshly captured with the current renderer. The 17 new action
 scenes show actual swings/mining, bow draw/release in both directions, eating,

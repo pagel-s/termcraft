@@ -515,3 +515,9 @@ around smaller pillars, with body clearance and swoops that reach contact range.
 Untouched pillars from the preceding generator upgrade safely in existing saves;
 modified pillars remain intact. [Before/after captures and flight review](design/nether-end-refinement-2026-10-16/README.md)
 include the exact compatibility rules, generated scenes and verification limits.
+
+The [pillar clearance follow-up](design/dragon-clearance-2026-10-17/README.md)
+raises the slim towers two blocks and replaces reactive climbing with full-route
+clearance. Covered targets no longer pin swoops above a pillar. It includes
+overhang starts, moving targets, safe upgrades of the shorter saved towers and
+updated End atlas captures.

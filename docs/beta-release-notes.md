@@ -267,3 +267,7 @@ clearance, reachable swoops and smaller generated pillars. Untouched pillars fro
 the preceding generator upgrade in old saves; modified pillars are preserved.
 Nether backdrop/material improvements apply immediately, while contained volcanic
 fissures appear in new cavern chunks. [Comparisons, flight and compatibility](design/nether-end-refinement-2026-10-16/README.md).
+
+The [clearance follow-up](design/dragon-clearance-2026-10-17/README.md) raises slim
+pillars to 9–12 blocks and fixes repeated crown approaches, overhang escapes and
+swoops toward sheltered players. Shorter untouched saved pillars upgrade safely.

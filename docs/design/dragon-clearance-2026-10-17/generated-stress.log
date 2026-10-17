@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running unittests src/lib.rs (/tmp/termcraft-build-20261015/debug/deps/termcraft-a59d39c87217e09b)
+
+running 1 test
+test world::tests::generated_raised_arenas_keep_flight_clear_and_moving_around_every_pillar ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 787 filtered out; finished in 0.71s
+

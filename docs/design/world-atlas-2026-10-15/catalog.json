@@ -1349,7 +1349,7 @@
           "file": "end-panorama-00.png",
           "columns": 400,
           "rows": 80,
-          "revision": "ec3704e42b237fcf"
+          "revision": "efd667ebfd1cbe50"
         },
         {
           "mode": "overview",
@@ -1357,7 +1357,7 @@
           "file": "end-panorama-01.png",
           "columns": 200,
           "rows": 60,
-          "revision": "7e1d2d67aa73e1ff"
+          "revision": "13b38e7cb2cf433a"
         },
         {
           "mode": "detail",
@@ -1365,7 +1365,7 @@
           "file": "end-panorama-02.png",
           "columns": 160,
           "rows": 48,
-          "revision": "9df49772ee3cc793"
+          "revision": "f0720ba83031f103"
         }
       ],
       "origin": "Generated",
@@ -1386,7 +1386,7 @@
           "file": "end-tower-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "2dda7c792f10fdf3"
+          "revision": "8fd4f56ac7fb7e78"
         },
         {
           "mode": "detail",
@@ -1394,7 +1394,7 @@
           "file": "end-tower-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "03ab582aab608d79"
+          "revision": "ca12f51a6e9d29bc"
         }
       ],
       "origin": "Generated",
@@ -1415,7 +1415,7 @@
           "file": "end-return-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "6ae7d0a2a97359a3"
+          "revision": "06a27f623dc83011"
         },
         {
           "mode": "detail",
@@ -1423,7 +1423,7 @@
           "file": "end-return-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "fdfcf3bd9a45f836"
+          "revision": "160c12162d8faa1a"
         }
       ],
       "origin": "Generated",
@@ -1444,7 +1444,7 @@
           "file": "end-edge-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "2ec9924553ee3c22"
+          "revision": "f16e986823580f81"
         },
         {
           "mode": "detail",
@@ -1452,7 +1452,7 @@
           "file": "end-edge-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "b84e365c0d8a9c79"
+          "revision": "67727b8a212c368d"
         }
       ],
       "origin": "Generated",
@@ -1473,7 +1473,7 @@
           "file": "end-outer-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "1967ed63c8585860"
+          "revision": "104327d00f302d76"
         },
         {
           "mode": "detail",
@@ -1481,7 +1481,7 @@
           "file": "end-outer-01.png",
           "columns": 160,
           "rows": 48,
-          "revision": "cb08202fa9ccb461"
+          "revision": "b28cc060069e74e1"
         }
       ],
       "origin": "Generated",
@@ -1502,7 +1502,7 @@
           "file": "end-dragon-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "6bfcd5201daea0de"
+          "revision": "e7aa3021522f1060"
         }
       ],
       "origin": "Staged actors",
@@ -1523,7 +1523,7 @@
           "file": "end-front-preview-00.png",
           "columns": 200,
           "rows": 60,
-          "revision": "6bfcd5201daea0de"
+          "revision": "e7aa3021522f1060"
         },
         {
           "mode": "detail",
@@ -1531,7 +1531,7 @@
           "file": "end-front-preview-01.png",
           "columns": 200,
           "rows": 100,
-          "revision": "1b00e8e0f8e9df6b"
+          "revision": "99c1b7c9b3a1937d"
         }
       ],
       "origin": "Staged actors",
@@ -3570,5 +3570,6 @@
     9917,
     4444
   ],
-  "recipe_seed": 42
+  "recipe_seed": 42,
+  "end_refresh": "end-refresh.json"
 }
