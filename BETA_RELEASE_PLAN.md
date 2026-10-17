@@ -149,7 +149,7 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 The local executable is `/home/sebastian/projects/termcraft/termcraft`.
 The package version remains `0.1.0`; generated archives are explicitly development
 builds, not mislabeled beta artifacts. Network protocol is **15**, requiring
-matching builds. New native saves use progression version **9**; back up older
+matching builds. New native saves use progression version **10**; back up older
 saves before testing because older executables cannot read the new format.
 
 ## Measured results and validation

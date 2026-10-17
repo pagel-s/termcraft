@@ -10,6 +10,8 @@ pub use trial::{Trial, TrialStage};
 mod combat;
 #[path = "drops.rs"]
 mod drops;
+#[path = "legacy_entities.rs"]
+mod legacy_entities;
 use super::command::ClientCommand;
 use crate::entities::arrow::Arrow;
 use crate::entities::blaze::Blaze;
@@ -342,7 +344,8 @@ const SETTINGS_MENU_ROW_DAYLIGHT_CYCLE: u8 = 3;
 const SETTINGS_MENU_ROW_WEATHER_CYCLE: u8 = 4;
 const SETTINGS_MENU_ROW_KEEP_INVENTORY: u8 = 5;
 const SETTINGS_MENU_ROW_CLOSE: u8 = 6;
-const PLAYER_PROGRESS_VERSION: u16 = 9;
+const PLAYER_PROGRESS_VERSION: u16 = 10;
+const PLAYER_PROGRESS_VERSION_V9: u16 = 9;
 const PLAYER_PROGRESS_VERSION_V8: u16 = 8;
 const PLAYER_PROGRESS_VERSION_V7: u16 = 7;
 const PLAYER_PROGRESS_VERSION_V6: u16 = 6;
@@ -465,8 +468,17 @@ struct PlayerCheckpointV8 {
     portal_links: Vec<PortalLink>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct PlayerCheckpointV9 {
+    version: u16,
+    progress: PlayerProgressSaveData,
+    session: PlayerSession,
+    portal_links: Vec<PortalLink>,
+    runtime: dimensions::RuntimeCheckpointV9,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PlayerCheckpointV10 {
     version: u16,
     progress: PlayerProgressSaveData,
     session: PlayerSession,
@@ -1501,51 +1513,86 @@ impl GameState {
         let version = u16::from_le_bytes(encoded.get(..2)?.try_into().ok()?);
         if matches!(
             version,
-            PLAYER_PROGRESS_VERSION | PLAYER_PROGRESS_VERSION_V8 | PLAYER_PROGRESS_VERSION_V7
+            PLAYER_PROGRESS_VERSION
+                | PLAYER_PROGRESS_VERSION_V9
+                | PLAYER_PROGRESS_VERSION_V8
+                | PLAYER_PROGRESS_VERSION_V7
         ) {
             use bincode::Options;
             let options = bincode::DefaultOptions::new()
                 .with_fixint_encoding()
                 .with_limit(MAX_CHECKPOINT_BYTES)
                 .reject_trailing_bytes();
-            let (checkpoint_version, mut data, session, links, runtime) =
-                if version == PLAYER_PROGRESS_VERSION {
-                    let checkpoint: PlayerCheckpointV9 = options.deserialize(&encoded).ok()?;
-                    checkpoint.runtime.validate().ok()?;
-                    if !checkpoint
-                        .runtime
-                        .contains_dimension(Self::decode_dimension(
-                            checkpoint.progress.current_dimension_code,
-                        )?)
-                    {
-                        return None;
-                    }
-                    (
-                        checkpoint.version,
-                        checkpoint.progress,
-                        checkpoint.session,
-                        checkpoint.portal_links,
-                        Some(checkpoint.runtime),
-                    )
-                } else if version == PLAYER_PROGRESS_VERSION_V8 {
-                    let checkpoint: PlayerCheckpointV8 = options.deserialize(&encoded).ok()?;
-                    (
-                        checkpoint.version,
-                        checkpoint.progress,
-                        checkpoint.session,
-                        checkpoint.portal_links,
-                        None,
-                    )
-                } else {
-                    let checkpoint: PlayerCheckpointV7 = options.deserialize(&encoded).ok()?;
-                    (
-                        checkpoint.version,
-                        checkpoint.progress,
-                        checkpoint.session,
-                        Vec::new(),
-                        None,
-                    )
-                };
+            let (checkpoint_version, mut data, session, links, runtime) = if version
+                == PLAYER_PROGRESS_VERSION
+            {
+                let checkpoint: PlayerCheckpointV10 = options.deserialize(&encoded).ok()?;
+                checkpoint.runtime.validate().ok()?;
+                if !checkpoint
+                    .runtime
+                    .contains_dimension(Self::decode_dimension(
+                        checkpoint.progress.current_dimension_code,
+                    )?)
+                {
+                    return None;
+                }
+                (
+                    checkpoint.version,
+                    checkpoint.progress,
+                    checkpoint.session,
+                    checkpoint.portal_links,
+                    Some(checkpoint.runtime),
+                )
+            } else if version == PLAYER_PROGRESS_VERSION_V9 {
+                // Read the frozen v9 entity layout first. Also preserve the
+                // short-lived development build that added fields before
+                // its envelope version was raised.
+                let (saved_version, progress, session, links, runtime) =
+                    if let Ok(old) = options.deserialize::<PlayerCheckpointV9>(&encoded) {
+                        (
+                            old.version,
+                            old.progress,
+                            old.session,
+                            old.portal_links,
+                            old.runtime.into(),
+                        )
+                    } else {
+                        let interim: PlayerCheckpointV10 = options.deserialize(&encoded).ok()?;
+                        (
+                            interim.version,
+                            interim.progress,
+                            interim.session,
+                            interim.portal_links,
+                            interim.runtime,
+                        )
+                    };
+                let runtime: RuntimeCheckpoint = runtime;
+                runtime.validate().ok()?;
+                if !runtime
+                    .contains_dimension(Self::decode_dimension(progress.current_dimension_code)?)
+                {
+                    return None;
+                }
+                (saved_version, progress, session, links, Some(runtime))
+            } else if version == PLAYER_PROGRESS_VERSION_V8 {
+                let checkpoint: PlayerCheckpointV8 = options.deserialize(&encoded).ok()?;
+                (
+                    checkpoint.version,
+                    checkpoint.progress,
+                    checkpoint.session,
+                    checkpoint.portal_links,
+                    None,
+                )
+            } else {
+                let checkpoint: PlayerCheckpointV7 = options.deserialize(&encoded).ok()?;
+                (
+                    checkpoint.version,
+                    checkpoint.progress,
+                    checkpoint.session,
+                    Vec::new(),
+                    None,
+                )
+            };
             session.validate().ok()?;
             if checkpoint_version != version
                 || data.version != version

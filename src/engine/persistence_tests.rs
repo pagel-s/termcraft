@@ -135,6 +135,90 @@ fn persistence_thrown_stack_and_reflected_projectile_roundtrip() {
 }
 
 #[test]
+fn persistence_real_v9_fixture_upgrades_every_dimension_without_losing_entities() {
+    let (_fixture, mut s) = fixture();
+    let root = s.world.save_root().to_path_buf();
+    let path = root.join(PLAYER_PROGRESS_FILE);
+    std::fs::write(
+        &path,
+        include_bytes!("../../tests/fixtures/progression-v9-entities.bin"),
+    )
+    .unwrap();
+    let saved =
+        GameState::load_progression_data_from_path(&path).expect("real previous-build v9 file");
+    assert_eq!(saved.version, 10);
+    saved.runtime.unwrap().apply(&mut s);
+    let expected: serde_json::Value = serde_json::from_str(include_str!(
+        "../../tests/fixtures/progression-v9-runtime.json"
+    ))
+    .unwrap();
+    let mut actual = serde_json::to_value(RuntimeCheckpoint::capture(&s)).unwrap();
+    for dimension in actual["dimensions"].as_object_mut().unwrap().values_mut() {
+        for item in dimension["item_entities"].as_array_mut().unwrap() {
+            assert!(item["payload"].is_null());
+            assert_eq!(item["pickup_delay"], 0);
+            item.as_object_mut().unwrap().remove("payload");
+            item.as_object_mut().unwrap().remove("pickup_delay");
+        }
+        for f in dimension["fireballs"].as_array_mut().unwrap() {
+            assert_eq!(f["reflected"], false);
+            f.as_object_mut().unwrap().remove("reflected");
+        }
+    }
+    assert_eq!(actual["dimensions"], expected);
+    s.try_persist_world_and_progress().unwrap();
+    assert_eq!(&std::fs::read(&path).unwrap()[..2], &10u16.to_le_bytes());
+    drop(s);
+    let s = GameState::open_in_directory(&root).unwrap();
+    assert_eq!(s.villagers[0].health, 7.0);
+    assert_eq!(s.item_entities.len(), 2);
+    assert_eq!(s.fireballs.len(), 2);
+}
+
+#[test]
+fn persistence_real_server_v3_fixture_reads_missing_new_entity_fields_and_writes_v4() {
+    use super::super::server_save::ServerSave;
+    let (_fixture, s) = fixture();
+    let root = s.world.save_root();
+    std::fs::write(
+        root.join("server-state.json"),
+        include_bytes!("../../tests/fixtures/server-v3-entities.json"),
+    )
+    .unwrap();
+    let saved = ServerSave::read(&s).unwrap();
+    assert_eq!(saved.version, 4);
+    let value = serde_json::to_value(&saved).unwrap();
+    let overworld = &value["runtime"]["dimensions"]["Overworld"];
+    assert_eq!(overworld["item_entities"].as_array().unwrap().len(), 2);
+    assert!(overworld["item_entities"][0]["payload"].is_null());
+    assert_eq!(overworld["fireballs"][0]["reflected"], false);
+    assert_eq!(overworld["villagers"][0]["health"], 7.0);
+    saved.write(root).unwrap();
+    let value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(root.join("server-state.json")).unwrap()).unwrap();
+    assert_eq!(value["version"], 4);
+}
+
+#[test]
+fn persistence_preserves_the_interim_development_v9_extended_payload() {
+    let (_fixture, mut s) = fixture();
+    s.inventory.slots.fill(None);
+    s.inventory.add_item(ItemType::Wood, 15);
+    s.hotbar_index = 0;
+    assert!(s.drop_selected_item(true));
+    let root = s.world.save_root().to_path_buf();
+    s.try_persist_world_and_progress().unwrap();
+    let path = root.join(PLAYER_PROGRESS_FILE);
+    let mut bytes = std::fs::read(&path).unwrap();
+    bytes[..4].copy_from_slice(&[9, 0, 9, 0]);
+    std::fs::write(&path, bytes).unwrap();
+    let loaded = GameState::load_progression_data_from_path(&path).unwrap();
+    loaded.runtime.unwrap().apply(&mut s);
+    assert_eq!(s.item_entities[0].payload.as_ref().unwrap().stack.count, 15);
+    assert_eq!(s.item_entities[0].pickup_delay, 40);
+}
+
+#[test]
 fn thrown_items_wait_two_seconds_before_any_player_can_collect_them() {
     let (_fixture, mut s) = fixture();
     s.inventory.slots.fill(None);
@@ -536,7 +620,7 @@ fn persistence_legacy_v8_upgrades_without_inventing_entities_or_losing_portal_li
     assert_eq!(restored.portal_links.into_iter().collect::<Vec<_>>(), links);
     restored.portal_links = links.into_iter().collect();
     restored.try_persist_world_and_progress().unwrap();
-    assert_eq!(&std::fs::read(&path).unwrap()[..2], &9u16.to_le_bytes());
+    assert_eq!(&std::fs::read(&path).unwrap()[..2], &10u16.to_le_bytes());
 }
 
 #[test]

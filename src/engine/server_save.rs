@@ -34,7 +34,7 @@ pub fn valid_token(s: &str) -> bool {
 impl ServerSave {
     pub(crate) fn fresh(state: &GameState) -> Self {
         Self {
-            version: 3,
+            version: 4,
             id: token(),
             settings: SharedSettings::capture(state),
             players: BTreeMap::new(),
@@ -58,9 +58,9 @@ impl ServerSave {
         if bytes.len() as u64 > MAX_CHECKPOINT_BYTES {
             return Err(io::Error::other("server save exceeds 16 MiB"));
         }
-        let save: Self = serde_json::from_slice(&bytes)?;
-        if !matches!(save.version, 1..=3)
-            || (save.version == 3 && save.runtime.is_none())
+        let mut save: Self = serde_json::from_slice(&bytes)?;
+        if !matches!(save.version, 1..=4)
+            || (save.version >= 3 && save.runtime.is_none())
             || !valid_token(&save.id)
             || save.players.len() > 64
             || save.players.keys().any(|s| !valid_token(s))
@@ -76,6 +76,9 @@ impl ServerSave {
         }
         if let Some(runtime) = &save.runtime {
             runtime.validate().map_err(io::Error::other)?;
+        }
+        if save.runtime.is_some() {
+            save.version = 4;
         }
         Ok(save)
     }

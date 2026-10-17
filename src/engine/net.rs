@@ -618,7 +618,7 @@ impl ServerSimulation {
         }
         self.saved.worlds = self.state.save_dimension_worlds()?;
         self.saved.progression = super::state::SharedProgress::capture(&self.state);
-        self.saved.version = 3;
+        self.saved.version = 4;
         self.saved.runtime = Some(super::state::RuntimeCheckpoint::capture(&self.state));
         self.state.save_trial()?;
         self.director.save(&self.state).map_err(io::Error::other)?;

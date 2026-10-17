@@ -135,7 +135,7 @@ failures. Test copies of saves: older builds cannot open progression v9.
 
 ## Entity persistence follow-up, 16 October
 
-The current candidate uses native checkpoint **v9**, server checkpoint **v3** and
+The current candidate uses native checkpoint **v10**, server checkpoint **v4** and
 network protocol **14**. Native v1–8 and server v1/v2 upgrade on save. Mobs, boats,
 loot/XP, partial director/trial encounters and End boss/crystal state now persist
 across restarts and dimension travel, alongside inventories. Offline time pauses.

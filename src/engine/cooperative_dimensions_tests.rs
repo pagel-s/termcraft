@@ -504,7 +504,7 @@ fn persistence_legacy_server_v2_upgrades_and_invalid_v3_entities_are_preserved()
     sim.load_persistent().unwrap();
     let mut current: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(current["version"], 3);
+    assert_eq!(current["version"], 4);
     assert!(current["runtime"].is_object());
     current["runtime"]["dimensions"]["Overworld"]["time_of_day"] = serde_json::json!(999999.0);
     let invalid = serde_json::to_vec(&current).unwrap();

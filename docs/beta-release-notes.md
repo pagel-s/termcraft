@@ -77,7 +77,7 @@ boats and client streaming stay local to that dimension. Saved identities reopen
 in their own dimensions, and shared portal links/dragon completion survive restart.
 The End encounter is shared; credits and respawn remain individual. Late commands
 from a previous dimension cannot place/mine there after travel. Matching protocol-17
-builds are required. Server checkpoint v3 reads v1/v2; native checkpoint v9 reads v1–8.
+builds are required. Server checkpoint v4 reads v1–3; native checkpoint v10 reads v1–9.
 
 ## Faster rendering and clearer play
 
@@ -226,9 +226,9 @@ is distinct from a persistent source, including after saving and in co-op.
 These retain source-block rules rather than conserved fluid volume.
 [Basin review](design/water-basins-2026-10-16/README.md).
 
-**Back up saves before upgrading.** Progression v9 reads v1–8, then upgrades on
-save; older builds cannot reopen v9. Entities and portal links share the player
-checkpoint; co-op inventories and entities share server checkpoint v3. Animals,
+**Back up saves before upgrading.** Progression v10 reads v1–9, then upgrades on
+save; older builds cannot reopen v10. Entities and portal links share the player
+checkpoint; co-op inventories and entities share server checkpoint v4. Animals,
 villagers, boats, loot/XP and partial encounters resume across restarts and portal
 travel. Clocks and item ages pause while offline. Writes remain atomic per file,
 not across the whole world; recovery copies contain only loaded terrain in the

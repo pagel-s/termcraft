@@ -2,12 +2,34 @@
 use super::*;
 use std::collections::BTreeMap;
 
+macro_rules! v9_type {
+    (item_entities, $ty:ty) => { Vec<legacy_entities::ItemEntityV9> };
+    (fireballs, $ty:ty) => { Vec<legacy_entities::FireballV9> };
+    ($field:ident, $ty:ty) => { $ty };
+}
+macro_rules! v9_value {
+    (item_entities, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (fireballs, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    ($field:ident, $value:expr) => {
+        $value
+    };
+}
+
 macro_rules! dimension_fields {
     ($world:ident; $( $(#[$attr:meta])* $field:ident: $ty:ty = $fresh:expr; )*) => {
         pub(super) struct DimensionRuntime { $world: World, $( $field: $ty, )* }
         #[derive(Clone, Debug, Serialize, Deserialize)]
         #[serde(deny_unknown_fields)]
         pub(crate) struct DimensionCheckpoint { $( $(#[$attr])* $field: $ty, )* }
+        #[derive(Clone, Debug, Deserialize)]
+        pub(crate) struct DimensionCheckpointV9 { $( $(#[$attr])* $field: v9_type!($field, $ty), )* }
+        impl From<DimensionCheckpointV9> for DimensionCheckpoint {
+            fn from(old: DimensionCheckpointV9) -> Self { Self { $($field: v9_value!($field, old.$field),)* } }
+        }
         impl DimensionCheckpoint {
             #[allow(clippy::clone_on_copy)]
             fn capture(state: &GameState) -> Self { Self { $($field: state.$field.clone(),)* } }
@@ -250,6 +272,33 @@ pub(crate) struct RuntimeCheckpoint {
     dimensions: BTreeMap<Dimension, DimensionCheckpoint>,
     encounter: Option<u64>,
     trial: Option<Trial>,
+}
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct RuntimeCheckpointV9 {
+    version: u8,
+    selected: Dimension,
+    revision: u64,
+    progression: SharedProgress,
+    dimensions: BTreeMap<Dimension, DimensionCheckpointV9>,
+    encounter: Option<u64>,
+    trial: Option<Trial>,
+}
+impl From<RuntimeCheckpointV9> for RuntimeCheckpoint {
+    fn from(old: RuntimeCheckpointV9) -> Self {
+        Self {
+            version: old.version,
+            selected: old.selected,
+            revision: old.revision,
+            progression: old.progression,
+            dimensions: old
+                .dimensions
+                .into_iter()
+                .map(|(d, c)| (d, c.into()))
+                .collect(),
+            encounter: old.encounter,
+            trial: old.trial,
+        }
+    }
 }
 impl RuntimeCheckpoint {
     pub(crate) fn capture(state: &GameState) -> Self {
