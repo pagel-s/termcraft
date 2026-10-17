@@ -1,0 +1,104 @@
+{
+  "status": "passed",
+  "binary_sha256": "43d07c035a7d822f7c3388120507948c6e976d59a9bbcc95a56ca382785ce160",
+  "artifacts": "/tmp/termcraft-dimension-input-b46bkd5e",
+  "checks": [
+    {
+      "mode": "native",
+      "visits": [
+        {
+          "dimension": "Nether",
+          "start": {
+            "health": 20.0,
+            "hunger": 19.924983978271484,
+            "x": 7.5,
+            "y": 60.0
+          },
+          "end": {
+            "health": 20.0,
+            "hunger": 19.63697052001953,
+            "x": 13.409922691014035,
+            "y": 60.0
+          }
+        },
+        {
+          "dimension": "End",
+          "start": {
+            "health": 20.0,
+            "hunger": 19.596961975097656,
+            "x": -7.5,
+            "y": 34.0
+          },
+          "end": {
+            "health": 20.0,
+            "hunger": 19.313447952270508,
+            "x": -2.7711627067165616,
+            "y": 33.0
+          }
+        }
+      ],
+      "terminal": {
+        "terminal_restored": true,
+        "keyboard_queries": 1,
+        "bytes": 3627155,
+        "synchronized_frames_started": 279,
+        "synchronized_frames_finished": 280
+      }
+    },
+    {
+      "mode": "coop",
+      "visits": [
+        {
+          "dimension": "Nether",
+          "start": {
+            "health": 20.0,
+            "hunger": 19.917482376098633,
+            "x": 7.5,
+            "y": 60.0
+          },
+          "end": {
+            "health": 20.0,
+            "hunger": 19.630468368530273,
+            "x": 13.131258487209996,
+            "y": 60.0
+          }
+        }
+      ],
+      "terminal": {
+        "terminal_restored": true,
+        "keyboard_queries": 1,
+        "bytes": 1474080,
+        "synchronized_frames_started": 155,
+        "synchronized_frames_finished": 156
+      }
+    },
+    {
+      "mode": "coop",
+      "visits": [
+        {
+          "dimension": "End",
+          "start": {
+            "health": 20.0,
+            "hunger": 19.917482376098633,
+            "x": -7.5,
+            "y": 34.0
+          },
+          "end": {
+            "health": 20.0,
+            "hunger": 19.630468368530273,
+            "x": -2.74618606036821,
+            "y": 33.0
+          }
+        }
+      ],
+      "terminal": {
+        "terminal_restored": true,
+        "keyboard_queries": 1,
+        "bytes": 1106281,
+        "synchronized_frames_started": 156,
+        "synchronized_frames_finished": 157
+      }
+    }
+  ],
+  "limits": "Visit generated Nether/End with real solo and co-op terminal controls.\n\nDisposable saves only. MCP observes players; movement/travel use keyboard input.\nSoftware PTY captures do not measure Warp's presentation or qualify a boss fight.\n"
+}

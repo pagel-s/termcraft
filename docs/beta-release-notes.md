@@ -261,3 +261,9 @@ instead of using a separate scattered-ore formula. Existing chunks are preserved
 Entity/encounter persistence also retains partial Lantern Run kills and surviving
 guards, game-master wave membership, destroyed End crystals and dragon health.
 See the [persistence review](design/entity-persistence-2026-10-16/README.md).
+
+The Nether/End refinement adds a leaner frontal dragon, predictive obstacle
+clearance, reachable swoops and smaller generated pillars. Untouched pillars from
+the preceding generator upgrade in old saves; modified pillars are preserved.
+Nether backdrop/material improvements apply immediately, while contained volcanic
+fissures appear in new cavern chunks. [Comparisons, flight and compatibility](design/nether-end-refinement-2026-10-16/README.md).

@@ -506,3 +506,12 @@ source-height filling, communicating vessels through a low tunnel, per-pool
 overflow heights and opened/closed drains. Full supplied water shares the same
 rendered surface and physics as a full source, without becoming an independent
 source. Lava retains its separate, slower runoff rules.
+
+## Nether and dragon encounter — 17 October 2026
+
+The Nether has a quieter faceted backdrop, refined rock grain and contained lava
+fissures in new caverns. The frontal dragon is leaner and uses predictive flight
+around smaller pillars, with body clearance and swoops that reach contact range.
+Untouched pillars from the preceding generator upgrade safely in existing saves;
+modified pillars remain intact. [Before/after captures and flight review](design/nether-end-refinement-2026-10-16/README.md)
+include the exact compatibility rules, generated scenes and verification limits.
