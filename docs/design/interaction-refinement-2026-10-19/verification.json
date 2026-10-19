@@ -1,0 +1,206 @@
+{
+  "date": "2026-10-19",
+  "implementation_commit": "cad447208b7e75bd407b1b35bacd61bab3ac836b",
+  "binary_sha256": "73af4acb0f5c79bed1458d7651c0a784fda895607b3da89e301250d6761241c2",
+  "unit_tests": {
+    "stable": {
+      "rust": "1.98.1",
+      "passed": 811
+    },
+    "msrv": {
+      "rust": "1.88.0",
+      "passed": 811
+    }
+  },
+  "strict_clippy": [
+    "stable all-targets passed",
+    "MSRV all-targets passed"
+  ],
+  "tcp": {
+    "passed": 7,
+    "threads": 1
+  },
+  "platform_ci": "https://github.com/pagel-s/termcraft/actions/runs/39217516075",
+  "limits": "Local Linux verification. Windows/macOS qualification is external CI; PTYs exclude terminal GPU presentation and human feel.",
+  "furnace_and_view": {
+    "status": "passed",
+    "binary_sha256": "73af4acb0f5c79bed1458d7651c0a784fda895607b3da89e301250d6761241c2",
+    "checks": [
+      {
+        "mode": "native",
+        "explicit_slots": true,
+        "compact_slots": true,
+        "smelt_and_collect": true,
+        "conserved_input": 3,
+        "view_survived_restart": true
+      },
+      {
+        "mode": "coop",
+        "explicit_slots": true,
+        "compact_slots": true,
+        "smelt_and_collect": true,
+        "conserved_input": 3,
+        "view_survived_restart": true
+      }
+    ],
+    "limits": "Local PTYs and loopback co-op; excludes Warp/GPU timing and human feel."
+  },
+  "inventory": {
+    "status": "passed",
+    "binary_sha256": "73af4acb0f5c79bed1458d7651c0a784fda895607b3da89e301250d6761241c2",
+    "checks": [
+      {
+        "mode": "native",
+        "status": "passed",
+        "saved_counts": {
+          "Cobblestone": 80,
+          "Planks": 78,
+          "CookedBeef": 3,
+          "Coal": 4,
+          "Stick": 8
+        },
+        "recipe_click_and_batch": true,
+        "manual_grid": true,
+        "merge_remainder": true,
+        "compact_resize_and_tab": true,
+        "food_stays_visibly_full": true,
+        "duplicate_meal_prevented": true,
+        "terminal_restored": true,
+        "keyboard_queries": 1,
+        "bytes": 339586,
+        "synchronized_frames_started": 304,
+        "synchronized_frames_finished": 305
+      },
+      {
+        "mode": "coop",
+        "status": "passed",
+        "saved_counts": {
+          "Cobblestone": 80,
+          "Planks": 78,
+          "CookedBeef": 3,
+          "Coal": 4,
+          "Stick": 8
+        },
+        "recipe_click_and_batch": true,
+        "manual_grid": true,
+        "merge_remainder": true,
+        "compact_resize_and_tab": true,
+        "food_stays_visibly_full": true,
+        "duplicate_meal_prevented": true,
+        "terminal_restored": true,
+        "keyboard_queries": 1,
+        "bytes": 278128,
+        "synchronized_frames_started": 293,
+        "synchronized_frames_finished": 294
+      }
+    ],
+    "limits": "Disposable staged supplies, real native/co-op PTY inputs and saved inventories. Excludes actual Warp GPU presentation and human UX acceptance."
+  },
+  "moving_views": {
+    "status": "passed",
+    "binary_sha256": "73af4acb0f5c79bed1458d7651c0a784fda895607b3da89e301250d6761241c2",
+    "checks": [
+      {
+        "mode": "native",
+        "detail_survived_resize": true,
+        "zoom_keys_and_f4": true,
+        "moving_timings": [
+          {
+            "view": "overview",
+            "tick_p95_ms": 0.81,
+            "render_p95_ms": 10.4,
+            "save_cache_p95_ms": 0.0
+          },
+          {
+            "view": "wide",
+            "tick_p95_ms": 0.81,
+            "render_p95_ms": 9.39,
+            "save_cache_p95_ms": 0.0
+          },
+          {
+            "view": "overview",
+            "tick_p95_ms": 0.81,
+            "render_p95_ms": 11.67,
+            "save_cache_p95_ms": 0.0
+          },
+          {
+            "view": "detail",
+            "tick_p95_ms": 0.81,
+            "render_p95_ms": 12.55,
+            "save_cache_p95_ms": 0.0
+          }
+        ],
+        "terminal_restored": true,
+        "keyboard_queries": 1,
+        "bytes": 7769073,
+        "synchronized_frames_started": 551,
+        "synchronized_frames_finished": 552
+      },
+      {
+        "mode": "coop",
+        "detail_survived_resize": true,
+        "zoom_keys_and_f4": true,
+        "moving_timings": [
+          {
+            "view": "overview",
+            "tick_p95_ms": 0.04,
+            "render_p95_ms": 15.91,
+            "save_cache_p95_ms": 0.0
+          },
+          {
+            "view": "wide",
+            "tick_p95_ms": 0.04,
+            "render_p95_ms": 17.34,
+            "save_cache_p95_ms": 0.0
+          },
+          {
+            "view": "overview",
+            "tick_p95_ms": 0.05,
+            "render_p95_ms": 21.39,
+            "save_cache_p95_ms": 0.0
+          },
+          {
+            "view": "detail",
+            "tick_p95_ms": 0.05,
+            "render_p95_ms": 21.48,
+            "save_cache_p95_ms": 0.0
+          }
+        ],
+        "terminal_restored": true,
+        "keyboard_queries": 1,
+        "bytes": 7042005,
+        "synchronized_frames_started": 534,
+        "synchronized_frames_finished": 535
+      }
+    ],
+    "limits": "Live flat-world PTYs, actual input/resize and renderer output. Excludes Warp/GPU presentation, WAN latency, busy scenes and human feel."
+  },
+  "linux_archive": {
+    "status": "passed",
+    "archive": "termcraft-0.1.0-dev-x86_64-unknown-linux-gnu.tar.gz",
+    "target": "x86_64-unknown-linux-gnu",
+    "archive_sha256": "dd16e3a1cfb4885ea429138786a7ed6958301f6f76a40b2dcc25bca7e165a9f4",
+    "binary_sha256": "73af4acb0f5c79bed1458d7651c0a784fda895607b3da89e301250d6761241c2",
+    "manifest_files_verified": 1385,
+    "empty_path_runtime": true,
+    "absolute_mcp_config": true,
+    "stepped_mcp_save_reopen": true,
+    "launcher_arguments_from_spaced_path": true,
+    "unix_launcher_default_trial": true,
+    "unix_native_terminal_restore": true,
+    "limits": "Automated archive/runtime check; real terminal input, clean OS compatibility and human gameplay remain separate."
+  },
+  "gallery": {
+    "strict_mkdocs": "passed",
+    "http_resources": 28,
+    "images_and_animations": 25,
+    "decoded_frames": 365
+  },
+  "log_sha256": {
+    "stable_all_targets": "9d8c6b512d30b9154d345025b169a97f603fadd06d0e3ce51e1ee80bdf3f585d",
+    "msrv_all_targets": "7cd3452212ec8c420ec2f13b1ffc1dda30cdff7f50bafab552b03ada6fb165d0",
+    "stable_clippy": "992bac13066f824202d6bd3cecf47f2ad7f4fb1a1cab6602eb1e52a61525e3b8",
+    "msrv_clippy": "bf7ffc53ded9a343dcb0f068cf6930e4fd35da91cc3fcc62f2f2552ee1f1d242",
+    "tcp": "3039286bfbad802db739f3ff60bd3cccb83b1354ccbc6a89b15d85ac14d4d4b6"
+  }
+}

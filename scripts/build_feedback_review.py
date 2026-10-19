@@ -50,6 +50,25 @@ def main():
     gif = [im.quantize(palette=palette, dither=Image.Dither.NONE) for im in frames]
     gif[0].save(args.output / 'victory.gif', save_all=True, append_images=gif[1:],
                 duration=50, loop=0, optimize=True)
+    for name, source, size in [
+        ('furnace-cooking', 'furnace-cooking-overview-160x48.ansi', (160,48)),
+        ('furnace-output', 'furnace-result-overview-160x48.ansi', (160,48)),
+        ('furnace-compact', 'furnace-compact-80x24.ansi', (80,24)),
+        ('air-warning', 'air-warning-detail-160x48.ansi', (160,48)),
+        ('creature-lava', 'creature-lava-overview-160x48.ansi', (160,48)),
+    ]:
+        path=args.actions/source
+        if path.exists():
+            screen=Screen(*size);screen.feed(read(path));raster(screen).save(args.output/(name+'.png'))
+    for tool in ['sword','axe','pickaxe']:
+        for face in ['right','left']:
+            paths=sorted(args.actions.glob(f'rigid-{tool}-{face}-*.ansi'))
+            if not paths:continue
+            screen=Screen(160,48);poses=[]
+            for path in paths:
+                screen.feed(read(path));poses.append(raster(screen).crop((540,280,900,650)).resize((720,740),Image.Resampling.NEAREST))
+            poses[0].save(args.output/f'{tool}-{face}.gif',save_all=True,
+                          append_images=poses[1:],duration=50,loop=0)
     outputs = {}
     decoded = 0
     for path in sorted(args.output.iterdir()):

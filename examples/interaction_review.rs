@@ -467,6 +467,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &mut scenes,
     )?;
     s.apply_client_command(ClientCommand::ToggleInventory);
+    // Environmental feedback uses actual fluid contact; breath is primed to
+    // show the warning without a fifteen-second static capture lead-in.
+    s.player.drowning_timer = 60;
+    for x in -2..=2 {
+        for y in 36..40 {
+            s.world.set_block(x, y, BlockType::Water(8));
+        }
+    }
+    s.update(0, 0);
+    capture(
+        &s,
+        &out,
+        "air-warning",
+        "Air · actual underwater status (breath timer primed)",
+        &mut scenes,
+    )?;
+    for x in -2..=2 {
+        for y in 36..40 {
+            s.world.set_block(x, y, BlockType::Air);
+        }
+    }
+    s.player.drowning_timer = 300;
+    s.cows.push(termcraft::entities::cow::Cow::new(8.5, 40.0));
+    for x in 6..=10 {
+        s.world.set_block(x, 39, BlockType::Lava(8));
+    }
+    for _ in 0..20 {
+        s.update(0, 0);
+    }
+    assert!(
+        s.cows
+            .iter()
+            .any(|e| e.hazards.burning > 0 && e.health < 10.0)
+    );
+    capture(
+        &s,
+        &out,
+        "creature-lava",
+        "Creature · actual lava contact and burning feedback",
+        &mut scenes,
+    )?;
+    s.cows.clear();
+    for x in 6..=10 {
+        s.world.set_block(x, 39, BlockType::Air);
+    }
     // Confirm held gear uses the same readable cave fill as the body.
     for x in -20..=20 {
         for y in 0..40 {

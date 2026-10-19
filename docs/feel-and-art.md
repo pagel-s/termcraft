@@ -528,3 +528,11 @@ lower patrol targets, a seven-second shared dragon breakup and portal highlight,
 consistent silhouette/palette through the effect, environmental hurt feedback,
 and slightly shorter swords. The review includes actual engine/renderer animation
 and screenshots, rather than concept artwork.
+
+## October 19: tools, furnace and survival feedback
+
+Held tools use rigid inverse sampling and a short strike beat; the axe head faces
+outward. Furnaces now expose input/fuel/output slots. Air bubbles and creature
+flames make hazard state visible. The shared dragon finale runs fourteen seconds.
+See the [actual animation and furnace review](design/interaction-refinement-2026-10-19/README.md)
+for both tool facings, compact screens, staged environmental contact and test limits.
