@@ -15,7 +15,10 @@ Local binaries still report `0.1.0` and archives are marked `dev`. The repositor
 - Persistent F4 view; suspended physics on unloaded terrain prevent loose loot/XP
   from falling into invalid save coordinates. Finite old loose-item falls outside
   the End recover at the same X above real terrain.
-- Fourteen-second dragon charge, breakup and portal reveal with no camera shake.
+- Fourteen-second dragon last stand with violet, cyan, magenta and amber energy:
+  a separate death pose, wing spread, arena lighting, coherent fragments, energy
+  transfer into the portal and a large gold victory title.
+  [Animation comparison](design/dragon-finale-2026-10-19/README.md).
 - Native v11 / server v5 / protocol 18; genuine v9/v10 and v3/v4 migration fixtures.
 
 
@@ -40,15 +43,16 @@ coordinates/velocity when it rejects an entity.
 The dragon patrols closer to the pillar crowns. Its fourteen-second death sequence
 retains the dragon silhouette as it fractures, expands into light/shock fronts,
 and highlights the return portal. Co-op snapshots carry the sequence; its clock
-and origin already persist in checkpoints. The camera keeps the encounter framing
-throughout the effect. Rewards and portal creation still occur once on death.
+and origin already persist in checkpoints. The selected view stays fixed; a
+temporary vertical pan fits the raised dragon in close views and returns to the
+normal camera. Rewards and portal creation still occur once on death.
 
 Nether materials/backdrop apply to existing terrain after restarting the updated
 executable. New Nether floor fissures need newly generated chunks. The raised
 slim obsidian towers are in the **End**; recognized untouched older generated
 towers upgrade in place, while player-modified footprints remain intact.
 
-[Current tool, furnace, survival and fourteen-second finale review](design/interaction-refinement-2026-10-19/README.md).
+[Earlier tool, furnace and survival review](design/interaction-refinement-2026-10-19/README.md).
 
 ## Survive and build with friends over SSH
 
@@ -317,3 +321,12 @@ fissures appear in new cavern chunks. [Comparisons, flight and compatibility](de
 The [clearance follow-up](design/dragon-clearance-2026-10-17/README.md) raises slim
 pillars to 9–12 blocks and fixes repeated crown approaches, overhang escapes and
 swoops toward sheltered players. Shorter untouched saved pillars upgrade safely.
+
+### Building and animals in water
+
+Solid blocks can replace water beside a support. When aiming into open water,
+solid building blocks now trace toward a submerged bank or floor within normal
+reach. They still need a real support and cannot be placed inside either player.
+Land animals avoid walking into water/lava, swim toward air and seek a nearby
+reachable bank if they fall in. Knockback and drowning under a sealed roof remain
+active. [Water behavior captures and checks](design/water-behavior-2026-10-19/README.md).

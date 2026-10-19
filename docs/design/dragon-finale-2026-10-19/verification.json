@@ -1,0 +1,144 @@
+{
+  "status": "passed",
+  "binary_sha256": "904fdc3f66c7249572e2b501bcfdd930687bb00e8b641a4f679301ac0a484a2a",
+  "checks": [
+    {
+      "mode": "native",
+      "stages": [
+        "THE DRAGON FALLS",
+        "THE END HOLDS BREATH",
+        "THE SKY BREAKS",
+        "VICTORY IN THE END"
+      ],
+      "movement_during_finale": 1.3581355955840007,
+      "selected_view_preserved": true,
+      "sequence_completed": true,
+      "max_recorded_render_p95_ms": 21.71,
+      "terminal_restored": true,
+      "keyboard_queries": 1,
+      "bytes": 11508035,
+      "synchronized_frames_started": 806,
+      "synchronized_frames_finished": 807
+    },
+    {
+      "mode": "coop",
+      "stages": [
+        "THE DRAGON FALLS",
+        "THE END HOLDS BREATH",
+        "THE SKY BREAKS",
+        "VICTORY IN THE END"
+      ],
+      "movement_during_finale": 1.3834078126438403,
+      "selected_view_preserved": true,
+      "sequence_completed": true,
+      "max_recorded_render_p95_ms": 41.45,
+      "terminal_restored": true,
+      "keyboard_queries": 1,
+      "bytes": 13646459,
+      "synchronized_frames_started": 711,
+      "synchronized_frames_finished": 712
+    }
+  ],
+  "limits": "Actual PTY output and local TCP; staged lethal hit. Excludes Warp/GPU timing, WAN and human judgment.",
+  "unit_tests": {
+    "stable": 822,
+    "msrv_1_88_0": 822
+  },
+  "strict_clippy": {
+    "stable": "passed",
+    "msrv_1_88_0": "passed"
+  },
+  "terminal_comparison": {
+    "previous": {
+      "binary_sha256": "73af4acb0f5c79bed1458d7651c0a784fda895607b3da89e301250d6761241c2",
+      "checks": [
+        {
+          "mode": "native",
+          "render_p95_max_ms": 29.37,
+          "bytes": 12279705,
+          "frames": 750
+        },
+        {
+          "mode": "coop",
+          "render_p95_max_ms": 31.38,
+          "bytes": 12804153,
+          "frames": 731
+        }
+      ]
+    },
+    "first_candidate": {
+      "binary_sha256": "e38769eb8c6d702374d80f79f44aabd40790a2dc50cd8971376267c40fd56dcd",
+      "checks": [
+        {
+          "mode": "native",
+          "render_p95_max_ms": 79.62,
+          "bytes": 17237303,
+          "frames": 492
+        },
+        {
+          "mode": "coop",
+          "render_p95_max_ms": 82.53,
+          "bytes": 18393207,
+          "frames": 460
+        }
+      ]
+    },
+    "final_candidate": {
+      "binary_sha256": "904fdc3f66c7249572e2b501bcfdd930687bb00e8b641a4f679301ac0a484a2a",
+      "checks": [
+        {
+          "mode": "native",
+          "render_p95_max_ms": 21.71,
+          "bytes": 11508035,
+          "frames": 806
+        },
+        {
+          "mode": "coop",
+          "render_p95_max_ms": 41.45,
+          "bytes": 13646459,
+          "frames": 711
+        }
+      ]
+    },
+    "limits": "Single local PTY runs, including Python ANSI-decoder backpressure, view changes and movement. Values are the largest sampled rolling p95, not a cross-machine FPS or Warp/GPU benchmark."
+  },
+  "offscreen_output_bytes": {
+    "overview": {
+      "final": 3746827,
+      "first_candidate": 12790657,
+      "frames": 281
+    },
+    "compact": {
+      "final": 2830198,
+      "first_candidate": 8384607,
+      "frames": 281
+    },
+    "detail": {
+      "final": 6666704,
+      "first_candidate": 14595320,
+      "frames": 281
+    },
+    "wide": {
+      "final": 2892301,
+      "first_candidate": 14970157,
+      "frames": 281
+    }
+  },
+  "real_tcp_tests": 7,
+  "source_crate": {
+    "offline_locked_package": "passed",
+    "files": 165,
+    "verified_build": true
+  },
+  "gallery_assets": {
+    "status": "passed",
+    "images": 38,
+    "decoded_frames": 1482,
+    "strict_documentation_build": "passed",
+    "http_image_loads": "passed",
+    "covers": [
+      "dragon-finale-2026-10-19",
+      "water-behavior-2026-10-19"
+    ]
+  }
+}
