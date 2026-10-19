@@ -24,3 +24,5 @@ pub mod villager;
 pub mod wolf;
 pub mod zombie;
 pub mod zombie_pigman;
+
+pub mod hazards;

@@ -146,7 +146,7 @@ fn persistence_real_v9_fixture_upgrades_every_dimension_without_losing_entities(
     .unwrap();
     let saved =
         GameState::load_progression_data_from_path(&path).expect("real previous-build v9 file");
-    assert_eq!(saved.version, 10);
+    assert_eq!(saved.version, PLAYER_PROGRESS_VERSION);
     saved.runtime.unwrap().apply(&mut s);
     let expected: serde_json::Value = serde_json::from_str(include_str!(
         "../../tests/fixtures/progression-v9-runtime.json"
@@ -165,9 +165,42 @@ fn persistence_real_v9_fixture_upgrades_every_dimension_without_losing_entities(
             f.as_object_mut().unwrap().remove("reflected");
         }
     }
+    for dimension in actual["dimensions"].as_object_mut().unwrap().values_mut() {
+        for field in [
+            "zombies",
+            "creepers",
+            "skeletons",
+            "spiders",
+            "silverfish",
+            "slimes",
+            "endermen",
+            "blazes",
+            "pigmen",
+            "ghasts",
+            "cows",
+            "sheep",
+            "pigs",
+            "chickens",
+            "squids",
+            "wolves",
+            "ocelots",
+            "villagers",
+        ] {
+            for entity in dimension[field].as_array_mut().unwrap() {
+                assert_eq!(
+                    entity["hazards"],
+                    serde_json::to_value(crate::entities::hazards::HazardState::default()).unwrap()
+                );
+                entity.as_object_mut().unwrap().remove("hazards");
+            }
+        }
+    }
     assert_eq!(actual["dimensions"], expected);
     s.try_persist_world_and_progress().unwrap();
-    assert_eq!(&std::fs::read(&path).unwrap()[..2], &10u16.to_le_bytes());
+    assert_eq!(
+        &std::fs::read(&path).unwrap()[..2],
+        &PLAYER_PROGRESS_VERSION.to_le_bytes()
+    );
     drop(s);
     let s = GameState::open_in_directory(&root).unwrap();
     assert_eq!(s.villagers[0].health, 7.0);
@@ -176,7 +209,7 @@ fn persistence_real_v9_fixture_upgrades_every_dimension_without_losing_entities(
 }
 
 #[test]
-fn persistence_real_server_v3_fixture_reads_missing_new_entity_fields_and_writes_v4() {
+fn persistence_real_server_v3_fixture_reads_missing_new_entity_fields_and_writes_v5() {
     use super::super::server_save::ServerSave;
     let (_fixture, s) = fixture();
     let root = s.world.save_root();
@@ -186,7 +219,7 @@ fn persistence_real_server_v3_fixture_reads_missing_new_entity_fields_and_writes
     )
     .unwrap();
     let saved = ServerSave::read(&s).unwrap();
-    assert_eq!(saved.version, 4);
+    assert_eq!(saved.version, 5);
     let value = serde_json::to_value(&saved).unwrap();
     let overworld = &value["runtime"]["dimensions"]["Overworld"];
     assert_eq!(overworld["item_entities"].as_array().unwrap().len(), 2);
@@ -196,26 +229,27 @@ fn persistence_real_server_v3_fixture_reads_missing_new_entity_fields_and_writes
     saved.write(root).unwrap();
     let value: serde_json::Value =
         serde_json::from_slice(&std::fs::read(root.join("server-state.json")).unwrap()).unwrap();
-    assert_eq!(value["version"], 4);
+    assert_eq!(value["version"], 5);
 }
 
 #[test]
 fn persistence_preserves_the_interim_development_v9_extended_payload() {
-    let (_fixture, mut s) = fixture();
-    s.inventory.slots.fill(None);
-    s.inventory.add_item(ItemType::Wood, 15);
-    s.hotbar_index = 0;
-    assert!(s.drop_selected_item(true));
-    let root = s.world.save_root().to_path_buf();
-    s.try_persist_world_and_progress().unwrap();
-    let path = root.join(PLAYER_PROGRESS_FILE);
-    let mut bytes = std::fs::read(&path).unwrap();
+    let (_fixture, s) = fixture();
+    let path = s.world.save_root().join(PLAYER_PROGRESS_FILE);
+    let mut bytes = include_bytes!("../../tests/fixtures/progression-v10-entities.bin").to_vec();
     bytes[..4].copy_from_slice(&[9, 0, 9, 0]);
     std::fs::write(&path, bytes).unwrap();
     let loaded = GameState::load_progression_data_from_path(&path).unwrap();
-    loaded.runtime.unwrap().apply(&mut s);
-    assert_eq!(s.item_entities[0].payload.as_ref().unwrap().stack.count, 15);
-    assert_eq!(s.item_entities[0].pickup_delay, 40);
+    let value = serde_json::to_value(loaded.runtime.unwrap()).unwrap();
+    let items = value["dimensions"]["Overworld"]["item_entities"]
+        .as_array()
+        .unwrap();
+    assert!(
+        items
+            .iter()
+            .any(|e| e["payload"]["stack"]["durability"] == 37)
+    );
+    assert!(items.iter().any(|e| e["pickup_delay"] == 40));
 }
 
 #[test]
@@ -610,7 +644,7 @@ fn persistence_legacy_v8_upgrades_without_inventing_entities_or_losing_portal_li
     let encoded = bincode::serialize(&PlayerCheckpointV8 {
         version: 8,
         progress,
-        session: PlayerSession::capture(&s),
+        session: PlayerSession::capture(&s).into(),
         portal_links: links.clone(),
     })
     .unwrap();
@@ -620,7 +654,10 @@ fn persistence_legacy_v8_upgrades_without_inventing_entities_or_losing_portal_li
     assert_eq!(restored.portal_links.into_iter().collect::<Vec<_>>(), links);
     restored.portal_links = links.into_iter().collect();
     restored.try_persist_world_and_progress().unwrap();
-    assert_eq!(&std::fs::read(&path).unwrap()[..2], &10u16.to_le_bytes());
+    assert_eq!(
+        &std::fs::read(&path).unwrap()[..2],
+        &PLAYER_PROGRESS_VERSION.to_le_bytes()
+    );
 }
 
 #[test]
@@ -730,4 +767,143 @@ fn persistence_travel_dismounts_without_moving_boats_between_worlds() {
     restored.travel_dimension(Dimension::Nether);
     assert_eq!(restored.boats[0].x, 8.5);
     assert!(restored.mounted_boat.is_none());
+}
+
+#[test]
+fn persistence_real_v10_and_server_v4_add_default_hazards_without_losing_old_fields() {
+    let (_fixture, mut s) = fixture();
+    let root = s.world.save_root().to_path_buf();
+    let path = root.join(PLAYER_PROGRESS_FILE);
+    std::fs::write(
+        &path,
+        include_bytes!("../../tests/fixtures/progression-v10-entities.bin"),
+    )
+    .unwrap();
+    let loaded =
+        GameState::load_progression_data_from_path(&path).expect("genuine native10 fixture");
+    loaded.runtime.unwrap().apply(&mut s);
+    let mut actual = serde_json::to_value(RuntimeCheckpoint::capture(&s)).unwrap();
+    let expected: serde_json::Value = serde_json::from_str(include_str!(
+        "../../tests/fixtures/progression-v10-runtime.json"
+    ))
+    .unwrap();
+    for dimension in actual["dimensions"].as_object_mut().unwrap().values_mut() {
+        for field in [
+            "zombies",
+            "creepers",
+            "skeletons",
+            "spiders",
+            "silverfish",
+            "slimes",
+            "endermen",
+            "blazes",
+            "pigmen",
+            "ghasts",
+            "cows",
+            "sheep",
+            "pigs",
+            "chickens",
+            "squids",
+            "wolves",
+            "ocelots",
+            "villagers",
+        ] {
+            for e in dimension[field].as_array_mut().unwrap() {
+                assert_eq!(e["hazards"]["air"], 300);
+                e.as_object_mut().unwrap().remove("hazards");
+            }
+        }
+    }
+    assert_eq!(actual["dimensions"], expected);
+    s.try_persist_world_and_progress().unwrap();
+    drop(s);
+    let s = GameState::open_in_directory(&root).unwrap();
+    std::fs::write(
+        root.join("server-state.json"),
+        include_bytes!("../../tests/fixtures/server-v4-entities.json"),
+    )
+    .unwrap();
+    let saved = super::super::server_save::ServerSave::read(&s).unwrap();
+    assert_eq!(saved.version, 5);
+    saved.write(&root).unwrap();
+    assert_eq!(s.sheep[0].health, 5.0);
+}
+
+#[test]
+fn persistence_furnace_slots_active_job_and_hazard_timers_survive_restart() {
+    let (_fixture, mut s) = fixture();
+    let root = s.world.save_root().to_path_buf();
+    s.open_furnace_inventory_view();
+    s.furnace_slots = [
+        Some(ItemStack {
+            item_type: ItemType::RawIron,
+            count: 3,
+            durability: None,
+        }),
+        Some(ItemStack {
+            item_type: ItemType::Coal,
+            count: 2,
+            durability: None,
+        }),
+        None,
+    ];
+    for _ in 0..73 {
+        s.update_furnace();
+    }
+    s.cows.push(Cow::new(12.5, 64.0));
+    s.cows[0].hazards.air = 17;
+    s.cows[0].hazards.burning = 41;
+    let slots = s.furnace_slots.clone();
+    let job = s.furnace_job;
+    let fuel = s.furnace_burn_ticks;
+    s.try_persist_world_and_progress().unwrap();
+    drop(s);
+    let mut s = GameState::open_in_directory(&root).unwrap();
+    assert_eq!(s.furnace_slots, slots);
+    assert_eq!(s.furnace_job, job);
+    assert_eq!(s.furnace_burn_ticks, fuel);
+    assert_eq!(s.furnace_progress_ticks, 73);
+    assert_eq!(s.cows[0].hazards.air, 17);
+    assert_eq!(s.cows[0].hazards.burning, 41);
+    for _ in 73..FURNACE_COOK_TICKS {
+        s.update_furnace();
+    }
+    assert_eq!(s.furnace_slots[2].as_ref().unwrap().count, 1);
+}
+
+#[test]
+fn persistence_settings_save_after_distant_loot_sleeps() {
+    let (_fixture, mut s) = fixture();
+    let root = s.world.save_root().to_path_buf();
+    s.item_entities
+        .push(ItemEntity::new(8192.5, 64.0, ItemType::Diamond));
+    s.experience_orbs.push(ExperienceOrb::new(8193.5, 64.0, 37));
+    let item = s.item_entities[0].clone();
+    let orb = s.experience_orbs[0].clone();
+    for _ in 0..100 {
+        s.update(0, 0);
+    }
+    assert_eq!(s.item_entities[0], item);
+    assert_eq!(s.experience_orbs[0], orb);
+    for cmd in [
+        ClientCommand::CycleMovementProfile,
+        ClientCommand::CycleDifficulty,
+        ClientCommand::CycleGameRulesPreset,
+        ClientCommand::ToggleRuleMobSpawning,
+        ClientCommand::ToggleRuleDaylightCycle,
+        ClientCommand::ToggleRuleWeatherCycle,
+        ClientCommand::ToggleRuleKeepInventory,
+    ] {
+        s.apply_client_command(cmd);
+        s.try_persist_world_and_progress().unwrap();
+        let restored = GameState::open_in_directory(&root).unwrap();
+        assert_eq!(restored.item_entities[0], item);
+        assert_eq!(restored.experience_orbs[0], orb);
+    }
+    s.item_entities[0].y = 1400.0;
+    s.experience_orbs[0].y = 1400.0;
+    s.update(0, 0);
+    assert!(s.item_entities[0].y < 128.0);
+    assert!(s.experience_orbs[0].y < 128.0);
+    s.try_persist_world_and_progress().unwrap();
 }

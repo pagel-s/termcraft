@@ -12,6 +12,8 @@ mod materials;
 mod motion;
 #[path = "nether.rs"]
 mod nether;
+#[path = "preferences.rs"]
+mod preferences;
 #[path = "shading.rs"]
 mod shading;
 #[path = "sprites.rs"]
@@ -71,6 +73,7 @@ pub struct Renderer {
     precipitation_buffer: Vec<PrecipitationType>,
     camera_y: f64,
     camera_initialized: bool,
+    persist_view: bool,
     key_releases: bool,
     world_view: Option<(i32, i32, i32, i32, i32)>,
     zoom: u8,
@@ -96,7 +99,10 @@ impl Renderer {
 
     pub fn new() -> std::io::Result<Self> {
         let (cols, rows) = size()?;
-        Ok(Self::with_size(cols, rows))
+        let mut renderer = Self::with_size(cols, rows);
+        renderer.zoom = Self::saved_view();
+        renderer.persist_view = true;
+        Ok(renderer)
     }
 
     /// Offscreen rendering uses the same composition and ANSI output as live play.
@@ -117,6 +123,7 @@ impl Renderer {
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            persist_view: false,
             key_releases: false,
             world_view: None,
             zoom: 0,
@@ -211,6 +218,9 @@ impl Renderer {
             return;
         }
         self.zoom = zoom;
+        if self.persist_view {
+            let _ = preferences::write_view(&crate::save_path::save_file("view.json"), zoom);
+        }
         // Picking continues to use the image still on screen until the next frame.
         self.buffer.fill(RenderCell::default());
     }
@@ -642,9 +652,9 @@ impl Renderer {
     }
 
     fn end_victory_banner_lines(ticks_remaining: u16) -> (&'static str, &'static str) {
-        if ticks_remaining > 92 {
+        if ticks_remaining > 160 {
             ("ENDER DRAGON SLAIN", "Shockwaves tear through the End")
-        } else if ticks_remaining > 46 {
+        } else if ticks_remaining > 70 {
             ("THE END TREMBLES", "Ancient light pours from the core")
         } else {
             ("VICTORY IN THE END", "Enter the portal when you are ready")
@@ -658,7 +668,9 @@ impl Renderer {
             return;
         };
 
-        let elapsed = (140u16.saturating_sub(ticks_remaining)) as f32 + frame_alpha as f32;
+        let elapsed = (crate::engine::state::END_VICTORY_SEQUENCE_TICKS
+            .saturating_sub(ticks_remaining)) as f32
+            + frame_alpha as f32;
         let pulse = (elapsed * 0.16).sin() * 0.5 + 0.5;
         let origin_sx =
             (origin_x * 2.0 * scale as f64).round() as i32 - view_char_x + screen_center_x;
@@ -1928,6 +1940,7 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(zombie.hit_timer > 0)
+                    .with_burning(zombie.hazards.burning > 0 || zombie.burning_timer > 0)
                     .with_warning(zombie.attack_windup),
                 );
             }
@@ -1987,6 +2000,7 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(pigman.hit_timer > 0)
+                    .with_burning(pigman.hazards.burning > 0)
                     .with_alert(pigman.is_aggressive())
                     .with_warning(pigman.attack_windup),
                 );
@@ -2046,6 +2060,7 @@ impl Renderer {
                         )
                         .with_subcell(actor_x, actor_y, scale)
                         .with_hit(ghast.hit_timer > 0)
+                        .with_burning(ghast.hazards.burning > 0)
                         .with_animation_time(ghast.age as f64 + frame_alpha)
                         .with_alert(ghast.shoot_cooldown < 16),
                     );
@@ -2107,6 +2122,7 @@ impl Renderer {
                         )
                         .with_subcell(actor_x, actor_y, scale)
                         .with_hit(blaze.hit_timer > 0)
+                        .with_burning(blaze.hazards.burning > 0)
                         .with_animation_time(blaze.age as f64 + frame_alpha)
                         .with_warning(blaze.attack_windup)
                         .with_alert(blaze.shoot_cooldown < 10),
@@ -2173,6 +2189,7 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(enderman.hit_timer > 0)
+                    .with_burning(enderman.hazards.burning > 0)
                     .with_warning(enderman.attack_windup),
                 );
             }
@@ -2231,6 +2248,7 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(creeper.hit_timer > 0)
+                    .with_burning(creeper.hazards.burning > 0)
                     .with_alert(creeper.fuse_timer > 0)
                     .with_variant(creeper.charged),
                 );
@@ -2288,6 +2306,7 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(skeleton.hit_timer > 0)
+                    .with_burning(skeleton.hazards.burning > 0 || skeleton.burning_timer > 0)
                     .with_warning(skeleton.bow_windup)
                     .with_item(Some(ItemType::Bow))
                     .with_swing((skeleton.bow_windup > 0).then_some(0.05)),
@@ -2339,6 +2358,7 @@ impl Renderer {
                         )
                         .with_subcell(actor_x, actor_y, scale)
                         .with_hit(spider.hit_timer > 0)
+                        .with_burning(spider.hazards.burning > 0)
                         .with_warning(spider.attack_windup),
                     );
                 } else {
@@ -2391,6 +2411,7 @@ impl Renderer {
                         )
                         .with_subcell(actor_x, actor_y, scale)
                         .with_hit(silverfish.hit_timer > 0)
+                        .with_burning(silverfish.hazards.burning > 0)
                         .with_warning(silverfish.attack_windup),
                     );
                 } else {
@@ -2455,6 +2476,7 @@ impl Renderer {
                         )
                         .with_subcell(actor_x, actor_y, scale)
                         .with_hit(slime.hit_timer > 0)
+                        .with_burning(slime.hazards.burning > 0)
                         .with_warning(slime.attack_windup)
                         .with_dimensions(
                             (slime.half_width() * 4.0 * scale as f64).ceil() as usize,
@@ -2654,7 +2676,8 @@ impl Renderer {
                         c_fg,
                     )
                     .with_subcell(actor_x, actor_y, scale)
-                    .with_hit(cow.hit_timer > 0),
+                    .with_hit(cow.hit_timer > 0)
+                    .with_burning(cow.hazards.burning > 0),
                 );
             }
         }
@@ -2705,6 +2728,7 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(sheep.hit_timer > 0)
+                    .with_burning(sheep.hazards.burning > 0)
                     .with_variant(sheep.sheared),
                 );
             }
@@ -2751,7 +2775,8 @@ impl Renderer {
                         p_fg,
                     )
                     .with_subcell(actor_x, actor_y, scale)
-                    .with_hit(pig.hit_timer > 0),
+                    .with_hit(pig.hit_timer > 0)
+                    .with_burning(pig.hazards.burning > 0),
                 );
             }
         }
@@ -2801,7 +2826,8 @@ impl Renderer {
                         c_fg,
                     )
                     .with_subcell(actor_x, actor_y, scale)
-                    .with_hit(chicken.hit_timer > 0),
+                    .with_hit(chicken.hit_timer > 0)
+                    .with_burning(chicken.hazards.burning > 0),
                 );
             }
         }
@@ -2852,7 +2878,8 @@ impl Renderer {
                             s_fg,
                         )
                         .with_subcell(actor_x, actor_y, scale)
-                        .with_hit(squid.hit_timer > 0),
+                        .with_hit(squid.hit_timer > 0)
+                        .with_burning(squid.hazards.burning > 0),
                     );
                 } else {
                     self.put_entity_str(s_sx, s_sy - 1, "Sq", s_fg);
@@ -2920,6 +2947,7 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(wolf.hit_timer > 0)
+                    .with_burning(wolf.hazards.burning > 0)
                     .with_warning(wolf.attack_windup)
                     .with_alert(wolf.aggressive_timer > 0),
                 );
@@ -2977,7 +3005,8 @@ impl Renderer {
                         o_fg,
                     )
                     .with_subcell(actor_x, actor_y, scale)
-                    .with_hit(ocelot.hit_timer > 0),
+                    .with_hit(ocelot.hit_timer > 0)
+                    .with_burning(ocelot.hazards.burning > 0),
                 );
             }
         }
@@ -3027,7 +3056,8 @@ impl Renderer {
                         v_fg,
                     )
                     .with_subcell(actor_x, actor_y, scale)
-                    .with_hit(villager.hit_timer > 0),
+                    .with_hit(villager.hit_timer > 0)
+                    .with_burning(villager.hazards.burning > 0),
                 );
             }
         }
@@ -3540,10 +3570,28 @@ impl Renderer {
             },
             Color::Reset,
         );
+        if state.player.drowning_timer < 300 {
+            let bubbles = ((state.player.drowning_timer.max(0) + 29) / 30) as usize;
+            self.put_str(
+                hud_x,
+                6,
+                &format!("Air  [{}{}]", "o".repeat(bubbles), ".".repeat(10 - bubbles)),
+                if bubbles == 0 {
+                    Color::Red
+                } else {
+                    Color::Cyan
+                },
+                Color::AnsiValue(234),
+            );
+        }
         if state.current_dimension == Dimension::End {
             if let Some((ticks_remaining, _, _)) = state.end_victory_sequence_state() {
                 let (headline, _) = Self::end_victory_banner_lines(ticks_remaining);
-                let pulse = (((140u16.saturating_sub(ticks_remaining)) as f32 * 0.24).sin() * 0.5
+                let pulse = (((crate::engine::state::END_VICTORY_SEQUENCE_TICKS
+                    .saturating_sub(ticks_remaining)) as f32
+                    * 0.24)
+                    .sin()
+                    * 0.5
                     + 0.5)
                     .clamp(0.0, 1.0);
                 self.put_str(
@@ -5406,6 +5454,52 @@ impl Renderer {
                 Self::rgb((237, 201, 121)),
                 bg,
             );
+            for (slot, label, dx, dy) in [
+                (60, "INPUT", 14, 12),
+                (61, "FUEL", 14, 16),
+                (62, "OUTPUT", 40, 14),
+            ] {
+                let selected = state.selected_inventory_slot == Some(slot);
+                let slot_bg = if selected { Color::Cyan } else { bg };
+                let sx = box_x + dx;
+                let sy = box_y + dy;
+                self.put_str(sx, sy - 1, label, Self::rgb((192, 200, 211)), bg);
+                self.put_str(sx, sy, "[    ]", Color::White, slot_bg);
+                self.put_str(sx, sy + 1, "      ", Color::White, slot_bg);
+                if let Some(stack) = state.furnace_slot_stack(slot - 60) {
+                    self.draw_inventory_stack(sx, sy, stack, selected, slot_bg);
+                }
+            }
+            self.put_str(
+                box_x + 26,
+                box_y + 14,
+                "===>",
+                Self::rgb((237, 201, 121)),
+                bg,
+            );
+            let fill = (state.furnace_cook_fraction().clamp(0.0, 1.0) * 10.0).floor() as usize;
+            self.put_str(
+                box_x + 25,
+                box_y + 15,
+                &format!("[{}{}]", "=".repeat(fill), "-".repeat(10 - fill)),
+                Self::rgb((237, 201, 121)),
+                bg,
+            );
+            self.put_str(
+                box_x + 26,
+                box_y + 17,
+                if state.furnace_has_heat() {
+                    "HEAT ON"
+                } else {
+                    "NO FUEL"
+                },
+                if state.furnace_has_heat() {
+                    Self::rgb((255, 163, 72))
+                } else {
+                    Color::DarkGrey
+                },
+                bg,
+            );
             let status = state
                 .furnace_status_line()
                 .chars()
@@ -5413,19 +5507,25 @@ impl Renderer {
                 .collect::<String>();
             self.put_str(
                 box_x + 2,
-                box_y + 12,
+                box_y + 19,
                 &status,
                 Self::rgb((139, 211, 221)),
                 bg,
             );
-            for (row, line) in [
-                (14, "Tab: browse all smelting recipes"),
-                (15, "Shift-click bag input or coal to start a job."),
-                (17, "Finished output waits safely if the bag is full."),
-                (18, "You can close this screen while it cooks."),
-            ] {
-                self.put_str(box_x + 2, box_y + row, line, Self::rgb((172, 185, 195)), bg);
-            }
+            self.put_str(
+                box_x + 2,
+                box_y + 21,
+                "Click to move | R-click: one | Shift-click: transfer",
+                Self::rgb((172, 185, 195)),
+                bg,
+            );
+            self.put_str(
+                box_x + 2,
+                box_y + 22,
+                "Close safely; input, fuel and results stay here.",
+                Self::rgb((172, 185, 195)),
+                bg,
+            );
         } else {
             let grid_size = if state.at_crafting_table { 3 } else { 2 };
             let grid_x = box_x + 30;
@@ -5528,7 +5628,7 @@ impl Renderer {
         if self.compact_recipe_book(state) {
             return None;
         }
-        (0..=CRAFT_OUTPUT_UI_SLOT.max(54)).find(|&slot| {
+        (0..=CRAFT_OUTPUT_UI_SLOT.max(62)).find(|&slot| {
             self.inventory_slot_position(state, slot)
                 .is_some_and(|(x, y)| {
                     (x..x + 6).contains(&(screen_x as i32))
@@ -6543,6 +6643,7 @@ mod tests {
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            persist_view: false,
             key_releases: false,
             world_view: None,
             zoom: 0,
@@ -6610,6 +6711,7 @@ mod tests {
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            persist_view: false,
             key_releases: false,
             world_view: None,
             zoom: 0,
@@ -6662,6 +6764,7 @@ mod tests {
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            persist_view: false,
             key_releases: false,
             world_view: None,
             zoom: 0,
@@ -6714,6 +6817,7 @@ mod tests {
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            persist_view: false,
             key_releases: false,
             world_view: None,
             zoom: 0,
@@ -6763,6 +6867,7 @@ mod tests {
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            persist_view: false,
             key_releases: false,
             world_view: None,
             zoom: 0,
@@ -6812,6 +6917,7 @@ mod tests {
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            persist_view: false,
             key_releases: false,
             world_view: None,
             zoom: 0,
@@ -6865,6 +6971,7 @@ mod tests {
             precipitation_buffer: Vec::new(),
             camera_y: 0.0,
             camera_initialized: false,
+            persist_view: false,
             key_releases: false,
             world_view: None,
             zoom: 0,
@@ -6996,11 +7103,11 @@ mod tests {
     #[test]
     fn end_victory_banner_lines_shift_through_stages() {
         assert_eq!(
-            Renderer::end_victory_banner_lines(120),
+            Renderer::end_victory_banner_lines(240),
             ("ENDER DRAGON SLAIN", "Shockwaves tear through the End")
         );
         assert_eq!(
-            Renderer::end_victory_banner_lines(70),
+            Renderer::end_victory_banner_lines(120),
             ("THE END TREMBLES", "Ancient light pours from the core")
         );
         assert_eq!(

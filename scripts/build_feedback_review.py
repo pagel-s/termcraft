@@ -32,17 +32,19 @@ def main():
         screen = Screen(*size)
         screen.feed(read(path))
         raster(screen).save(args.output / (name + '.png'))
+    expected=json.loads((args.victory/"victory.json").read_text())["frames"]
+    sample_ticks=[round(t*(expected-1)/140) for t in [0,18,36,60,90,120,140]]
     screen = Screen(160, 48)
     frames = []
     for tick, path in enumerate(sorted(args.victory.glob('victory-*-160x48.ansi'))):
         screen.feed(read(path))  # Incremental frames require the same screen.
         im = raster(screen)
         frames.append(im)
-        if tick in [0, 18, 36, 60, 90, 120, 140]:
+        if tick in sample_ticks:
             im.save(args.output / f'victory-{tick:03}.png')
-    assert len(frames) == 141
+    assert len(frames) == expected
     samples = Image.new('RGB', (frames[0].width, frames[0].height * 7))
-    for i, tick in enumerate([0, 18, 36, 60, 90, 120, 140]):
+    for i, tick in enumerate(sample_ticks):
         samples.paste(frames[tick], (0, i * frames[0].height))
     palette = samples.quantize(colors=256)
     gif = [im.quantize(palette=palette, dither=Image.Dither.NONE) for im in frames]
@@ -60,7 +62,7 @@ def main():
             outputs[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
     evidence = dict(binary_sha256=hashlib.sha256(args.binary.read_bytes()).hexdigest(),
                     inputs=inputs, outputs=outputs, decoded_frames=decoded,
-                    native_save_version=10, server_save_version=4, network_protocol=17,
+                    native_save_version=11, server_save_version=5, network_protocol=18,
                     frame_duration_ms=50,
                     limits='Actual engine ticks and renderer, staged encounter/kill, deterministic captures. GIF timing represents 20 simulation ticks/s; not an emulator FPS or human-combat result.')
     (args.output / 'capture-evidence.json').write_text(json.dumps(evidence, indent=2) + '\n')

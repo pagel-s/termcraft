@@ -123,11 +123,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         dragon.health = 0.0;
         s.update(0, 0); // Actual boss-death path starts the shared sequence/rewards.
         let mut renderer = Renderer::with_size(160, 48);
-        for tick in 0..=140 {
+        for tick in 0..=termcraft::engine::state::END_VICTORY_SEQUENCE_TICKS {
             let mut bytes = Vec::new();
             renderer.render_to(&s, 0.0, &mut bytes)?;
             fs::write(out.join(format!("victory-{tick:03}-160x48.ansi")), bytes)?;
-            if [0, 18, 36, 60, 90, 120, 140].contains(&tick) {
+            if [0, 45, 90, 125, 170, 220, 280].contains(&tick) {
                 capture(&s, &out, &format!("finale-{tick:03}"))?;
             }
             s.player.health = 20.0;
@@ -136,7 +136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::write(
             out.join("victory.json"),
             serde_json::to_vec_pretty(&serde_json::json!({
-                "frames":141,"tick_ms":50,"dragon_defeated":s.has_defeated_dragon(),
+                "frames":281,"tick_ms":50,"dragon_defeated":s.has_defeated_dragon(),
                 "sequence_finished":s.end_victory_sequence_state().is_none(),
                 "limits":"Actual engine boss-death path and unmodified terminal renderer. Kill and player position staged in a disposable seed-1337 world; excludes live human combat/emulator timing."
             }))?,

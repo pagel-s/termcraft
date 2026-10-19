@@ -105,7 +105,7 @@ changes or undo its structures.
 The default server stores data under `$TERMCRAFT_SAVE_DIR/multiplayer/default`
 (or the platform's normal save directory when the variable is unset). Named
 servers store it in their world directory. `server-state.json` holds a versioned
-server ID, world clocks/rules and player records. Server checkpoint version 4
+server ID, world clocks/rules and player records. Server checkpoint version 5
 also saves each identity's dimension, portal links and shared dragon completion.
 Version 1 records upgrade with players in the Overworld; version 2 adds dimensions
 and shared progression. Version 3 adds entities/encounters to the same atomic

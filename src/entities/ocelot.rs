@@ -14,11 +14,14 @@ pub struct Ocelot {
     pub last_player_damage_tick: u64,
     pub panic_timer: u16,
     pub attack_cooldown: u8,
+    #[serde(default)]
+    pub hazards: super::hazards::HazardState,
 }
 
 impl Ocelot {
     pub fn new(x: f64, y: f64) -> Self {
         Self {
+            hazards: Default::default(),
             x,
             y,
             vx: 0.0,

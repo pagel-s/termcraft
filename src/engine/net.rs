@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 17;
+pub const NET_PROTOCOL_VERSION: u16 = 18;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;
@@ -618,7 +618,7 @@ impl ServerSimulation {
         }
         self.saved.worlds = self.state.save_dimension_worlds()?;
         self.saved.progression = super::state::SharedProgress::capture(&self.state);
-        self.saved.version = 4;
+        self.saved.version = 5;
         self.saved.runtime = Some(super::state::RuntimeCheckpoint::capture(&self.state));
         self.state.save_trial()?;
         self.director.save(&self.state).map_err(io::Error::other)?;

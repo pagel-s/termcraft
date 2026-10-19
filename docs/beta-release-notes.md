@@ -4,6 +4,21 @@
 Local binaries still report `0.1.0` and archives are marked `dev`. The repository's
 `BETA_RELEASE_PLAN.md` and `RELEASE_CHECKLIST.md` track qualification.
 
+## October 19 refinement
+
+- Rigid held tools, faster strike timing and corrected held axe orientation.
+- Explicit furnace input/fuel/output slots with persistent contents and cooking.
+- Persistent creature breath, lava/fire damage and visible burning; player air HUD
+  and armor-independent drowning damage.
+- Sight-based hostile targeting, interrupted bow windups behind walls, and corner
+  occlusion shared by mining, interactions and projectiles.
+- Persistent F4 view; suspended physics on unloaded terrain prevent loose loot/XP
+  from falling into invalid save coordinates. Finite old loose-item falls outside
+  the End recover at the same X above real terrain.
+- Fourteen-second dragon charge, breakup and portal reveal with no camera shake.
+- Native v11 / server v5 / protocol 18; genuine v9/v10 and v3/v4 migration fixtures.
+
+
 ## Throwing, damage feedback and the End finale
 
 Press **V** to throw one held item, or **Shift+V** for its stack. In inventory,
@@ -22,7 +37,7 @@ already fell below the world in an older running build return home, preserving
 identity, health and age. Save validation remains strict and includes offending
 coordinates/velocity when it rejects an entity.
 
-The dragon patrols closer to the pillar crowns. Its seven-second death sequence
+The dragon patrols closer to the pillar crowns. Its fourteen-second death sequence
 retains the dragon silhouette as it fractures, expands into light/shock fronts,
 and highlights the return portal. Co-op snapshots carry the sequence; its clock
 and origin already persist in checkpoints. The camera keeps the encounter framing
@@ -78,8 +93,8 @@ same linked frame or remain in another dimension. Terrain, entities, hazards,
 boats and client streaming stay local to that dimension. Saved identities reopen
 in their own dimensions, and shared portal links/dragon completion survive restart.
 The End encounter is shared; credits and respawn remain individual. Late commands
-from a previous dimension cannot place/mine there after travel. Matching protocol-17
-builds are required. Server checkpoint v4 reads v1–3; native checkpoint v10 reads v1–9.
+from a previous dimension cannot place/mine there after travel. Matching protocol-18
+builds are required. Server checkpoint v5 reads v1–3; native checkpoint v11 reads v1–9.
 
 ## Faster rendering and clearer play
 
@@ -193,7 +208,7 @@ visibly full hunger bar prevents wasting another meal on a tiny drain.
 Redstone ore lights up when hit, used or stepped on and fades after activation.
 Lava and flint/steel can start local fires in flammable material; water puts them
 out. Lava/fire destroy loose items and flames respect fire resistance. New ore/fire
-block variants and batch-craft commands require matching **protocol 17** builds.
+block variants and batch-craft commands require matching **protocol 18** builds.
 [Controls and rules](gameplay.md#inventory-and-crafting).
 
 ## More predictable movement and safer saves
@@ -228,9 +243,9 @@ is distinct from a persistent source, including after saving and in co-op.
 These retain source-block rules rather than conserved fluid volume.
 [Basin review](design/water-basins-2026-10-16/README.md).
 
-**Back up saves before upgrading.** Progression v10 reads v1–9, then upgrades on
-save; older builds cannot reopen v10. Entities and portal links share the player
-checkpoint; co-op inventories and entities share server checkpoint v4. Animals,
+**Back up saves before upgrading.** Progression v11 reads v1–10, then upgrades on
+save; older builds cannot reopen v11. Entities and portal links share the player
+checkpoint; co-op inventories and entities share server checkpoint v5. Animals,
 villagers, boats, loot/XP and partial encounters resume across restarts and portal
 travel. Clocks and item ages pause while offline. Writes remain atomic per file,
 not across the whole world; recovery copies contain only loaded terrain in the
@@ -274,7 +289,7 @@ human campaign or a viral release.
 The October 16 correction adds visible misses, distinct held-tool/bow/eat/use poses,
 consistent pixels at every colour zoom, light-aware cave spawns, walk-in Nether
 portals, source-preserving fluids and direct seed placement on farmland. Co-op
-action poses require matching **protocol 17** clients and server. See the
+action poses require matching **protocol 18** clients and server. See the
 [interaction review](design/interaction-review-2026-10-16/README.md).
 
 Following ore/farming feedback, fresh terrain has more iron and rare ores and coal

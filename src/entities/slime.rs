@@ -17,6 +17,8 @@ pub struct Slime {
     pub stuck_ticks: u8,
     pub reroute_ticks: u8,
     pub reroute_dir: i8,
+    #[serde(default)]
+    pub hazards: super::hazards::HazardState,
 }
 
 impl Slime {
@@ -29,6 +31,7 @@ impl Slime {
             1
         };
         Self {
+            hazards: Default::default(),
             x,
             y,
             vx: 0.0,

@@ -16,11 +16,14 @@ pub struct Silverfish {
     pub stuck_ticks: u8,
     pub reroute_ticks: u8,
     pub reroute_dir: i8,
+    #[serde(default)]
+    pub hazards: super::hazards::HazardState,
 }
 
 impl Silverfish {
     pub fn new(x: f64, y: f64) -> Self {
         Self {
+            hazards: Default::default(),
             x,
             y,
             vx: 0.0,

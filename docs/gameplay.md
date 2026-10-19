@@ -104,11 +104,31 @@ for its stack. Inside inventory, click the item first, then use the same keys.
 Thrown tools retain wear and enchantments. Everyone waits two seconds before
 picking up a thrown item; throw away from lava or fire if you want to keep it.
 
+Right-click a furnace to open **INPUT**, **FUEL** and **OUTPUT** slots. Click a
+bag stack and its destination to move it; right-click places one, and Shift-click
+routes ingredients/fuel into the appropriate slot or collects results into the bag.
+Coal, logs, planks and sticks work as fuel. The progress bar and heat indicator
+show cooking; cooking pauses if fuel runs out or the output is blocked. On wide
+terminals the recipe book remains a shortcut for loading a batch; compact
+terminals keep the three slots visible. Closing/reopening or saving preserves
+queued input, fuel, cooked output and the in-progress job. Furnace storage follows
+the existing per-player furnace session; separate placed furnaces do not yet have
+independent shared storage.
+
 Crafting refuses to consume ingredients when its complete output would not fit.
-A completed furnace waits for space without spending additional fuel, including
-across save/reload. Full-bag drops settle on the ground instead of orbiting the
-player; they become collectible when space opens. A nearby friend with capacity
-can collect them. Lava and fire destroy loose items.
+Full-bag drops settle on the ground instead of orbiting the player; they become
+collectible when space opens. A nearby friend with capacity can collect them.
+Lava and fire destroy loose items. Unloaded terrain suspends loose-item/XP physics.
+
+Air bubbles appear below the status panel as breath runs out. Fully submerged
+players and breathing creatures have fifteen seconds of air, then take damage
+every second. Leaving water replenishes air gradually; armor does not prevent
+drowning. Squid breathe water and suffocate on land. Undead do not need air.
+Lava damages ordinary creatures and players and leaves an afterburn; water
+extinguishes it. Blazes, ghasts and zombie pigmen resist fire/lava.
+
+**F4** (and **+/-**) view selection persists in `view.json` in the save root.
+Terminal font zoom is independent of the selected game view.
 
 ## Interaction Notes
 
@@ -159,7 +179,7 @@ momentum and accumulated fall distance reset during travel.
 Dimension travel works in single-player and co-op. In co-op only the interacting
 player travels; friends can follow or remain in another dimension. Terrain,
 entities, inventories and saved portal links remain separate, with one shared
-dragon encounter for players in the End. Use matching protocol-17 clients/server.
+dragon encounter for players in the End. Use matching protocol-18 clients/server.
 
 Incoming ghast and blaze fireballs can be hit with a normal left-click attack
 while within 2.6 blocks. Aim at the projectile: a successful return reverses its

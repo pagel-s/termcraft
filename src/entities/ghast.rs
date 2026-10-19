@@ -10,11 +10,14 @@ pub struct Ghast {
     pub hit_timer: u8,
     pub last_player_damage_tick: u64,
     pub shoot_cooldown: u8,
+    #[serde(default)]
+    pub hazards: super::hazards::HazardState,
 }
 
 impl Ghast {
     pub fn new(x: f64, y: f64) -> Self {
         Self {
+            hazards: Default::default(),
             x,
             y,
             vx: 0.0,

@@ -1,4 +1,4 @@
-//! Seven-second, simulation-timed boss finale; no camera shake or random flashes.
+//! Fourteen-second, simulation-timed boss finale; no camera shake or random flashes.
 use super::Renderer;
 
 impl Renderer {
@@ -10,8 +10,44 @@ impl Renderer {
         elapsed: f32,
         bottom: i32,
     ) {
+        let time = elapsed;
+        // Hold the dragon together during the charge; give the explosion its
+        // own act, followed by a lingering portal reveal.
+        let elapsed = if time < 90.0 {
+            time * (24.0 / 90.0)
+        } else if time < 200.0 {
+            24.0 + (time - 90.0) * (66.0 / 110.0)
+        } else {
+            90.0 + (time - 200.0) * (50.0 / 80.0)
+        };
         let unit = (2 * scale) as f32;
         let core = (x as f32, feet as f32 - unit * 2.4);
+        // A widening column and rising motes establish the scale of the charge
+        // before the dragon fractures. No screen-wide flash or camera shake.
+        let charge =
+            (time / 90.0).clamp(0.0, 1.0) * (1.0 - ((time - 130.0) / 60.0).clamp(0.0, 1.0));
+        for py in 4..bottom {
+            let spread = (scale as f32 * (0.7 + charge * 1.1)).ceil() as i32;
+            for dx in -spread..=spread {
+                let strength = (1.0 - dx.abs() as f32 / (spread + 1) as f32) * charge * 0.55;
+                let color = self.blend_pixel(x + dx, py, Self::rgb((198, 139, 255)), strength);
+                self.put_pixel(x + dx, py, color);
+            }
+        }
+        if time < 220.0 {
+            for n in 0..24 {
+                let angle = n as f32 * 2.39996 + time * 0.018;
+                let radius = unit * (2.0 + (n % 5) as f32 * 0.7) * (1.0 - charge * 0.3);
+                let px = (core.0 + angle.cos() * radius).round() as i32;
+                let py = (core.1 + angle.sin() * radius * 0.5
+                    - ((time * 0.04 + n as f32) % 5.0) * unit)
+                    .round() as i32;
+                if py >= 4 && py < bottom {
+                    let c = self.blend_pixel(px, py, Self::rgb((230, 197, 255)), charge * 0.8);
+                    self.put_pixel(px, py, c);
+                }
+            }
+        }
         // Bloom breathes into one controlled burst, then fades into the shards.
         let burst = ((elapsed - 22.0) / 15.0).clamp(0.0, 1.0)
             * (1.0 - ((elapsed - 45.0) / 45.0).clamp(0.0, 1.0));

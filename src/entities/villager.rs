@@ -14,11 +14,14 @@ pub struct Villager {
     pub last_player_damage_tick: u64,
     pub home_x: i32,
     pub home_y: i32,
+    #[serde(default)]
+    pub hazards: super::hazards::HazardState,
 }
 
 impl Villager {
     pub fn new(x: f64, y: f64, home_x: i32, home_y: i32) -> Self {
         Self {
+            hazards: Default::default(),
             x,
             y,
             vx: 0.0,

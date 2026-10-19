@@ -1,9 +1,50 @@
 //! Per-player state for the shared authoritative simulation. World state is never cloned.
 use super::*;
+macro_rules! session10_type {
+    (furnace_slots, $ty:ty) => {
+        ()
+    };
+    (furnace_explicit, $ty:ty) => {
+        ()
+    };
+    ($field:ident,$ty:ty) => {
+        $ty
+    };
+}
+macro_rules! session10_value {
+    (furnace_slots,$value:expr,$fresh:expr) => {
+        $fresh
+    };
+    (furnace_explicit,$value:expr,$fresh:expr) => {
+        $fresh
+    };
+    ($field:ident,$value:expr,$fresh:expr) => {
+        $value
+    };
+}
+macro_rules! session10_old_value {
+    (furnace_slots,$value:expr) => {
+        ()
+    };
+    (furnace_explicit,$value:expr) => {
+        ()
+    };
+    ($field:ident,$value:expr) => {
+        $value
+    };
+}
 macro_rules! player_fields {
     ($( $(#[$attr:meta])* $field:ident: $ty:ty = $fresh:expr; )*) => {
         #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
         pub struct PlayerSession { $( $(#[$attr])* pub(super) $field: $ty, )* }
+        #[derive(Clone,Debug,Serialize,Deserialize)]
+        pub(super) struct PlayerSessionV10 { $( $(#[$attr])* $field:session10_type!($field,$ty), )* }
+        impl From<PlayerSessionV10> for PlayerSession {
+            fn from(old:PlayerSessionV10)->Self { Self { $( $field:session10_value!($field,old.$field,$fresh),)* } }
+        }
+        impl From<PlayerSession> for PlayerSessionV10 {
+            fn from(old:PlayerSession)->Self { Self { $( $field:session10_old_value!($field,old.$field),)* } }
+        }
         impl PlayerSession {
             #[allow(clippy::clone_on_copy)]
             pub fn capture(state: &GameState) -> Self { Self { $($field: state.$field.clone(),)* } }
@@ -73,6 +114,10 @@ player_fields! {
         fishing_wait_ticks: u16 = 0;
         fishing_bite_window_ticks: u8 = 0;
         mounted_boat: Option<usize> = None;
+        #[serde(default)]
+        furnace_slots: [Option<ItemStack>;3] = [None,None,None];
+        #[serde(default)]
+        furnace_explicit: bool = false;
         furnace_job: Option<FurnaceJob> = None;
         furnace_progress_ticks: u16 = 0;
         furnace_burn_ticks: u16 = 0;
@@ -374,10 +419,25 @@ impl PlayerSession {
                 .iter()
                 .chain(self.armor_slots.iter())
                 .chain(self.crafting_grid.iter())
+                .chain(self.furnace_slots.iter())
                 .flatten()
                 .any(|s| s.count == 0 || s.count > 64)
         {
             return Err("invalid multiplayer player record; save preserved".into());
+        }
+        if self.furnace_slots[0]
+            .as_ref()
+            .is_some_and(|s| GameState::furnace_job_for_input_item(s.item_type).is_none())
+            || self.furnace_slots[1]
+                .as_ref()
+                .is_some_and(|s| GameState::furnace_fuel_ticks(s.item_type) == 0)
+            || self
+                .furnace_slots
+                .iter()
+                .flatten()
+                .any(|s| s.durability.is_some())
+        {
+            return Err("invalid saved furnace slots; save preserved".into());
         }
         Ok(())
     }

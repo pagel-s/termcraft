@@ -51,7 +51,7 @@ explicit reset while allowing ordinary play. These sidecars participate in the
 recoverable world checkpoint described below. Structures and ambience survive
 reopening. Weather/time use progression persistence and then follow normal game
 cycles. Spawned mobs and the active finite encounter now resume from the native
-v10 or server v4 checkpoint. Pending model requests and bridge connections are
+v11 or server v5 checkpoint. Pending model requests and bridge connections are
 cancelled on exit and must be connected again. The proactive cooldown and attempt
 budget reset on entry; the selected preference persists.
 
@@ -117,7 +117,7 @@ separate emergency recovery directory; see below.
 
 `player_progression.bin` is a separate versioned bincode payload.
 
-Current progression version: `10`
+Current progression version: `11`
 
 The progression payload currently contains:
 
@@ -137,7 +137,7 @@ The progression payload currently contains:
 - XP state
 - difficulty and gamerules
 
-Version 10 is a bincode envelope containing the version, legacy player/world
+Version 11 is a bincode envelope containing the version, legacy player/world
 metadata, complete player session, sorted portal links and a runtime checkpoint.
 The runtime contains every visited dimension's entities, clocks, spawn timers,
 End boss/crystal state, active game-master wave and Lantern Run progress. Dropped
@@ -146,23 +146,30 @@ Inventories and pickups share this atomic write, preventing a reload from restor
 both the collected item and the inventory that received it. The world pauses while
 offline: there is no wall-clock simulation or offline despawn ageing.
 
+Version 11 adds explicit furnace input/fuel/output storage to each player session
+and persistent breath/fire timers to creatures. Frozen binary creature/session
+layouts decode native v9/v10; old server JSON receives default timers and empty
+furnace slots. Current server checkpoints use v5 and network snapshots protocol 18.
+Real previous-build v9/v10 and server v3/v4 fixtures cover every dimension; see
+[fixture provenance](https://github.com/pagel-s/termcraft/tree/beta/terminal-reborn/tests/fixtures).
+
 Version 10 adds explicit thrown stacks (count, durability, enchantment, pickup
 cooldown) and reflected fireballs. The v9 binary entity layout has a separate
 reader; v3 server JSON records use defaults for the new entity fields and upgrade
-to server v4. Older readers reject these new checkpoint versions, preventing a
+to the current server format. Older readers reject newer checkpoint versions, preventing a
 downgrade from silently discarding a thrown stack. Previous v9 entities retain
 all their saved fields and receive no pickup delay or reflected flag.
 
 Version 9 introduced full runtime entities. Version 8 introduced portal links; version 7 introduced complete sessions.
-Versions 1–9 remain readable and upgrade on the next save. Files from before v9 contain no
+Versions 1–10 remain readable and upgrade on the next save. Files from before v9 contain no
 entity snapshot, so their lost entities cannot be recovered. Held player inputs,
 mining/bow actions and boat/fishing references are released on reopening; the boat
 itself persists. Invalid data is rejected without replacing the original file.
 Checkpoints are limited to 16 MiB and 32,768 total entities across three dimensions.
 They do not use the chunk `MCCF` envelope.
 
-Server checkpoint v4 stores the same runtime alongside all saved player records;
-v1–v3 server files remain readable. A monotonically increasing runtime revision
+Server checkpoint v5 stores the same runtime alongside all saved player records;
+v1–v4 server files remain readable. A monotonically increasing runtime revision
 selects the newest world state when switching between native and hosted play,
 while their player inventories remain separate. Normal spawning/despawning and
 population limits still apply during play; persistence does not make mobs immortal.

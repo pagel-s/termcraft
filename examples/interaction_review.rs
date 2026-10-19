@@ -44,6 +44,7 @@ fn pty_fixture(
     root: &Path,
     address: &str,
     inventory: bool,
+    furnace: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use termcraft::{
         engine::{
@@ -86,6 +87,37 @@ fn pty_fixture(
         }
         state.player.hunger = 19.0;
     }
+    if furnace {
+        state.inventory.slots.fill(None);
+        state.inventory.slots[0] = Some(ItemStack {
+            item_type: ItemType::RawIron,
+            count: 3,
+            durability: None,
+        });
+        state.inventory.slots[1] = Some(ItemStack {
+            item_type: ItemType::Coal,
+            count: 2,
+            durability: None,
+        });
+        state.player.x = 0.5;
+        state.player.y = 40.0;
+        state.player.grounded = true;
+        state.world.load_chunks_for_spawn_search(0, 24);
+        for x in -16..32 {
+            for y in 0..=40 {
+                state.world.set_block(
+                    x,
+                    y,
+                    if y == 40 {
+                        BlockType::Stone
+                    } else {
+                        BlockType::Air
+                    },
+                );
+            }
+        }
+        state.world.set_block(2, 39, BlockType::Furnace);
+    }
     state.try_persist_world_and_progress()?;
     let mut saved = ServerSave::read(&state)?;
     let identity = token();
@@ -113,14 +145,23 @@ fn pty_fixture(
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().collect();
-    if args
-        .get(1)
-        .is_some_and(|s| s == "--pty-fixture" || s == "--inventory-fixture")
-    {
+    if args.get(1).is_some_and(|s| s == "--session-inspect") {
+        let state =
+            GameState::open_in_directory(Path::new(args.get(2).ok_or("save root required")?))?;
+        println!(
+            "{}",
+            serde_json::to_string(&termcraft::engine::state::PlayerSession::capture(&state))?
+        );
+        return Ok(());
+    }
+    if args.get(1).is_some_and(|s| {
+        s == "--pty-fixture" || s == "--inventory-fixture" || s == "--furnace-fixture"
+    }) {
         return pty_fixture(
             Path::new(args.get(2).ok_or("save root required")?),
             args.get(3).ok_or("address required")?,
             args[1] == "--inventory-fixture",
+            args[1] == "--furnace-fixture",
         );
     }
     let out = std::path::PathBuf::from(std::env::args().nth(1).ok_or("output required")?);
@@ -256,6 +297,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             s.update(3, 38);
         }
     }
+    for (item, id) in [
+        (ItemType::IronSword, "sword"),
+        (ItemType::IronAxe, "axe"),
+        (ItemType::IronPickaxe, "pickaxe"),
+    ] {
+        for (right, face) in [(true, "right"), (false, "left")] {
+            hold(&mut s, item);
+            let tx = if right { 3 } else { -3 };
+            s.apply_client_command(ClientCommand::SetPrimaryAction(true));
+            s.update(tx, 38);
+            s.apply_client_command(ClientCommand::SetPrimaryAction(false));
+            let mut renderer = Renderer::with_size(160, 48);
+            renderer.toggle_zoom();
+            renderer.toggle_zoom();
+            for tick in 0..=12 {
+                let mut bytes = Vec::new();
+                renderer.render_to(&s, 0.0, &mut bytes)?;
+                fs::write(out.join(format!("rigid-{id}-{face}-{tick:02}.ansi")), bytes)?;
+                s.update(tx, 38);
+            }
+        }
+    }
     hold(&mut s, ItemType::Bow);
     s.inventory.add_item(ItemType::Arrow, 8);
     for (right, id) in [(true, "bow-right"), (false, "bow-left")] {
@@ -360,6 +423,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fs::write(out.join(format!("motion-{view}-{tick:03}.ansi")), bytes)?;
         }
     }
+    s.inventory.slots.fill(None);
+    s.inventory.slots[0] = Some(ItemStack {
+        item_type: ItemType::RawIron,
+        count: 3,
+        durability: None,
+    });
+    s.inventory.slots[1] = Some(ItemStack {
+        item_type: ItemType::Coal,
+        count: 2,
+        durability: None,
+    });
+    s.hotbar_index = 2;
+    s.world.set_block(2, 39, BlockType::Furnace);
+    s.interact_block(2, 39, false);
+    assert!(s.at_furnace);
+    s.apply_client_command(ClientCommand::InventoryClick(0, 0));
+    s.apply_client_command(ClientCommand::InventoryClick(60, 0));
+    s.apply_client_command(ClientCommand::InventoryClick(1, 0));
+    s.apply_client_command(ClientCommand::InventoryClick(61, 0));
+    for _ in 0..40 {
+        s.update(0, 0);
+    }
+    capture(
+        &s,
+        &out,
+        "furnace-cooking",
+        "Furnace · explicit input, fuel and output",
+        &mut scenes,
+    )?;
+    let mut compact = Renderer::with_size(80, 24);
+    let mut bytes = Vec::new();
+    compact.render_to(&s, 0.0, &mut bytes)?;
+    fs::write(out.join("furnace-compact-80x24.ansi"), bytes)?;
+    for _ in 0..150 {
+        s.update(0, 0);
+    }
+    capture(
+        &s,
+        &out,
+        "furnace-result",
+        "Furnace · completed output remains in its slot",
+        &mut scenes,
+    )?;
+    s.apply_client_command(ClientCommand::ToggleInventory);
     // Confirm held gear uses the same readable cave fill as the body.
     for x in -20..=20 {
         for y in 0..40 {

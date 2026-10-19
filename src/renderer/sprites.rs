@@ -86,6 +86,7 @@ pub(super) struct ActorSprite {
     held_item: Option<super::ItemType>,
     stride: usize,
     hit: bool,
+    burning: bool,
     alert: bool,
     variant: bool,
     helmet: Option<Color>,
@@ -128,6 +129,7 @@ impl ActorSprite {
             held_item: None,
             stride: 0,
             hit: false,
+            burning: false,
             alert: false,
             variant: false,
             helmet: None,
@@ -203,6 +205,10 @@ impl ActorSprite {
         self
     }
 
+    pub(super) fn with_burning(mut self, burning: bool) -> Self {
+        self.burning = burning;
+        self
+    }
     pub(super) fn with_hit(mut self, hit: bool) -> Self {
         self.hit = hit;
         self
@@ -658,6 +664,25 @@ impl ActorSprite {
             Some(color)
         }
     }
+}
+
+// Wind-up, fast impact, brief follow-through, then recovery. Motion stays
+// connected at each keyframe while impact occupies two simulation ticks.
+fn attack_keyframe(t: f64) -> f64 {
+    let points = [
+        (0.0, 0.12),
+        (0.24, 0.0),
+        (0.42, 1.0),
+        (0.60, 0.96),
+        (1.0, 0.30),
+    ];
+    for pair in points.windows(2) {
+        let [(a, x), (b, y)] = [pair[0], pair[1]];
+        if t <= b {
+            return x + (y - x) * ((t - a) / (b - a)).clamp(0.0, 1.0);
+        }
+    }
+    0.30
 }
 
 fn palette(
@@ -1164,6 +1189,27 @@ impl Renderer {
                 }
             }
         }
+        if actor.burning && self.pixel_colors {
+            let base = y_pixel + pixel_height as i32 - 1;
+            for side in [0, width as i32 - 1] {
+                let flame_height = (pixel_height as i32 / 2).max(2);
+                for rise in 0..flame_height {
+                    let flicker =
+                        ((actor.animation_time * 0.5).floor() as i32 + rise / 2).rem_euclid(3) - 1;
+                    let px = x + side + flicker;
+                    self.put_visible_effect(
+                        px,
+                        base - rise,
+                        Self::rgb(if rise < flame_height / 2 {
+                            (255, 204, 80)
+                        } else {
+                            (246, 113, 42)
+                        }),
+                        state,
+                    );
+                }
+            }
+        }
         if let Some(id) = actor.label {
             self.put_str(
                 x,
@@ -1376,7 +1422,8 @@ impl Renderer {
                 0.23
             };
             let angle = if matches!(kind, Some(ActionKind::Swing | ActionKind::Mine)) {
-                -0.9 + 1.3 * (phase * std::f64::consts::PI).sin()
+                let strike = attack_keyframe(phase);
+                -0.75 + 1.15 * strike
             } else {
                 0.65
             };
@@ -1385,7 +1432,7 @@ impl Renderer {
                 shoulder.1 + angle.sin() * h * reach,
             );
             let tool_angle = if matches!(kind, Some(ActionKind::Swing | ActionKind::Mine)) {
-                -1.7 + 2.6 * phase
+                -1.9 + 2.8 * attack_keyframe(phase)
             } else {
                 -0.6
             };
@@ -1418,21 +1465,38 @@ impl Renderer {
             } else {
                 0.0
             };
-            for sy in 0..8 {
-                for sx in 0..8 {
-                    if let Some(color) =
-                        super::items::color(item, super::items::token(item, sx, sy))
-                    {
-                        let u = (sx as f64 - if is_tool { 1.0 } else { 3.5 }) * unit;
-                        let v = (sy as f64 - if is_tool { 6.0 } else { 3.5 }) * unit;
-                        self.put_swing_pixel(
-                            (hand.0 + dir * (u * rotation.cos() - v * rotation.sin())).round()
-                                as i32,
-                            (hand.1 + u * rotation.sin() + v * rotation.cos()).round() as i32,
-                            color,
-                            state,
-                            lighting,
-                        );
+            // Inverse sample one rigid sprite. Forward scattering source pixels
+            // made diagonals lose thickness and appear to bend during a swing.
+            let axe = matches!(
+                item,
+                ItemType::WoodAxe | ItemType::StoneAxe | ItemType::IronAxe | ItemType::DiamondAxe
+            );
+            let grip = if axe {
+                (3.5, 5.5)
+            } else if is_tool {
+                (1.5, 6.5)
+            } else {
+                (4.0, 4.0)
+            };
+            let radius = (size * 1.5).ceil() as i32;
+            let (sin, cos) = rotation.sin_cos();
+            for py in hand.1.round() as i32 - radius..=hand.1.round() as i32 + radius {
+                for px in hand.0.round() as i32 - radius..=hand.0.round() as i32 + radius {
+                    let u = (px as f64 - hand.0) * dir;
+                    let v = py as f64 - hand.1;
+                    let sx = ((u * cos + v * sin) / unit + grip.0).floor() as i32;
+                    let sy = ((-u * sin + v * cos) / unit + grip.1).floor() as i32;
+                    // Mirror the held axe head across its handle; leave its
+                    // inventory icon alone. Both facings use this same art.
+                    let (sx, sy) = if axe { (8 - sy, 8 - sx) } else { (sx, sy) };
+                    if !(0..8).contains(&sx) || !(0..8).contains(&sy) {
+                        continue;
+                    }
+                    if let Some(color) = super::items::color(
+                        item,
+                        super::items::token(item, sx as usize, sy as usize),
+                    ) {
+                        self.put_swing_pixel(px, py, color, state, lighting);
                     }
                 }
             }

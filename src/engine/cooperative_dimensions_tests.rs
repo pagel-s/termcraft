@@ -285,10 +285,26 @@ fn end_encounter_is_shared_and_credits_do_not_freeze_or_teleport_the_other_playe
     for x in -1..=2 {
         for y in 76..=79 {
             if x == -1 || x == 2 || y == 76 || y == 79 {
+                sim.state.player.x = if x == -1 {
+                    -1.5
+                } else if x == 2 {
+                    3.5
+                } else {
+                    x as f64 + 0.5
+                };
+                sim.state.player.y = if x == -1 || x == 2 {
+                    y as f64 + 1.5
+                } else if y == 76 {
+                    76.0
+                } else {
+                    79.0
+                };
                 command(&mut sim, 1, ClientCommand::UseAt(x, y));
             }
         }
     }
+    sim.state.player.x = 0.5;
+    sim.state.player.y = 79.0;
     assert_eq!(count(&sim, 1, ItemType::EyeOfEnder), 0);
     command(&mut sim, 1, ClientCommand::UseAt(0, 78));
     assert_eq!(sim.state.peer_dimension(1), Dimension::End);
@@ -504,7 +520,7 @@ fn persistence_legacy_server_v2_upgrades_and_invalid_v3_entities_are_preserved()
     sim.load_persistent().unwrap();
     let mut current: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(current["version"], 4);
+    assert_eq!(current["version"], 5);
     assert!(current["runtime"].is_object());
     current["runtime"]["dimensions"]["Overworld"]["time_of_day"] = serde_json::json!(999999.0);
     let invalid = serde_json::to_vec(&current).unwrap();

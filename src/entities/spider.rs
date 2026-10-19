@@ -16,11 +16,14 @@ pub struct Spider {
     pub stuck_ticks: u8,
     pub reroute_ticks: u8,
     pub reroute_dir: i8,
+    #[serde(default)]
+    pub hazards: super::hazards::HazardState,
 }
 
 impl Spider {
     pub fn new(x: f64, y: f64) -> Self {
         Self {
+            hazards: Default::default(),
             director_event: 0,
             x,
             y,

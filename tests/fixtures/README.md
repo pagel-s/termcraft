@@ -21,4 +21,12 @@ three fixture files into this directory. Never use a real player's save.
 
 The separate interim-v9 test covers the brief development build `734efd8`, whose
 new entity fields preceded the explicit format bump. Both old layouts retain
-normal strict validation. Current writers use native v10 and server v4.
+normal strict validation. Current writers use native v11 and server v5.
+
+`progression-v10-entities.bin`, `progression-v10-runtime.json` and
+`server-v4-entities.json` were written by the unmodified library at **a371169**,
+using `native-v10-generator.rs` in a fresh `/tmp` export with its own Cargo target.
+They include all creature families and old fields, worn thrown gear and reflected
+fireballs across three dimensions. Tests compare the complete old runtime after
+removing only newly defaulted hazard fields. This verifies the binary layout,
+rather than constructing an alleged old save with the current writer.

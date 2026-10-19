@@ -10,6 +10,11 @@ pub use trial::{Trial, TrialStage};
 mod combat;
 #[path = "drops.rs"]
 mod drops;
+#[path = "environment.rs"]
+mod environment;
+#[path = "furnace.rs"]
+mod furnace;
+pub use furnace::{FURNACE_FUEL_UI_SLOT, FURNACE_INPUT_UI_SLOT, FURNACE_OUTPUT_UI_SLOT};
 #[path = "legacy_entities.rs"]
 mod legacy_entities;
 use super::command::ClientCommand;
@@ -289,7 +294,7 @@ const NETHER_RESPAWN_BASE: u16 = 48;
 const END_RESPAWN_BASE: u16 = 42;
 const END_CRYSTAL_HEAL_INTERVAL: u64 = 8;
 const END_CRYSTAL_HEAL_AMOUNT: f32 = 1.4;
-const END_VICTORY_SEQUENCE_TICKS: u16 = 20 * 7;
+pub const END_VICTORY_SEQUENCE_TICKS: u16 = 20 * 14;
 const CREDITS_SCROLL_TICKS_PER_ROW: u32 = 3;
 const CREDITS_AUTO_FINISH_TICKS: u32 = 20 * 38;
 const DEATH_RESPAWN_DELAY_TICKS: u16 = 14;
@@ -344,7 +349,8 @@ const SETTINGS_MENU_ROW_DAYLIGHT_CYCLE: u8 = 3;
 const SETTINGS_MENU_ROW_WEATHER_CYCLE: u8 = 4;
 const SETTINGS_MENU_ROW_KEEP_INVENTORY: u8 = 5;
 const SETTINGS_MENU_ROW_CLOSE: u8 = 6;
-const PLAYER_PROGRESS_VERSION: u16 = 10;
+const PLAYER_PROGRESS_VERSION: u16 = 11;
+const PLAYER_PROGRESS_VERSION_V10: u16 = 10;
 const PLAYER_PROGRESS_VERSION_V9: u16 = 9;
 const PLAYER_PROGRESS_VERSION_V8: u16 = 8;
 const PLAYER_PROGRESS_VERSION_V7: u16 = 7;
@@ -455,7 +461,7 @@ struct PlayerProgressSaveData {
 struct PlayerCheckpointV7 {
     version: u16,
     progress: PlayerProgressSaveData,
-    session: PlayerSession,
+    session: actors::PlayerSessionV10,
 }
 
 type PortalLink = ((u8, i32, i32), (i32, i32));
@@ -464,7 +470,7 @@ type PortalLink = ((u8, i32, i32), (i32, i32));
 struct PlayerCheckpointV8 {
     version: u16,
     progress: PlayerProgressSaveData,
-    session: PlayerSession,
+    session: actors::PlayerSessionV10,
     portal_links: Vec<PortalLink>,
 }
 
@@ -472,13 +478,22 @@ struct PlayerCheckpointV8 {
 struct PlayerCheckpointV9 {
     version: u16,
     progress: PlayerProgressSaveData,
-    session: PlayerSession,
+    session: actors::PlayerSessionV10,
     portal_links: Vec<PortalLink>,
     runtime: dimensions::RuntimeCheckpointV9,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct PlayerCheckpointV10 {
+    version: u16,
+    progress: PlayerProgressSaveData,
+    session: actors::PlayerSessionV10,
+    portal_links: Vec<PortalLink>,
+    runtime: dimensions::RuntimeCheckpointV10,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PlayerCheckpointV11 {
     version: u16,
     progress: PlayerProgressSaveData,
     session: PlayerSession,
@@ -1066,6 +1081,8 @@ pub struct GameState {
     fishing_wait_ticks: u16,
     fishing_bite_window_ticks: u8,
     mounted_boat: Option<usize>,
+    furnace_slots: [Option<ItemStack>; 3],
+    furnace_explicit: bool,
     furnace_job: Option<FurnaceJob>,
     furnace_progress_ticks: u16,
     furnace_burn_ticks: u16,
@@ -1514,6 +1531,7 @@ impl GameState {
         if matches!(
             version,
             PLAYER_PROGRESS_VERSION
+                | PLAYER_PROGRESS_VERSION_V10
                 | PLAYER_PROGRESS_VERSION_V9
                 | PLAYER_PROGRESS_VERSION_V8
                 | PLAYER_PROGRESS_VERSION_V7
@@ -1523,76 +1541,75 @@ impl GameState {
                 .with_fixint_encoding()
                 .with_limit(MAX_CHECKPOINT_BYTES)
                 .reject_trailing_bytes();
-            let (checkpoint_version, mut data, session, links, runtime) = if version
-                == PLAYER_PROGRESS_VERSION
-            {
-                let checkpoint: PlayerCheckpointV10 = options.deserialize(&encoded).ok()?;
-                checkpoint.runtime.validate().ok()?;
-                if !checkpoint
-                    .runtime
-                    .contains_dimension(Self::decode_dimension(
-                        checkpoint.progress.current_dimension_code,
-                    )?)
-                {
-                    return None;
+            let (checkpoint_version, mut data, session, links, runtime): (
+                _,
+                _,
+                PlayerSession,
+                _,
+                Option<RuntimeCheckpoint>,
+            ) = match version {
+                PLAYER_PROGRESS_VERSION => {
+                    let c: PlayerCheckpointV11 = options.deserialize(&encoded).ok()?;
+                    (
+                        c.version,
+                        c.progress,
+                        c.session,
+                        c.portal_links,
+                        Some(c.runtime),
+                    )
                 }
-                (
-                    checkpoint.version,
-                    checkpoint.progress,
-                    checkpoint.session,
-                    checkpoint.portal_links,
-                    Some(checkpoint.runtime),
-                )
-            } else if version == PLAYER_PROGRESS_VERSION_V9 {
-                // Read the frozen v9 entity layout first. Also preserve the
-                // short-lived development build that added fields before
-                // its envelope version was raised.
-                let (saved_version, progress, session, links, runtime) =
-                    if let Ok(old) = options.deserialize::<PlayerCheckpointV9>(&encoded) {
+                PLAYER_PROGRESS_VERSION_V10 => {
+                    let c: PlayerCheckpointV10 = options.deserialize(&encoded).ok()?;
+                    (
+                        c.version,
+                        c.progress,
+                        c.session.into(),
+                        c.portal_links,
+                        Some(c.runtime.into()),
+                    )
+                }
+                PLAYER_PROGRESS_VERSION_V9 => {
+                    if let Ok(c) = options.deserialize::<PlayerCheckpointV9>(&encoded) {
                         (
-                            old.version,
-                            old.progress,
-                            old.session,
-                            old.portal_links,
-                            old.runtime.into(),
+                            c.version,
+                            c.progress,
+                            c.session.into(),
+                            c.portal_links,
+                            Some(c.runtime.into()),
                         )
                     } else {
-                        let interim: PlayerCheckpointV10 = options.deserialize(&encoded).ok()?;
+                        let c: PlayerCheckpointV10 = options.deserialize(&encoded).ok()?;
                         (
-                            interim.version,
-                            interim.progress,
-                            interim.session,
-                            interim.portal_links,
-                            interim.runtime,
+                            c.version,
+                            c.progress,
+                            c.session.into(),
+                            c.portal_links,
+                            Some(c.runtime.into()),
                         )
-                    };
-                let runtime: RuntimeCheckpoint = runtime;
+                    }
+                }
+                PLAYER_PROGRESS_VERSION_V8 => {
+                    let c: PlayerCheckpointV8 = options.deserialize(&encoded).ok()?;
+                    (
+                        c.version,
+                        c.progress,
+                        c.session.into(),
+                        c.portal_links,
+                        None,
+                    )
+                }
+                _ => {
+                    let c: PlayerCheckpointV7 = options.deserialize(&encoded).ok()?;
+                    (c.version, c.progress, c.session.into(), Vec::new(), None)
+                }
+            };
+            if let Some(runtime) = &runtime {
                 runtime.validate().ok()?;
-                if !runtime
-                    .contains_dimension(Self::decode_dimension(progress.current_dimension_code)?)
+                if !runtime.contains_dimension(Self::decode_dimension(data.current_dimension_code)?)
                 {
                     return None;
                 }
-                (saved_version, progress, session, links, Some(runtime))
-            } else if version == PLAYER_PROGRESS_VERSION_V8 {
-                let checkpoint: PlayerCheckpointV8 = options.deserialize(&encoded).ok()?;
-                (
-                    checkpoint.version,
-                    checkpoint.progress,
-                    checkpoint.session,
-                    checkpoint.portal_links,
-                    None,
-                )
-            } else {
-                let checkpoint: PlayerCheckpointV7 = options.deserialize(&encoded).ok()?;
-                (
-                    checkpoint.version,
-                    checkpoint.progress,
-                    checkpoint.session,
-                    Vec::new(),
-                    None,
-                )
-            };
+            }
             session.validate().ok()?;
             if checkpoint_version != version
                 || data.version != version
@@ -2079,6 +2096,8 @@ impl GameState {
             fishing_wait_ticks: 0,
             fishing_bite_window_ticks: 0,
             mounted_boat: None,
+            furnace_slots: [None, None, None],
+            furnace_explicit: false,
             furnace_job: None,
             furnace_progress_ticks: 0,
             furnace_burn_ticks: 0,
@@ -2530,6 +2549,14 @@ impl GameState {
         if armor_points > 0.0 {
             self.apply_armor_wear_from_hit();
         }
+    }
+
+    fn apply_player_environment_damage(&mut self, amount: f32) {
+        if amount <= 0.0 || self.death_screen_active || self.respawn_grace_ticks > 0 {
+            return;
+        }
+        self.player.health -= amount;
+        self.player_combat_hurt_cooldown = self.player_combat_hurt_cooldown.max(10);
     }
 
     pub fn player_hurt_ticks(&self) -> u8 {
@@ -3019,6 +3046,7 @@ impl GameState {
         self.clear_live_input_for_container_open();
         self.inventory_open = true;
         self.at_furnace = true;
+        self.furnace_explicit = true;
         self.at_crafting_table = false;
         self.at_chest = false;
         self.at_enchanting_table = false;
@@ -3159,6 +3187,14 @@ impl GameState {
     }
 
     fn can_place_stack_in_ui_slot(&self, ui_slot: usize, stack: &ItemStack) -> bool {
+        if let Some(index) = self.furnace_ui_index(ui_slot) {
+            return stack.durability.is_none()
+                && match index {
+                    0 => Self::furnace_job_for_input_item(stack.item_type).is_some(),
+                    1 => Self::furnace_fuel_ticks(stack.item_type) > 0,
+                    _ => false,
+                };
+        }
         if self.is_crafting_grid_ui_slot(ui_slot)
             && self.is_valid_active_crafting_cell(ui_slot - CRAFT_GRID_UI_OFFSET)
         {
@@ -3179,6 +3215,9 @@ impl GameState {
             .map(|c| c.slots.as_slice())
     }
     pub(crate) fn active_ui_slot_count(&self) -> usize {
+        if self.at_furnace && self.furnace_explicit {
+            return FURNACE_OUTPUT_UI_SLOT + 1;
+        }
         if self.at_chest {
             CHEST_INVENTORY_CAPACITY + PLAYER_INVENTORY_CAPACITY
         } else if self.has_personal_armor_ui() {
@@ -3189,6 +3228,9 @@ impl GameState {
     }
 
     fn ui_slot_item_clone(&self, ui_slot: usize) -> Option<Option<ItemStack>> {
+        if let Some(index) = self.furnace_ui_index(ui_slot) {
+            return Some(self.furnace_slots[index].clone());
+        }
         if self.at_chest {
             let (bx, by) = self.open_chest_pos?;
             if ui_slot < CHEST_INVENTORY_CAPACITY {
@@ -3206,6 +3248,21 @@ impl GameState {
     }
 
     fn set_ui_slot_item(&mut self, ui_slot: usize, stack: Option<ItemStack>) -> bool {
+        if let Some(index) = self.furnace_ui_index(ui_slot) {
+            if let Some(item) = &stack {
+                if index == 2 {
+                    if !self.furnace_slots[2].as_ref().is_some_and(|old| {
+                        old.item_type == item.item_type && item.count <= old.count
+                    }) {
+                        return false;
+                    }
+                } else if !self.can_place_stack_in_ui_slot(ui_slot, item) {
+                    return false;
+                }
+            }
+            self.furnace_slots[index] = stack;
+            return true;
+        }
         if self.at_chest {
             let Some((bx, by)) = self.open_chest_pos else {
                 return false;
@@ -3393,6 +3450,9 @@ impl GameState {
     }
 
     fn split_range_for_slot(&self, slot_idx: usize) -> Option<std::ops::Range<usize>> {
+        if self.furnace_ui_index(slot_idx).is_some() {
+            return Some(0..PLAYER_INVENTORY_CAPACITY);
+        }
         if self.is_crafting_grid_ui_slot(slot_idx) && self.active_crafting_grid_size().is_some() {
             return Some(0..PLAYER_INVENTORY_CAPACITY);
         }
@@ -3629,6 +3689,9 @@ impl GameState {
             return false;
         };
         if source_stack.count == 0 {
+            return false;
+        }
+        if !self.can_place_stack_in_ui_slot(target_slot, &source_stack) {
             return false;
         }
         let source_is_ui_slot = source_slot < self.active_ui_slot_count();
@@ -4137,9 +4200,11 @@ impl GameState {
         self.bow_draw_ticks = 0;
         self.bow_draw_active = false;
         self.clear_fishing_line();
-        self.furnace_job = None;
-        self.furnace_progress_ticks = 0;
-        self.furnace_burn_ticks = 0;
+        if !self.furnace_explicit {
+            self.furnace_job = None;
+            self.furnace_progress_ticks = 0;
+            self.furnace_burn_ticks = 0;
+        }
         self.potion_strength_timer = 0;
         self.potion_regeneration_timer = 0;
         self.potion_fire_resistance_timer = 0;
@@ -4179,9 +4244,11 @@ impl GameState {
         self.bow_draw_ticks = 0;
         self.bow_draw_active = false;
         self.clear_fishing_line();
-        self.furnace_job = None;
-        self.furnace_progress_ticks = 0;
-        self.furnace_burn_ticks = 0;
+        if !self.furnace_explicit {
+            self.furnace_job = None;
+            self.furnace_progress_ticks = 0;
+            self.furnace_burn_ticks = 0;
+        }
         self.potion_strength_timer = 0;
         self.potion_regeneration_timer = 0;
         self.potion_fire_resistance_timer = 0;
@@ -5061,6 +5128,22 @@ impl GameState {
     }
 
     fn quick_start_furnace_from_shift_click(&mut self, slot_idx: usize) -> bool {
+        if self.at_furnace && self.furnace_explicit {
+            let targets = if self.furnace_ui_index(slot_idx).is_some() {
+                (0..PLAYER_INVENTORY_CAPACITY).collect()
+            } else if let Some(Some(item)) = self.ui_slot_item_clone(slot_idx) {
+                if Self::furnace_fuel_ticks(item.item_type) > 0 {
+                    vec![FURNACE_FUEL_UI_SLOT]
+                } else if Self::furnace_job_for_input_item(item.item_type).is_some() {
+                    vec![FURNACE_INPUT_UI_SLOT]
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            };
+            return self.transfer_full_stack_between_slots(slot_idx, &targets);
+        }
         if !self.at_furnace || self.furnace_job.is_some() || slot_idx >= PLAYER_INVENTORY_CAPACITY {
             return false;
         }
@@ -5113,6 +5196,10 @@ impl GameState {
     }
 
     fn update_furnace(&mut self) {
+        if self.furnace_explicit {
+            self.update_explicit_furnace();
+            return;
+        }
         let Some(job) = self.furnace_job else {
             return;
         };
@@ -5141,6 +5228,12 @@ impl GameState {
     }
 
     pub fn can_start_furnace_recipe(&self, recipe_idx: usize) -> bool {
+        if self.furnace_explicit {
+            return Recipe::all()
+                .get(recipe_idx)
+                .and_then(Self::furnace_job_from_recipe)
+                .is_some_and(|job| self.explicit_furnace_can_load(job));
+        }
         if self.furnace_job.is_some() {
             return false;
         }
@@ -5155,6 +5248,29 @@ impl GameState {
     }
 
     pub fn furnace_status_line(&self) -> String {
+        if self.furnace_explicit {
+            if let Some(job) = self.furnace_job {
+                return format!(
+                    "{}: {}% | {}",
+                    job.output.name(),
+                    self.furnace_progress_ticks as u32 * 100 / FURNACE_COOK_TICKS as u32,
+                    if self.furnace_burn_ticks == 0 {
+                        "Needs fuel"
+                    } else {
+                        "Cooking"
+                    }
+                );
+            }
+            return if self.furnace_slots[0].is_some()
+                && self.furnace_slots[2]
+                    .as_ref()
+                    .is_some_and(|s| s.count >= s.item_type.max_stack_size())
+            {
+                "Output full - collect the result".into()
+            } else {
+                "Place input + fuel; collect output".into()
+            };
+        }
         if let Some(job) = self.furnace_job {
             if self.furnace_progress_ticks >= FURNACE_COOK_TICKS {
                 return format!("{} ready · Free bag space to collect", job.output.name());
@@ -5461,6 +5577,15 @@ impl GameState {
         }
         let recipes = Recipe::all();
         if self.at_furnace {
+            if self.furnace_explicit {
+                if let Some(job) = recipes
+                    .get(recipe_idx)
+                    .and_then(Self::furnace_job_from_recipe)
+                {
+                    self.load_furnace_recipe(job);
+                }
+                return;
+            }
             if self.furnace_job.is_some() {
                 return;
             }
@@ -5933,6 +6058,15 @@ impl GameState {
     fn update_boats(&mut self) {
         let active = self.active_peer;
         for idx in 0..self.boats.len() {
+            if let Some(y) = self.recover_loose_void_fall(self.boats[idx].x, self.boats[idx].y) {
+                self.boats[idx].y = y;
+                self.boats[idx].vx = 0.0;
+                self.boats[idx].vy = 0.0;
+            }
+            let e = &self.boats[idx];
+            if !self.body_terrain_loaded(e.x, e.y, e.vx, 0.75) {
+                continue;
+            }
             if self.cooperative() {
                 let rider = self.peer_ids_here().into_iter().find(|id| {
                     self.peer_session(*id)
@@ -6987,14 +7121,17 @@ impl GameState {
     }
 
     pub(crate) fn can_see_block(&self, x: f64, y: f64, bx: i32, by: i32) -> bool {
-        // A reachable face/corner is sufficient; aiming only at the center can
-        // bury the ray behind an adjoining frame block.
+        // Sample the interior of visible faces, never a zero-width corner gap.
+        // A center-only ray would reject exposed sides of stairs and frames.
         self.has_line_of_sight(x, y, bx as f64 + 0.5, by as f64 + 0.5)
+            || [(0.5, 0.04), (0.04, 0.5), (0.96, 0.5), (0.5, 0.96)]
+                .into_iter()
+                .any(|(dx, dy)| self.has_line_of_sight(x, y, bx as f64 + dx, by as f64 + dy))
             || self.has_line_of_sight(
                 x,
                 y,
-                x.clamp(bx as f64, bx as f64 + 1.0),
-                y.clamp(by as f64, by as f64 + 1.0),
+                x.clamp(bx as f64 + 0.04, bx as f64 + 0.96),
+                y.clamp(by as f64 + 0.04, by as f64 + 0.96),
             )
     }
 
@@ -7047,33 +7184,40 @@ impl GameState {
                 y0 - by as f64
             }) / dy.abs()
         };
-        for _ in 0..=start.0.abs_diff(end.0) + start.1.abs_diff(end.1) + 1 {
-            if !sight || (bx, by) != end {
-                let mut first = f64::INFINITY;
-                for bounds in self.collision_bounds_at(bx, by) {
-                    let (mut enter, mut exit) = (0.0_f64, 1.0_f64);
-                    for (origin, delta, low, high) in [
-                        (x0, dx, bounds[0], bounds[2]),
-                        (y0, dy, bounds[1], bounds[3]),
-                    ] {
-                        if delta == 0.0 {
-                            if origin < low || origin >= high {
-                                exit = -1.0;
-                                break;
-                            }
-                        } else {
-                            let (a, b) = ((low - origin) / delta, (high - origin) / delta);
-                            enter = enter.max(a.min(b));
-                            exit = exit.min(a.max(b));
+        let hit_cell = |bx: i32, by: i32| {
+            if sight && (bx, by) == end {
+                return None;
+            }
+            let mut first = f64::INFINITY;
+            for bounds in self.collision_bounds_at(bx, by) {
+                let (mut enter, mut exit) = (0.0_f64, 1.0_f64);
+                for (origin, delta, low, high) in [
+                    (x0, dx, bounds[0], bounds[2]),
+                    (y0, dy, bounds[1], bounds[3]),
+                ] {
+                    if delta == 0.0 {
+                        if origin < low || origin >= high {
+                            exit = -1.0;
+                            break;
                         }
-                    }
-                    if enter < exit && exit >= 0.0 && enter <= 1.0 {
-                        first = first.min(enter);
+                    } else {
+                        let (a, b) = ((low - origin) / delta, (high - origin) / delta);
+                        enter = enter.max(a.min(b));
+                        exit = exit.min(a.max(b));
                     }
                 }
-                if first.is_finite() {
-                    return Some((x0 + dx * first, y0 + dy * first));
+                if enter <= exit && exit >= 0.0 && enter <= 1.0 {
+                    first = first.min(enter);
                 }
+            }
+            if first.is_finite() {
+                return Some((x0 + dx * first, y0 + dy * first));
+            }
+            None
+        };
+        for _ in 0..=start.0.abs_diff(end.0) + start.1.abs_diff(end.1) + 1 {
+            if let Some(hit) = hit_cell(bx, by) {
+                return Some(hit);
             }
             if (bx, by) == end {
                 break;
@@ -7085,6 +7229,10 @@ impl GameState {
                 by += sy;
                 next_y += ty;
             } else {
+                // Supercover: the two cells beside an exact corner occlude it.
+                if let Some(hit) = hit_cell(bx + sx, by).or_else(|| hit_cell(bx, by + sy)) {
+                    return Some(hit);
+                }
                 bx += sx;
                 by += sy;
                 next_x += tx;
@@ -7103,7 +7251,15 @@ impl GameState {
         half_width: f64,
         height: f64,
     ) -> bool {
-        if !mob_grounded || mob_vx.abs() < 0.04 {
+        if !mob_grounded
+            || mob_vx.abs() < 0.04
+            || !self.has_line_of_sight(
+                mob_x,
+                mob_y - height * 0.7,
+                self.player.x,
+                self.player.y - 1.5,
+            )
+        {
             return false;
         }
 
@@ -11499,14 +11655,31 @@ impl GameState {
         if !self.cooperative() {
             self.tick_player_actions(mouse_target_x, mouse_target_y);
         }
+        self.tick_creature_environment();
         let mut dead_zombies = Vec::new();
         for i in 0..self.zombies.len() {
+            if self.zombies[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.zombies[i].x,
+                    self.zombies[i].y,
+                    self.zombies[i].vx,
+                    0.3,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.zombies[i].x, self.zombies[i].y);
             let prev_x = self.zombies[i].x;
             if self.zombies[i].hit_timer > 0 {
                 self.zombies[i].hit_timer -= 1;
             }
-            self.zombies[i].update_ai(self.player.x, self.player.y);
+            let (target_x, target_y, visible) =
+                self.hostile_target(self.zombies[i].x, self.zombies[i].y, 1.5);
+            self.zombies[i].update_ai(target_x, target_y);
+            if !visible {
+                self.zombies[i].reroute_ticks = 0;
+                self.zombies[i].stuck_ticks = 0;
+            }
             let rerouting = self.zombies[i].reroute_ticks > 0 && self.zombies[i].reroute_dir != 0;
             let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
                 self.zombies[i].reroute_ticks,
@@ -11655,12 +11828,28 @@ impl GameState {
 
         let mut dead_pigmen = Vec::new();
         for i in 0..self.pigmen.len() {
+            if self.pigmen[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.pigmen[i].x,
+                    self.pigmen[i].y,
+                    self.pigmen[i].vx,
+                    0.3,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.pigmen[i].x, self.pigmen[i].y);
             let prev_x = self.pigmen[i].x;
             if self.pigmen[i].hit_timer > 0 {
                 self.pigmen[i].hit_timer -= 1;
             }
-            self.pigmen[i].update_ai(self.player.x, self.player.y);
+            let (target_x, target_y, visible) =
+                self.hostile_target(self.pigmen[i].x, self.pigmen[i].y, 1.5);
+            self.pigmen[i].update_ai(target_x, target_y);
+            if !visible {
+                self.pigmen[i].reroute_ticks = 0;
+                self.pigmen[i].stuck_ticks = 0;
+            }
             let rerouting = self.pigmen[i].reroute_ticks > 0 && self.pigmen[i].reroute_dir != 0;
             let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
                 self.pigmen[i].reroute_ticks,
@@ -11800,6 +11989,16 @@ impl GameState {
         let mut pending_world_explosions: Vec<(i32, i32, i32, f32, u8)> = Vec::new();
         let mut dead_creepers = Vec::new();
         for i in 0..self.creepers.len() {
+            if self.creepers[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.creepers[i].x,
+                    self.creepers[i].y,
+                    self.creepers[i].vx,
+                    0.3,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.creepers[i].x, self.creepers[i].y);
             let prev_x = self.creepers[i].x;
             if self.creepers[i].hit_timer > 0 {
@@ -11809,7 +12008,13 @@ impl GameState {
                 dead_creepers.push(i);
                 continue;
             }
-            self.creepers[i].update_ai(self.player.x, self.player.y);
+            let (target_x, target_y, visible) =
+                self.hostile_target(self.creepers[i].x, self.creepers[i].y, 1.5);
+            self.creepers[i].update_ai(target_x, target_y);
+            if !visible {
+                self.creepers[i].reroute_ticks = 0;
+                self.creepers[i].stuck_ticks = 0;
+            }
             let rerouting = self.creepers[i].reroute_ticks > 0 && self.creepers[i].reroute_dir != 0;
             let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
                 self.creepers[i].reroute_ticks,
@@ -11910,12 +12115,31 @@ impl GameState {
 
         let mut dead_skeletons = Vec::new();
         for i in 0..self.skeletons.len() {
+            if self.skeletons[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.skeletons[i].x,
+                    self.skeletons[i].y,
+                    self.skeletons[i].vx,
+                    0.3,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.skeletons[i].x, self.skeletons[i].y);
             let prev_x = self.skeletons[i].x;
             if self.skeletons[i].hit_timer > 0 {
                 self.skeletons[i].hit_timer -= 1;
             }
-            let skeleton_wants_shot = self.skeletons[i].update_ai(self.player.x, self.player.y);
+            let (target_x, target_y, visible) =
+                self.hostile_target(self.skeletons[i].x, self.skeletons[i].y, 1.5);
+            if !visible {
+                self.skeletons[i].bow_windup = 0;
+            }
+            let skeleton_wants_shot = self.skeletons[i].update_ai(target_x, target_y);
+            if !visible {
+                self.skeletons[i].reroute_ticks = 0;
+                self.skeletons[i].stuck_ticks = 0;
+            }
             let rerouting =
                 self.skeletons[i].reroute_ticks > 0 && self.skeletons[i].reroute_dir != 0;
             let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
@@ -12052,6 +12276,16 @@ impl GameState {
 
         let mut dead_spiders = Vec::new();
         for i in 0..self.spiders.len() {
+            if self.spiders[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.spiders[i].x,
+                    self.spiders[i].y,
+                    self.spiders[i].vx,
+                    0.8,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.spiders[i].x, self.spiders[i].y);
             let prev_x = self.spiders[i].x;
             if self.spiders[i].hit_timer > 0 {
@@ -12061,7 +12295,13 @@ impl GameState {
                 dead_spiders.push(i);
                 continue;
             }
-            self.spiders[i].update_ai(self.player.x, self.player.y, is_day);
+            let (target_x, target_y, visible) =
+                self.hostile_target(self.spiders[i].x, self.spiders[i].y, 0.5);
+            self.spiders[i].update_ai(target_x, target_y, is_day);
+            if !visible {
+                self.spiders[i].reroute_ticks = 0;
+                self.spiders[i].stuck_ticks = 0;
+            }
             let rerouting = self.spiders[i].reroute_ticks > 0 && self.spiders[i].reroute_dir != 0;
             let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
                 self.spiders[i].reroute_ticks,
@@ -12187,6 +12427,16 @@ impl GameState {
 
         let mut dead_silverfish = Vec::new();
         for i in 0..self.silverfish.len() {
+            if self.silverfish[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.silverfish[i].x,
+                    self.silverfish[i].y,
+                    self.silverfish[i].vx,
+                    0.4,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.silverfish[i].x, self.silverfish[i].y);
             let prev_x = self.silverfish[i].x;
             if self.silverfish[i].hit_timer > 0 {
@@ -12196,7 +12446,13 @@ impl GameState {
                 dead_silverfish.push(i);
                 continue;
             }
-            self.silverfish[i].update_ai(self.player.x, self.player.y);
+            let (target_x, target_y, visible) =
+                self.hostile_target(self.silverfish[i].x, self.silverfish[i].y, 0.3);
+            self.silverfish[i].update_ai(target_x, target_y);
+            if !visible {
+                self.silverfish[i].reroute_ticks = 0;
+                self.silverfish[i].stuck_ticks = 0;
+            }
             let rerouting =
                 self.silverfish[i].reroute_ticks > 0 && self.silverfish[i].reroute_dir != 0;
             let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
@@ -12331,6 +12587,16 @@ impl GameState {
 
         let mut dead_slimes = Vec::new();
         for i in 0..self.slimes.len() {
+            if self.slimes[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.slimes[i].x,
+                    self.slimes[i].y,
+                    self.slimes[i].vx,
+                    self.slimes[i].half_width(),
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.slimes[i].x, self.slimes[i].y);
             let prev_x = self.slimes[i].x;
             if self.slimes[i].hit_timer > 0 {
@@ -12340,7 +12606,13 @@ impl GameState {
                 dead_slimes.push(i);
                 continue;
             }
-            self.slimes[i].update_ai(self.player.x, self.player.y, is_day);
+            let (target_x, target_y, visible) =
+                self.hostile_target(self.slimes[i].x, self.slimes[i].y, 0.5);
+            self.slimes[i].update_ai(target_x, target_y, is_day);
+            if !visible {
+                self.slimes[i].reroute_ticks = 0;
+                self.slimes[i].stuck_ticks = 0;
+            }
             let rerouting = self.slimes[i].reroute_ticks > 0 && self.slimes[i].reroute_dir != 0;
             let reroute_speed = self.slimes[i].move_speed() * 0.72;
             let (reroute_ticks, reroute_vx) = Self::apply_ground_mob_reroute_velocity(
@@ -12513,11 +12785,23 @@ impl GameState {
 
         let mut dead_ghasts = Vec::new();
         for i in 0..self.ghasts.len() {
+            if self.ghasts[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.ghasts[i].x,
+                    self.ghasts[i].y,
+                    self.ghasts[i].vx,
+                    0.875,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.ghasts[i].x, self.ghasts[i].y);
             if self.ghasts[i].hit_timer > 0 {
                 self.ghasts[i].hit_timer -= 1;
             }
-            let shoot = self.ghasts[i].update_ai(self.player.x, self.player.y);
+            let (target_x, target_y, _visible) =
+                self.hostile_target(self.ghasts[i].x, self.ghasts[i].y, 1.4);
+            let shoot = self.ghasts[i].update_ai(target_x, target_y);
             self.ghasts[i].age += 1;
             if self.ghasts[i].health <= 0.0 {
                 dead_ghasts.push(i);
@@ -12589,11 +12873,23 @@ impl GameState {
 
         let mut dead_blazes = Vec::new();
         for i in 0..self.blazes.len() {
+            if self.blazes[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.blazes[i].x,
+                    self.blazes[i].y,
+                    self.blazes[i].vx,
+                    0.5,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.blazes[i].x, self.blazes[i].y);
             if self.blazes[i].hit_timer > 0 {
                 self.blazes[i].hit_timer -= 1;
             }
-            let shoot = self.blazes[i].update_ai(self.player.x, self.player.y);
+            let (target_x, target_y, _visible) =
+                self.hostile_target(self.blazes[i].x, self.blazes[i].y, 1.4);
+            let shoot = self.blazes[i].update_ai(target_x, target_y);
             self.blazes[i].age += 1;
             if self.blazes[i].health <= 0.0 {
                 dead_blazes.push(i);
@@ -12670,14 +12966,26 @@ impl GameState {
 
         let mut dead_endermen = Vec::new();
         for i in 0..self.endermen.len() {
+            if self.endermen[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.endermen[i].x,
+                    self.endermen[i].y,
+                    self.endermen[i].vx,
+                    0.3,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.endermen[i].x, self.endermen[i].y);
             let prev_x = self.endermen[i].x;
             if self.endermen[i].hit_timer > 0 {
                 self.endermen[i].hit_timer -= 1;
             }
+            let (target_x, target_y, visible) =
+                self.hostile_target(self.endermen[i].x, self.endermen[i].y, 2.45);
             let should_teleport = self.endermen[i].update_ai(
-                self.player.x,
-                self.player.y,
+                target_x,
+                target_y,
                 self.current_dimension == Dimension::End,
             );
             let rerouting = self.endermen[i].reroute_ticks > 0 && self.endermen[i].reroute_dir != 0;
@@ -12779,7 +13087,7 @@ impl GameState {
             }
             self.endermen[i].vx *= 0.6;
 
-            if should_teleport || in_water {
+            if (visible && should_teleport) || in_water {
                 let anchor_x = if self.endermen[i].aggressive_timer > 0 {
                     self.player.x.floor() as i32
                 } else {
@@ -12974,6 +13282,11 @@ impl GameState {
 
         let mut dead_cows = Vec::new();
         for i in 0..self.cows.len() {
+            if self.cows[i].health > 0.0
+                && !self.body_terrain_loaded(self.cows[i].x, self.cows[i].y, self.cows[i].vx, 0.65)
+            {
+                continue;
+            }
             self.select_nearest_peer(self.cows[i].x, self.cows[i].y);
             if self.cows[i].hit_timer > 0 {
                 self.cows[i].hit_timer -= 1;
@@ -13010,6 +13323,16 @@ impl GameState {
         }
         let mut dead_sheep = Vec::new();
         for i in 0..self.sheep.len() {
+            if self.sheep[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.sheep[i].x,
+                    self.sheep[i].y,
+                    self.sheep[i].vx,
+                    0.65,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.sheep[i].x, self.sheep[i].y);
             if self.sheep[i].hit_timer > 0 {
                 self.sheep[i].hit_timer -= 1;
@@ -13046,6 +13369,11 @@ impl GameState {
         }
         let mut dead_pigs = Vec::new();
         for i in 0..self.pigs.len() {
+            if self.pigs[i].health > 0.0
+                && !self.body_terrain_loaded(self.pigs[i].x, self.pigs[i].y, self.pigs[i].vx, 0.65)
+            {
+                continue;
+            }
             self.select_nearest_peer(self.pigs[i].x, self.pigs[i].y);
             if self.pigs[i].hit_timer > 0 {
                 self.pigs[i].hit_timer -= 1;
@@ -13082,6 +13410,16 @@ impl GameState {
         }
         let mut dead_chickens = Vec::new();
         for i in 0..self.chickens.len() {
+            if self.chickens[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.chickens[i].x,
+                    self.chickens[i].y,
+                    self.chickens[i].vx,
+                    0.3,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.chickens[i].x, self.chickens[i].y);
             if self.chickens[i].hit_timer > 0 {
                 self.chickens[i].hit_timer -= 1;
@@ -13129,6 +13467,16 @@ impl GameState {
         }
         let mut dead_squids = Vec::new();
         for i in 0..self.squids.len() {
+            if self.squids[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.squids[i].x,
+                    self.squids[i].y,
+                    self.squids[i].vx,
+                    0.6,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.squids[i].x, self.squids[i].y);
             if self.squids[i].hit_timer > 0 {
                 self.squids[i].hit_timer -= 1;
@@ -13144,14 +13492,6 @@ impl GameState {
             let feet_y = self.squids[i].y.floor() as i32;
             let in_water = matches!(self.world.get_block(sx, center_y), BlockType::Water(_))
                 || matches!(self.world.get_block(sx, feet_y), BlockType::Water(_));
-            if !in_water && self.squids[i].age.is_multiple_of(20) {
-                self.squids[i].health -= 1.0;
-                if self.squids[i].health <= 0.0 {
-                    dead_squids.push(i);
-                    continue;
-                }
-            }
-
             self.squids[i].update_ai(in_water);
             let (nx, ny, mut nvx, mut nvy, ngr, hit_wall) = self.calculate_mob_movement(
                 self.squids[i].x,
@@ -13189,6 +13529,16 @@ impl GameState {
 
         let mut dead_wolves = Vec::new();
         for i in 0..self.wolves.len() {
+            if self.wolves[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.wolves[i].x,
+                    self.wolves[i].y,
+                    self.wolves[i].vx,
+                    0.6,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.wolves[i].x, self.wolves[i].y);
             if self.wolves[i].hit_timer > 0 {
                 self.wolves[i].hit_timer -= 1;
@@ -13207,13 +13557,22 @@ impl GameState {
                 let dx = sheep.x - self.wolves[i].x;
                 let dy = sheep.y - self.wolves[i].y;
                 let dist = (dx * dx + dy * dy).sqrt();
-                if dist < sheep_target_dist && dist <= 14.0 {
+                if dist < sheep_target_dist
+                    && dist <= 14.0
+                    && self.has_line_of_sight(
+                        self.wolves[i].x,
+                        self.wolves[i].y - 0.6,
+                        sheep.x,
+                        sheep.y - 0.6,
+                    )
+                {
                     sheep_target_dist = dist;
                     sheep_target = Some((sheep.x, sheep.y));
                 }
             }
 
-            self.wolves[i].update_ai(self.player.x, self.player.y, sheep_target);
+            let (tx, ty, _) = self.hostile_target(self.wolves[i].x, self.wolves[i].y, 0.6);
+            self.wolves[i].update_ai(tx, ty, sheep_target);
             self.wolves[i].age += 1;
             let chase_jump = self.should_ground_mob_chase_jump(
                 self.wolves[i].x,
@@ -13325,6 +13684,16 @@ impl GameState {
 
         let mut dead_ocelots = Vec::new();
         for i in 0..self.ocelots.len() {
+            if self.ocelots[i].health > 0.0
+                && !self.body_terrain_loaded(
+                    self.ocelots[i].x,
+                    self.ocelots[i].y,
+                    self.ocelots[i].vx,
+                    0.6,
+                )
+            {
+                continue;
+            }
             self.select_nearest_peer(self.ocelots[i].x, self.ocelots[i].y);
             if self.ocelots[i].hit_timer > 0 {
                 self.ocelots[i].hit_timer -= 1;
@@ -13617,6 +13986,17 @@ impl GameState {
 
         let mut resolved_item_indices: Vec<(usize, bool, Option<u16>)> = Vec::new();
         for i in 0..self.item_entities.len() {
+            if let Some(y) =
+                self.recover_loose_void_fall(self.item_entities[i].x, self.item_entities[i].y)
+            {
+                self.item_entities[i].y = y;
+                self.item_entities[i].vx = 0.0;
+                self.item_entities[i].vy = 0.0;
+            }
+            let e = &self.item_entities[i];
+            if !self.body_terrain_loaded(e.x, e.y, e.vx, 0.15) {
+                continue;
+            }
             self.select_item_collector(
                 self.item_entities[i].x,
                 self.item_entities[i].y,
@@ -13630,7 +14010,8 @@ impl GameState {
             let pickup_ready = self.item_entities[i].pickup_delay == 0;
             self.item_entities[i].pickup_delay =
                 self.item_entities[i].pickup_delay.saturating_sub(1);
-            if self.item_entities[i].age > ITEM_ENTITY_DESPAWN_TICKS
+            if iy > 160.0
+                || self.item_entities[i].age > ITEM_ENTITY_DESPAWN_TICKS
                 || matches!(self.world.fluid_at_point(ix, iy), BlockType::Lava(_))
                 || matches!(
                     self.world.get_block(ix.floor() as i32, iy.floor() as i32),
@@ -13700,13 +14081,24 @@ impl GameState {
 
         let mut resolved_orb_indices = Vec::new();
         for i in 0..self.experience_orbs.len() {
+            if let Some(y) =
+                self.recover_loose_void_fall(self.experience_orbs[i].x, self.experience_orbs[i].y)
+            {
+                self.experience_orbs[i].y = y;
+                self.experience_orbs[i].vx = 0.0;
+                self.experience_orbs[i].vy = 0.0;
+            }
+            let e = &self.experience_orbs[i];
+            if !self.body_terrain_loaded(e.x, e.y, e.vx, 0.15) {
+                continue;
+            }
             self.select_nearest_peer(self.experience_orbs[i].x, self.experience_orbs[i].y);
             let (ox, oy, ovx, ovy) = {
                 let orb = &self.experience_orbs[i];
                 (orb.x, orb.y, orb.vx, orb.vy)
             };
             self.experience_orbs[i].age = self.experience_orbs[i].age.saturating_add(1);
-            if self.experience_orbs[i].age > 6000 {
+            if oy > 160.0 || self.experience_orbs[i].age > 6000 {
                 resolved_orb_indices.push((i, false, self.active_peer));
                 continue;
             }
@@ -13926,11 +14318,11 @@ impl GameState {
         if matches!(head_block, BlockType::Water(_)) {
             self.player.drowning_timer -= 1;
             if self.player.drowning_timer <= -20 {
-                self.apply_player_damage(1.0);
+                self.apply_player_environment_damage(2.0);
                 self.player.drowning_timer = 0;
             }
         } else {
-            self.player.drowning_timer = 300;
+            self.player.drowning_timer = (self.player.drowning_timer.max(0) + 4).min(300);
         }
 
         if lava_contact > 0.0 {
@@ -13939,15 +14331,16 @@ impl GameState {
             } else {
                 self.player.burning_timer = 100;
                 if self.player.age.is_multiple_of(10) {
-                    self.apply_player_damage(2.0);
+                    self.apply_player_damage(4.0);
                 }
             }
         }
 
         if self.player.burning_timer > 0 {
             if fire_resistant
-                || water_contact > 0.0
-                || self.is_weather_wet_at(self.player.x, self.player.y - 1.5)
+                || ((water_contact > 0.0
+                    || self.is_weather_wet_at(self.player.x, self.player.y - 1.5))
+                    && lava_contact == 0.0)
             {
                 self.player.burning_timer = 0;
             } else {
@@ -15058,11 +15451,7 @@ impl GameState {
         }
 
         if in_lava {
-            next_burning_timer = 10;
-            if age.is_multiple_of(10) {
-                damage += 2.0;
-            }
-            return (next_burning_timer, damage);
+            return (0, 0.0);
         }
 
         if sun_exposed {
@@ -18443,7 +18832,7 @@ mod tests {
             count: 1,
             durability: Some(65),
         });
-        state.interact_block(-1, 10, false);
+        state.interact_block(-1, 9, false);
 
         assert_eq!(state.world.get_block(0, 7), BlockType::NetherPortal);
         assert_eq!(state.world.get_block(1, 8), BlockType::NetherPortal);
@@ -19073,6 +19462,20 @@ mod tests {
         for x in left..=right {
             for y in top..=bottom {
                 if x == left || x == right || y == top || y == bottom {
+                    state.player.x = if x == left {
+                        left as f64 - 0.5
+                    } else if x == right {
+                        right as f64 + 1.5
+                    } else {
+                        x as f64 + 0.5
+                    };
+                    state.player.y = if x == left || x == right {
+                        y as f64 + 1.5
+                    } else if y == top {
+                        top as f64
+                    } else {
+                        bottom as f64
+                    };
                     state.interact_block(x, y, false);
                 }
             }
@@ -23163,7 +23566,7 @@ mod tests {
         let payload = bincode::serialize(&PlayerCheckpointV7 {
             version: PLAYER_PROGRESS_VERSION_V7,
             progress,
-            session: PlayerSession::capture(&state),
+            session: PlayerSession::capture(&state).into(),
         })
         .unwrap();
         GameState::write_progression_payload_atomically(&path, &payload).unwrap();

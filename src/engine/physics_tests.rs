@@ -581,8 +581,8 @@ fn breathing_and_boat_surface_follow_actual_fluid_depth() {
     s.player.drowning_timer = 100;
     s.update(0, 0);
     assert_eq!(
-        s.player.drowning_timer, 300,
-        "eyes above shallow water must breathe"
+        s.player.drowning_timer, 104,
+        "eyes above shallow water must recover air"
     );
     assert_eq!(s.boat_surface_y_near(0.5, 18.9), Some(18.875));
     for block in [BlockType::Water(8), BlockType::Water(9)] {

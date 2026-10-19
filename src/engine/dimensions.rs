@@ -3,11 +3,83 @@ use super::*;
 use std::collections::BTreeMap;
 
 macro_rules! v9_type {
+    (zombies, $ty:ty) => { Vec<legacy_entities::ZombieV10> };
+    (pigmen, $ty:ty) => { Vec<legacy_entities::ZombiePigmanV10> };
+    (skeletons, $ty:ty) => { Vec<legacy_entities::SkeletonV10> };
+    (creepers, $ty:ty) => { Vec<legacy_entities::CreeperV10> };
+    (spiders, $ty:ty) => { Vec<legacy_entities::SpiderV10> };
+    (silverfish, $ty:ty) => { Vec<legacy_entities::SilverfishV10> };
+    (slimes, $ty:ty) => { Vec<legacy_entities::SlimeV10> };
+    (endermen, $ty:ty) => { Vec<legacy_entities::EndermanV10> };
+    (ghasts, $ty:ty) => { Vec<legacy_entities::GhastV10> };
+    (blazes, $ty:ty) => { Vec<legacy_entities::BlazeV10> };
+    (cows, $ty:ty) => { Vec<legacy_entities::CowV10> };
+    (sheep, $ty:ty) => { Vec<legacy_entities::SheepV10> };
+    (pigs, $ty:ty) => { Vec<legacy_entities::PigV10> };
+    (chickens, $ty:ty) => { Vec<legacy_entities::ChickenV10> };
+    (squids, $ty:ty) => { Vec<legacy_entities::SquidV10> };
+    (wolves, $ty:ty) => { Vec<legacy_entities::WolfV10> };
+    (ocelots, $ty:ty) => { Vec<legacy_entities::OcelotV10> };
+    (villagers, $ty:ty) => { Vec<legacy_entities::VillagerV10> };
     (item_entities, $ty:ty) => { Vec<legacy_entities::ItemEntityV9> };
     (fireballs, $ty:ty) => { Vec<legacy_entities::FireballV9> };
     ($field:ident, $ty:ty) => { $ty };
 }
 macro_rules! v9_value {
+    (zombies, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (pigmen, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (skeletons, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (creepers, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (spiders, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (silverfish, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (slimes, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (endermen, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (ghasts, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (blazes, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (cows, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (sheep, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (pigs, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (chickens, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (squids, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (wolves, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (ocelots, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (villagers, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
     (item_entities, $value:expr) => {
         $value.into_iter().map(Into::into).collect()
     };
@@ -19,6 +91,28 @@ macro_rules! v9_value {
     };
 }
 
+macro_rules! v10_type {
+    (item_entities, $ty:ty) => {
+        $ty
+    };
+    (fireballs, $ty:ty) => {
+        $ty
+    };
+    ($field:ident, $ty:ty) => {
+        v9_type!($field, $ty)
+    };
+}
+macro_rules! v10_value {
+    (item_entities, $value:expr) => {
+        $value
+    };
+    (fireballs, $value:expr) => {
+        $value
+    };
+    ($field:ident, $value:expr) => {
+        v9_value!($field, $value)
+    };
+}
 macro_rules! dimension_fields {
     ($world:ident; $( $(#[$attr:meta])* $field:ident: $ty:ty = $fresh:expr; )*) => {
         pub(super) struct DimensionRuntime { $world: World, $( $field: $ty, )* }
@@ -27,6 +121,11 @@ macro_rules! dimension_fields {
         pub(crate) struct DimensionCheckpoint { $( $(#[$attr])* $field: $ty, )* }
         #[derive(Clone, Debug, Deserialize)]
         pub(crate) struct DimensionCheckpointV9 { $( $(#[$attr])* $field: v9_type!($field, $ty), )* }
+        #[derive(Clone, Debug, Deserialize)]
+        pub(crate) struct DimensionCheckpointV10 { $( $(#[$attr])* $field: v10_type!($field, $ty), )* }
+        impl From<DimensionCheckpointV10> for DimensionCheckpoint {
+            fn from(old: DimensionCheckpointV10)->Self { Self { $($field:v10_value!($field,old.$field),)* } }
+        }
         impl From<DimensionCheckpointV9> for DimensionCheckpoint {
             fn from(old: DimensionCheckpointV9) -> Self { Self { $($field: v9_value!($field, old.$field),)* } }
         }
@@ -300,6 +399,33 @@ impl From<RuntimeCheckpointV9> for RuntimeCheckpoint {
         }
     }
 }
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct RuntimeCheckpointV10 {
+    version: u8,
+    selected: Dimension,
+    revision: u64,
+    progression: SharedProgress,
+    dimensions: BTreeMap<Dimension, DimensionCheckpointV10>,
+    encounter: Option<u64>,
+    trial: Option<Trial>,
+}
+impl From<RuntimeCheckpointV10> for RuntimeCheckpoint {
+    fn from(old: RuntimeCheckpointV10) -> Self {
+        Self {
+            version: old.version,
+            selected: old.selected,
+            revision: old.revision,
+            progression: old.progression,
+            dimensions: old
+                .dimensions
+                .into_iter()
+                .map(|(d, c)| (d, c.into()))
+                .collect(),
+            encounter: old.encounter,
+            trial: old.trial,
+        }
+    }
+}
 impl RuntimeCheckpoint {
     pub(crate) fn capture(state: &GameState) -> Self {
         let mut dimensions: BTreeMap<_, _> = state
@@ -438,6 +564,17 @@ impl DimensionCheckpoint {
             ocelots,
             villagers,
             end_crystals
+        );
+        macro_rules! hazard_state {
+            ($($field:ident),*) => { $(
+                if self.$field.iter().any(|e| !e.hazards.valid()) {
+                    return Err(format!("invalid saved {} hazard state; save preserved", stringify!($field)));
+                }
+            )* };
+        }
+        hazard_state!(
+            zombies, creepers, skeletons, spiders, silverfish, slimes, endermen, blazes, pigmen,
+            ghasts, cows, sheep, pigs, chickens, squids, wolves, ocelots, villagers
         );
         count += self.end_crystals.len()
             + self.lightning_bolts.len()

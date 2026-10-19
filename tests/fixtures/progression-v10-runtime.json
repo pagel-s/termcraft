@@ -1,0 +1,687 @@
+{
+  "End": {
+    "arrows": [],
+    "blaze_spawner_timer": 0,
+    "blazes": [],
+    "boats": [],
+    "chickens": [],
+    "cows": [],
+    "creepers": [],
+    "dungeon_spawner_timer": 0,
+    "end_boss_initialized": false,
+    "end_crystals": [],
+    "end_spawn_timer": 0,
+    "end_victory_origin": null,
+    "end_victory_ticks": 0,
+    "ender_dragon": null,
+    "endermen": [],
+    "experience_orbs": [],
+    "fireballs": [],
+    "ghasts": [],
+    "item_entities": [],
+    "lightning_bolts": [],
+    "nether_spawn_timer": 0,
+    "ocelots": [],
+    "overworld_hostile_spawn_timer": 0,
+    "overworld_ocelot_spawn_timer": 0,
+    "overworld_passive_spawn_timer": 0,
+    "overworld_squid_spawn_timer": 0,
+    "overworld_villager_spawn_timer": 0,
+    "overworld_wolf_spawn_timer": 0,
+    "pigmen": [],
+    "pigs": [],
+    "sheep": [],
+    "silverfish": [],
+    "silverfish_spawner_timer": 0,
+    "skeletons": [],
+    "slimes": [],
+    "spiders": [],
+    "squids": [],
+    "thunder_flash_timer": 0,
+    "time_of_day": 4000.0,
+    "villager_open_doors": [],
+    "villagers": [],
+    "weather": "Clear",
+    "weather_rain_intensity": 0.0,
+    "weather_thunder_intensity": 0.0,
+    "weather_timer": 6000,
+    "weather_wind_intensity": 0.0,
+    "wolves": [],
+    "world_tick": 0,
+    "zombies": []
+  },
+  "Nether": {
+    "arrows": [],
+    "blaze_spawner_timer": 0,
+    "blazes": [
+      {
+        "age": 0,
+        "attack_cooldown": 0,
+        "attack_windup": 0,
+        "facing_right": true,
+        "health": 9.0,
+        "hit_timer": 0,
+        "last_player_damage_tick": 0,
+        "shoot_cooldown": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 20.5,
+        "y": 60.0
+      }
+    ],
+    "boats": [],
+    "chickens": [],
+    "cows": [],
+    "creepers": [],
+    "dungeon_spawner_timer": 0,
+    "end_boss_initialized": false,
+    "end_crystals": [],
+    "end_spawn_timer": 0,
+    "end_victory_origin": null,
+    "end_victory_ticks": 0,
+    "ender_dragon": null,
+    "endermen": [],
+    "experience_orbs": [],
+    "fireballs": [
+      {
+        "age": 0,
+        "dead": false,
+        "reflected": false,
+        "vx": -0.34,
+        "vy": 0.0,
+        "x": 21.5,
+        "y": 59.0
+      }
+    ],
+    "ghasts": [],
+    "item_entities": [
+      {
+        "age": 0,
+        "grounded": false,
+        "item_type": "BlazeRod",
+        "payload": null,
+        "pickup_delay": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 22.5,
+        "y": 59.0
+      }
+    ],
+    "lightning_bolts": [],
+    "nether_spawn_timer": 0,
+    "ocelots": [],
+    "overworld_hostile_spawn_timer": 0,
+    "overworld_ocelot_spawn_timer": 0,
+    "overworld_passive_spawn_timer": 0,
+    "overworld_squid_spawn_timer": 0,
+    "overworld_villager_spawn_timer": 0,
+    "overworld_wolf_spawn_timer": 0,
+    "pigmen": [],
+    "pigs": [],
+    "sheep": [],
+    "silverfish": [],
+    "silverfish_spawner_timer": 0,
+    "skeletons": [],
+    "slimes": [],
+    "spiders": [],
+    "squids": [],
+    "thunder_flash_timer": 0,
+    "time_of_day": 4000.0,
+    "villager_open_doors": [],
+    "villagers": [],
+    "weather": "Clear",
+    "weather_rain_intensity": 0.0,
+    "weather_thunder_intensity": 0.0,
+    "weather_timer": 6000,
+    "weather_wind_intensity": 0.0,
+    "wolves": [],
+    "world_tick": 0,
+    "zombies": []
+  },
+  "Overworld": {
+    "arrows": [
+      {
+        "age": 0,
+        "damage": 5.0,
+        "dead": false,
+        "from_player": true,
+        "vx": 0.8,
+        "vy": -0.1,
+        "x": 33.5,
+        "y": 62.0
+      }
+    ],
+    "blaze_spawner_timer": 0,
+    "blazes": [
+      {
+        "age": 0,
+        "attack_cooldown": 0,
+        "attack_windup": 0,
+        "facing_right": true,
+        "health": 20.0,
+        "hit_timer": 0,
+        "last_player_damage_tick": 0,
+        "shoot_cooldown": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 19.5,
+        "y": 64.0
+      }
+    ],
+    "boats": [
+      {
+        "facing_right": true,
+        "grounded": false,
+        "vx": 0.0,
+        "vy": 0.0,
+        "wobble_timer": 0,
+        "x": 30.5,
+        "y": 64.0
+      }
+    ],
+    "chickens": [
+      {
+        "age": 0,
+        "egg_lay_timer": 6864,
+        "facing_right": true,
+        "grounded": false,
+        "health": 4.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "wander_timer": 0,
+        "x": 25.5,
+        "y": 64.0
+      }
+    ],
+    "cows": [
+      {
+        "age": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 10.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "wander_timer": 0,
+        "x": 22.5,
+        "y": 64.0
+      }
+    ],
+    "creepers": [
+      {
+        "age": 0,
+        "charged": false,
+        "facing_right": true,
+        "fuse_timer": 0,
+        "grounded": false,
+        "health": 20.0,
+        "hit_timer": 0,
+        "last_player_damage_tick": 0,
+        "reroute_dir": 0,
+        "reroute_ticks": 0,
+        "stuck_ticks": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 13.5,
+        "y": 64.0
+      }
+    ],
+    "dungeon_spawner_timer": 0,
+    "end_boss_initialized": false,
+    "end_crystals": [
+      {
+        "age": 0,
+        "health": 6.0,
+        "hit_timer": 0,
+        "x": 35.5,
+        "y": 44.0
+      }
+    ],
+    "end_spawn_timer": 42,
+    "end_victory_origin": null,
+    "end_victory_ticks": 0,
+    "ender_dragon": {
+      "age": 0,
+      "attack_cooldown": 0,
+      "facing_right": true,
+      "health": 200.0,
+      "hit_timer": 0,
+      "max_health": 200.0,
+      "phase": "Patrol",
+      "phase_timer": 0,
+      "swoop_cooldown": 30,
+      "vx": 0.0,
+      "vy": 0.0,
+      "x": 36.5,
+      "y": 32.0
+    },
+    "endermen": [
+      {
+        "age": 0,
+        "aggressive_timer": 0,
+        "attack_cooldown": 0,
+        "attack_windup": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 40.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "reroute_dir": 0,
+        "reroute_ticks": 0,
+        "stuck_ticks": 0,
+        "teleport_cooldown": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 18.5,
+        "y": 64.0
+      }
+    ],
+    "experience_orbs": [
+      {
+        "age": 432,
+        "grounded": false,
+        "value": 7,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 32.5,
+        "y": 64.0
+      }
+    ],
+    "fireballs": [
+      {
+        "age": 0,
+        "dead": false,
+        "reflected": false,
+        "vx": -0.2,
+        "vy": 0.1,
+        "x": 34.5,
+        "y": 60.0
+      },
+      {
+        "age": 33,
+        "dead": false,
+        "reflected": false,
+        "vx": -0.3,
+        "vy": 0.1,
+        "x": 15.5,
+        "y": 61.0
+      },
+      {
+        "age": 0,
+        "dead": false,
+        "reflected": true,
+        "vx": 0.34,
+        "vy": 0.0,
+        "x": 16.5,
+        "y": 60.0
+      }
+    ],
+    "ghasts": [
+      {
+        "age": 0,
+        "facing_right": true,
+        "health": 20.0,
+        "hit_timer": 0,
+        "last_player_damage_tick": 0,
+        "shoot_cooldown": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 21.5,
+        "y": 44.0
+      }
+    ],
+    "item_entities": [
+      {
+        "age": 1234,
+        "grounded": false,
+        "item_type": "Diamond",
+        "payload": null,
+        "pickup_delay": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 31.5,
+        "y": 64.0
+      },
+      {
+        "age": 432,
+        "grounded": false,
+        "item_type": "Coal",
+        "payload": null,
+        "pickup_delay": 0,
+        "vx": 0.03,
+        "vy": 0.0,
+        "x": 13.5,
+        "y": 62.0
+      },
+      {
+        "age": 0,
+        "grounded": false,
+        "item_type": "Diamond",
+        "payload": null,
+        "pickup_delay": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 14.5,
+        "y": 62.0
+      },
+      {
+        "age": 0,
+        "grounded": false,
+        "item_type": "DiamondSword",
+        "payload": {
+          "enchant_level": 0,
+          "stack": {
+            "count": 1,
+            "durability": 37,
+            "item_type": "DiamondSword"
+          }
+        },
+        "pickup_delay": 40,
+        "vx": 0.22,
+        "vy": -0.12,
+        "x": -5.5,
+        "y": 33.8
+      }
+    ],
+    "lightning_bolts": [
+      {
+        "ttl": 2,
+        "x": 37,
+        "y_bottom": 64,
+        "y_top": 0
+      }
+    ],
+    "nether_spawn_timer": 48,
+    "ocelots": [
+      {
+        "age": 0,
+        "attack_cooldown": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 10.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "panic_timer": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "wander_timer": 0,
+        "x": 28.5,
+        "y": 64.0
+      }
+    ],
+    "overworld_hostile_spawn_timer": 62,
+    "overworld_ocelot_spawn_timer": 156,
+    "overworld_passive_spawn_timer": 102,
+    "overworld_squid_spawn_timer": 96,
+    "overworld_villager_spawn_timer": 156,
+    "overworld_wolf_spawn_timer": 144,
+    "pigmen": [
+      {
+        "age": 0,
+        "aggressive_timer": 0,
+        "attack_cooldown": 0,
+        "attack_windup": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 20.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "reroute_dir": 0,
+        "reroute_ticks": 0,
+        "stuck_ticks": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 20.5,
+        "y": 64.0
+      }
+    ],
+    "pigs": [
+      {
+        "age": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 10.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "wander_timer": 0,
+        "x": 24.5,
+        "y": 64.0
+      }
+    ],
+    "sheep": [
+      {
+        "age": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 5.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "sheared": true,
+        "vx": 0.0,
+        "vy": 0.0,
+        "wander_timer": 0,
+        "x": 23.5,
+        "y": 64.0
+      }
+    ],
+    "silverfish": [
+      {
+        "age": 0,
+        "attack_cooldown": 0,
+        "attack_windup": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 8.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "reroute_dir": 0,
+        "reroute_ticks": 0,
+        "stuck_ticks": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 16.5,
+        "y": 64.0
+      }
+    ],
+    "silverfish_spawner_timer": 0,
+    "skeletons": [
+      {
+        "age": 0,
+        "aim_x": 14.5,
+        "aim_y": 64.0,
+        "bow_cooldown": 0,
+        "bow_windup": 0,
+        "burning_timer": 0,
+        "director_event": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 20.0,
+        "hit_timer": 0,
+        "last_player_damage_tick": 0,
+        "reroute_dir": 0,
+        "reroute_ticks": 0,
+        "stuck_ticks": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 14.5,
+        "y": 64.0
+      }
+    ],
+    "slimes": [
+      {
+        "age": 0,
+        "attack_cooldown": 0,
+        "attack_windup": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 4.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "reroute_dir": 0,
+        "reroute_ticks": 0,
+        "size": 2,
+        "stuck_ticks": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 17.5,
+        "y": 64.0
+      }
+    ],
+    "spiders": [
+      {
+        "age": 0,
+        "attack_cooldown": 0,
+        "attack_windup": 0,
+        "director_event": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 16.0,
+        "hit_timer": 0,
+        "last_player_damage_tick": 0,
+        "reroute_dir": 0,
+        "reroute_ticks": 0,
+        "stuck_ticks": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 15.5,
+        "y": 64.0
+      }
+    ],
+    "squids": [
+      {
+        "age": 0,
+        "facing_right": true,
+        "flop_cooldown": 0,
+        "grounded": false,
+        "health": 10.0,
+        "hit_timer": 0,
+        "last_player_damage_tick": 0,
+        "swim_dir_x": 0.0,
+        "swim_dir_y": 0.0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "wander_timer": 0,
+        "x": 26.5,
+        "y": 64.0
+      }
+    ],
+    "thunder_flash_timer": 0,
+    "time_of_day": 8000.0,
+    "villager_open_doors": [],
+    "villagers": [
+      {
+        "age": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 20.0,
+        "hit_timer": 0,
+        "home_x": 29,
+        "home_y": 63,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "wander_timer": 0,
+        "x": 29.5,
+        "y": 64.0
+      },
+      {
+        "age": 1234,
+        "facing_right": true,
+        "grounded": false,
+        "health": 7.0,
+        "hit_timer": 0,
+        "home_x": 12,
+        "home_y": 63,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "wander_timer": 0,
+        "x": 12.5,
+        "y": 64.0
+      }
+    ],
+    "weather": "Clear",
+    "weather_rain_intensity": 0.0,
+    "weather_thunder_intensity": 0.0,
+    "weather_timer": 7200,
+    "weather_wind_intensity": 0.10000000149011612,
+    "wolves": [
+      {
+        "age": 0,
+        "aggressive_timer": 0,
+        "attack_cooldown": 0,
+        "attack_windup": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 16.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "wander_timer": 0,
+        "x": 27.5,
+        "y": 64.0
+      }
+    ],
+    "world_tick": 0,
+    "zombies": [
+      {
+        "age": 0,
+        "attack_cooldown": 0,
+        "attack_windup": 0,
+        "burning_timer": 0,
+        "director_event": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 20.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "reroute_dir": 0,
+        "reroute_ticks": 0,
+        "stuck_ticks": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 12.5,
+        "y": 64.0
+      },
+      {
+        "age": 0,
+        "attack_cooldown": 0,
+        "attack_windup": 0,
+        "burning_timer": 0,
+        "director_event": 0,
+        "facing_right": true,
+        "grounded": false,
+        "health": 8.0,
+        "hit_timer": 0,
+        "jump_cooldown": 0,
+        "last_player_damage_tick": 0,
+        "reroute_dir": 0,
+        "reroute_ticks": 0,
+        "stuck_ticks": 0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "x": 16.5,
+        "y": 64.0
+      }
+    ]
+  }
+}

@@ -14,7 +14,7 @@ impl Renderer {
         self.recipe_scroll = self.recipe_scroll.saturating_add_signed(delta as isize);
     }
     pub(super) fn inventory_origin(&self, state: &GameState) -> (i32, i32) {
-        let side = self.recipe_book_open && Self::has_recipe_book(state) && self.width >= 100;
+        let side = self.recipe_book_open && self.width >= 100 && Self::has_recipe_book(state);
         (
             (self.width as i32 - if side { 96 } else { 60 }) / 2 + if side { 36 } else { 0 },
             (self.height as i32 - 24) / 2,
@@ -79,6 +79,14 @@ impl Renderer {
         if state.has_personal_armor_ui() && (ARMOR_UI_OFFSET..ARMOR_UI_OFFSET + 4).contains(&slot) {
             return Some((x + 4, y + 11 + (slot - ARMOR_UI_OFFSET) as i32 * 2));
         }
+        if state.at_furnace {
+            return match slot {
+                60 => Some((x + 14, y + 12)),
+                61 => Some((x + 14, y + 16)),
+                62 => Some((x + 40, y + 14)),
+                _ => None,
+            };
+        }
         if !Self::has_recipe_book(state) || state.at_furnace {
             return None;
         }
@@ -92,7 +100,10 @@ impl Renderer {
         (slot == CRAFT_OUTPUT_UI_SLOT).then_some((x + 30 + size as i32 * 6 + 6, y + 13))
     }
     pub(super) fn recipe_book_click(&self, state: &GameState, sx: u16, sy: u16) -> Option<usize> {
-        if !self.recipe_book_open || !Self::has_recipe_book(state) {
+        if !self.recipe_book_open
+            || (state.at_furnace && self.width < 100)
+            || !Self::has_recipe_book(state)
+        {
             return None;
         }
         let (x, y, w) = self.recipe_origin(state);
@@ -105,10 +116,16 @@ impl Renderer {
             .copied()
     }
     pub(super) fn compact_recipe_book(&self, state: &GameState) -> bool {
-        self.recipe_book_open && Self::has_recipe_book(state) && self.width < 100
+        self.recipe_book_open
+            && !state.at_furnace
+            && self.width < 100
+            && Self::has_recipe_book(state)
     }
     pub(super) fn draw_recipe_book(&mut self, state: &GameState) {
-        if !self.recipe_book_open || !Self::has_recipe_book(state) {
+        if !self.recipe_book_open
+            || (state.at_furnace && self.width < 100)
+            || !Self::has_recipe_book(state)
+        {
             return;
         }
         let (x, y, w) = self.recipe_origin(state);
