@@ -708,14 +708,24 @@ impl Renderer {
         elapsed: f32,
         bottom: i32,
     ) {
-        if elapsed > 112.0 {
+        if elapsed >= 220.0 {
             return;
         }
-        let frame = dragon::front_frame(elapsed as f64 * 0.16, false);
+        let stage = match elapsed {
+            t if t < 16.0 => 0,
+            t if t < 36.0 => 1,
+            t if t < 56.0 => 2,
+            t if t < 78.0 => 3,
+            t if t < 104.0 => 4,
+            t if t < 136.0 => 5,
+            _ => 6,
+        };
+        let frame = dragon::death_frame(stage);
         let palette = ActorSprite::mob(0, 0, SpriteKind::Dragon, true, 0.0, 0, Color::White);
         let width = (16 * scale).max(8);
         let height = (10 * scale).max(5);
-        let breakup = ((elapsed - 24.0) / 56.0).clamp(0.0, 1.6);
+        let lift = super::victory::rise(elapsed) * (2 * scale) as f32;
+        let breakup = ((elapsed - 136.0) / 38.0).clamp(0.0, 2.2);
         for dy in 0..height {
             for dx in 0..width {
                 let sx = ((dx as usize * 2 + 1) * dragon::WIDTH / (width as usize * 2))
@@ -727,44 +737,66 @@ impl Renderer {
                 let x1 = ((dx as usize + 1) * dragon::WIDTH).div_ceil(width as usize);
                 let y0 = dy as usize * dragon::HEIGHT / height as usize;
                 let y1 = ((dy as usize + 1) * dragon::HEIGHT).div_ceil(height as usize);
-                if (y0..y1).any(|sy| (x0..x1).any(|sx| frame[sy][sx] == b'e')) {
-                    token = b'e';
+                // Eyes and the authored fracture veins survive every resolution.
+                for priority in *b":!e" {
+                    if (y0..y1).any(|y| (x0..x1).any(|x| frame[y][x] == priority)) {
+                        token = priority;
+                    }
                 }
                 if token == b' ' || token == 0 {
                     continue;
                 }
-                let hash = ((sx * 73 + sy * 151) % 97) as f32 / 97.0;
-                if elapsed > 62.0 && hash < (elapsed - 62.0) / 60.0 {
+                // Whole panels fly apart together. Source pixels within a panel
+                // retain their spacing, color and outline throughout the burst.
+                let gx = sx / 8;
+                let gy = sy / 8;
+                let hash = ((gx * 73 + gy * 151) % 97) as f32 / 97.0;
+                let center = (28..36).contains(&sx) && (8..27).contains(&sy);
+                let fade_start = if center { 187.0 } else { 165.0 + hash * 20.0 };
+                let fade = 1.0 - ((elapsed - fade_start) / 30.0).clamp(0.0, 1.0);
+                if fade <= 0.0 {
                     continue;
                 }
-                let cx = dx as f32 - width as f32 * 0.5;
-                let cy = dy as f32 - height as f32 * 0.5;
-                let drift = breakup * breakup * (0.45 + hash);
-                let px = x + (cx * (1.0 + drift)).round() as i32;
-                let py = feet - height
-                    + (dy as f32 + cy * drift - breakup * scale as f32 * 1.2).round() as i32;
-                if py < 4 || py >= bottom {
+                let group_x = (gx as f32 * 8.0 + 4.0 - 32.0) * width as f32 / 64.0;
+                let group_y = (gy as f32 * 8.0 + 4.0 - 22.0) * height as f32 / 40.0;
+                let drift = breakup * (0.65 + hash * 0.5);
+                let px = x - width / 2 + dx + (group_x * drift).round() as i32;
+                let py = feet - height + dy - lift.round() as i32
+                    + (group_y * drift - breakup * scale as f32 * 1.8
+                        + breakup * breakup * scale as f32 * 0.8)
+                        .round() as i32;
+                if py < 8 || py >= bottom {
                     continue;
                 }
-                let Some(base) = palette.color(token).and_then(Renderer::color_rgb) else {
-                    continue;
+                let base = match token {
+                    b'!' => (255, 242, 205),
+                    b':' => {
+                        if sx < dragon::WIDTH / 2 {
+                            (71, 222, 242)
+                        } else {
+                            (255, 90, 196)
+                        }
+                    }
+                    _ => {
+                        let Some(c) = palette.color(token).and_then(Renderer::color_rgb) else {
+                            continue;
+                        };
+                        c
+                    }
                 };
-                let crack = if ((sx + sy * 3) % 11) < 2 {
-                    ((elapsed - 12.0) / 30.0).clamp(0.0, 1.0)
+                let charge = ((elapsed - 55.0) / 80.0).clamp(0.0, 1.0);
+                let light = if matches!(token, b'e' | b'!' | b':') {
+                    charge * 0.2
                 } else {
-                    breakup * 0.45
+                    charge * 0.16
                 };
-                let color = Renderer::rgb(Renderer::lerp_rgb(base, (241, 204, 255), crack));
-                let color = self.blend_pixel(
-                    px,
-                    py,
-                    color,
-                    1.0 - ((elapsed - 78.0) / 34.0).clamp(0.0, 1.0),
-                );
+                let color = Renderer::rgb(Renderer::lerp_rgb(base, (232, 192, 255), light));
+                let color = self.blend_pixel(px, py, color, fade);
                 self.put_pixel(px, py, color);
             }
         }
     }
+
     // Keep wide color views on the same support-aware torch art as the detailed
     // views, while preserving classic glyph rendering when color is disabled.
     pub(super) fn render_wide_torches(

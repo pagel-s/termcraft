@@ -6,6 +6,11 @@ pub(super) type Frame = [[u8; WIDTH]; HEIGHT];
 
 static FRAMES: [Frame; 7] = build_frames();
 static FRONT_FRAMES: [Frame; 7] = build_front_frames();
+static DEATH_FRAMES: [Frame; 7] = build_death_frames();
+
+pub(super) fn death_frame(stage: usize) -> &'static Frame {
+    &DEATH_FRAMES[stage.min(6)]
+}
 
 pub(super) fn frame(time: f64, diving: bool) -> &'static Frame {
     // Twelve poses per cycle, with smooth turnaround at each wing extreme.
@@ -438,6 +443,47 @@ const fn build_front_frames() -> [Frame; 7] {
         paired_line(art, (30, 23), (30, 24), b'w');
         paired_line(art, (29, 24), (31, 25), b'K');
         pose += 1;
+    }
+    frames
+}
+
+// A deliberate recoil and wing spread, rather than a looping flight animation.
+// The maw opens as light fractures the keel and then the wing ribs.
+const fn build_death_frames() -> [Frame; 7] {
+    let mut frames = build_front_frames();
+    let poses = [6, 5, 3, 1, 0, 0, 0];
+    let live = build_front_frames();
+    let mut stage = 0;
+    while stage < 7 {
+        frames[stage] = live[poses[stage]];
+        let art = &mut frames[stage];
+        if stage > 0 {
+            polygon(
+                art,
+                &[(27, 18), (36, 18), (36, 22), (33, 26), (30, 26), (27, 22)],
+                b'X',
+            );
+            paired_line(art, (28, 19), (29, 22), b'w');
+            paired_line(art, (30, 24), (30, 25), b'w');
+            line(art, (31, 22), (32, 24), b':');
+        }
+        if stage >= 2 {
+            line(art, (31, 26), (32, 29), b':');
+            line(art, (32, 29), (31, 33), b'!');
+            paired_line(art, (31, 28), (27, 26), b':');
+        }
+        if stage >= 4 {
+            paired_line(art, (27, 23), (19, 11), b':');
+            paired_line(art, (19, 11), (8, 7), b':');
+            paired_line(art, (19, 11), (12, 19), b':');
+            paired_line(art, (27, 23), (23, 29), b'!');
+        }
+        if stage >= 5 {
+            paired_line(art, (31, 28), (28, 24), b'!');
+            paired_line(art, (27, 23), (19, 11), b'!');
+            line(art, (31, 24), (32, 34), b'!');
+        }
+        stage += 1;
     }
     frames
 }

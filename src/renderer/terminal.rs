@@ -43,7 +43,7 @@ use crossterm::{
 use sprites::{ActorSprite, SpriteKind};
 use std::io::{Stdout, Write, stdout};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct RenderCell {
     ch: char,
     fg: Color,
@@ -652,10 +652,12 @@ impl Renderer {
     }
 
     fn end_victory_banner_lines(ticks_remaining: u16) -> (&'static str, &'static str) {
-        if ticks_remaining > 160 {
-            ("ENDER DRAGON SLAIN", "Shockwaves tear through the End")
+        if ticks_remaining > 204 {
+            ("THE DRAGON FALLS", "One final stand against the dark")
+        } else if ticks_remaining > 144 {
+            ("THE END HOLDS BREATH", "Light fractures the ancient wings")
         } else if ticks_remaining > 70 {
-            ("THE END TREMBLES", "Ancient light pours from the core")
+            ("THE SKY BREAKS", "The dragon's power tears free")
         } else {
             ("VICTORY IN THE END", "Enter the portal when you are ready")
         }
@@ -1206,14 +1208,6 @@ impl Renderer {
         self.update_vertical_camera(camera_target);
 
         let physical_view_x = (render_player_x * 2.0 * scale as f64).round() as i32;
-        let physical_view_y = (self.camera_y * scale as f64).floor() as i32;
-        self.vertical_pixel_offset = if scale > 1 {
-            (self.camera_y * scale as f64 * 2.0).floor() as i32 & 1
-        } else {
-            0
-        };
-        let view_char_x = physical_view_x.div_euclid(scale);
-        let view_char_y = physical_view_y.div_euclid(scale);
         let screen_center_x = physical_size.0 as i32 / 2 / scale;
         let screen_center_y = if scale > 1 {
             if boss_view {
@@ -1224,6 +1218,23 @@ impl Renderer {
         } else {
             self.height as i32 * 2 / 3
         };
+        let projection_y =
+            state
+                .end_victory_sequence_state()
+                .map_or(self.camera_y, |(ticks, _, y)| {
+                    let elapsed = crate::engine::state::END_VICTORY_SEQUENCE_TICKS
+                        .saturating_sub(ticks) as f32
+                        + frame_alpha as f32;
+                    victory::camera_y(self.camera_y, y, elapsed, screen_center_y, scale)
+                });
+        let physical_view_y = (projection_y * scale as f64).floor() as i32;
+        self.vertical_pixel_offset = if scale > 1 {
+            (projection_y * scale as f64 * 2.0).floor() as i32 & 1
+        } else {
+            0
+        };
+        let view_char_x = physical_view_x.div_euclid(scale);
+        let view_char_y = physical_view_y.div_euclid(scale);
         let ui_y = self.height as i32 - 4;
         self.world_view = Some((
             physical_view_x,
@@ -7104,11 +7115,11 @@ mod tests {
     fn end_victory_banner_lines_shift_through_stages() {
         assert_eq!(
             Renderer::end_victory_banner_lines(240),
-            ("ENDER DRAGON SLAIN", "Shockwaves tear through the End")
+            ("THE DRAGON FALLS", "One final stand against the dark")
         );
         assert_eq!(
             Renderer::end_victory_banner_lines(120),
-            ("THE END TREMBLES", "Ancient light pours from the core")
+            ("THE SKY BREAKS", "The dragon's power tears free")
         );
         assert_eq!(
             Renderer::end_victory_banner_lines(18),

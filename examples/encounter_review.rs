@@ -11,6 +11,7 @@ fn pty_fixture(
     root: &Path,
     address: &str,
     dimension: &str,
+    victory: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use termcraft::{
         engine::{
@@ -42,6 +43,30 @@ fn pty_fixture(
         "End" => ClientCommand::TravelToEnd,
         _ => return Err("fixture dimension must be Nether or End".into()),
     });
+    if victory {
+        if s.current_dimension != Dimension::End {
+            return Err("victory fixture requires End".into());
+        }
+        s.apply_client_command(ClientCommand::ToggleRuleMobSpawning);
+        s.world.load_chunks_for_spawn_search(0, 100);
+        s.player.x = 6.5;
+        s.player.y = (29..40)
+            .find(|&y| {
+                s.world.get_block(6, y).is_solid()
+                    && s.world.get_block(6, y - 1) == BlockType::Air
+                    && s.world.get_block(6, y - 2) == BlockType::Air
+            })
+            .ok_or("no arena floor")? as f64;
+        s.player.grounded = true;
+        s.update(0, 0);
+        s.end_crystals.clear();
+        s.endermen.clear();
+        let dragon = s.ender_dragon.as_mut().ok_or("dragon missing")?;
+        dragon.x = 2.5;
+        dragon.y = 27.0;
+        dragon.health = 0.0;
+        s.update(0, 0);
+    }
     s.try_persist_world_and_progress()?;
     let mut saved = ServerSave::read(&s)?;
     let identity = token();
@@ -86,6 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Path::new(args.get(2).ok_or("root required")?),
             args.get(3).ok_or("address required")?,
             args.get(4).ok_or("dimension required")?,
+            args.iter().any(|a| a == "--victory"),
         );
     }
     let covered = args.iter().any(|arg| arg == "--covered");
@@ -122,21 +148,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         dragon.y = 27.0;
         dragon.health = 0.0;
         s.update(0, 0); // Actual boss-death path starts the shared sequence/rewards.
-        let mut renderer = Renderer::with_size(160, 48);
+        let mut views = Vec::new();
+        for (w, h, z, name) in [
+            (160, 48, 0, "overview"),
+            (120, 40, 0, "compact"),
+            (160, 48, 2, "detail"),
+            (200, 60, 1, "wide"),
+        ] {
+            let mut renderer = Renderer::with_size(w, h);
+            for _ in 0..z {
+                renderer.toggle_zoom();
+            }
+            views.push((w, h, name, renderer));
+        }
+        let mut render_us = Vec::new();
         for tick in 0..=termcraft::engine::state::END_VICTORY_SEQUENCE_TICKS {
-            let mut bytes = Vec::new();
-            renderer.render_to(&s, 0.0, &mut bytes)?;
-            fs::write(out.join(format!("victory-{tick:03}-160x48.ansi")), bytes)?;
-            if [0, 45, 90, 125, 170, 220, 280].contains(&tick) {
+            for (w, h, name, renderer) in &mut views {
+                let mut bytes = Vec::new();
+                let start = std::time::Instant::now();
+                renderer.render_to(&s, 0.0, &mut bytes)?;
+                render_us.push(start.elapsed().as_secs_f64() * 1_000_000.0);
+                fs::write(
+                    out.join(format!("victory-{name}-{tick:03}-{w}x{h}.ansi")),
+                    &bytes,
+                )?;
+                if *name == "overview" {
+                    fs::write(out.join(format!("victory-{tick:03}-160x48.ansi")), bytes)?;
+                }
+            }
+            if [0, 24, 56, 92, 128, 142, 170, 200, 228, 252, 280].contains(&tick) {
                 capture(&s, &out, &format!("finale-{tick:03}"))?;
             }
             s.player.health = 20.0;
             s.update(0, 0);
         }
+        render_us.sort_by(f64::total_cmp);
         fs::write(
             out.join("victory.json"),
             serde_json::to_vec_pretty(&serde_json::json!({
-                "frames":281,"tick_ms":50,"dragon_defeated":s.has_defeated_dragon(),
+                "frames":281,"views":["overview","compact","detail","wide"],"tick_ms":50,
+                "render_p95_ms":render_us[render_us.len()*95/100]/1000.0,"dragon_defeated":s.has_defeated_dragon(),
                 "sequence_finished":s.end_victory_sequence_state().is_none(),
                 "limits":"Actual engine boss-death path and unmodified terminal renderer. Kill and player position staged in a disposable seed-1337 world; excludes live human combat/emulator timing."
             }))?,

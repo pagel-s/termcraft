@@ -36,7 +36,7 @@ def main():
     sample_ticks=[round(t*(expected-1)/140) for t in [0,18,36,60,90,120,140]]
     screen = Screen(160, 48)
     frames = []
-    for tick, path in enumerate(sorted(args.victory.glob('victory-*-160x48.ansi'))):
+    for tick, path in enumerate(sorted(args.victory.glob('victory-[0-9][0-9][0-9]-160x48.ansi'))):
         screen.feed(read(path))  # Incremental frames require the same screen.
         im = raster(screen)
         frames.append(im)

@@ -19,6 +19,7 @@ on:
       - 'scripts/test_inventory_input.py'
       - 'scripts/test_drop_input.py'
       - 'scripts/test_furnace_input.py'
+      - 'scripts/test_finale_input.py'
       - 'scripts/test_terminal_views.py'
       - 'scripts/capture_terminal_art.py'
       - 'scripts/test_ssh_join.py'
@@ -72,6 +73,8 @@ jobs:
           python scripts/test_terminal_views.py --binary target/${{ matrix.target }}/release/termcraft --report terminal-views-qualification.json
           cargo +1.88.0 build --locked --example interaction_review
           python scripts/test_inventory_input.py --binary target/${{ matrix.target }}/release/termcraft --fixture target/debug/examples/interaction_review --report inventory-qualification.json
+          cargo +1.88.0 build --locked --example encounter_review
+          python scripts/test_finale_input.py --binary target/${{ matrix.target }}/release/termcraft --fixture target/debug/examples/encounter_review --report finale-qualification.json
           python scripts/test_furnace_input.py --binary target/${{ matrix.target }}/release/termcraft --fixture target/debug/examples/interaction_review --report furnace-qualification.json
           python scripts/test_drop_input.py --binary target/${{ matrix.target }}/release/termcraft --fixture target/debug/examples/interaction_review --report drop-qualification.json
       - name: Check storage faults and recover into a backup copy (Linux)
@@ -115,4 +118,6 @@ jobs:
             terminal-input-qualification.json
             terminal-views-qualification.json
             inventory-qualification.json
+            furnace-qualification.json
+            finale-qualification.json
             drop-qualification.json

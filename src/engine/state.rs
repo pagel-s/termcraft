@@ -6,6 +6,8 @@ mod interaction_tests;
 #[path = "trial.rs"]
 mod trial;
 pub use trial::{Trial, TrialStage};
+#[path = "animal_water.rs"]
+mod animal_water;
 #[path = "combat.rs"]
 mod combat;
 #[path = "drops.rs"]
@@ -6945,9 +6947,50 @@ impl GameState {
                 .then_some((clicked_x, clicked_y - 1));
         }
         if clicked_block.is_replaceable() {
-            return self
-                .has_adjacent_placement_anchor(clicked_x, clicked_y)
-                .then_some((clicked_x, clicked_y));
+            if self.has_adjacent_placement_anchor(clicked_x, clicked_y) {
+                return Some((clicked_x, clicked_y));
+            }
+            // Solid blocks aim through water to a reachable submerged face,
+            // just as they do through air. Water itself never supports a block.
+            if matches!(clicked_block, BlockType::Water(_))
+                && self
+                    .current_hotbar_item_type()
+                    .and_then(|item| item.to_block())
+                    .is_some_and(|b| b.is_solid())
+            {
+                let origin = (self.player.x, self.player.y - 1.0);
+                let delta = (
+                    clicked_x as f64 + 0.5 - origin.0,
+                    clicked_y as f64 + 0.5 - origin.1,
+                );
+                let length = delta.0.hypot(delta.1);
+                if length > 0.001 {
+                    let dir = (delta.0 / length, delta.1 / length);
+                    if let Some(hit) = self.terrain_segment_hit(
+                        origin.0,
+                        origin.1,
+                        origin.0 + dir.0 * 4.5,
+                        origin.1 + dir.1 * 4.5,
+                        false,
+                    ) {
+                        let target = (
+                            (hit.0 - dir.0 * 0.01).floor() as i32,
+                            (hit.1 - dir.1 * 0.01).floor() as i32,
+                        );
+                        if matches!(
+                            self.world.get_block(target.0, target.1),
+                            BlockType::Water(_)
+                        ) && self.has_adjacent_placement_anchor(target.0, target.1)
+                            && (target.0 as f64 + 0.5 - origin.0)
+                                .hypot(target.1 as f64 + 0.5 - origin.1)
+                                <= 4.5
+                        {
+                            return Some(target);
+                        }
+                    }
+                }
+            }
+            return None;
         }
 
         let click_center_x = clicked_x as f64 + 0.5;
@@ -13297,7 +13340,7 @@ impl GameState {
             }
             self.cows[i].update_ai();
             self.cows[i].age += 1;
-            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_movement_with_jump_held(
+            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_animal_movement(
                 self.cows[i].x,
                 self.cows[i].y,
                 self.cows[i].vx,
@@ -13305,12 +13348,14 @@ impl GameState {
                 self.cows[i].grounded,
                 0.6,
                 1.375,
-                true,
-                false,
+                self.cows[i].hit_timer > 0,
             );
             self.cows[i].x = nx;
             self.cows[i].y = ny;
             self.cows[i].vx = nvx;
+            if nvx.abs() > 0.01 && self.cows[i].hit_timer == 0 {
+                self.cows[i].facing_right = nvx > 0.0;
+            }
             self.cows[i].vy = nvy;
             self.cows[i].grounded = grounded;
             if hit_wall && self.cows[i].hit_timer == 0 {
@@ -13343,7 +13388,7 @@ impl GameState {
             }
             self.sheep[i].update_ai();
             self.sheep[i].age += 1;
-            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_movement_with_jump_held(
+            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_animal_movement(
                 self.sheep[i].x,
                 self.sheep[i].y,
                 self.sheep[i].vx,
@@ -13351,12 +13396,14 @@ impl GameState {
                 self.sheep[i].grounded,
                 0.55,
                 1.125,
-                true,
-                false,
+                self.sheep[i].hit_timer > 0,
             );
             self.sheep[i].x = nx;
             self.sheep[i].y = ny;
             self.sheep[i].vx = nvx;
+            if nvx.abs() > 0.01 && self.sheep[i].hit_timer == 0 {
+                self.sheep[i].facing_right = nvx > 0.0;
+            }
             self.sheep[i].vy = nvy;
             self.sheep[i].grounded = grounded;
             if hit_wall && self.sheep[i].hit_timer == 0 {
@@ -13384,7 +13431,7 @@ impl GameState {
             }
             self.pigs[i].update_ai();
             self.pigs[i].age += 1;
-            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_movement_with_jump_held(
+            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_animal_movement(
                 self.pigs[i].x,
                 self.pigs[i].y,
                 self.pigs[i].vx,
@@ -13392,12 +13439,14 @@ impl GameState {
                 self.pigs[i].grounded,
                 0.5,
                 1.0,
-                true,
-                false,
+                self.pigs[i].hit_timer > 0,
             );
             self.pigs[i].x = nx;
             self.pigs[i].y = ny;
             self.pigs[i].vx = nvx;
+            if nvx.abs() > 0.01 && self.pigs[i].hit_timer == 0 {
+                self.pigs[i].facing_right = nvx > 0.0;
+            }
             self.pigs[i].vy = nvy;
             self.pigs[i].grounded = grounded;
             if hit_wall && self.pigs[i].hit_timer == 0 {
@@ -13441,7 +13490,7 @@ impl GameState {
             if self.chickens[i].vy > 0.0 {
                 self.chickens[i].vy = (self.chickens[i].vy - 0.028).clamp(0.0, 0.47);
             }
-            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_movement_with_jump_held(
+            let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_animal_movement(
                 self.chickens[i].x,
                 self.chickens[i].y,
                 self.chickens[i].vx,
@@ -13449,12 +13498,14 @@ impl GameState {
                 self.chickens[i].grounded,
                 0.3,
                 1.0,
-                true,
-                false,
+                self.chickens[i].hit_timer > 0,
             );
             self.chickens[i].x = nx;
             self.chickens[i].y = ny;
             self.chickens[i].vx = nvx;
+            if nvx.abs() > 0.01 && self.chickens[i].hit_timer == 0 {
+                self.chickens[i].facing_right = nvx > 0.0;
+            }
             self.chickens[i].vy = nvy;
             self.chickens[i].grounded = grounded;
             if hit_wall && self.chickens[i].hit_timer == 0 {
@@ -13598,7 +13649,7 @@ impl GameState {
             {
                 self.wolves[i].jump();
             }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_animal_movement(
                 self.wolves[i].x,
                 self.wolves[i].y,
                 self.wolves[i].vx,
@@ -13606,11 +13657,14 @@ impl GameState {
                 self.wolves[i].grounded,
                 0.6,
                 0.875,
-                true,
+                self.wolves[i].hit_timer > 0 || self.wolves[i].attack_windup > 0,
             );
             self.wolves[i].x = nx;
             self.wolves[i].y = ny;
             self.wolves[i].vx = nvx;
+            if nvx.abs() > 0.01 && self.wolves[i].hit_timer == 0 {
+                self.wolves[i].facing_right = nvx > 0.0;
+            }
             self.wolves[i].vy = nvy;
             self.wolves[i].grounded = ngr;
             if hit_wall && self.wolves[i].hit_timer == 0 && self.wolves[i].attack_windup == 0 {
@@ -13741,7 +13795,7 @@ impl GameState {
             if (chase_jump || recovery_jump) && self.ocelots[i].hit_timer == 0 {
                 self.ocelots[i].jump();
             }
-            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_mob_movement(
+            let (nx, ny, nvx, nvy, ngr, hit_wall) = self.calculate_animal_movement(
                 self.ocelots[i].x,
                 self.ocelots[i].y,
                 self.ocelots[i].vx,
@@ -13749,11 +13803,14 @@ impl GameState {
                 self.ocelots[i].grounded,
                 0.6,
                 0.75,
-                true,
+                self.ocelots[i].hit_timer > 0,
             );
             self.ocelots[i].x = nx;
             self.ocelots[i].y = ny;
             self.ocelots[i].vx = nvx;
+            if nvx.abs() > 0.01 && self.ocelots[i].hit_timer == 0 {
+                self.ocelots[i].facing_right = nvx > 0.0;
+            }
             self.ocelots[i].vy = nvy;
             self.ocelots[i].grounded = ngr;
             if hit_wall && self.ocelots[i].hit_timer == 0 {
