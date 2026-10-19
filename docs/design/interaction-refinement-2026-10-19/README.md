@@ -90,8 +90,14 @@ save. Older binaries cannot read the new format.
 - Real native/co-op terminal input verifies the furnace's three slots, cooking,
   output collection, conserved supplies, compact resize and view persistence.
 - Existing real inventory/crafting and moving-view checks pass in both modes.
+- Full CLI Lantern Run completes and reloads after breaking cover through normal
+  mining/jumping controls in five consecutive runs; its script no longer attempts
+  attacks through cover.
+- Six player-checkpoint fault cases and 24 multi-dimension rollback/interruption
+  cases pass, conserving all inventory/chest/loot supplies.
 - The packaged Linux archive runs with an empty PATH, saves/reopens via MCP and
-  restores its terminal. Windows/macOS qualification runs in GitHub Actions.
+  restores its terminal. The source crate also packages and compiles offline on
+  MSRV. Windows/macOS qualification runs in GitHub Actions.
 
 Local PTYs and deterministic rendering cannot establish Warp/GPU presentation,
 WAN latency or human judgment of combat feel. The unchanged player-motion system

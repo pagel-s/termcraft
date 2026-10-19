@@ -40,7 +40,9 @@ for i in range(220):
  if abs(s['player']['x']-last_x)<.01:stalls+=1
  else:stalls=0
  last_x=s['player']['x']
- if stalls>=3 and 30<s['player']['x']<40 and (not entities or min(abs(e['x']-s['player']['x']) for e in entities)>2.4):
+ # A nearby guard can be behind solid cover. Break the visible cover before
+ # trying melee; proximity alone does not make a target reachable.
+ if stalls>=3 and 30<s['player']['x']<40:
   cover=31 if s['player']['x']<35 else 39
   call('select_slot',{'slot':2});s=act(40,primary=True,target={'x':cover,'y':62});s=act(16,direction='right',jump=True);call('select_slot',{'slot':0});stalls=0
   continue

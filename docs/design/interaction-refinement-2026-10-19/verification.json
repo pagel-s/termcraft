@@ -202,5 +202,44 @@
     "stable_clippy": "992bac13066f824202d6bd3cecf47f2ad7f4fb1a1cab6602eb1e52a61525e3b8",
     "msrv_clippy": "bf7ffc53ded9a343dcb0f068cf6930e4fd35da91cc3fcc62f2f2552ee1f1d242",
     "tcp": "3039286bfbad802db739f3ff60bd3cccb83b1354ccbc6a89b15d85ac14d4d4b6"
+  },
+  "lantern_trial": {
+    "status": "passed",
+    "binary_sha256": "73af4acb0f5c79bed1458d7651c0a784fda895607b3da89e301250d6761241c2",
+    "calls": 212,
+    "simulated_ticks": 559,
+    "stage": "complete",
+    "player": {
+      "experience": 1,
+      "grounded": true,
+      "health": 9.260074615478516,
+      "hunger": 14.655386924743652,
+      "x": 62.531885198173505,
+      "y": 64.0
+    },
+    "abutment_wait_ticks": 2,
+    "abutment_landing_observed": true,
+    "normal_inventory_and_placement_rules": true,
+    "save_reopen": true,
+    "limits": "Scripted actions reacting to normal observations with known map coordinates through real stdio MCP. No teleport/loadout or state edits. Excludes human enjoyment and emulator/WAN latency.",
+    "repeat_runs_passed": 5
+  },
+  "storage_faults": {
+    "status": "passed",
+    "player_cases": 6,
+    "world_checkpoint_cases": 24,
+    "conservation": "17 diamonds across inventory, loot and three chests",
+    "limits": "Disposable staged conservation fixtures with real serializers, CLI/MCP and SIGKILL. Includes interruptions and errors during rollback. Not physical power-loss durability."
+  },
+  "world_provider_adapter_tests": {
+    "passed": 3
+  },
+  "source_package": {
+    "status": "passed",
+    "rust": "1.88.0",
+    "command": "cargo +1.88.0 package --offline --locked --allow-dirty",
+    "packaged_files": 163,
+    "compilation_verified": true,
+    "published": false
   }
 }
