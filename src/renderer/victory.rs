@@ -227,7 +227,6 @@ impl Renderer {
             portal_light * 0.8,
             bottom,
         );
-        self.finale_title(time, bottom);
     }
 
     fn finale_pixel(&mut self, point: (f32, f32), color: (u8, u8, u8), alpha: f32, bottom: i32) {
@@ -329,61 +328,6 @@ impl Renderer {
                 ),
                 color,
                 alpha,
-                bottom,
-            );
-        }
-    }
-
-    fn finale_title(&mut self, time: f32, bottom: i32) {
-        let alpha = ramp(time, 194.0, 215.0) * (1.0 - ramp(time, 266.0, 280.0));
-        if alpha <= 0.0 || self.width < 64 || bottom < 40 {
-            return;
-        }
-        let size = if self.width >= 144 { 2 } else { 1 };
-        let title = b"DRAGON SLAIN";
-        let width = (title.len() as i32 * 4 - 1) * size;
-        let left = (self.width as i32 - width) / 2;
-        for (i, ch) in title.iter().enumerate() {
-            let rows = match ch {
-                b'D' => [6, 5, 5, 5, 6],
-                b'R' => [6, 5, 6, 5, 5],
-                b'A' => [2, 5, 7, 5, 5],
-                b'G' => [3, 4, 5, 5, 3],
-                b'O' => [2, 5, 5, 5, 2],
-                b'N' => [5, 7, 7, 7, 5],
-                b'S' => [3, 4, 2, 1, 6],
-                b'L' => [4, 4, 4, 4, 7],
-                b'I' => [7, 2, 2, 2, 7],
-                _ => [0; 5],
-            };
-            for (row, bits) in rows.iter().enumerate() {
-                for col in 0..3 {
-                    if bits & (1 << (2 - col)) == 0 {
-                        continue;
-                    }
-                    for dy in 0..size {
-                        for dx in 0..size {
-                            let x = left + (i as i32 * 4 + col) * size + dx;
-                            let y = 11 + row as i32 * size + dy;
-                            let rgb =
-                                Self::lerp_rgb((255, 246, 210), (213, 161, 82), row as f32 / 4.0);
-                            self.finale_pixel(
-                                ((x + 1) as f32, (y + 1) as f32),
-                                (29, 16, 44),
-                                alpha,
-                                bottom,
-                            );
-                            self.finale_pixel((x as f32, y as f32), rgb, alpha, bottom);
-                        }
-                    }
-                }
-            }
-        }
-        for x in left - 5..left + width + 5 {
-            self.finale_pixel(
-                (x as f32, (14 + 5 * size) as f32),
-                (199, 153, 94),
-                alpha * 0.55,
                 bottom,
             );
         }

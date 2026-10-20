@@ -14,19 +14,20 @@ Cyan and hot-pink fractures split the keel and wing ribs as violet, turquoise,
 magenta and amber energy gathers inward. The arena dims;
 broad shafts split from the chest. A single illumination pulse releases the wing
 panels as coherent fragments, with expanding shock fronts and falling sparks.
-The last energy bends into the return portal, followed by a large gold victory title.
+The last energy bends into the return portal as the camera returns to ordinary
+framing. The large victory title has been removed.
 
 | Time | Act |
 | --- | --- |
 | 0–1.8 s | Fatal recoil, opening maw and first fractures |
 | 1.8–6.8 s | Ascending wing spread, inward energy, arena lighting and shafts |
 | 6.8–10.5 s | Rupture, coherent wing fragments and expanding fronts |
-| 10.5–14 s | Portal transfer, gold title and return to ordinary framing |
+| 10.5–14 s | Portal transfer and return to ordinary framing |
 
 ![Last stand](overview-092.png)
 ![Rupture](overview-142.png)
 ![Wing fragments](overview-170.png)
-![Portal and title](overview-228.png)
+![Portal finish](overview-228.png)
 
 ## Other views
 
@@ -59,7 +60,8 @@ The finale uses the existing replicated/persisted 280-tick encounter clock and
 origin. Reward creation, terrain, portal rules, saved view and save/network formats
 are unchanged. Existing worlds use the new sequence on their next dragon defeat.
 
-- **822** library tests pass on stable Rust and MSRV 1.88.0; strict Clippy on both.
+- After removing the title, **six finale regressions** pass on stable Rust and
+  MSRV 1.88.0, with strict Clippy on both. The preceding full suite passed 822 tests.
 - Effect tests check deterministic frames, protected header/inventory regions,
   all selected pixel resolutions, clean completion and glyph-mode fallback.
 - All four animations decode fully and retain 281 frames / 14,050 ms including
@@ -85,14 +87,14 @@ export keeps quantized frames in memory rather than retaining four full RGB movi
 The first candidate’s continuously changing full-arena colors overloaded terminal
 output. The final version uses stable lighting/coverage palette levels while
 particles and fragments keep moving. Overview ANSI output for the 281-frame
-capture fell from 12.79 MB to 3.75 MB. The live check exercises movement, F4,
+capture fell from 12.79 MB to 3.52 MB. The live check exercises movement, F4,
 completion and terminal restoration in both solo and real local co-op.
 
 | Local PTY check | Solo: largest sampled render p95 | Co-op: largest sampled render p95 |
 | --- | ---: | ---: |
 | Previous finale | 29.37 ms | 31.38 ms |
 | First new candidate | 79.62 ms | 82.53 ms |
-| Final new candidate | 21.71 ms | 41.45 ms |
+| Current (title removed) | 19.69 ms | 37.36 ms |
 
 These are single local runs, include Python ANSI-decoder backpressure and view
 changes, and are not cross-machine FPS results. In particular, the co-op result

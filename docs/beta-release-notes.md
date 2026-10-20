@@ -17,7 +17,7 @@ Local binaries still report `0.1.0` and archives are marked `dev`. The repositor
   the End recover at the same X above real terrain.
 - Fourteen-second dragon last stand with violet, cyan, magenta and amber energy:
   a separate death pose, wing spread, arena lighting, coherent fragments, energy
-  transfer into the portal and a large gold victory title.
+  transfer into the portal.
   [Animation comparison](design/dragon-finale-2026-10-19/README.md).
 - Native v11 / server v5 / protocol 18; genuine v9/v10 and v3/v4 migration fixtures.
 

@@ -541,9 +541,8 @@ for both tool facings, compact screens, staged environmental contact and test li
 
 The finale now has a separate recoil/wing-spread pose, authored fracture veins,
 arena lighting, cyan/magenta fracture veins, colored energy shafts, coherent wing
-fragments and a gold victory
-reveal. A temporary close-up pan keeps the raised head in frame and returns to the
-normal view. [Watch all four views and compare the previous animation](design/dragon-finale-2026-10-19/README.md).
+fragments and a portal-light finish. A temporary close-up pan keeps the raised
+head in frame and returns to the normal view. [Watch all four views and compare the previous animation](design/dragon-finale-2026-10-19/README.md).
 
 ## October 19: water placement and animal survival
 
