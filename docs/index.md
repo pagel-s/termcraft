@@ -11,7 +11,7 @@ a side-on view.
 > The published `0.1.0` alpha predates these changes. Development executables
 > still report `0.1.0`; no beta has been published.
 
-![Generated village cottage in the development renderer](design/world-atlas-2026-10-15/village-cottage-00.png)
+![Generated village cottage in the development renderer](assets/termcraft.png)
 
 ## Start playing
 
@@ -19,7 +19,7 @@ a side-on view.
 - [Gameplay](gameplay.md): movement, inventory, crafting, farming and portals.
 - [Co-op](multiplayer.md): up to eight players, reconnect saves and independent dimension travel.
 - [SSH joining](distribution.md#join-through-ssh): play remotely through an existing SSH account.
-- [Release notes](beta-release-notes.md): changes since the published alpha and current limits.
+- [Release notes](https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/RELEASE_NOTES.md): changes since the published alpha and current limits.
 
 Launch **Lantern Run** for a focused combat, traversal and building route, or
 start classic survival for the open world. The route has its own save.
@@ -35,10 +35,6 @@ start classic survival for the open world. The route has its own save.
 - A front-facing dragon, slim pillars and a fourteen-second defeat sequence.
 - Shared building and combat with independent inventories and saved reconnect profiles.
 
-[Browse the world gallery](design/world-atlas-2026-10-15/index.html) for actual
-renderer captures. Positions and some actors are staged for inspection. The
-[movement and art review](feel-and-art.md) records changes and playtest questions.
-
 ## Before upgrading
 
 Back up your full save directory, including hidden checkpoint data. Existing
@@ -52,7 +48,6 @@ not replace manual terminal testing or full survival/co-op playthroughs. See
 
 ## Project
 
-[Developer guide](developer.md) · [Performance measurements](performance.md) ·
 [Media credits](media-credits.md) · [GitHub](https://github.com/pagel-s/termcraft)
 
 Unofficial fan project. Not affiliated with Mojang or Microsoft.

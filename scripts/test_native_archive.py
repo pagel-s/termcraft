@@ -144,17 +144,22 @@ def main():
         assert binary.is_file(), "archive does not match this native platform"
         assert launcher.is_file(), "missing native launcher"
         assert (bundle / "LICENSE").is_file() and (bundle / "START_HERE.txt").is_file()
+        assert (bundle / "README.md").is_file()
         assert (bundle / "RELEASE_NOTES.md").is_file()
-        assert not (bundle / "docs" / "agents.md").exists()
-        assert not (bundle / "internal").exists()
-        for script in ("demo_director.py", "generate_world.py"):
-            assert not (bundle / "scripts" / script).exists()
-        for path in (bundle / "START_HERE.txt", bundle / "RELEASE_NOTES.md"):
-            assert not re.search(r"\b(?:LLM|MCP|Codex|Claude)\b|game.master|/connect", path.read_text(), re.I)
+        player_docs = {
+            "index.md", "installation.md", "gameplay.md", "multiplayer.md",
+            "distribution.md", "supported-content.md", "world-format.md",
+            "media-credits.md", "assets/termcraft.png",
+        }
+        assert set(manifest["files"]) == {
+            binary_name, launcher_name, "LICENSE", "START_HERE.txt", "README.md", "RELEASE_NOTES.md",
+        } | {f"docs/{p}" for p in player_docs}, "unexpected development files in player archive"
+        for path in [bundle / "START_HERE.txt", bundle / "README.md", bundle / "RELEASE_NOTES.md",
+                     *(bundle / "docs").glob("*.md")]:
+            assert not re.search(r"\b(?:LLM|MCP|Codex|Claude)\b|game.master|/connect", path.read_text(encoding="utf-8"), re.I)
         if os.name != "nt":
             assert binary.stat().st_mode & 0o111
             assert launcher.stat().st_mode & 0o111
-            assert (bundle / "scripts" / "test_lantern_trial.py").stat().st_mode & 0o111
         empty = root / "empty-path"
         empty.mkdir()
         env = dict(os.environ, PATH=str(empty), TERMCRAFT_SAVE_DIR=str(root / "saves"), TERM="xterm-256color")
@@ -204,6 +209,7 @@ def main():
                       archive_sha256=archive_hash, binary_sha256=digest(binary.read_bytes()),
                       manifest_files_verified=len(manifest["files"]), empty_path_runtime=True,
                       player_docs_omit_experimental_integration=True,
+                      player_bundle_only=True,
                       absolute_mcp_config=True, stepped_mcp_save_reopen=True,
                       launcher_arguments_from_spaced_path=True,
                       unix_launcher_default_trial=os.name != "nt",

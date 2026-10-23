@@ -1,3 +1,5 @@
+// Previous-build save fixture generator, run with unmodified Termcraft at ebc0447.
+// Use a disposable world and a separate target directory; never a player save.
 use termcraft::{
     engine::{command::ClientCommand, state::GameState},
     entities::{

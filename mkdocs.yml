@@ -7,24 +7,16 @@ repo_name: pagel-s/termcraft
 docs_dir: docs
 site_dir: site
 
-# These are GitHub's image-gallery fallbacks; the site serves each index.html.
-exclude_docs: |
-  design/world-atlas-2026-10-15/README.md
-  design/world-refinement-2026-10-15/README.md
-
 nav:
   - Home: index.md
   - Installation: installation.md
   - Gameplay: gameplay.md
-  - Movement and art review: feel-and-art.md
   - Co-op: multiplayer.md
   - Native Archives and SSH: distribution.md
-  - Next Beta Release Notes (Draft): beta-release-notes.md
+  - Release Notes: https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/RELEASE_NOTES.md
   - Supported Content: supported-content.md
   - Media Credits: media-credits.md
-  - World Format: world-format.md
-  - Performance and Foundation Checks: performance.md
-  - Developer: developer.md
+  - Saving and Recovery: world-format.md
 
 theme:
   name: readthedocs

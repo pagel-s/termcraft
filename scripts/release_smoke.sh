@@ -29,4 +29,4 @@ else
     echo "Skipped Linux LD_PRELOAD faults on this platform."
 fi
 
-echo "Local release smoke checks passed. The optional encrypted SSH fixture, native platforms, client/model quality and human play require separate checks."
+echo "Local release smoke checks passed. Native platforms, remote SSH and human gameplay require separate checks."

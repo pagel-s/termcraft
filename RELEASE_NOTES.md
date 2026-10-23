@@ -48,7 +48,7 @@ Hold A/D or arrows to walk; double-tap and hold to sprint. **Detail is the defau
 for fresh setups; saved view choices are respected. **-** zooms out, **=** zooms
 in, and **F4** cycles views. **V / Shift+V** drops one
 item / its stack. See [installation](docs/installation.md) and
-[full release notes](docs/beta-release-notes.md).
+[gameplay guide](docs/gameplay.md).
 
 ## Before upgrading
 

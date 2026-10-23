@@ -28,27 +28,16 @@ def main():
     name = f"termcraft-{version}-dev-{args.target}"
     binary_name = "termcraft.exe" if args.binary.suffix == ".exe" else "termcraft"
     files = {binary_name: args.binary.read_bytes(), "LICENSE": (root / "LICENSE").read_bytes()}
+    files["README.md"] = (root / "README.md").read_bytes()
     files["RELEASE_NOTES.md"] = (root / "RELEASE_NOTES.md").read_bytes()
-    for path in sorted((root / "docs").rglob("*")):
-        # Keep the current compact art review usable offline. Historical videos
-        # and large gameplay recordings are deliberately outside native bundles.
-        review_clip = path in {
-            root / "docs/design/pixel-refinement/movement.gif",
-            root / "docs/design/dragon-refinement-2026-10-12/flight.gif",
-            root / "docs/design/2d-refinement-2026-10-12/course.gif",
-            root / "docs/design/run-jump-weather-2026-10-15/rain.gif",
-            root / "docs/design/run-jump-weather-2026-10-15/snow.gif",
-            root / "docs/design/dragon-front-2026-10-15/side-flight.gif",
-            root / "docs/design/dragon-front-2026-10-15/front-flight.gif",
-            root / "docs/design/nether-refinement-2026-10-15/creatures.gif",
-            root / "docs/design/world-atlas-2026-10-15/nether-creatures.gif",
-            root / "docs/design/world-atlas-2026-10-15/shelter-rain.gif",
-            root / "docs/design/world-atlas-2026-10-15/shelter-snow.gif",
-        }
-        if path.is_file() and (path.suffix in {".md", ".json", ".html", ".png"} or review_clip):
-            files[path.relative_to(root).as_posix()] = path.read_bytes()
-    for script in ("test_lantern_trial.py",):
-        files[f"scripts/{script}"] = (root / "scripts" / script).read_bytes()
+    # Player archives use an explicit list, so future development files cannot
+    # accidentally become part of a download.
+    for relative in (
+        "index.md", "installation.md", "gameplay.md", "multiplayer.md",
+        "distribution.md", "supported-content.md", "world-format.md",
+        "media-credits.md", "assets/termcraft.png",
+    ):
+        files[f"docs/{relative}"] = (root / "docs" / relative).read_bytes()
     launch = ".\\termcraft.exe" if binary_name.endswith(".exe") else "./termcraft"
     if binary_name.endswith(".exe"):
         launcher = "PLAY.cmd"
@@ -81,6 +70,7 @@ def main():
         f"Join through an existing SSH account: {launch} join user@host --player alice\n"
         "Controls: hold A/D to walk; double-tap and hold to sprint; Space to jump.\n"
         "E: inventory/crafting; V/Shift+V: drop one/stack; =/-: zoom; F4: views.\n\n"
+        "Detail is the fresh-start default; saved view choices are respected.\n\n"
         "See RELEASE_NOTES.md for the proposed release highlights.\n"
         "See docs/installation.md and docs/multiplayer.md for saves and limits.\n"
         "On Windows, use Windows Terminal with OpenSSH installed for SSH joining.\n"
@@ -102,7 +92,7 @@ def main():
             for path, data in files.items():
                 info = tarfile.TarInfo(f"{name}/{path}")
                 info.size = len(data)
-                info.mode = 0o755 if path in {binary_name, launcher} or path.startswith("scripts/") else 0o644
+                info.mode = 0o755 if path in {binary_name, launcher} else 0o644
                 output.addfile(info, io.BytesIO(data))
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     archive.with_name(archive.name + ".sha256").write_text(f"{digest}  {archive.name}\n")

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Walk a generated review village with real native terminal input in a copied save.
 
-Run examples/village_review.rs first and pass its village.json. Requires Pillow
+Run tests/support/village_review.rs first and pass its village.json. Requires Pillow
 for the software capture; MCP is used only to read the live player's position.
 """
 import argparse

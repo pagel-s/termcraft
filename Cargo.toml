@@ -15,40 +15,34 @@ include = [
     "/Cargo.toml",
     "/Cargo.lock",
     "/LICENSE",
+    "/README.md",
     "/README-crates.md",
     "/RELEASE_NOTES.md",
-    "/internal/llm-integration.md",
     "/src/**",
-    "/docs/developer.md",
-    "/docs/gameplay.md",
-    "/docs/feel-and-art.md",
-    "/docs/multiplayer.md",
     "/tests/**",
-    "/docs/installation.md",
-    "/docs/media-credits.md",
-    "/docs/supported-content.md",
-    "/docs/world-format.md",
-    "/docs/performance.md",
-    "/docs/assets/performance-*.json",
-    "/docs/distribution.md",
-    "/docs/beta-release-notes.md",
-    "/examples/**",
-    "/scripts/package_release.py",
-    "/scripts/release_smoke.sh",
-    "/scripts/test_ssh_join.py",
-    "/scripts/test_native_archive.py",
-    "/scripts/test_lantern_trial.py",
-    "/scripts/test_storage_recovery.py",
+    "/docs/*.md",
+    "/docs/assets/termcraft.png",
+    "/scripts/*.py",
+    "/scripts/*.sh",
     "/scripts/storage_faults.c",
-    "/scripts/test_terminal_input.py",
-    "/scripts/test_inventory_input.py",
-    "/scripts/test_drop_input.py",
-    "/scripts/test_terminal_actions.py",
-    "/scripts/test_terminal_views.py",
-    "/scripts/capture_terminal_art.py",
-    "/scripts/generate_world.py",
-    "/scripts/demo_director.py",
 ]
+
+# These fixtures are used by terminal and recovery checks in CI.
+[[example]]
+name = "interaction_review"
+path = "tests/support/interaction_review.rs"
+
+[[example]]
+name = "encounter_review"
+path = "tests/support/encounter_review.rs"
+
+[[example]]
+name = "storage_review"
+path = "tests/support/storage_review.rs"
+
+[[example]]
+name = "village_review"
+path = "tests/support/village_review.rs"
 
 [dependencies]
 bincode = "1.3.3"

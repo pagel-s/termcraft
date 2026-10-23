@@ -54,7 +54,7 @@ The server uses that world's blocks and chests, with separate multiplayer player
 records. New players start with empty inventories. Existing single-player
 inventories are not imported into multiplayer records.
 
-## Controls and checks
+## Controls
 
 Use A/D or arrow keys to move, W/Space to jump, mouse left hold to mine/fight,
 mouse right click or F to interact/place, E for inventory, and 1–9 for the hotbar.
@@ -64,22 +64,6 @@ possible; Delete clears the grid. Furnace/enchanting/anvil/brewing actions use
 the displayed slots and mouse options. Drag distribution and batch crafting use
 the same inventory rules in native and shared play. Global difficulty/rule/debug
 travel shortcuts are ignored by the server.
-
-Useful manual checks:
-
-1. Have both players mine the same block and collect the drop. Only one copy
-   should enter the combined inventories. Craft planks, place them and check
-   that both clients see the same result.
-2. Put items in a chest and race to Shift-click its stack from both clients.
-   The total item count should stay constant.
-3. Leave one player in inventory while the other moves or fights. Their health,
-   inventory focus and actions should stay separate; the world should continue.
-4. Quit a client with Q, then reconnect with its profile. Stop the server with
-   Ctrl+C, restart it and reconnect again. Check inventories, durability, terrain
-   and chest contents. Keep the same address/profile and world.
-5. Resize either client between 120×40 and 200×60. Check the other player,
-   inventory focus, weather and F3 readability. Test ordinary survival and death
-   separately from the automated regressions.
 
 ## Portals and shared progression
 
@@ -96,7 +80,7 @@ Clients receive avatars and terrain from their own dimension. Inputs carry the
 source dimension, so delayed clicks cannot edit a different world after travel;
 key releases remain accepted. Travel clears held actions and retargets the cursor.
 
-## Saves, limits and remaining work
+## Saves and limits
 
 The default server stores data under `$TERMCRAFT_SAVE_DIR/multiplayer/default`
 (or the platform's normal save directory when the variable is unset). Named
@@ -123,51 +107,13 @@ with each dimension's clocks, health and timers. Restarting resumes surviving wa
 members and End boss/crystal damage. Nothing advances while offline. Normal live
 spawn/despawn rules still apply. Old server records have no entities to restore.
 
-Protocol **18** requires matching builds. Frames are capped at 256 KiB and nearby
-entity snapshots at 512 entities within 128 columns. Terrain streaming covers
-seven chunk columns around each player. Snapshots are sent at 20 Hz. A two-minute
-eight-player delayed-link/stalled-reader fixture now passes; WAN bandwidth and
-long human sessions still need measurement. Disconnected and
-stale actors release held actions. Live clients send a periodic heartbeat, so
-holding the mouse can continue mining without pointer movement.
+Protocol **18** requires matching builds. Terrain and nearby entities stream
+around each player. Disconnected and stale actors release held actions. Live
+clients send a periodic heartbeat, so holding the mouse can continue mining
+without pointer movement.
 
 Transport is plain TCP. Reconnect tokens are bearer credentials, without TLS,
 account authentication or internet-grade abuse protection. Keep this slice on a
-trusted local interface. Local encrypted OpenSSH authentication/forwarding tests
-pass. Actual remote accounts/WAN links, Windows graceful server shutdown, platform
-input and a sustained human session remain release gates. The SSH wrapper does
-not provision accounts or hosts.
-
-## Automated evidence
-
-`src/engine/cooperative_tests.rs`, actor tests and client tests cover contested
-mining/chests, separate inventories, shared ticks, distant terrain physics,
-nearest-player combat, death/respawn, disconnect cleanup, reconnect/restart,
-complete actor serialization, corrupt saves and failed writes. The Unix
-`tests/multiplayer_tcp.rs` regression runs a real server process with two socket
-clients through mining, crafting, building, disconnect and restart.
-
-```bash
-cargo test --locked
-# Unix; requires permission to bind loopback TCP and signal the child server:
-cargo test --locked --test multiplayer_tcp -- --ignored
-cargo clippy --all-targets --locked -- -D warnings
-```
-
-The third process regression runs eight players, one delayed/jittered link and
-seven authenticated stalled readers; it checks saved shutdown and reconnect too.
-Set `TERMCRAFT_NETWORK_SOAK_SECONDS=120` (6–3600 supported) and optionally
-`TERMCRAFT_NETWORK_REPORT=/tmp/network.json` to retain measurements. The default
-is 12 seconds. See [performance](performance.md#wall-clock-network-and-ssh-checks-11-october)
-for measured results and fixture limits.
-
-These are correctness checks. They do not establish fun, internet robustness,
-full progression parity or the performance targets in the beta plan.
-
-Local automated evidence is tracked in `BETA_RELEASE_PLAN.md` in the source
-checkout and [Performance](performance.md). The real TCP suite covers contested
-building/resources, inventory persistence, portals, independent dimension travel,
-source-height water and interrupted checkpoints. Rendered PTY checks cover two
-clients, inventory, resizing and terminal restoration. The four-platform native
-pipeline passed on the [current implementation](https://github.com/pagel-s/termcraft/actions/runs/39374722036);
-manual input/presentation and longer human sessions remain separate gates.
+trusted local interface, or use [SSH joining](distribution.md#join-through-ssh).
+The SSH wrapper does not provision accounts or hosts. Terminal input and network
+conditions affect responsiveness.

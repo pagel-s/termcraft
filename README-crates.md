@@ -37,7 +37,7 @@ these changes are not in crates.io `0.1.0`. See the
 [source README](https://github.com/pagel-s/termcraft/tree/beta/terminal-reborn).
 Use the branch documentation while the hosted site is being updated.
 
-## Development controls
+## Controls
 
 - Hold **A/D** or arrows to walk; tap, release, then quickly hold again to sprint.
 - **W/Up/Space** jumps or swims up; **X** toggles sneak and **Shift** holds it.

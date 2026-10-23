@@ -1,3 +1,5 @@
+// Previous-build save fixture generator, run with unmodified Termcraft at a371169.
+// Use a disposable world and a separate target directory; never a player save.
 use termcraft::{
     entities::{creeper::Creeper, skeleton::Skeleton, spider::Spider, silverfish::Silverfish, slime::Slime, enderman::Enderman, zombie_pigman::ZombiePigman, ghast::Ghast, cow::Cow, sheep::Sheep, pig::Pig, chicken::Chicken, squid::Squid, wolf::Wolf, ocelot::Ocelot, boat::Boat, experience_orb::ExperienceOrb, arrow::Arrow, end_crystal::EndCrystal, ender_dragon::EnderDragon},
     engine::state::LightningBolt,

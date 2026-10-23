@@ -35,10 +35,10 @@ The intended progression is:
 | Cycle world view | `F4` |
 | Quit / close UI | `Q` or `Esc` |
 
-The unreleased development build keeps detailed counters behind `F3`. See
-[Performance and Foundation Checks](performance.md) for timing definitions and
-local measurements. Save warnings appear in the HUD; travel is cancelled if the
-source world cannot be saved.
+**F3** shows input mode and rolling simulation/render timings. Save warnings appear
+in the HUD; travel is cancelled if the source world cannot be saved. In co-op,
+the tick counter measures local prediction, not the remote server. Terminal font
+zoom is independent of the selected game view.
 
 Hold a direction once to walk. Double-tap and hold it to sprint; releasing,
 reversing, sneaking or dropping to three food icons stops sprinting. Shift is
@@ -82,7 +82,7 @@ does not keep increasing every ore's abundance.
 
 This applies to newly generated chunks. Saved terrain and already mined areas
 keep their contents. For an immediate comparison, use a new world or explore
-beyond previously generated terrain. See the [depth and clustering review](design/deep-ore-balance-2026-10-16/README.md).
+beyond previously generated terrain.
 
 ## Inventory And Crafting
 
@@ -190,9 +190,9 @@ Incoming ghast and blaze fireballs can be hit with a normal left-click attack
 while within 2.6 blocks. Aim at the projectile: a successful return reverses its
 flight, deals 10 damage to the first creature hit, and cannot pass through walls.
 
-## Travel / Test Shortcuts
+## Solo travel shortcuts
 
-These exist in the current build and are especially useful for testing:
+These shortcuts are available in the current solo build:
 
 - `F5`: travel to Overworld
 - `F6`: travel to Nether
@@ -200,7 +200,7 @@ These exist in the current build and are especially useful for testing:
 - `F8`: return to spawn
 - `F9`: equip a diamond combat loadout
 
-If you do not want these in the eventual public build, remove or gate them before launch.
+These shortcuts are disabled on co-op servers.
 
 ## Scope Note
 
@@ -220,23 +220,7 @@ If you do not want these in the eventual public build, remove or gate them befor
 
 The game autosaves during play and persists local progression under the per-user save directory. Set `TERMCRAFT_SAVE_DIR` to override it.
 
-## Movement and readability updates in the development build
-
-Releasing movement now applies the same brake in native play and server
-simulation. Duplicate releases do not erase later knockback. Holding jump
-climbs ladders continuously; holding sneak stays on the ladder. Sneak also stops
-residual sideways momentum at a supported ledge. Swept wall/ceiling collisions
-prevent high-speed tunnelling, and landing damage includes the final partial tick
-of a fall. These improve existing movement; fluids, boats and passive mobs still
-need broader hands-on qualification.
-
-The HUD uses a solid backdrop for health/food and key information. Sprint and
-target information have separate rows. A mining bar shows progress; target tint
-retains terrain color and out-of-reach targets say so. Co-op avatars display their
-player ID above their head. F3 keeps diagnostics available. Cloud drift and End
-sparkles update less often to reduce distracting repainting.
-
-## Art and movement review
+## Choosing a view
 
 Fresh setups start in **Detail**, with the full character artwork. A valid saved
 view takes precedence. Use `-` for Overview, then Wide, and `=` or `+` to zoom
@@ -246,14 +230,6 @@ Each color view retains its resolution when the terminal font or window changes:
 world instead of silently replacing the figure. Use Overview/Wide for arena
 context; 160×48 is a useful starting size. `NO_COLOR` retains the explicitly
 labelled glyph mode and disables color-view zoom.
-F3 reports keyboard release support. Try walking, abrupt reversal, tap/held jumps,
-low ceilings and wall landings before comparing the camera in both views.
-The timing counters include local rendering/terminal output. In co-op, tick time
-measures client prediction, not the remote server. `keys:repeat` means the bounded
-legacy input fallback is active; `keys:release` confirms real movement key-up.
-See [Movement and art review](feel-and-art.md) for current captures, the test route
-and remaining limitations.
-
 ## Irrigating a field
 
 Dig a one-block-deep trench beside farmland and pour a water bucket into the open
@@ -296,9 +272,6 @@ model: water volume is not conserved after source removal. Hydraulic levels use
 loaded geometry; unknown chunk edges act as outlets. Finite-volume displacement,
 waterlogged slabs/stairs and physical currents are not modeled.
 
-See the [basin review](design/water-basins-2026-10-16/README.md) for captures,
-connected-vessel and overflow checks, save/reopen and real co-op verification.
-
 ### Building into water and animal swimming
 
 A solid block can replace water beside a support. If the aimed water cell has
@@ -309,5 +282,4 @@ Water continues flowing around the placed block.
 Cows, sheep, pigs, chickens, wolves and ocelots avoid walking into water/lava,
 paddle upward if submerged and seek a nearby reachable bank. They can climb a
 bank one block above the surface. This is local steering: animals can still drown
-under sealed roofs or where no air is reachable. See the
-[water behavior review](design/water-behavior-2026-10-19/README.md).
+under sealed roofs or where no air is reachable.

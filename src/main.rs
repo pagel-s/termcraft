@@ -207,9 +207,15 @@ fn world_command(args: &[String]) -> io::Result<()> {
             Ok(())
         }
         Some("generate") if args.len() == 3 || (args.len() == 5 && args[3] == "--generator") => {
-            let program = args.get(4).map(std::ffi::OsString::from)
+            let program = args
+                .get(4)
+                .map(std::ffi::OsString::from)
                 .or_else(|| std::env::var_os("TERMCRAFT_WORLD_GENERATOR"))
-                .ok_or_else(|| io::Error::other("set TERMCRAFT_WORLD_GENERATOR or --generator to a trusted executable; see internal/llm-integration.md in the source checkout"))?;
+                .ok_or_else(|| {
+                    io::Error::other(
+                        "set TERMCRAFT_WORLD_GENERATOR or --generator to a trusted executable",
+                    )
+                })?;
             termcraft::generator::generate(
                 &store,
                 &args[1],

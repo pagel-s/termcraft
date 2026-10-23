@@ -11,7 +11,6 @@
     <a href="docs/installation.md">Play</a> ·
     <a href="docs/gameplay.md">Controls</a> ·
     <a href="docs/multiplayer.md">Co-op</a> ·
-    <a href="docs/design/world-atlas-2026-10-15/README.md">World gallery</a> ·
     <a href="RELEASE_NOTES.md">Release notes</a>
   </p>
 </div>
@@ -22,7 +21,7 @@
 > `beta/terminal-reborn`; the published `0.1.0` release is the older alpha.
 > Development binaries still report `0.1.0`. The beta has not been published.
 
-![A generated village cottage in Termcraft's terminal pixel view](docs/design/world-atlas-2026-10-15/village-cottage-00.png)
+![A generated village cottage in Termcraft's terminal pixel view](docs/assets/termcraft.png)
 
 ## A survival world, adapted to 2D
 
@@ -46,10 +45,7 @@ The development build includes:
 - **Lantern Run:** a separate combat, traversal and bridge-building route for a
   focused first session.
 
-[Browse the environments and structures](docs/design/world-atlas-2026-10-15/README.md)
-or [read the changes since the alpha](docs/beta-release-notes.md).
-Gallery scenes use the actual renderer with staged camera/actor positions;
-they are not recordings of manual play.
+[Supported content](docs/supported-content.md) · [Release notes](RELEASE_NOTES.md)
 
 ## Play the development build
 
@@ -150,21 +146,13 @@ This remains a development build. Terminal input/presentation, long human co-op
 sessions and complete survival progression need broader playtesting. Fluid
 volume is source-based, and furnaces currently use each player's session rather
 than independent shared storage. See [save recovery](docs/world-format.md)
-and [release notes](docs/beta-release-notes.md).
+and [release notes](RELEASE_NOTES.md).
 
-## Development and feedback
-
-```sh
-cargo test --locked
-cargo clippy --all-targets --locked -- -D warnings
-./scripts/release_smoke.sh
-```
-
-[Developer guide](docs/developer.md) · [Release checklist](RELEASE_CHECKLIST.md) ·
-[Supported content](docs/supported-content.md) · [Media credits](docs/media-credits.md)
+## Feedback
 
 Report bugs through [GitHub issues](https://github.com/pagel-s/termcraft/issues)
 or `pagel.sebastian.1@gmail.com`. Include build, OS, terminal and reproduction steps.
 
-[The original alpha highlight video](https://youtu.be/kR986Xqzj7E) shows the older
-release; the linked galleries show the development artwork.
+[Supported content](docs/supported-content.md) · [Media credits](docs/media-credits.md)
+
+[The original alpha highlight video](https://youtu.be/kR986Xqzj7E) shows the older release.

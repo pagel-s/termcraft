@@ -1,7 +1,0 @@
-{
-  "status": "passed",
-  "final_binary_sha256": "555d571d47424e5f5dc52b6e0ffd584a5dbfc7bf8a5088f83a30201387b50885",
-  "ansi_files_checked": 205,
-  "changed": [],
-  "scope": "Exact ANSI comparison of the final executable against the reviewed normal and sheltered captures."
-}

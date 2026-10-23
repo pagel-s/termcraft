@@ -1,14 +1,8 @@
 # Supported Content
 
-> Version: `0.1.0`
->
-> Status: early alpha. This page describes the content that is currently implemented in the codebase today. It is a practical support list, not a promise of full vanilla parity.
-
-## Positioning
-
-- The game is trying to capture a classic early-2012 survival arc in a 2D terminal format.
-- A lot is already implemented.
-- Not everything from the source formula exists yet, and some implemented systems are still rough.
+This lists the content implemented in the Terminal Reborn development build,
+ahead of the published `0.1.0` alpha. It is a practical support list rather than
+a promise of full parity with the survival games that inspired Termcraft.
 
 ## Supported Mobs
 
@@ -154,14 +148,3 @@ This list is not exhaustive, but these are examples of content families that are
 - broader transport systems beyond boats
 - full polished client/server parity
 - full vanilla recipe coverage across every niche utility item
-
-## Public Documentation Guidance
-
-If you publish the repo soon, describe the game like this:
-
-- local single-player survival sandbox first
-- early alpha
-- broad but incomplete content surface
-- experimental networking
-
-That is materially more accurate than presenting it as a finished full-parity clone.
