@@ -22,6 +22,9 @@ Build a home, explore with friends over SSH and take on the dragon together.
 - **Better everyday interactions.** A recipe book and batch crafting, furnace
   input/fuel/output slots, stack handling, dropping, food feedback, working
   doors/portals, redstone-ore glow and projectile returns.
+- **Longer journeys over land.** Fewer river crossings, broader dry stretches,
+  gentler hills and graded banks. Nighttime surface encounters no longer get
+  crowded out by cave populations or start entirely beyond normal awareness.
 - **Richer places to explore.** Connected village buildings and irrigated gardens,
   refined Nether materials and landmarks, balanced ore pockets, and a front-facing
   dragon with slim pillars and a colorful fourteen-second defeat sequence.

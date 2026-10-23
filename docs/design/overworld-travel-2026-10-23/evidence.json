@@ -1,0 +1,279 @@
+{
+  "date": "2026-10-23",
+  "baseline_commit": "4d5f74e",
+  "terrain_census": {
+    "columns_per_seed": 8192,
+    "x_range": [
+      -4096,
+      4095
+    ],
+    "seed_rule": "terrain=s, temperature=s+5994, moisture=s+8580 (u32 wrapping)",
+    "before": [
+      {
+        "seed": 1337,
+        "water_columns": 1520,
+        "crossings": 98,
+        "longest_dry_run": 463,
+        "steep_dry_steps": 164,
+        "dry_steps": 6573,
+        "largest_dry_step": 13
+      },
+      {
+        "seed": 1,
+        "water_columns": 1382,
+        "crossings": 88,
+        "longest_dry_run": 420,
+        "steep_dry_steps": 195,
+        "dry_steps": 6721,
+        "largest_dry_step": 15
+      },
+      {
+        "seed": 42,
+        "water_columns": 1675,
+        "crossings": 96,
+        "longest_dry_run": 556,
+        "steep_dry_steps": 184,
+        "dry_steps": 6420,
+        "largest_dry_step": 13
+      },
+      {
+        "seed": 8675309,
+        "water_columns": 1842,
+        "crossings": 99,
+        "longest_dry_run": 468,
+        "steep_dry_steps": 194,
+        "dry_steps": 6251,
+        "largest_dry_step": 13
+      },
+      {
+        "seed": 2026,
+        "water_columns": 1908,
+        "crossings": 98,
+        "longest_dry_run": 466,
+        "steep_dry_steps": 197,
+        "dry_steps": 6186,
+        "largest_dry_step": 15
+      },
+      {
+        "seed": 13579,
+        "water_columns": 1638,
+        "crossings": 112,
+        "longest_dry_run": 443,
+        "steep_dry_steps": 209,
+        "dry_steps": 6441,
+        "largest_dry_step": 14
+      },
+      {
+        "seed": 73,
+        "water_columns": 1791,
+        "crossings": 85,
+        "longest_dry_run": 496,
+        "steep_dry_steps": 182,
+        "dry_steps": 6315,
+        "largest_dry_step": 16
+      },
+      {
+        "seed": 99991,
+        "water_columns": 1842,
+        "crossings": 94,
+        "longest_dry_run": 518,
+        "steep_dry_steps": 192,
+        "dry_steps": 6256,
+        "largest_dry_step": 16
+      }
+    ],
+    "after": [
+      {
+        "seed": 1337,
+        "water_columns": 1087,
+        "crossings": 24,
+        "longest_dry_run": 592,
+        "steep_dry_steps": 32,
+        "dry_steps": 7080,
+        "largest_dry_step": 2
+      },
+      {
+        "seed": 1,
+        "water_columns": 983,
+        "crossings": 21,
+        "longest_dry_run": 983,
+        "steep_dry_steps": 33,
+        "dry_steps": 7187,
+        "largest_dry_step": 2
+      },
+      {
+        "seed": 42,
+        "water_columns": 1101,
+        "crossings": 29,
+        "longest_dry_run": 987,
+        "steep_dry_steps": 38,
+        "dry_steps": 7061,
+        "largest_dry_step": 2
+      },
+      {
+        "seed": 8675309,
+        "water_columns": 950,
+        "crossings": 25,
+        "longest_dry_run": 847,
+        "steep_dry_steps": 42,
+        "dry_steps": 7217,
+        "largest_dry_step": 2
+      },
+      {
+        "seed": 2026,
+        "water_columns": 1406,
+        "crossings": 26,
+        "longest_dry_run": 739,
+        "steep_dry_steps": 45,
+        "dry_steps": 6760,
+        "largest_dry_step": 2
+      },
+      {
+        "seed": 13579,
+        "water_columns": 1117,
+        "crossings": 25,
+        "longest_dry_run": 836,
+        "steep_dry_steps": 43,
+        "dry_steps": 7049,
+        "largest_dry_step": 2
+      },
+      {
+        "seed": 73,
+        "water_columns": 1280,
+        "crossings": 24,
+        "longest_dry_run": 708,
+        "steep_dry_steps": 37,
+        "dry_steps": 6887,
+        "largest_dry_step": 2
+      },
+      {
+        "seed": 99991,
+        "water_columns": 1212,
+        "crossings": 23,
+        "longest_dry_run": 1159,
+        "steep_dry_steps": 41,
+        "dry_steps": 6957,
+        "largest_dry_step": 2
+      }
+    ]
+  },
+  "native_review": {
+    "limits": "Native generated terrain; camera/player positions and time staged. Night mobs are natural random spawns, not deterministic counts. No user saves opened.",
+    "night_simulation_ticks": 1200,
+    "night_surface_mobs": 14,
+    "player_health_held_for_observation": true,
+    "scenes": [
+      {
+        "biome": "Plains",
+        "id": "route-0",
+        "load_ms": 6.856064,
+        "x": 20,
+        "y": 36
+      },
+      {
+        "biome": "Plains",
+        "id": "route-450",
+        "load_ms": 13.315612,
+        "x": 450,
+        "y": 34
+      },
+      {
+        "biome": "Plains",
+        "id": "route-900",
+        "load_ms": 15.467158999999999,
+        "x": 900,
+        "y": 34
+      },
+      {
+        "biome": "Taiga",
+        "id": "route-1350",
+        "load_ms": 13.506844000000001,
+        "x": 1350,
+        "y": 31
+      }
+    ],
+    "seeds": [
+      1337,
+      7331,
+      9917,
+      17711
+    ]
+  },
+  "cpu_profile": {
+    "before": {
+      "dense_mob_ticks": {
+        "max_ms": 0.598029,
+        "p50_ms": 0.239267,
+        "p95_ms": 0.29404600000000003,
+        "p99_ms": 0.562626
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 0,
+        "final_resident_chunks": 244,
+        "peak_resident_chunks": 244,
+        "trim": false,
+        "work": {
+          "max_ms": 7.979703,
+          "p50_ms": 1.4350630000000002,
+          "p95_ms": 2.217204,
+          "p99_ms": 2.823706
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 9.77383,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "classic seeds 1337/7331/9917/17711"
+    },
+    "after": {
+      "dense_mob_ticks": {
+        "max_ms": 0.910488,
+        "p50_ms": 0.40803900000000004,
+        "p95_ms": 0.489751,
+        "p99_ms": 0.85256
+      },
+      "exploration": {
+        "chunk_centers": 240,
+        "evicted_chunks": 0,
+        "final_resident_chunks": 244,
+        "peak_resident_chunks": 244,
+        "trim": false,
+        "work": {
+          "max_ms": 5.890714,
+          "p50_ms": 1.270041,
+          "p95_ms": 1.722451,
+          "p99_ms": 2.0839090000000002
+        }
+      },
+      "final_zombie_count": 32,
+      "limits": "Headless fixture, not a terminal FPS, whole-game or co-op benchmark. Trim includes budgeted disk writes. Terrain is fixed; runtime mob RNG is not.",
+      "open_ms": 6.8794509999999995,
+      "profile": "release, 240 explored chunk centers, 600 dense-mob ticks",
+      "terrain": "classic seeds 1337/7331/9917/17711"
+    }
+  },
+  "images": {
+    "long-land.png": "ce5a2cadf62a212882716e954c882a11f180fef0ddeff0564af6e29b37f04a24",
+    "night.png": "02a56e314e656278065d3fe541dc221c5cd4e1465c67451e8a999ddb2bc44a8b",
+    "route-after.png": "662eae50c6db33097c6d9b1a328b6935e4b9d18cc61b638856fb8375ee29172a",
+    "route-before.png": "ddef95c9e151c465f604fd959e8eabf72bf773407d54aab290e1afebd4edb9ff"
+  },
+  "limits": [
+    "Census tests the natural surface profile; villages and authored landmarks have separate traversal tests.",
+    "Eight finite seed sets are a regression sample, not a guarantee for every seed.",
+    "CPU profiles are local release-build fixtures, not emulator, network, or end-to-end input latency.",
+    "Generated chunks change; existing chunks and player edits are retained."
+  ],
+  "binary_sha256": "d6149f9d2cd42c22f8e401f39154f5ac859cef2aa4483ac2aa951570ea9a9d21",
+  "validation": {
+    "library_tests": 828,
+    "library_result": "passed",
+    "real_tcp_tests": 7,
+    "real_tcp_result": "passed",
+    "clippy_all_targets": "passed with -D warnings",
+    "strict_mkdocs": "passed",
+    "public_gallery_http_resources_verified": 573,
+    "public_gallery_images_decoded": 563
+  }
+}

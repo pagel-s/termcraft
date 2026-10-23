@@ -99,6 +99,22 @@ hazard state. Fire resistance and creature immunities are respected.
 [Fluid rules](gameplay.md#water-and-lava-flow) ·
 [Water behavior captures](design/water-behavior-2026-10-19/README.md)
 
+## More continuous Overworld travel and nighttime encounters
+
+Rivers cross the landscape less frequently. Broad slopes replace short jagged
+hills, mountain relief blends across biome boundaries, and inland valleys remain
+above the water table. Banks lead down to channels rather than forming perched
+water ridges. Oceans and mixed dry/wet swamp regions remain part of exploration.
+
+Outdoor nighttime refill uses dry surface ground, with a twelve-block safety gap
+and a closer attempt range suited to 2D. Cave occupants no longer consume the
+entire surface refill allowance, while the total hostile cap is retained. Slime
+attempts fall back to ordinary hostiles when a slime site is unsuitable. Daylight,
+placed lights, Peaceful difficulty and the mob-spawning rule still apply.
+
+These terrain changes require fresh chunks. Existing builds and explored land
+are preserved. [Before/after captures and measurements](design/overworld-travel-2026-10-23/README.md).
+
 ## Villages, the Nether and the End
 
 Fresh villages have connected cottages, workshops, farmhouses, loft storage,

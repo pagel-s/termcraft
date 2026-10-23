@@ -59,6 +59,19 @@ These are available in-game:
 - `L`: toggle keep inventory
 - `O`: open the settings menu
 
+## Surface travel and nights
+
+New Overworld terrain has longer dry stretches, fewer river crossings, gentler
+slopes and banks that descend toward water. Oceans, rivers and wetland pools
+remain; bring building blocks for crossings. Saved chunks keep their terrain.
+
+Hostile mobs can spawn on unlit dry ground at night. Outdoor attempts stay on the
+surface, keep at least twelve blocks from players, and use a closer range suited
+to the side view. Cave populations share a total limit but do not consume the
+entire surface refill allowance. Lit areas remain protected. In **O** settings,
+check that difficulty is above Peaceful and mob spawning is enabled if nights
+seem empty; **P** cycles difficulty and **H** toggles mob spawning.
+
 ## Mining and ore depth
 
 Fresh terrain uses small, spaced ore deposits. Coal and iron supply early and

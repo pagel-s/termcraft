@@ -3,6 +3,9 @@ mod flight;
 #[cfg(test)]
 #[path = "interaction_tests.rs"]
 mod interaction_tests;
+#[cfg(test)]
+#[path = "surface_spawn_tests.rs"]
+mod surface_spawn_tests;
 #[path = "trial.rs"]
 mod trial;
 pub use trial::{Trial, TrialStage};
@@ -253,6 +256,7 @@ const NETHER_PIGMAN_CAP: usize = 34;
 const NETHER_GHAST_CAP: usize = 7;
 const NETHER_BLAZE_CAP: usize = 6;
 const OVERWORLD_HOSTILE_CAP: usize = 24;
+const OVERWORLD_HOSTILE_SPAWN_MIN_DIST_SQ: f64 = 12.0 * 12.0;
 const OVERWORLD_PASSIVE_CAP: usize = 12;
 const OVERWORLD_VILLAGER_CAP: usize = 8;
 const OVERWORLD_SQUID_CAP: usize = 8;
@@ -8352,12 +8356,23 @@ impl GameState {
     }
 
     fn find_dark_overworld_spawn(&self, x: i32) -> Option<f64> {
-        self.dark_spawn_floor_near(
-            x,
-            self.player.y.floor() as i32,
-            32,
-            self.time_of_day > 4000.0 && self.time_of_day < 20000.0,
-        )
+        let daylight = self.time_of_day > 4000.0 && self.time_of_day < 20000.0;
+        if !daylight
+            && self.world.has_open_sky(
+                self.player.x.floor() as i32,
+                (self.player.y - 1.0).floor() as i32,
+            )
+        {
+            // Outdoors at night, try actual dry surface ground. A cave under
+            // a river must not consume the night refill reserved for the surface.
+            let y = self.find_spawn_surface_for_daylight_mob(x)?;
+            let feet = y.floor() as i32;
+            return ((y - self.player.y).abs() <= 32.0
+                && self.world.block_light_at(x, feet) == 0
+                && self.world.block_light_at(x, feet - 1) == 0)
+                .then_some(y);
+        }
+        self.dark_spawn_floor_near(x, self.player.y.floor() as i32, 32, daylight)
     }
 
     fn is_slime_chunk(world_x: i32) -> bool {
@@ -8455,6 +8470,38 @@ impl GameState {
             2 => self.skeletons.push(Skeleton::new(spawn_x, spawn_y)),
             _ => self.spiders.push(Spider::new(spawn_x, spawn_y)),
         }
+    }
+
+    fn can_refill_overworld_hostiles(&self) -> bool {
+        // Daytime cave occupants should not consume the entire night's surface
+        // allowance. Keep the total hard cap, but measure refill pressure on the
+        // player's level rather than every cave in the resident chunk columns.
+        let mut total = 0;
+        let mut local = 0;
+        let outdoor_night = !(4000.0..=20000.0).contains(&self.time_of_day)
+            && self.world.has_open_sky(
+                self.player.x.floor() as i32,
+                (self.player.y - 1.0).floor() as i32,
+            );
+        for (x, y) in self
+            .zombies
+            .iter()
+            .map(|m| (m.x, m.y))
+            .chain(self.creepers.iter().map(|m| (m.x, m.y)))
+            .chain(self.skeletons.iter().map(|m| (m.x, m.y)))
+            .chain(self.spiders.iter().map(|m| (m.x, m.y)))
+            .chain(self.slimes.iter().map(|m| (m.x, m.y)))
+        {
+            total += 1;
+            local += usize::from(if outdoor_night {
+                self.world
+                    .has_open_sky(x.floor() as i32, (y - 1.0).floor() as i32)
+            } else {
+                (y - self.player.y).abs() <= 16.0
+            });
+        }
+        let cap = self.scaled_hostile_cap(OVERWORLD_HOSTILE_CAP);
+        total < cap && local < Self::spawn_refill_threshold(cap, 2, 3)
     }
 
     fn try_spawn_overworld_passive_mob(
@@ -9402,20 +9449,18 @@ impl GameState {
                         self.overworld_hostile_spawn_timer = self
                             .scaled_hostile_respawn_base(OVERWORLD_HOSTILE_RESPAWN_BASE)
                             + rng.gen_range(0..20);
-                        let hostile_count = self.zombies.len()
-                            + self.creepers.len()
-                            + self.skeletons.len()
-                            + self.spiders.len()
-                            + self.slimes.len();
-                        let hostile_cap = self.scaled_hostile_cap(OVERWORLD_HOSTILE_CAP);
-                        let hostile_refill_cap = Self::spawn_refill_threshold(hostile_cap, 2, 3);
                         let slime_cap = self.scaled_hostile_cap(OVERWORLD_SLIME_CAP);
-                        if hostile_count < hostile_refill_cap {
+                        if self.can_refill_overworld_hostiles() {
                             for _ in 0..6 {
-                                let wx = player_wx + rng.gen_range(-80..=80);
+                                // A 24-block exclusion placed every stationary
+                                // spawn beyond the zombie's 20-block awareness.
+                                let offset = rng.gen_range(12..=40);
+                                let wx =
+                                    player_wx + if rng.gen_bool(0.5) { offset } else { -offset };
                                 let can_try_slime = Self::is_slime_chunk(wx);
                                 let spawn_y = if can_try_slime {
                                     self.find_spawn_surface_for_slime(wx)
+                                        .or_else(|| self.find_dark_overworld_spawn(wx))
                                 } else {
                                     self.find_dark_overworld_spawn(wx)
                                 };
@@ -9423,8 +9468,11 @@ impl GameState {
                                     continue;
                                 };
                                 let spawn_x = wx as f64 + 0.5;
-                                if self.is_spawn_too_close_to_player(spawn_x, spawn_y, 24.0 * 24.0)
-                                {
+                                if self.is_spawn_too_close_to_player(
+                                    spawn_x,
+                                    spawn_y,
+                                    OVERWORLD_HOSTILE_SPAWN_MIN_DIST_SQ,
+                                ) {
                                     continue;
                                 }
                                 if can_try_slime
@@ -11279,22 +11327,16 @@ impl GameState {
                 Dimension::Overworld => {
                     if hostile_spawning_enabled && chunk_hostile_spawns_remaining > 0 {
                         // Hostile Mobs
-                        let hostile_cap = self.scaled_hostile_cap(OVERWORLD_HOSTILE_CAP);
-                        let hostile_refill_cap = Self::spawn_refill_threshold(hostile_cap, 2, 3);
                         let slime_cap = self.scaled_hostile_cap(OVERWORLD_SLIME_CAP);
                         for _ in 0..self.overworld_chunk_hostile_rolls(&mut rng) {
-                            let hostile_count = self.zombies.len()
-                                + self.creepers.len()
-                                + self.skeletons.len()
-                                + self.spiders.len()
-                                + self.slimes.len();
-                            if hostile_count >= hostile_refill_cap {
+                            if !self.can_refill_overworld_hostiles() {
                                 break;
                             }
                             let wx = wx_start + rng.gen_range(0..CHUNK_WIDTH as i32);
                             let can_try_slime = Self::is_slime_chunk(wx);
                             let spawn_y = if can_try_slime {
                                 self.find_spawn_surface_for_slime(wx)
+                                    .or_else(|| self.find_dark_overworld_spawn(wx))
                             } else {
                                 self.find_dark_overworld_spawn(wx)
                             };
@@ -11302,7 +11344,11 @@ impl GameState {
                                 continue;
                             };
                             let spawn_x = wx as f64 + 0.5;
-                            if self.is_spawn_too_close_to_player(spawn_x, spawn_y, 24.0 * 24.0) {
+                            if self.is_spawn_too_close_to_player(
+                                spawn_x,
+                                spawn_y,
+                                OVERWORLD_HOSTILE_SPAWN_MIN_DIST_SQ,
+                            ) {
                                 continue;
                             }
                             if can_try_slime
@@ -15570,6 +15616,18 @@ mod tests {
         state.item_entities.clear();
         state.arrows.clear();
         state.fireballs.clear();
+    }
+
+    fn prepare_test_respawn_ground(state: &mut GameState) {
+        // Respawn-state tests need a known safe bank inside their asserted
+        // radius, independent of a randomly seeded ocean at the origin.
+        state.world.load_chunks_for_spawn_search(0, 56);
+        for x in -56..=56 {
+            for y in 0..32 {
+                state.world.set_block(x, y, BlockType::Air);
+            }
+            state.world.set_block(x, 32, BlockType::Grass);
+        }
     }
 
     fn setup_player_in_lava_column(state: &mut GameState) {
@@ -20083,6 +20141,7 @@ mod tests {
     #[test]
     fn test_respawn_from_death_screen_restores_player() {
         let mut state = GameState::new();
+        prepare_test_respawn_ground(&mut state);
         state.player.health = -1.0;
         state.player.hunger = 0.0;
         state.update(0, 0);
@@ -20863,6 +20922,7 @@ mod tests {
         let bad_bed_y = 9;
         state.current_dimension = Dimension::Overworld;
         state.world = World::new_for_dimension(Dimension::Overworld);
+        prepare_test_respawn_ground(&mut state);
         state.world.load_chunks_around(bad_bed_x);
         state.world.set_block(bad_bed_x, bad_bed_y, BlockType::Air);
         state.spawn_point = Some((bad_bed_x, bad_bed_y));

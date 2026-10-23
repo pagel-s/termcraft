@@ -1183,3 +1183,7 @@ Actual generated cavern, with explicitly staged pigman, blaze and ghast position
 [Overview](nether-encounter-00.png) · [Detail](nether-encounter-01.png) · [Motion](nether-creatures.gif)
 
 </details>
+
+The [23 October Overworld travel review](../overworld-travel-2026-10-23/README.md)
+shows the newer river spacing, continuous land and surface-night fixes. This
+atlas retains its original dated terrain captures.

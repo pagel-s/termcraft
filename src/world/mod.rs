@@ -4,6 +4,8 @@ mod heat;
 mod lighting;
 mod ores;
 mod portals;
+#[cfg(test)]
+mod travel_tests;
 pub use attachments::{RoomMaterial, TorchAttachment};
 pub mod block;
 pub mod chunk;
@@ -19,6 +21,7 @@ use item::{Inventory, ItemType};
 use noise::{NoiseFn, Perlin, Seedable};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -45,6 +48,20 @@ pub enum BiomeType {
     River,
 }
 
+// Neighboring height and shoreline queries reuse the same climate samples.
+// A small direct-mapped cache avoids repeating noise work for every step of a
+// bank grade. Worker threads have independent caches; seed and coordinate tags
+// prevent aliases between worlds, negative coordinates and distant chunks.
+struct BiomeCache {
+    seeds: (u32, u32),
+    columns: [Option<(i32, BiomeType)>; 512],
+}
+thread_local! {
+    static BIOME_CACHE: RefCell<BiomeCache> = const { RefCell::new(BiomeCache {
+        seeds: (0, 0), columns: [None; 512],
+    }) };
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ChunkLoadMetrics {
     pub sync_loaded: u64,
@@ -64,12 +81,15 @@ const RESIDENT_CHUNK_RADIUS: i32 = PREFETCH_CHUNK_RADIUS + 3;
 const CHUNK_MOTION_LOAD_THRESHOLD_RATIO: f64 = 0.65;
 const SHORELINE_BLEND_RADIUS: i32 = 3;
 const SHORELINE_SHELF_RADIUS: i32 = 4;
+const OVERWORLD_COAST_GRADE_RADIUS: i32 = 24;
 const OVERWORLD_BIOME_CLIMATE_MACRO_SCALE: f64 = 0.0042;
 const OVERWORLD_BIOME_CLIMATE_DETAIL_SCALE: f64 = 0.0105;
 const OVERWORLD_BIOME_CONTINENTAL_SCALE: f64 = 0.0021;
 const OVERWORLD_BIOME_CONTINENTAL_DETAIL_SCALE: f64 = 0.0056;
-const OVERWORLD_BIOME_RIVER_SCALE: f64 = 0.0135;
-const OVERWORLD_BIOME_RIVER_DETAIL_SCALE: f64 = 0.0175;
+// Crossing a channel interrupts the entire route in a side-on world. Space
+// rivers on the landscape scale instead of cutting every short hill into islands.
+const OVERWORLD_BIOME_RIVER_SCALE: f64 = 0.0025;
+const OVERWORLD_BIOME_RIVER_DETAIL_SCALE: f64 = 0.004;
 const CHUNK_PIPELINE_WORKERS: usize = 3;
 const CHUNK_PIPELINE_MAX_PENDING: usize = 24;
 const CHUNK_PIPELINE_MAX_IN_FLIGHT: usize = 12;
@@ -2271,6 +2291,25 @@ impl World {
     }
 
     fn biome_for_x(temp_perlin: &Perlin, moist_perlin: &Perlin, world_x: i32) -> BiomeType {
+        BIOME_CACHE.with_borrow_mut(|cache| {
+            let seeds = (temp_perlin.seed(), moist_perlin.seed());
+            if cache.seeds != seeds {
+                cache.seeds = seeds;
+                cache.columns.fill(None);
+            }
+            let index = world_x.rem_euclid(cache.columns.len() as i32) as usize;
+            if let Some((x, biome)) = cache.columns[index]
+                && x == world_x
+            {
+                return biome;
+            }
+            let biome = Self::sample_biome_for_x(temp_perlin, moist_perlin, world_x);
+            cache.columns[index] = Some((world_x, biome));
+            biome
+        })
+    }
+
+    fn sample_biome_for_x(temp_perlin: &Perlin, moist_perlin: &Perlin, world_x: i32) -> BiomeType {
         let temp = Self::biome_climate_noise(
             temp_perlin,
             world_x,
@@ -2285,12 +2324,7 @@ impl World {
             OVERWORLD_BIOME_CLIMATE_DETAIL_SCALE * 0.96,
             247.0,
         );
-        let continental =
-            temp_perlin.get([world_x as f64 * OVERWORLD_BIOME_CONTINENTAL_SCALE, 911.0]) * 0.78
-                + temp_perlin.get([
-                    world_x as f64 * OVERWORLD_BIOME_CONTINENTAL_DETAIL_SCALE,
-                    467.0,
-                ]) * 0.22;
+        let continental = Self::continental_noise(temp_perlin, world_x);
         let river_band = (temp_perlin.get([world_x as f64 * OVERWORLD_BIOME_RIVER_SCALE, 123.0])
             * 0.65
             + moist_perlin.get([world_x as f64 * OVERWORLD_BIOME_RIVER_DETAIL_SCALE, 321.0])
@@ -2298,7 +2332,7 @@ impl World {
             .abs();
         if continental < -0.5 {
             BiomeType::Ocean
-        } else if river_band < 0.07 && continental < 0.08 {
+        } else if river_band < 0.035 && continental < 0.08 {
             BiomeType::River
         } else if temp > 0.45 && moist > 0.22 {
             BiomeType::Jungle
@@ -2405,9 +2439,19 @@ impl World {
     }
 
     fn overworld_surface_y(perlin: &Perlin, world_x: i32) -> i32 {
-        let n1 = perlin.get([world_x as f64 * 0.015, 0.0]);
-        let n2 = perlin.get([world_x as f64 * 0.08, 100.0]) * 0.2;
-        (32.0 + (n1 + n2) * 12.0) as i32
+        let broad = perlin.get([world_x as f64 * 0.006, 0.0]) * 12.0;
+        let detail = perlin.get([world_x as f64 * 0.018, 100.0]);
+        // Inland valleys stay above the shared water table. Otherwise a river
+        // at sea level becomes a perched ridge across lower, artificially dry land.
+        ((32.0 + broad + detail).round() as i32).min(OVERWORLD_SEA_LEVEL - 2)
+    }
+
+    fn continental_noise(perlin: &Perlin, world_x: i32) -> f64 {
+        perlin.get([world_x as f64 * OVERWORLD_BIOME_CONTINENTAL_SCALE, 911.0]) * 0.78
+            + perlin.get([
+                world_x as f64 * OVERWORLD_BIOME_CONTINENTAL_DETAIL_SCALE,
+                467.0,
+            ]) * 0.22
     }
 
     fn nearest_biome_in_radius<F>(
@@ -2433,7 +2477,7 @@ impl World {
 
     fn adjusted_overworld_surface_y(perlin: &Perlin, world_x: i32, biome: BiomeType) -> i32 {
         let base = Self::overworld_surface_y(perlin, world_x);
-        let jagged = perlin.get([world_x as f64 * 0.06, 540.0]).abs();
+        let jagged = perlin.get([world_x as f64 * 0.011, 540.0]).abs();
         let wetland_noise = perlin.get([world_x as f64 * 0.028, 620.0]).abs();
         let channel_noise = perlin.get([world_x as f64 * 0.041, 880.0]).abs();
         let adjusted = match biome {
@@ -2450,7 +2494,7 @@ impl World {
             // every column below sea level suppressed all its trees and reeds.
             BiomeType::Swamp => {
                 OVERWORLD_SEA_LEVEL
-                    + (perlin.get([world_x as f64 * 0.028, 620.0]) * 6.0).round() as i32
+                    + (perlin.get([world_x as f64 * 0.006, 620.0]) * 6.0).round() as i32
             }
             BiomeType::Jungle => base - 2 + (jagged * 2.0) as i32,
             BiomeType::ExtremeHills => base - 8 - (jagged * 10.0) as i32,
@@ -2469,6 +2513,48 @@ impl World {
         let mut adjusted = Self::adjusted_overworld_surface_y(perlin, world_x, biome);
         let shore_noise = perlin.get([world_x as f64 * 0.09, 760.0]).abs();
         let shoreline_lip_noise = perlin.get([world_x as f64 * 0.034, 812.0]);
+
+        if !Self::is_surface_water_biome(biome) {
+            // Blend mountain relief through climate space, including its neighboring
+            // land biomes. A biome label must not create a vertical 16-block wall.
+            let continental = Self::continental_noise(temp_perlin, world_x);
+            let temp = Self::biome_climate_noise(
+                temp_perlin,
+                world_x,
+                OVERWORLD_BIOME_CLIMATE_MACRO_SCALE,
+                OVERWORLD_BIOME_CLIMATE_DETAIL_SCALE,
+                0.0,
+            );
+            let hills =
+                ((continental - 0.25) / 0.2).clamp(0.0, 1.0) * ((0.4 - temp) / 0.1).clamp(0.0, 1.0);
+            let relief = 8.0 + perlin.get([world_x as f64 * 0.011, 540.0]).abs() * 10.0;
+            adjusted = Self::overworld_surface_y(perlin, world_x) - (relief * hills).round() as i32;
+            if let Some((water_biome, distance)) = Self::nearest_biome_in_radius(
+                temp_perlin,
+                moist_perlin,
+                world_x,
+                OVERWORLD_COAST_GRADE_RADIUS,
+                Self::is_surface_water_biome,
+            ) {
+                // A traversable one-block grade leads down to the water's edge.
+                adjusted = adjusted.clamp(
+                    OVERWORLD_SEA_LEVEL - distance,
+                    if distance == 1 {
+                        Self::shoreline_land_water_depth_limit(water_biome, distance)
+                    } else {
+                        OVERWORLD_SEA_LEVEL + (distance - SHORELINE_BLEND_RADIUS).max(0)
+                    },
+                );
+            }
+        } else if biome == BiomeType::Swamp
+            && let Some((_, distance)) =
+                Self::nearest_biome_in_radius(temp_perlin, moist_perlin, world_x, 8, |b| {
+                    !Self::is_surface_water_biome(b)
+                })
+        {
+            let edge = OVERWORLD_SEA_LEVEL - 1;
+            adjusted = edge + ((adjusted - edge) as f64 * (distance as f64 / 8.0)).round() as i32;
+        }
 
         if biome == BiomeType::Ocean {
             if let Some((_land_biome, distance)) = Self::nearest_biome_in_radius(
@@ -3897,7 +3983,7 @@ impl World {
             if water_edge_column
                 && !matches!(b, BiomeType::Ocean)
                 && h < match b {
-                    BiomeType::Swamp => 30,
+                    BiomeType::Swamp => 65,
                     BiomeType::River => 24,
                     BiomeType::Desert => 18,
                     _ => 12,
@@ -3911,7 +3997,11 @@ impl World {
                     && sy > 0
                     && chunk.get_block(lx, (sy - 1) as usize) == BlockType::Air
                 {
-                    let cane_height = 1 + (h % 3) as usize;
+                    let cane_height = if b == BiomeType::Swamp {
+                        2 + (h % 2) as usize
+                    } else {
+                        1 + (h % 3) as usize
+                    };
                     for ty in 1..=cane_height {
                         chunk.set_block(lx, (sy as usize).saturating_sub(ty), BlockType::SugarCane);
                     }
@@ -7871,133 +7961,96 @@ mod tests {
     }
 
     #[test]
-    fn test_submerged_shoreline_land_columns_fill_with_water_and_skip_decor() {
-        let perlin = Perlin::new(1337);
-        let temp_perlin = Perlin::new(7331);
-        let moist_perlin = Perlin::new(9917);
-        let cave_perlin = Perlin::new(17_711);
-
+    fn test_generated_shoreline_has_a_dry_beach_and_a_clear_lower_channel() {
+        let terrain = Perlin::new(1337);
+        let temp = Perlin::new(7331);
+        let moist = Perlin::new(9917);
+        let cave = Perlin::new(17_711);
         let mut sample = None;
-        for x in (-120_000..=120_000).step_by(1) {
-            let biome = World::biome_for_x(&temp_perlin, &moist_perlin, x);
-            if matches!(
-                biome,
-                BiomeType::Ocean | BiomeType::River | BiomeType::Swamp | BiomeType::Desert
-            ) {
-                continue;
-            }
-
-            let surface_y =
-                World::blended_overworld_surface_y(&perlin, &temp_perlin, &moist_perlin, x, biome);
-            if surface_y <= OVERWORLD_SEA_LEVEL {
-                continue;
-            }
-            if World::nearest_biome_in_radius(
-                &temp_perlin,
-                &moist_perlin,
-                x,
-                SHORELINE_BLEND_RADIUS,
-                |candidate| matches!(candidate, BiomeType::Ocean | BiomeType::River),
-            )
-            .is_none()
-            {
-                continue;
-            }
-
-            let decor_roll = (x as u32).wrapping_mul(134775813).wrapping_add(9821471) % 100;
-            let decor_limit = match biome {
-                BiomeType::Forest => 20,
-                BiomeType::Taiga => 12,
-                BiomeType::Jungle => 24,
-                BiomeType::ExtremeHills => 12,
-                BiomeType::Tundra => 12,
-                BiomeType::Plains => 20,
-                _ => 0,
-            };
-            if decor_roll >= decor_limit {
-                continue;
-            }
-
-            sample = Some((x, surface_y));
-            break;
-        }
-
-        let (x, surface_y) =
-            sample.expect("expected a submerged shoreline land sample near ocean or river");
-        let chunk_x = x.div_euclid(CHUNK_WIDTH as i32);
-        let chunk = World::build_chunk_with_noise(
-            chunk_x,
-            Dimension::Overworld,
-            "test_submerged_shoreline_land_columns_fill_with_water_and_skip_decor",
-            &perlin,
-            &temp_perlin,
-            &moist_perlin,
-            &cave_perlin,
-        );
-        let lx = x.rem_euclid(CHUNK_WIDTH as i32) as usize;
-        assert_eq!(
-            chunk.get_block(lx, OVERWORLD_SEA_LEVEL as usize),
-            BlockType::Water(8)
-        );
-        assert_eq!(
-            chunk.get_block(lx, (surface_y - 1) as usize),
-            BlockType::Water(8)
-        );
-        assert_eq!(chunk.get_block(lx, surface_y as usize), BlockType::Sand);
-    }
-
-    #[test]
-    fn test_submerged_land_columns_stay_tied_to_immediate_water_biome_edge() {
-        let perlin = Perlin::new(1337);
-        let temp_perlin = Perlin::new(7331);
-        let moist_perlin = Perlin::new(9917);
-
-        let mut checked = 0usize;
-        for x in (-160_000..=160_000).step_by(1) {
-            let biome = World::biome_for_x(&temp_perlin, &moist_perlin, x);
+        for x in -120_000..=120_000 {
+            let biome = World::biome_for_x(&temp, &moist, x);
             if World::is_surface_water_biome(biome) {
                 continue;
             }
-
-            let surface_y =
-                World::blended_overworld_surface_y(&perlin, &temp_perlin, &moist_perlin, x, biome);
-            if !World::column_has_surface_water(
-                &perlin,
-                &temp_perlin,
-                &moist_perlin,
-                x,
-                biome,
-                surface_y,
-            ) {
+            let sy = World::blended_overworld_surface_y(&terrain, &temp, &moist, x, biome);
+            if !World::is_beach_column(&temp, &moist, x, biome, sy) {
                 continue;
             }
-
-            let touches_water_biome = [x - 1, x + 1].into_iter().any(|sample_x| {
-                let sample_biome = World::biome_for_x(&temp_perlin, &moist_perlin, sample_x);
-                let sample_surface_y = World::blended_overworld_surface_y(
-                    &perlin,
-                    &temp_perlin,
-                    &moist_perlin,
-                    sample_x,
-                    sample_biome,
-                );
-                World::is_surface_water_biome(sample_biome)
-                    && sample_surface_y > OVERWORLD_SEA_LEVEL
+            let water_x = [x - 1, x + 1].into_iter().find(|&wx| {
+                let b = World::biome_for_x(&temp, &moist, wx);
+                let y = World::blended_overworld_surface_y(&terrain, &temp, &moist, wx, b);
+                matches!(b, BiomeType::Ocean | BiomeType::River) && y > OVERWORLD_SEA_LEVEL
             });
-            assert!(
-                touches_water_biome,
-                "submerged land at x={x} was not attached to an immediate water-biome edge"
-            );
-            checked += 1;
-            if checked >= 24 {
+            if let Some(water_x) = water_x {
+                sample = Some((x, sy, water_x));
                 break;
             }
         }
-
+        let (x, sy, water_x) = sample.expect("expected a shoreline beach beside open water");
+        let chunk_at = |wx: i32| {
+            World::build_chunk_with_noise(
+                wx.div_euclid(CHUNK_WIDTH as i32),
+                Dimension::Overworld,
+                "shoreline_review",
+                &terrain,
+                &temp,
+                &moist,
+                &cave,
+            )
+        };
+        let land = chunk_at(x);
+        let lx = x.rem_euclid(CHUNK_WIDTH as i32) as usize;
         assert!(
-            checked > 0,
-            "expected at least one shoreline submersion sample"
+            sy <= OVERWORLD_SEA_LEVEL,
+            "beach ground must sit above the water table"
         );
+        assert_eq!(land.get_block(lx, sy as usize), BlockType::Sand);
+        assert!(!land.get_block(lx, (sy - 1) as usize).is_fluid());
+        let water = chunk_at(water_x);
+        let wx = water_x.rem_euclid(CHUNK_WIDTH as i32) as usize;
+        assert_eq!(
+            water.get_block(wx, OVERWORLD_SEA_LEVEL as usize),
+            BlockType::Water(8)
+        );
+        assert_eq!(
+            water.get_block(wx, (OVERWORLD_SEA_LEVEL - 1) as usize),
+            BlockType::Air
+        );
+    }
+
+    #[test]
+    fn test_only_immediate_coast_edges_can_supply_a_lowered_land_column() {
+        let terrain = Perlin::new(1337);
+        let temp = Perlin::new(7331);
+        let moist = Perlin::new(9917);
+        let mut coastal = 0;
+        let mut inland = 0;
+        for x in -12_000..=12_000 {
+            let biome = World::biome_for_x(&temp, &moist, x);
+            if World::is_surface_water_biome(biome) {
+                continue;
+            }
+            let touches_wet_biome = [x - 1, x + 1].into_iter().any(|wx| {
+                let b = World::biome_for_x(&temp, &moist, wx);
+                let y = World::blended_overworld_surface_y(&terrain, &temp, &moist, wx, b);
+                World::is_surface_water_biome(b) && y > OVERWORLD_SEA_LEVEL
+            });
+            // Fresh inland ground is dry. Also retain the flooding rule for a
+            // lowered edge: only directly adjacent water may supply that column.
+            let lowered_y = OVERWORLD_SEA_LEVEL + 1;
+            let supplied =
+                World::column_has_surface_water(&terrain, &temp, &moist, x, biome, lowered_y);
+            assert_eq!(
+                supplied, touches_wet_biome,
+                "nonlocal coast flooding at x={x}"
+            );
+            if supplied {
+                coastal += 1;
+            } else {
+                inland += 1;
+            }
+        }
+        assert!(coastal > 8 && inland > 1000);
     }
 
     #[test]
@@ -8107,13 +8160,8 @@ mod tests {
         let mut checked_level_banks = 0usize;
         for x in (-160_000..=160_000).step_by(1) {
             let biome = World::biome_for_x(&temp_perlin, &moist_perlin, x);
-            if matches!(
-                biome,
-                BiomeType::Ocean | BiomeType::River | BiomeType::Swamp
-            ) {
-                continue;
-            }
-
+            // Include dry swamp hummocks: broader wetlands now have inland
+            // pond banks as well as boundaries with a different land biome.
             let surface_y =
                 World::blended_overworld_surface_y(&perlin, &temp_perlin, &moist_perlin, x, biome);
             if World::column_has_surface_water(
@@ -8303,22 +8351,28 @@ mod tests {
         let perlin = Perlin::new(1337);
         let temp_perlin = Perlin::new(7331);
         let moist_perlin = Perlin::new(9917);
-        let cave_perlin = Perlin::new(17_711);
 
+        let world = deterministic_generated_world(
+            Dimension::Overworld,
+            "test_overworld_generation_keeps_dry_surface_cap_solid",
+            -24,
+            24,
+        );
+        let villages = world.village_sites_near(0, 1024);
         let mut sampled_dry_column = false;
         for chunk_x in -24..=24 {
-            let chunk = World::build_chunk_with_noise(
-                chunk_x,
-                Dimension::Overworld,
-                "test_overworld_generation_keeps_dry_surface_cap_solid",
-                &perlin,
-                &temp_perlin,
-                &moist_perlin,
-                &cave_perlin,
-            );
+            let chunk = world.chunks.get(&chunk_x).unwrap();
             let c_start = chunk_x * CHUNK_WIDTH as i32;
             for lx in 0..CHUNK_WIDTH {
                 let wx = c_start + lx as i32;
+                // Village roads deliberately terraform the natural surface;
+                // their foundations and grading have dedicated tests.
+                if villages
+                    .iter()
+                    .any(|v| (wx - v.center_x).abs() <= village::VILLAGE_RADIUS)
+                {
+                    continue;
+                }
                 let biome = World::biome_for_x(&temp_perlin, &moist_perlin, wx);
                 let surface_y = World::blended_overworld_surface_y(
                     &perlin,
