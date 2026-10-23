@@ -106,9 +106,10 @@ or larger. Mouse support is recommended.
 | Settings / diagnostics | `O` / `F3` |
 | Close UI / save and quit | `Q` or `Esc` |
 
-**Press `=` from Overview to see the full detailed figure.** Terminal font size
-is independent of the selected view. Reliable double-tap sprint needs directional
-key-release events; F3 shows `keys:release` or the repeat-only fallback.
+**Detail is the default for a fresh setup.** Your saved view takes precedence;
+use `-` for more world context or `=` to return to Detail. Resizing the terminal
+keeps the selected view, and terminal font size is independent of it. Reliable
+double-tap sprint needs directional key-release events; F3 shows `keys:release` or the repeat-only fallback.
 See [gameplay](docs/gameplay.md) for crafting, furnaces and portal use.
 
 ## Play with friends

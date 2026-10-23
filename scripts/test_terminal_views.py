@@ -28,7 +28,7 @@ def check(binary, root, mode):
     game = TerminalGame(binary, save, root / mode / 'captures', 'terminal-input', address)
     samples = []
     try:
-        assert 'Overview' in game.screen.text().splitlines()[0]
+        assert 'Detail' in game.screen.text().splitlines()[0], (mode, 'fresh startup must use Detail')
         game.send(b'=')
         game.pump(0.2)
         assert 'Detail' in game.screen.text().splitlines()[0]
@@ -62,7 +62,7 @@ def check(binary, root, mode):
             game.capture(name + '-moving-diagnostics')
             game.send(b'\x1b[13~')
             game.pump(0.1)
-        return dict(mode=mode, detail_survived_resize=True, zoom_keys_and_f4=True,
+        return dict(mode=mode, fresh_default='Detail', detail_survived_resize=True, zoom_keys_and_f4=True,
                     moving_timings=samples, captures=str(game.artifacts), **game.finish())
     finally:
         game.close()

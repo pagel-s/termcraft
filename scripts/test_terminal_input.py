@@ -392,6 +392,8 @@ def check_village_doors(binary, example, root):
             shutil.copytree(original, save_root)
             game = TerminalGame(binary, save_root, root / ("door-" + name) / "captures")
             try:
+                game.send(b"-")  # Select Overview explicitly from the fresh Detail default.
+                game.pump(0.1)
                 for _ in range(view_index):
                     game.send(b"\x1bOS")  # F4 cycles overview -> wide -> close.
                     game.pump(0.1)

@@ -238,10 +238,10 @@ sparkles update less often to reduce distracting repainting.
 
 ## Art and movement review
 
-Use `=` or `+` to zoom in and `-` to zoom out. From the default Overview, one `=`
-selects Detail and shows the full character artwork. `F4` also cycles Overview,
-Wide and Detail. The header names the active view. Each color view retains its
-resolution when the terminal font or window changes: Detail stays detailed at
+Fresh setups start in **Detail**, with the full character artwork. A valid saved
+view takes precedence. Use `-` for Overview, then Wide, and `=` or `+` to zoom
+back in. `F4` cycles Overview, Wide and Detail. The header names the active view.
+Each color view retains its resolution when the terminal font or window changes: Detail stays detailed at
 80×24, 120×40 and larger sizes, including in the End. A smaller window shows less
 world instead of silently replacing the figure. Use Overview/Wide for arena
 context; 160×48 is a useful starting size. `NO_COLOR` retains the explicitly

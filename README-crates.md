@@ -28,6 +28,8 @@ The development branch adds coordinated terminal pixel art, movement and collisi
 refinements, a recipe book and furnace slots, connected villages, fluid and
 survival fixes, and co-op with independent dimension travel and SSH joining.
 **Lantern Run** provides a separate combat, traversal and bridge-building route.
+Fresh setups start in Detail; saved view choices and terminal resizing preserve
+your selected view. Use **-** for more world context.
 
 Download a native development archive or build `beta/terminal-reborn` from source;
 these changes are not in crates.io `0.1.0`. See the

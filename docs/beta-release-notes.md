@@ -28,8 +28,9 @@ shadows, shared lighting, opaque terrain and room cutaways anchor figures in the
 scene. Torches attach to real supports; glowstone illuminates nearby terrain.
 
 Overview, Wide and Detail keep their artwork when the terminal window or font
-changes. Press **=** from Overview for the detailed figure; **F4** cycles views,
-and the selection survives quitting. Rain and snow fall downward and stop at roofs
+changes. Fresh setups start in **Detail**; saved view choices take precedence.
+Use **-** for more context, **=** to zoom in, or **F4** to cycle views. The
+selection survives quitting and resizing. Rain and snow fall downward and stop at roofs
 and cave ceilings. The HUD labels the view and separates health, food, sprint,
 targeting and mining progress.
 

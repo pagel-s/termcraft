@@ -27,7 +27,7 @@ start classic survival for the open world. The route has its own save.
 ## What is in the development build
 
 - Coordinated pixel art for blocks, items and creatures across all three dimensions.
-- Overview, Wide and Detail views; press **=** from Overview for the detailed figure.
+- Detail by default; saved Overview/Wide selections are respected. Use **-** for more world context.
 - Refined walking, sprinting, jumping, ladders, collision and swimming.
 - A recipe book, manual crafting, explicit furnace slots, storage and item dropping.
 - Generated villages, caves, strongholds and Nether fortresses; functional portals.

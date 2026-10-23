@@ -29,8 +29,9 @@ are development artifacts, with native human qualification still open.
 
 Use a terminal with raw input, a monospace font and preferably true color,
 keyboard release events and mouse support. Start at **120×40** or larger for more
-world context. **=** selects Detail from the default Overview; **-** zooms out and
-**F4** cycles views. Detail also works at 80×24. **F3** shows timing/input diagnostics.
+world context. **Detail is the default** unless you have saved another view.
+**-** zooms out, **=** zooms in, and **F4** cycles views. Resizing keeps your
+selection; Detail also works at 80×24. **F3** shows timing/input diagnostics.
 
 ## Build from source
 

@@ -44,8 +44,9 @@ Get a successful native artifact for `beta/terminal-reborn` from
 or build the branch with Rust 1.88+. Archive launchers start Lantern Run; run the
 executable directly for classic survival. Rust is not needed to run an archive.
 
-Hold A/D or arrows to walk; double-tap and hold to sprint. Press **=** from
-Overview for the detailed figure; **F4** cycles views. **V / Shift+V** drops one
+Hold A/D or arrows to walk; double-tap and hold to sprint. **Detail is the default**
+for fresh setups; saved view choices are respected. **-** zooms out, **=** zooms
+in, and **F4** cycles views. **V / Shift+V** drops one
 item / its stack. See [installation](docs/installation.md) and
 [full release notes](docs/beta-release-notes.md).
 

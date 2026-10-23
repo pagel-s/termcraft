@@ -105,7 +105,8 @@ impl Renderer {
         Ok(renderer)
     }
 
-    /// Offscreen rendering uses the same composition and ANSI output as live play.
+    /// Offscreen rendering uses live composition and ANSI output, starting at
+    /// Overview for reproducible captures. Live startup loads its view preference.
     pub fn with_size(cols: u16, rows: u16) -> Self {
         let cols = cols.max(1);
         let rows = rows.max(1);
@@ -5750,7 +5751,7 @@ mod tests {
     }
 
     #[test]
-    fn default_view_has_context_and_cycles_wide_then_detailed() {
+    fn offscreen_view_starts_at_overview_and_cycles_wide_then_detailed() {
         let state = GameState::network_view();
         let mut renderer = Renderer::with_size(160, 48);
         let mut output = Vec::new();

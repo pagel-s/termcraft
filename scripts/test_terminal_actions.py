@@ -36,6 +36,8 @@ def check(binary, fixture, root, mode):
             game.send(b'\x1b[20~')  # F9, confined to this disposable solo save.
             game.pump(0.2)
         arrow_counts = []
+        game.send(b'-')  # Coordinate fixtures start in Overview, independent of the live default.
+        game.pump(0.15)
         for view in ['overview', 'wide', 'detail']:
             game.send(b'2')
             game.pump(0.2)

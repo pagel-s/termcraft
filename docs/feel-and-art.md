@@ -70,8 +70,9 @@ together: the updated movement rules use **network protocol 16**.
 - Jump beside a wall and under a ceiling. The player now moves vertically relative
   to the easing camera; co-op predicts jump, landing and collision locally.
 - Switch focus while holding movement. Focus loss clears held controls.
-- The default is Overview. Press `=`/`+` once for Detail, or `-` for Wide; `F4`
-  cycles Overview → Wide → Detail. The header labels the view. Detail uses full
+- Fresh setups default to Detail; valid saved views take precedence. Press `-`
+  for Overview and again for Wide, or `=`/`+` to zoom in. `F4` cycles
+  Overview → Wide → Detail. The header labels the view. Detail uses full
   8×8 block pixels even at 80×24 and in the End. Window/font resizing changes how
   much world fits, without reducing the selected sprite resolution. `NO_COLOR`
   retains labelled glyphs. HUD and inventory retain their normal resolution.
@@ -108,9 +109,9 @@ and invisible foreground changes. Frame pacing waits only the remainder of the
 frame budget after rendering/flush work; slow frames add no extra sleep or catch-up
 paint burst. Synchronization requires emulator support; CPU timings alone do not
 prove smooth presentation. See the [view/input follow-up](design/view-controls-2026-10-16/README.md).
-The default pixel overview shows 40 blocks across at 160×48 instead of 20. F4 gives
-wide pixels, then optional detail. The sky uses restrained screen-space clouds,
-a stepped sun/moon and stable stars in both color overview/detail and wide views.
+Overview shows 40 blocks across at 160×48 instead of Detail's 20. Detail is now
+the fresh-start default; `-` selects Overview, while F4 cycles all three views.
+The sky uses restrained screen-space clouds, a stepped sun/moon and stable stars in both color overview/detail and wide views.
 The noisy cloud field, foreground-derived distant ridge and competing sky motion
 are removed. Swing poses use a short shaded arm and compact held tool.
 
