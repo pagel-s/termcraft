@@ -257,7 +257,7 @@ the wall behind their empty pixels. The End tunnel recess stays separate.
 
 At small terminal sizes, Lantern Run displays a complete compact objective and
 one contextual controls hint for climbing, chest transfer, bridging or lighting
-the signal. The game-master status keeps priority over that hint.
+the signal. Other active status messages keep priority over that hint.
 
 [Review captures and reproduction](design/room-physics-2026-10-12/index.html)
 include the same seeded village before/after, focused flight impacts, and updated

@@ -39,7 +39,7 @@ child processes opt in, and it matches only `player_progression.bin.tmp` under
 their explicitly supplied disposable world. No filesystem is filled or mounted;
 normal game launches load no fault library.
 
-Six cases use actual CLI/MCP entry, ordinary stick crafting, save and reopen:
+Six cases use actual CLI/process entry, ordinary stick crafting, save and reopen:
 
 | Fault | Checked result |
 | --- | --- |
@@ -61,7 +61,7 @@ after confirming that child exited. All worlds and keys belong to the fixture.
 ## Villager fixture correction
 
 The follow-up [native run](https://github.com/pagel-s/termcraft/actions/runs/38888427314)
-passes the previously failing Intel Mac real co-op/MCP step. Windows and ARM Mac
+passes the previously failing Intel Mac real co-op/process step. Windows and ARM Mac
 complete their full jobs. Linux instead exposes a pre-existing random door-test
 failure: the minimal test hut sits in generated terrain, and a neighboring village
 can reassign its villager's home. A diagnostic repetition reproduced this on the
@@ -79,7 +79,7 @@ retains the failed home assignment. No production villager behavior was changed.
 
 - 716 unit tests on stable Rust and Rust 1.88; strict all-target Clippy on both;
   formatting and offline crate package verification pass.
-- All five real TCP/MCP process tests pass on networking source `52861f6`.
+- All five real TCP/process process tests pass on networking source `52861f6`.
 - The [120-second eight-player soak](network-soak.json) passes: direct/delayed
   snapshot-gap p95 is 55.8/76.0 ms; worst healthy gap during seven stalled-reader
   removals is **56.4 ms**. Saved restart/reconnect succeeds. The stalled phase,
@@ -93,8 +93,8 @@ retains the failed home assignment. No production villager behavior was changed.
 - [Encrypted OpenSSH](ssh.json) checks pass for joining, restart/reconnect,
   rejected host keys/auth/forwarding, missing server and dropped-link cleanup.
 - [Linux archive](native-archive.json) extraction, hashes, launchers/arguments
-  from a path with spaces, no-Rust MCP/save-reopen and native restoration pass.
-- [Lantern Run](lantern-run.json) completes and reopens through ordinary CLI/MCP
+  from a path with spaces, no-Rust save/reopen and native restoration pass.
+- [Lantern Run](lantern-run.json) completes and reopens through ordinary CLI/process
   inventory/crafting/combat/placement rules, with observed bridge landing.
 
 CI and native platform results are retained in `ci-at-verification.json`; use the

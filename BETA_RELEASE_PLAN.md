@@ -1,6 +1,6 @@
 # Termcraft beta: implementation and qualification
 
-Updated 16 October 2026. Proposed release: `v0.2.0-beta.1`.
+Updated 23 October 2026. Proposed release: `v0.2.0-beta.1`.
 
 **The foundation is implemented, but the gameplay and visual quality target has
 been reopened after playtest feedback. Beta qualification and publication are
@@ -32,17 +32,16 @@ acceptance gate for the art or game feel.
 3. **Build a compelling five-minute gameplay slice.** Start with a clear goal,
    readable enemy attacks, impactful hits and useful rewards, then a building or
    traversal payoff. Show danger before damage; make movement, jump timing,
-   knockback and recovery decisions legible. Connect director-created challenges
-   to this loop without requiring an always-on LLM player. Lantern Run now
+   knockback and recovery decisions legible. Connect encounters and building objectives
+   into the same ordinary survival loop. Lantern Run now
    implements an encounter, supplies and bridge/signal payoff; human acceptance
    remains open.
 4. **Judge physics through an obstacle course.** Include reversal, jump buffering,
    ledges, low ceilings, stairs, ladders, water entry/exit and combat knockback.
    Test local and delayed co-op with the same route. Check collision alignment in
    both views and all creature sizes; compare human observations with traces.
-5. **Earn the release clip.** A friend joins through SSH, a player requests a
-   recognizable challenge, the world changes, and the group survives/builds
-   something worth showing. Test the complete loop with people before writing a
+5. **Earn the release clip.** A friend joins through SSH, the group explores, survives a
+   recognizable encounter and builds something worth showing. Test the complete loop with people before writing a
    viral-release claim or calling the beta plan finished.
 
 Current fixes and reproducible checks are documented in `docs/feel-and-art.md`.
@@ -66,14 +65,25 @@ takeoff grace and keeps its fundamental multi-key limitation. Snow has distinct
 motion/art and a correct local label. Character art is unchanged. See
 `docs/design/run-jump-weather-2026-10-15/provenance.md` for evidence and tradeoffs.
 
-The headline is **“Survive and build with friends over SSH.”** The distinguishing
-feature is a player-directed AI game master: ask in the running game for a battle,
-mobs, an environment or a structure, then continue playing while your chosen LLM
-plans a bounded change. Existing Codex/Claude/MCP clients can serve as the game
-master without a second API key. Optional LLM play is easy to connect; an active
-LLM player or bundled model service is not required. Performance, readability,
-physics and easy installation support this experience. Sharing/virality is an
-outcome to test with people, not something the implementation can guarantee.
+The headline is **“Survive and build with friends over SSH.”** The release scope
+centers on terminal pixel art, refined 2D movement/physics, survival interactions,
+three-dimension co-op and native distribution. Sharing/virality is an outcome to
+judge with people, not something implementation can guarantee.
+
+### Scope decision, 23 October 2026
+
+The existing-client LLM integration repeatedly timed out during user onboarding.
+A manually serviced rain request demonstrated the bridge, but not the intended
+continuous in-game experience. Keep all LLM integration unadvertised for this
+release: remove setup/promotion from player docs, galleries, archive start
+instructions and release notes. Runtime functionality and regression coverage
+remain for further development; the retained technical reference is
+`internal/llm-integration.md`, outside the published documentation.
+
+These features are deferred, not beta acceptance gates or release highlights.
+The implementation tables and dated results below are historical engineering
+records, not the current release promise. The player-facing draft announcement
+is `RELEASE_NOTES.md`; the detailed note is `docs/beta-release-notes.md`.
 
 ## Co-op dimension follow-up, 15 October
 
@@ -138,11 +148,11 @@ checkout is `/tmp/termcraft-latest-20261010`; working source is
 | Physics | Shared release braking without cancelling later knockback; continuous ladder climb/hold; residual-momentum sneak ledge protection; correct final landing-distance damage; swept wall/ceiling collisions | `src/engine/state.rs`, `src/engine/physics_tests.rs`, existing collision regressions |
 | Saves/recovery | Reject unreadable chunks/seeds/progression; keep failed writes dirty; cancel unsafe dimension changes; v10 native / v4 server checkpoints preserving full player state, entities, encounters and portal links; upgrade native v1–9 / server v1–3; partial emergency native recovery copy | `src/world/chunk.rs`, `src/world/mod.rs`, `src/engine/state.rs`, `docs/world-format.md` |
 | In-game director | T chat, asynchronous typed waves/weather/time/ambience/structures, whole-plan validation/preflight, stale-area checks, cancellation, preferences, conditional structure undo | `src/engine/director.rs`, `src/engine/game_loop.rs`, `src/world/environment.rs` |
-| Existing LLM as director | `/connect` opt-in authenticated loopback bridge; six live MCP tools for context, bounded wait, requests, validated submission/results and cancellation; sole simulation writer, no second key | `src/engine/director_bridge.rs`, `src/engine/agent.rs`, `tests/multiplayer_tcp.rs`, `docs/agents.md` |
+| Existing LLM as director | `/connect` opt-in authenticated loopback bridge; six live MCP tools for context, bounded wait, requests, validated submission/results and cancellation; sole simulation writer, no second key | `src/engine/director_bridge.rs`, `src/engine/agent.rs`, `tests/multiplayer_tcp.rs`, `internal/llm-integration.md` |
 | Personalized events | `/auto exploration|building|combat`, healthy-player/travel/modal/encounter gates, 120-second cooldown, three attempts/session; `/pause` and reset controls | `src/engine/director.rs`, cooldown regressions and prior 128-second PTY run |
 | Shared human game | Independent full player sessions, normal inventory/crafting/storage/workstations/combat, world/entities tick once, distant terrain physics, separate death/respawn, reconnect and periodic/exit saves | `src/engine/actors.rs`, `src/engine/net.rs`, `src/engine/server_save.rs`, `src/engine/cooperative_tests.rs`, `tests/multiplayer_tcp.rs` |
 | Shared director | Host-only requests and `/connect`, shared messages, no pause while typing; cancel/revoke/pause on host departure before promotion | `src/engine/network_client.rs`, `src/engine/net.rs`, real TCP/MCP and two-rendered-client checks |
-| Optional LLM play | 16 stepped world/player tools plus six live director tools; absolute-path JSON/TOML client config; normal game rules, bounded observations/actions, no developer loadout/teleport | `src/engine/agent.rs`, `src/engine/mcp.rs`, `docs/agents.md` |
+| Optional LLM play | 16 stepped world/player tools plus six live director tools; absolute-path JSON/TOML client config; normal game rules, bounded observations/actions, no developer loadout/teleport | `src/engine/agent.rs`, `src/engine/mcp.rs`, `internal/llm-integration.md` |
 | New worlds | Typed deterministic recipes, validation/repair, retained prompt, named isolated saves and writer leases, native entry; optional trusted provider executable | `src/world/recipe.rs`, `src/worlds.rs`, `src/generator.rs`, `scripts/generate_world.py` |
 | Join/distribute | `termcraft join user@host --player NAME` manages a local SSH tunnel and stable reconnect identity; native archive packager with license/docs/manifest/checksum; four-platform development artifact workflow | `src/engine/ssh.rs`, `scripts/package_release.py`, `.github/workflows/native-artifacts.yml`, `docs/distribution.md` |
 

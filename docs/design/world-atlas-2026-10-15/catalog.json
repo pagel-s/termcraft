@@ -494,35 +494,6 @@
       "y": 38.0
     },
     {
-      "caption": "An unsent chat draft. No model request, response or generated world edit is being simulated.",
-      "category": "Play scenarios",
-      "dimension": "Overworld",
-      "id": "game-master-chat",
-      "images": [
-        {
-          "mode": "overview",
-          "label": "Overview",
-          "file": "game-master-chat-00.png",
-          "columns": 200,
-          "rows": 60,
-          "revision": "a985d2e69be659af"
-        },
-        {
-          "mode": "detail",
-          "label": "Detail",
-          "file": "game-master-chat-01.png",
-          "columns": 160,
-          "rows": 48,
-          "revision": "f481342740c29b6e"
-        }
-      ],
-      "origin": "Staged UI",
-      "source": "examples/world_review.rs",
-      "title": "Game-master chat",
-      "x": 48.5,
-      "y": 38.0
-    },
-    {
       "caption": "A hand-built portal block layout beside crafting, smelting, storage and a bed. This is a staged build, not a generated structure or travel recording.",
       "category": "Play scenarios",
       "dimension": "Overworld",
@@ -1541,7 +1512,7 @@
       "y": 34.0
     },
     {
-      "caption": "The built-in declarative world recipe, with its authored tower and regional terrain. No LLM was called to create this gallery.",
+      "caption": "The built-in declarative world recipe, with its authored tower and regional terrain.",
       "category": "Custom worlds",
       "dimension": "Overworld",
       "id": "recipe-tower",

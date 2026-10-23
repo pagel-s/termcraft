@@ -1,4 +1,11 @@
-# Agents and generated worlds
+# Experimental LLM integration — developer reference
+
+**Not part of the advertised beta scope (23 October 2026).** Keep this reference
+outside the player documentation and native distribution. Existing-client use
+still needs an active model task: `/connect` does not wake idle Codex/Claude
+conversations, and the current onboarding repeatedly timed out in user testing.
+A manually serviced request confirmed the bridge, not a reliable unattended loop.
+No current README or release announcement should promote this integration.
 
 This is an **unreleased experimental build**. The native game's chat can request
 changes to the current world through your existing LLM client or a configured
@@ -87,7 +94,7 @@ and reopen, in solo and co-op. The world pauses while offline. Weather and time
 resume from the dimension checkpoint, then follow game cycles. Pending model
 requests and bridge connections do not resume; reconnect the external client.
 Saves are atomic per file, not across the entire plan/world; reported save errors
-need attention before closing. See [World Format](world-format.md).
+need attention before closing. See [World Format](../docs/world-format.md).
 
 A director invocation receives JSON on stdin with `protocol: 1`, `task: "director"`,
 `prompt`, `context`, `schema`, `example` and `instructions`. It returns one plan
@@ -176,7 +183,7 @@ four applied without repairs in 6.0–13.6 seconds including orchestration/captu
 An earlier request expired during geometry inspection, demonstrating that long
 client turns count against the 90-second deadline. This is one automated Linux
 session, not an uncoached client registration test or model comparison; Claude
-and broader prompt fidelity remain unqualified. [Raw report](assets/qualification-2026-10-11.json).
+and broader prompt fidelity remain unqualified. [Raw report](../docs/assets/qualification-2026-10-11.json).
 
 ### Claude Code or Codex CLI
 

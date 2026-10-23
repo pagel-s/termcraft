@@ -1,166 +1,169 @@
 <div align="center">
   <h1>termcraft</h1>
-  <p><strong>Terminal based 2D sandbox survival in Rust, tuned toward a classic early-2012 block-survival loop.</strong></p>
+  <p><strong>Survive, build and explore a block world in your terminal. Bring friends over SSH.</strong></p>
   <p>
     <a href="https://pagel-s.github.io/termcraft/"><img alt="Docs" src="https://img.shields.io/badge/docs-project%20guide-2f6feb?style=flat-square"></a>
-    <a href="."><img alt="Version" src="https://img.shields.io/badge/version-0.1.0-3a7a3a?style=flat-square"></a>
-    <a href="."><img alt="Status" src="https://img.shields.io/badge/status-early%20alpha-c97a00?style=flat-square"></a>
-    <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-stable-93450a?style=flat-square&logo=rust"></a>
+    <a href="https://github.com/pagel-s/termcraft/tree/beta/terminal-reborn"><img alt="Development branch" src="https://img.shields.io/badge/development-Terminal%20Reborn-7452aa?style=flat-square"></a>
+    <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Latest published release" src="https://img.shields.io/badge/published-0.1.0%20alpha-c97a00?style=flat-square"></a>
+    <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-1.88%2B-93450a?style=flat-square&logo=rust"></a>
   </p>
   <p>
-    <a href="https://pagel-s.github.io/termcraft/">Docs</a>
-    ·
-    <a href="docs/installation.md">Installation</a>
-    ·
-    <a href="docs/gameplay.md">Gameplay</a>
-    ·
-    <a href="docs/supported-content.md">Supported Content</a>
-    ·
-    <a href="docs/media-credits.md">Media Credits</a>
+    <a href="docs/installation.md">Play</a> ·
+    <a href="docs/gameplay.md">Controls</a> ·
+    <a href="docs/multiplayer.md">Co-op</a> ·
+    <a href="docs/design/world-atlas-2026-10-15/README.md">World gallery</a> ·
+    <a href="RELEASE_NOTES.md">Release notes</a>
   </p>
 </div>
 
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
-> Early alpha. The game is playable, but some systems are still rough or buggy.
+> **Terminal Reborn is the next beta in development.** These changes are on
+> `beta/terminal-reborn`; the published `0.1.0` release is the older alpha.
+> Development binaries still report `0.1.0`. The beta has not been published.
 
-![termcraft highlight](docs/assets/termcraft.gif)
+![A generated village cottage in Termcraft's terminal pixel view](docs/design/world-atlas-2026-10-15/village-cottage-00.png)
 
-> Full highlight video: [termcraft.mp4](docs/assets/termcraft.mp4)  
-> YouTube: https://youtu.be/kR986Xqzj7E  
-> Soundtrack in the full highlight: [Fantasy Orchestral Theme](https://opengameart.org/content/fantasy-orchestral-theme) by Joth and [Boss Battle #2 \[Symphonic Metal\]](https://opengameart.org/content/boss-battle-2-symphonic-metal) by nene via OpenGameArt, both `CC0`. Full details: [Media Credits](docs/media-credits.md)
+## A survival world, adapted to 2D
 
-## Overview
+Gather wood, craft tools, build a shelter and survive the night. Explore caves and
+villages, smelt better equipment, cross the Nether, find the stronghold and face
+the Ender Dragon. Termcraft adapts that survival progression to a side-on terminal
+world, with shaped terrain, room cutaways and distinct creature silhouettes.
 
-`termcraft` keeps the classic survival progression, dimensions, crafting, and exploration pressure of the early block-survival formula, but adapts the experience to a side-on terminal game.
+The development build includes:
 
-Current scope:
+- **Terminal pixel art:** coordinated blocks, items and creatures, supported
+  lights, cave shadows and three selectable color views.
+- **Movement and physics refinements:** walking and sprinting, variable-height
+  jumps, ladders, ledges, shaped-block collision, swimming and animal shore escape.
+- **Survival and building:** inventory and recipe book, manual crafting, explicit
+  furnace slots, storage, farming, boats, weather, flowing water and lava.
+- **Three dimensions:** procedural Overworld, Nether and End; connected villages,
+  dungeons, strongholds, fortresses, working portals and a revised dragon encounter.
+- **Co-op for up to eight:** independent inventories and dimension travel,
+  shared terrain and combat, saved reconnect profiles and joining over SSH.
+- **Lantern Run:** a separate combat, traversal and bridge-building route for a
+  focused first session.
 
-- procedural Overworld, Nether, and End generation
-- mining, placement, inventory, crafting, furnaces, brewing, boats, and chests
-- health, hunger, combat, weather, fluids, gravity blocks, crops, and farming
-- passive and hostile mobs, villages, dungeons, strongholds, and Nether fortresses
-- per-user save persistence and autosave
+[Browse the environments and structures](docs/design/world-atlas-2026-10-15/README.md)
+or [read the changes since the alpha](docs/beta-release-notes.md).
+Gallery scenes use the actual renderer with staged camera/actor positions;
+they are not recordings of manual play.
 
-## Install And Play
+## Play the development build
 
-Requirements:
+**Without Rust:** download your platform's archive from a successful
+[Native development artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
+on `beta/terminal-reborn`. GitHub may require sign-in. Extract the artifact ZIP,
+then the game archive inside it, keeping all files together.
 
-- Rust stable toolchain
-- a terminal with raw input support
-- mouse support for the best local experience
+| Platform | Artifact target | Start Lantern Run |
+| --- | --- | --- |
+| Linux, Intel/AMD 64-bit | `x86_64-unknown-linux-gnu` | `./play.sh` |
+| Windows, Intel/AMD 64-bit | `x86_64-pc-windows-msvc` | `.\PLAY.cmd` in Windows Terminal |
+| macOS, Apple silicon | `aarch64-apple-darwin` | `./PLAY.command` |
+| macOS, Intel | `x86_64-apple-darwin` | `./PLAY.command` |
 
-Install Rust first:
+For classic survival run `./termcraft` on Linux/macOS or `.\termcraft.exe` on
+Windows. macOS development builds are unsigned. See [installation](docs/installation.md)
+for terminal requirements and platform details.
 
-- [rustup.rs](https://rustup.rs/)
+**From source:** install [Rust 1.88 or newer](https://rustup.rs/), then:
 
-
-Install from crates.io:
-
-```bash
-cargo install termcraft
-termcraft
-```
-
-Or clone the repo and start the game:
-
-```bash
-git clone https://github.com/pagel-s/termcraft.git
+```sh
+git clone --branch beta/terminal-reborn https://github.com/pagel-s/termcraft.git
 cd termcraft
-cargo run --release
+cargo build --release --locked
+./target/release/termcraft trial
 ```
 
-If you want the optimized binary directly:
+On Windows, use `.\target\release\termcraft.exe trial`. Omit `trial` for classic
+survival. `cargo install --path . --locked` installs this checkout into Cargo's bin directory.
 
-```bash
-git clone https://github.com/pagel-s/termcraft.git
-cd termcraft
-cargo build --release
-./target/release/termcraft
+`cargo install termcraft` installs the published alpha, which predates these
+changes. Linux users can also find the [AUR package](https://aur.archlinux.org/packages/termcraft);
+check its version before comparing it with the development branch.
+
+## Controls
+
+Start with a true-color terminal, a monospace font and a window around **120×40**
+or larger. Mouse support is recommended.
+
+| Action | Control |
+| --- | --- |
+| Walk | Hold `A` / `D` or left/right arrow |
+| Sprint | Tap, release, then quickly hold the same direction |
+| Jump / swim up | `W`, `Up` or `Space` |
+| Sneak | `X` toggles; `Shift` holds |
+| Mine / attack | Left mouse button |
+| Place / interact | Right mouse button; `F` uses the hovered block |
+| Inventory / crafting | `E` |
+| Select hotbar slot | `1`–`9` |
+| Drop one / stack | `V` / `Shift+V` |
+| Zoom in / out | `=` or `+` / `-` |
+| Cycle Overview / Wide / Detail | `F4` |
+| Settings / diagnostics | `O` / `F3` |
+| Close UI / save and quit | `Q` or `Esc` |
+
+**Press `=` from Overview to see the full detailed figure.** Terminal font size
+is independent of the selected view. Reliable double-tap sprint needs directional
+key-release events; F3 shows `keys:release` or the repeat-only fallback.
+See [gameplay](docs/gameplay.md) for crafting, furnaces and portal use.
+
+## Play with friends
+
+Use matching development builds. Start a server and join from separate terminals:
+
+```sh
+termcraft server
+termcraft client --player alice
+termcraft client --player bob
 ```
 
-If you want it installed into Cargo's local bin path after cloning:
+From another computer, join through an existing SSH account:
 
-```bash
-git clone https://github.com/pagel-s/termcraft.git
-cd termcraft
-cargo install --path .
-termcraft
+```sh
+termcraft join user@host --player alice
 ```
 
-Local saves are written to the per-user data directory by default.
+Run the server on that host first, with the game port bound to loopback. SSH
+accounts, OpenSSH and forwarding permission must already be available. Local
+co-op uses plain TCP; SSH provides the protected remote transport.
+See [co-op](docs/multiplayer.md) and [SSH setup](docs/distribution.md#join-through-ssh).
 
-### Distro Packages
+## Saves and current limits
 
-On Arch Linux, you can install the [AUR package](https://aur.archlinux.org/packages/termcraft):
+The game autosaves in your user data directory:
 
-```bash
-paru -S termcraft
-```
+- Linux: `$XDG_DATA_HOME/termcraft/saves`, or `~/.local/share/termcraft/saves`.
+- macOS: `~/Library/Application Support/termcraft/saves`.
+- Windows: `%APPDATA%\termcraft\saves`.
 
-## Controls Snapshot
+`TERMCRAFT_SAVE_DIR` overrides the location. Back up the **whole save directory**,
+including hidden checkpoint files, before upgrading. Newer saves cannot be
+opened by older builds. Existing terrain is preserved; new village layouts,
+ore distribution and terrain details require fresh chunks.
 
-- `A` / `D` or arrow keys: move
-- Hold a direction to walk; tap, release, then quickly hold it again to sprint
-- `W` / `Up` / `Space`: jump or swim up
-- `X`: toggle sneak
-- `E`: inventory
-- `1`-`9`: hotbar selection
-- `V`: drop one held item; `Shift+V`: drop its stack (select an item first inside inventory)
-- `Left Click`: mine / attack
-- `Right Click`: place / interact
-- `F`: explicit hovered-block use fallback if right click is unreliable in the current terminal
-- `O`: settings menu
-- `=` / `+` and `-`: zoom in/out in the development build; `F4` cycles views
-- `F3`: development timing/input diagnostics
-- `Q` / `Esc`: close UI or quit from world view
+This remains a development build. Terminal input/presentation, long human co-op
+sessions and complete survival progression need broader playtesting. Fluid
+volume is source-based, and furnaces currently use each player's session rather
+than independent shared storage. See [save recovery](docs/world-format.md)
+and [release notes](docs/beta-release-notes.md).
 
-Developer/test shortcuts currently available:
+## Development and feedback
 
-- `F5`: travel to Overworld
-- `F6`: travel to Nether
-- `F7`: travel to End
-- `F8`: return to spawn
-- `F9`: equip diamond combat loadout
-
-## Notes
-
-- This checkout adds an unreleased experimental [AI game master, MCP interface and generated worlds](docs/agents.md): press T to request battles, mobs, ambience or structures through your existing LLM client (`/connect`) or a configured provider. Optional LLM play and world design use MCP; active LLM players are not required.
-
-- The primary supported mode right now is local single-player.
-- [Experimental local Overworld co-op](docs/multiplayer.md) now has independent inventories, shared gameplay and reconnect saves. Shared host-controlled game-master chat and `termcraft join user@host --player alice` are implemented. [Development archive packaging](docs/distribution.md) is ready; real SSH, other platforms and beta qualification remain open.
-- If mouse right-click is unreliable in your terminal, use `F` as the explicit interaction fallback.
-- The crates.io package is intended as an installable game binary. The Rust module layout is not a stable public library API yet.
-
-## Contact
-
-For feedback, bugs, or release questions, contact: `pagel.sebastian.1@gmail.com`
-
-## Development
-
-Useful checks:
-
-```bash
-cargo test --quiet
-cargo clippy --all-targets -- -D warnings
+```sh
+cargo test --locked
+cargo clippy --all-targets --locked -- -D warnings
 ./scripts/release_smoke.sh
 ```
 
-Release process:
+[Developer guide](docs/developer.md) · [Release checklist](RELEASE_CHECKLIST.md) ·
+[Supported content](docs/supported-content.md) · [Media credits](docs/media-credits.md)
 
-- [Release Checklist](RELEASE_CHECKLIST.md)
+Report bugs through [GitHub issues](https://github.com/pagel-s/termcraft/issues)
+or `pagel.sebastian.1@gmail.com`. Include build, OS, terminal and reproduction steps.
 
-## Save Data
-
-Local saves are written under the per-user data directory:
-
-- Linux: `$XDG_DATA_HOME/termcraft/saves`, or `~/.local/share/termcraft/saves` when `XDG_DATA_HOME` is unset
-- macOS: `~/Library/Application Support/termcraft/saves`
-- Windows: `%APPDATA%\termcraft\saves`
-
-Set `TERMCRAFT_SAVE_DIR` to override this location. Existing repo-local `./saves` files are copied into the default user data directory on first run.
-
-- chunk files: `<save-dir>/<dimension>_chunk_<x>.bin`
-- progression file: `<save-dir>/player_progression.bin`
-
-See [World Format](docs/world-format.md) for the current save layout.
+[The original alpha highlight video](https://youtu.be/kR986Xqzj7E) shows the older
+release; the linked galleries show the development artwork.

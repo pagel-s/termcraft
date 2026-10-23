@@ -58,7 +58,7 @@ guarantee a village near spawn. None of the review tools opens normal user saves
 The native test copies the generated review save, walks 90.67 blocks, opens all six
 building doors with real SGR mouse clicks, and sends zero jump events. Feet remain
 at height 31 throughout the level route. It observes live position through a
-read-only director connection and verifies terminal restoration on exit.
+read-only test-observation connection and verifies terminal restoration on exit.
 Separate engine tests walk both directions, climb to lofts, open chest/furnace,
 sleep and return to the saved spawn, and exercise villagers entering/leaving homes.
 World tests cover negative chunk load order, support, graded road geometry,

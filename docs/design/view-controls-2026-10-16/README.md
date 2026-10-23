@@ -30,8 +30,8 @@ unchanged. Existing worlds can be used after restarting the executable.
 
 These are real native and TCP co-op renderer captures following ordinary input
 and PTY resizes, rasterized from ANSI output. No image generation or sprite
-replacement was used. `/connect` enables read-only test observations and accounts
-for the cyan notification. All four retained PNGs decode and were inspected.
+replacement was used. The cyan notification belongs to the automated test
+observer. All four retained PNGs decode and were inspected.
 
 ![Native Detail at 80×24](native-detail-80x24.png)
 
@@ -95,7 +95,7 @@ unchanged.
 
 - All **748 unit tests** pass on stable Rust and Rust 1.88. Strict all-target
   Clippy passes on both, as do formatting and Python compilation.
-- All **six real TCP/MCP tests** pass. Native/co-op terminal input checks cover
+- All **six real TCP/process tests** pass. Native/co-op terminal input checks cover
   initial legacy taps, delayed OS repeat, held movement, jump chords, continuing
   after jump release, direction release, focus loss and intentional sprint.
   Wall-clock sprint distances exceed walking in both; the simulation's nominal

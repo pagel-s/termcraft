@@ -144,11 +144,17 @@ def main():
         assert binary.is_file(), "archive does not match this native platform"
         assert launcher.is_file(), "missing native launcher"
         assert (bundle / "LICENSE").is_file() and (bundle / "START_HERE.txt").is_file()
-        assert (bundle / "docs" / "agents.md").is_file()
+        assert (bundle / "RELEASE_NOTES.md").is_file()
+        assert not (bundle / "docs" / "agents.md").exists()
+        assert not (bundle / "internal").exists()
+        for script in ("demo_director.py", "generate_world.py"):
+            assert not (bundle / "scripts" / script).exists()
+        for path in (bundle / "START_HERE.txt", bundle / "RELEASE_NOTES.md"):
+            assert not re.search(r"\b(?:LLM|MCP|Codex|Claude)\b|game.master|/connect", path.read_text(), re.I)
         if os.name != "nt":
             assert binary.stat().st_mode & 0o111
             assert launcher.stat().st_mode & 0o111
-            assert (bundle / "scripts" / "demo_director.py").stat().st_mode & 0o111
+            assert (bundle / "scripts" / "test_lantern_trial.py").stat().st_mode & 0o111
         empty = root / "empty-path"
         empty.mkdir()
         env = dict(os.environ, PATH=str(empty), TERMCRAFT_SAVE_DIR=str(root / "saves"), TERM="xterm-256color")
@@ -197,6 +203,7 @@ def main():
         report = dict(status="passed", archive=archive.name, target=manifest["target"],
                       archive_sha256=archive_hash, binary_sha256=digest(binary.read_bytes()),
                       manifest_files_verified=len(manifest["files"]), empty_path_runtime=True,
+                      player_docs_omit_experimental_integration=True,
                       absolute_mcp_config=True, stepped_mcp_save_reopen=True,
                       launcher_arguments_from_spaced_path=True,
                       unix_launcher_default_trial=os.name != "nt",

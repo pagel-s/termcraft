@@ -38,7 +38,7 @@ one-block-deep trench beside the soil, pour into the open trench, and plant up t
 four soil blocks away. Seeds go on top of the farmland that was clicked.
 
 Verification: **698 tests** on stable Rust and MSRV 1.88, strict all-target Clippy
-on both, formatting, and all four real TCP/MCP integrations passed. The actual
+on both, formatting, and all four real TCP/process integrations passed. The actual
 native PTY walk traversed 90.7 blocks and all six doors, with no jump inputs; the
 only raised surface was the expected half-block irrigation crossing. See
 [native-village.json](native-village.json). This checks controls and collision;

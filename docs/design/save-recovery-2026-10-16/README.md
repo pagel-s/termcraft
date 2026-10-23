@@ -22,7 +22,7 @@ before deletion; reserved orphan temporaries are removed after checked recovery.
 
 `src/world/chunk.rs` covers autosave and dirty cache eviction. Native persistence
 is in `src/engine/state.rs`; hosted saves finish in `server_save.rs` after
-`ServerSimulation::save` flushes all dimensions. Environment, director and trial
+`ServerSimulation::save` flushes all dimensions. World and trial
 sidecars join that checkpoint. No existing payload version or network protocol
 changes. The journal is version 1 and requires a matching build for recovery.
 
@@ -31,7 +31,7 @@ changes. The journal is version 1 and requires a matching build for recovery.
 The Linux fault interposer only targets disposable test roots. It neither fills
 a real disk nor edits an existing player world.
 
-- Six normal CLI/MCP crafting cases: ENOSPC, partial/slow writes, fsync failure,
+- Six normal CLI/process crafting cases: ENOSPC, partial/slow writes, fsync failure,
   and process exit before/after player-file rename. Publishing that file alone
   does not complete the world checkpoint.
 - Twenty-four staged all-dimension cases use real serializers and actual SIGKILL

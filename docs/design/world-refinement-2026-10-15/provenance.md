@@ -126,7 +126,7 @@ The updated [ore census](ores-after.json) uses smaller pockets and preserved dep
 progression; its comparison against the immediately preceding census is in the
 [interaction review](../interaction-review-2026-10-16/README.md). The older test and
 profile counts above describe the historical material pass, not this refresh.
-Current verification is 697 stable/MSRV tests, four TCP/MCP tests, strict Clippy,
+Current verification is 697 stable/MSRV tests, four TCP/process tests, strict Clippy,
 and real solo/co-op PTY controls, bow ammunition and food-use checks.
 
 The subsequent [ore and irrigation tuning](../ore-irrigation-tuning-2026-10-16/README.md)

@@ -1,7 +1,7 @@
 # Development distribution and SSH
 
 This checkout is an unreleased development build. The proposed beta has not been
-qualified or published. Ordinary local play and co-op require no model service.
+qualified or published. The native archives run without a Rust installation.
 
 ## Native archives
 
@@ -37,7 +37,7 @@ executable does not copy saves. See [Installation](installation.md).
 be manually dispatched. It provides a build/test/
 Clippy/package matrix for Linux x86_64, Windows x86_64 and macOS ARM64/x86_64. It
 uploads development workflow artifacts only. Every target also extracts its
-archive, verifies all hashes and runs the binary/MCP without Rust in PATH; Unix
+archive, verifies all hashes and runs the executable without Rust in PATH; Unix
 checks PTY launches, the launcher's default route and terminal restoration.
 Launchers are exercised from paths with spaces and another working directory.
 Linux additionally runs the real OpenSSH fixture. Consult the
@@ -46,10 +46,12 @@ for the exact commit being downloaded. Passing automation and native human input
 pass before distributing a beta. A Linux binary built on this workstation is
 not proof of compatibility with older Linux/glibc systems.
 
-The [qualified development run](https://github.com/pagel-s/termcraft/actions/runs/38797431069)
-passes on all four targets at `0ab6317`. Its game code is the `d48fe93` candidate;
-the follow-up corrects the macOS terminal test observer. Native interactive
-terminal behavior and clean-machine acceptance remain separate checks.
+The [latest verified implementation run](https://github.com/pagel-s/termcraft/actions/runs/39374722036)
+passes on all four targets at `efb36f4`, including archive extraction, launchers
+and no-Rust runtime checks. Its matching
+[CI run](https://github.com/pagel-s/termcraft/actions/runs/39374722180) also passes.
+These are development artifacts, not a released beta. Native interactive terminal
+behavior and clean-machine acceptance remain separate checks.
 
 ## Join through SSH
 
@@ -102,7 +104,6 @@ for identity, save, bandwidth and gameplay limits.
 - Test real SSH access, denied forwarding, authentication failure, slow links and
   reconnect/restart with multiple humans.
 - Complete sustained co-op and classic survival/progression playthroughs.
-- Qualify live client/model prompt fidelity, request latency and useful play.
 
 Release version/tag/crate/archive alignment and publication are separate from
 creating these local development artifacts.

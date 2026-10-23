@@ -1,8 +1,7 @@
 # Developer Guide
 
-> Version: `0.1.0`
->
-> Status: early alpha. Internal systems are still being reshaped, so public-facing promises should stay conservative.
+> Scope: current `beta/terminal-reborn` development branch. The published release
+> remains `v0.1.0` alpha; this guide does not declare the candidate released.
 
 ## Architecture Overview
 
@@ -28,46 +27,29 @@ Single-player local mode:
 4. `GameState` applies the command and advances simulation
 5. `Renderer` draws the visible world and UI
 
-Experimental multiplayer path:
+Co-op path:
 
 - the server runs authoritative simulation ticks
 - clients send `ClientInputFrame`
 - the server streams `ServerSnapshot` and chunk deltas
 - the protocol is version-tagged in `src/engine/net.rs`
 
-Current network protocol version in code: `16`. `src/engine/actors.rs` separates
+Current network protocol version in code: `18`. `src/engine/actors.rs` separates
 full player sessions from the shared world. Each actor uses normal gameplay
 commands and physics; mobs and terrain advance once per server tick. Snapshots
 include full inventories, current chest contents, nearby runtime entities and
 biomes. Clients use an in-memory terrain replica instead of generating or loading
 local chunks. `src/engine/server_save.rs` persists multiplayer identities and
 player state; `src/engine/client_identity.rs` stores local reconnect profiles.
-See [Experimental Local Co-op](multiplayer.md) for setup, save semantics and limits.
+See [Co-op](multiplayer.md) for setup, save semantics and limits.
 
-Experimental agent mode uses `src/engine/agent.rs` for game tools and
-`src/engine/mcp.rs` for stdio MCP. Declarative world recipes live in
-`src/world/recipe.rs`; `src/worlds.rs` owns named saves and writer leases.
-`src/generator.rs` runs bounded designer processes and feeds back validation
-errors. See [Agents and Generated Worlds](agents.md) for setup and limits.
-
-The native game master lives in `src/engine/director.rs`. Its worker runs the
-trusted provider executable off-thread. Only a typed, bounded action plan crosses
-back into the game loop; placement is preflighted against the current world before
-application. Pending work carries its world/dimension/origin, supports cancellation,
-and waits while chat or another modal UI is open. `ChatView` is presentation/input
-state; it does not call providers from rendering or simulation ticks.
-
-`src/world/environment.rs` persists biome ambience overrides without rewriting
-blocks. Director preferences, recent context and conditional structure undo live
-in a separate per-world sidecar. Shared director requests are host-controlled in the Overworld; guests observe
-results while normal play continues. The network protocol carries shared chat and
-director state.
+`src/worlds.rs` owns named saves and writer leases; `src/world/recipe.rs` provides
+validated deterministic terrain/landmark recipes used by authored fixtures.
 `src/engine/metrics.rs` provides bounded timing windows for F3 diagnostics.
 
-Public positioning recommendation:
-
-- do not market the current server/client path as a flagship feature
-- describe it as experimental until local-play parity and networking parity are materially closer
+Public positioning centers on terminal survival, consistent pixel art, refined
+movement and co-op over SSH. Keep development status, platform qualification and
+save compatibility explicit; do not describe an unpublished candidate as released.
 
 ## Combat and authored trial
 
@@ -75,13 +57,13 @@ Public positioning recommendation:
 projectile ordering, damage dispatch and melee windup timing. Entity AI preserves
 hurt impulses and pauses steering during committed attacks. `src/engine/flight.rs`
 sweeps full flying bodies against true terrain boxes without gravity. Ground NPC
-movement explicitly owns its jump input; player input stays in the player path. Protocol 12 carries
-the new warning states and shared trial progress; matching builds are required.
+movement explicitly owns its jump input; player input stays in the player path.
+Current protocol 18 carries warning states and shared trial progress; matching builds are required.
 
 `src/engine/trial.rs` creates the opt-in Lantern Run recipe, tracks credited guard
 kills and detects the bridge/signal finish. `lantern-trial.json` is a separate
-versioned atomic sidecar; progression remains v7. Session-only guards restart an
-unfinished encounter after reopening. Supplies are ordinary preseeded chest
+versioned atomic sidecar; progression is v11. Surviving guards and credited kills persist
+together; reopening resumes the unfinished encounter. Supplies are ordinary preseeded chest
 contents, never refilled on resume. Trial creation does not alter existing worlds.
 
 `examples/lantern_review.rs` stages renderer poses on disposable trial terrain.
@@ -162,7 +144,7 @@ Useful operational files:
 
 - `README.md`: public-facing overview and quick start
 - `docs/`: detailed player and developer documentation
-- `scripts/release_smoke.sh`: strict Unix smoke gate, including disposable TCP/MCP
+- `scripts/release_smoke.sh`: strict Unix smoke gate, including disposable TCP/process
   regressions; socket permission failures are reported as failures, not passes
 - `RELEASE_CHECKLIST.md`: repeatable qualification and publication handoff
 - `scripts/test_ssh_join.py`: optional real OpenSSH/Paramiko loopback regression;
@@ -170,7 +152,7 @@ Useful operational files:
 - `scripts/test_native_archive.py`: standalone extraction/hash/runtime/PTY check
   shared by the four-platform artifact workflow
 - `scripts/test_storage_recovery.py`: Linux checkpoint ENOSPC/partial-write,
-  sync-error, slow-write and interrupted-rename checks through real CLI/MCP;
+  sync-error, slow-write and interrupted-rename checks through real CLI/process;
   optional native PTY recovery into a backup copy
 - `docs/beta-release-notes.md`: unpublished player-facing development draft
 - `.github/workflows/ci.yml`: formatting, checks, tests, and package dry-run
@@ -245,7 +227,7 @@ env -u NO_COLOR target/release/examples/render_profile
 
 The native test copies that disposable review save, presses a held movement key,
 opens all six building doors through mouse events, and observes live position over
-a read-only director connection. It never edits player/world state. Pillow is needed
+a read-only test-observation connection. It never edits player/world state. Pillow is needed
 for software captures. The village profile stages six villagers and measures 1,000
 real engine ticks after warmup. Renderer profiles include a generated village scene;
 these CPU timings exclude terminal emulator and WAN latency.

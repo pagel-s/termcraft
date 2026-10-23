@@ -532,7 +532,7 @@ impl Director {
             _ if request.starts_with("/auto ") => {
                 let preference = request.trim_start_matches("/auto ");
                 if !["exploration", "combat", "building"].contains(&preference) { return Err("Use /auto exploration, /auto combat or /auto building.".into()); }
-                if self.program.is_none() && self.bridge.is_none() { return Err("AI game master is not configured. See docs/agents.md for setup.".into()); }
+                if self.program.is_none() && self.bridge.is_none() { return Err("AI game master is not configured. See internal/llm-integration.md in the source checkout for setup.".into()); }
                 let mut next = self.config.clone(); next.proactive = Some(preference.into()); next.write(state.world.save_root())?; self.config = next;
                 state.chat.mode = preference.into(); self.last_event = Instant::now(); self.last_area_x = state.player.x.floor() as i32; self.proactive_count = 0;
                 self.tell(state, format!("Proactive {preference}: up to three events this session, at least two minutes apart, after exploring a new area. /pause stops them."));
@@ -573,7 +573,7 @@ impl Director {
             return Err("Resume normal play before changing the world.".into());
         }
         if self.program.is_none() && self.bridge.is_none() {
-            return Err("Use /connect for your existing LLM client, or configure a provider runner. See docs/agents.md.".into());
+            return Err("Use /connect for your existing LLM client, or configure a provider runner. See internal/llm-integration.md in the source checkout.".into());
         }
         let x = state.player.x.floor() as i32;
         if x.abs_diff(0) > 99_900 {

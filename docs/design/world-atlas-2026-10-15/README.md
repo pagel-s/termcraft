@@ -1,6 +1,6 @@
 # Termcraft world gallery
 
-112 scenes and 268 views. Open a section to browse; select a view link for the original image.
+111 scenes and 266 views. Open a section to browse; select a view link for the original image.
 
 [All 97 block/state comparisons](../world-refinement-2026-10-15/README.md) · [Capture notes](provenance.md)
 
@@ -206,16 +206,6 @@ Overworld · Staged UI
 Inventory opened with a staged equipment loadout; ordinary item icon rendering.
 
 [Overview](inventory-00.png) · [Detail](inventory-01.png)
-
-### Game-master chat
-
-Overworld · Staged UI
-
-![Game-master chat](game-master-chat-00.png)
-
-An unsent chat draft. No model request, response or generated world edit is being simulated.
-
-[Overview](game-master-chat-00.png) · [Detail](game-master-chat-01.png)
 
 ### Nether portal and player workshop
 
@@ -738,7 +728,7 @@ Overworld · Recipe world
 
 ![Frostbound ruins / abandoned tower](recipe-tower-00.png)
 
-The built-in declarative world recipe, with its authored tower and regional terrain. No LLM was called to create this gallery.
+The built-in declarative world recipe, with its authored tower and regional terrain.
 
 [Overview](recipe-tower-00.png) · [Detail](recipe-tower-01.png)
 

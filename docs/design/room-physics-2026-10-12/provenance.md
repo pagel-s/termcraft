@@ -27,7 +27,7 @@ obsidian recess. Tests cover enclosure, glass/open doors/torches, incomplete rui
 roof gaps, floating props and the End recess.
 
 Compact objectives retain the complete actionable goal; one contextual hint covers
-climbing, chest transfer, bridge placement and the signal. A game-master status
+climbing, chest transfer, bridge placement and the signal. Other active status
 keeps priority. A renderer regression checks the 80-column goal and ladder hint.
 
 ## Evidence and reproduction
@@ -55,7 +55,7 @@ The separate normal-rule CLI test again completes the trail, all three guards,
 looting, eight-block bridge, signal and save/reopen. A real native PTY starts
 `trial native-review`, checks the 80-column controls, resizes to 160×48, walks and
 jumps through ordinary input, saves/exits and verifies the saved movement and
-airborne position through MCP. It also checks terminal restoration.
+airborne position through the test-observation interface. It also checks terminal restoration.
 
 [Exact source/binary and qualification](../../assets/room-physics-2026-10-12.json)
 record 622 tests on stable/Rust 1.88, strict Clippy, TCP, native/co-op input, SSH and

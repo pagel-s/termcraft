@@ -1,4 +1,4 @@
-# Experimental local co-op
+# Co-op in the development build
 
 Up to eight terminal clients can play across the Overworld, Nether and End.
 Each dimension has its own authoritative terrain, entities and simulation clock.
@@ -9,9 +9,10 @@ terrain changes run on the server. The world advances once per tick, including
 terrain physics around distant players. Nearby entities and complete player
 inventories are replicated to clients.
 
-This is a development slice for trusted local connections. Shared host-controlled
-game-master chat, live MCP authoring and an SSH joining command are implemented.
-Public hosting and platform/latency qualification remain unfinished. This slice does not qualify the release as beta.
+Use trusted local connections or the SSH join command for a host you control.
+Native archives build and pass automated checks on Linux, Windows and both Mac
+architectures. Public hosting, sustained human sessions and remote-link input
+quality remain unfinished qualification work; no beta is published.
 
 ## Try two players
 
@@ -48,7 +49,7 @@ To share an existing named/generated world, close its local owner first:
 ./target/release/termcraft world serve WORLD_ID 127.0.0.1:25565
 ```
 
-A writer lease prevents simultaneous native/MCP/server owners of the named world.
+A writer lease prevents simultaneous local/server owners of the named world.
 The server uses that world's blocks and chests, with separate multiplayer player
 records. New players start with empty inventories. Existing single-player
 inventories are not imported into multiplayer records.
@@ -60,12 +61,9 @@ mouse right click or F to interact/place, E for inventory, and 1–9 for the hot
 Inventory supports left-click swap, right-click split/place one and Shift-click
 quick transfer. Enter crafts the grid output; Shift+Enter crafts as many as
 possible; Delete clears the grid. Furnace/enchanting/anvil/brewing actions use
-the displayed mouse options. Drag-distribution gestures have not been ported.
-Global difficulty/rule/debug travel shortcuts are ignored by the server. Press
-**T** for shared game-master chat. Only the first connected player (host) may
-submit requests or `/connect`; guests have a read-only view. Chat releases held
-movement/attack inputs without pausing the server. See [LLM setup](agents.md#use-your-client-as-the-live-game-master).
-Host departure cancels requests and revokes the bridge before host promotion.
+the displayed slots and mouse options. Drag distribution and batch crafting use
+the same inventory rules in native and shared play. Global difficulty/rule/debug
+travel shortcuts are ignored by the server.
 
 Useful manual checks:
 
@@ -97,8 +95,6 @@ Terrain, mobs, boats, pickups, collision and explosions are dimension-local.
 Clients receive avatars and terrain from their own dimension. Inputs carry the
 source dimension, so delayed clicks cannot edit a different world after travel;
 key releases remain accepted. Travel clears held actions and retargets the cursor.
-The game-master currently authors the Overworld; the host returns there to request
-changes or undo its structures.
 
 ## Saves, limits and remaining work
 
@@ -117,15 +113,17 @@ credential and server-record files are written with mode `0600`.
 The server supports at most eight concurrent connections and 64 saved player
 identities. It saves before issuing a reconnect credential, on disconnect, every
 45 seconds and on Unix SIGINT/SIGTERM. Stop it with Ctrl+C and wait for exit.
-Chunk and player files are atomic individually, not one whole-world transaction;
-a forced kill or storage failure can lose recent work. Save failures are reported
-and retained data is retried. Corrupt records are rejected without replacement.
+Chunk and player files are written individually inside a recoverable world
+checkpoint. Interrupted writes roll back to the last completed checkpoint; a
+forced kill can lose work since that boundary. Keep the hidden checkpoint data
+with backups. Physical power-loss behavior still needs qualification. Save
+failures are reported and retained data is retried. Corrupt records are rejected without replacement.
 Runtime mobs, boats, loose items/XP, projectiles and active encounters persist
 with each dimension's clocks, health and timers. Restarting resumes surviving wave
 members and End boss/crystal damage. Nothing advances while offline. Normal live
 spawn/despawn rules still apply. Old server records have no entities to restore.
 
-Protocol **17** requires matching builds. Frames are capped at 256 KiB and nearby
+Protocol **18** requires matching builds. Frames are capped at 256 KiB and nearby
 entity snapshots at 512 entities within 128 columns. Terrain streaming covers
 seven chunk columns around each player. Snapshots are sent at 20 Hz. A two-minute
 eight-player delayed-link/stalled-reader fixture now passes; WAN bandwidth and
@@ -138,7 +136,7 @@ account authentication or internet-grade abuse protection. Keep this slice on a
 trusted local interface. Local encrypted OpenSSH authentication/forwarding tests
 pass. Actual remote accounts/WAN links, Windows graceful server shutdown, platform
 input and a sustained human session remain release gates. The SSH wrapper does
-not provision accounts or hosts. Joining as an LLM player is optional.
+not provision accounts or hosts.
 
 ## Automated evidence
 
@@ -167,9 +165,9 @@ These are correctness checks. They do not establish fun, internet robustness,
 full progression parity or the performance targets in the beta plan.
 
 Local automated evidence is tracked in `BETA_RELEASE_PLAN.md` in the source
-checkout and [Performance](performance.md). The real TCP suite covers both a
-mine/craft/build/reconnect/restart session and authenticated live game-master
-requests through an actual MCP subprocess, including cancellation, invalid and
-stale plans, guest restrictions and host-departure revocation. Rendered PTY checks
-cover two clients, inventory, chat, resizing and terminal restoration. These use
-offline fixtures, not live model calls. Other platforms remain unqualified.
+checkout and [Performance](performance.md). The real TCP suite covers contested
+building/resources, inventory persistence, portals, independent dimension travel,
+source-height water and interrupted checkpoints. Rendered PTY checks cover two
+clients, inventory, resizing and terminal restoration. The four-platform native
+pipeline passed on the [current implementation](https://github.com/pagel-s/termcraft/actions/runs/39374722036);
+manual input/presentation and longer human sessions remain separate gates.

@@ -20,7 +20,7 @@ can open without deleting the room's mounted lights.
 
 Fresh village ground lights move onto their floor. Stronghold lights find the
 actual floor after overlapping rooms are carved, avoiding nominal surfaces that
-have become air. Director structures apply torches after all their new supports.
+have become air. Staged structures apply torches after all their new supports.
 Loaded legacy lights are checked once neighboring chunks are present; valid room
 mounts remain, and unsupported torches become dropped items. There are no new
 serialized variants, save fields or protocol changes. Redstone torch rules are

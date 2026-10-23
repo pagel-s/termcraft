@@ -61,7 +61,7 @@ check. A process already running the previous executable keeps its old code.
 ## Verification
 
 - **788 tests pass** on stable Rust and minimum Rust 1.88. Strict all-target
-  Clippy passes on both. Seven real TCP/MCP tests pass.
+  Clippy passes on both. Seven real TCP/process tests pass.
 - Every pillar is crossed from both directions, including starts underneath
   its crown lip, in both the legacy-wide and raised-slim layouts. Every tick
   checks body clearance; crossings and horizontal pauses are bounded.

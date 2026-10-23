@@ -82,7 +82,7 @@ unknown edges and distant co-op regions. Existing waterfall, runoff, lava/mixing
 crop drops, source regeneration and physics checks remain passing. Full supplied
 water is included in rendered-depth, immersion and boat-surface checks.
 
-All **six real TCP/MCP tests** pass. The new test lets the server fill a basin
+All **six real TCP/process tests** pass. The new test lets the server fill a basin
 across a chunk seam, verifies full supplied water on both clients, restarts the
 server, collects the source through an ordinary bucket command, and verifies
 drainage on both clients and after reopening the saved world.

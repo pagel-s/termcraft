@@ -18,8 +18,6 @@ cannot read the new checkpoints. Network protocol remains **14**.
 - Solo portal/quick travel and death/respawn preserve the departing dimension's
   entities. Inactive solo dimensions pause. Co-op dimensions retain their existing
   active ticking behavior.
-- Game-master finite waves retain their event ID and surviving members. Completed
-  enemies are not respawned. Pending model requests/bridge sessions are not resumed.
 - Lantern Run saves credited kills together with surviving guards, replacing the
   former restart-the-entire-wave behavior. Its legacy sidecar remains readable.
 - Native and shared player inventories remain separate. A checkpoint revision
@@ -33,7 +31,7 @@ cannot read the new checkpoints. Network protocol remains **14**.
 
 Pickups and inventories share one atomic checkpoint per mode. A failed checkpoint
 write retains the previous inventory/entity pair and live state can be retried.
-Terrain, director metadata and checkpoint files still do not form one whole-world
+Terrain, metadata and checkpoint files still do not form one whole-world
 transaction; abrupt power loss can leave their timestamps inconsistent. Emergency
 recovery includes the runtime checkpoint but only loaded current-dimension terrain.
 It remains a partial copy requiring an intact separate backup.
@@ -66,11 +64,11 @@ crash consistency.
 ## Collected verification
 
 The final source passes **713 unit tests** on stable Rust and Rust 1.88, formatting
-and strict all-target Clippy on both. All **five real TCP/MCP process tests** pass,
+and strict all-target Clippy on both. All **five real TCP/process process tests** pass,
 including the new server restart/ordinary-movement pickup/restart regression.
 Native and co-op PTYs pass all-view bow, ammunition, food and terminal restoration
-checks. The extracted Linux archive launches without Rust and saves/reopens through
-MCP. The offline crate package verifies and strict documentation builds.
+checks. The extracted Linux archive launches without Rust and saves/reopens
+through the test interface. The offline crate package verifies and strict documentation builds.
 
 Lantern Run completes and reopens through the real CLI, including five repeat
 runs. Its script now observes landing before the next jump at the bridge abutment;

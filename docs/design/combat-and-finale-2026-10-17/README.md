@@ -47,8 +47,7 @@ use normal primary-action commands and real simulation ticks.
 Select a hotbar item and press **V** for one, **Shift+V** for the stack. In an open
 inventory, click the item first, then use the same keys. Throwing preserves count,
 tool wear and enchantments, including after a partial pickup or reload. Everyone
-waits two seconds before collecting the throw. MCP exposes the same normal action
-as `drop_item`.
+waits two seconds before collecting the throw.
 
 Persistent villagers previously continued falling through missing terrain after
 their chunks unloaded. They now sleep until their complete current/predicted
@@ -101,7 +100,7 @@ follow-up. The fresh capture above shows the currently implemented Nether.
 
 The [Linux archive check](archive-check.json) also passes after extracting with
 Rust absent from PATH. The earlier Windows/macOS artifact failures at `2315025`
-were a stale smoke-test assertion of exactly 22 MCP tools; the drop tool makes 23.
+came from an outdated smoke-test command-count assertion.
 The check now verifies unique required commands. The Linux portal reconnect test
 also waits, with a strict deadline, only for the explicit previous-profile cleanup
 rejection; unrelated authentication errors still fail with their actual message.

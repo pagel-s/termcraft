@@ -78,7 +78,7 @@ Exact source hashes, executable hash, timings and test scope are in
 
 - Stable and Rust 1.88: **599 unit tests**, all-target strict Clippy and formatting.
 - Three real TCP regressions: contested resources/building/reconnect/restart,
-  live MCP director permissions/cancellation, and eight-player delayed/stalled
+  permissions/cancellation regressions and eight-player delayed/stalled
   reader behavior. The default soak is 12 seconds and is not a human co-op session.
 - Native and co-op terminal fixtures: enhanced held input without repeated events,
   release braking, initial arrow input, focus-loss clearing, inventory/F3/F4 and
@@ -86,7 +86,7 @@ Exact source hashes, executable hash, timings and test scope are in
 - Real OpenSSH client against an encrypted temporary Paramiko endpoint: key/host
   checks, forwarding failures, reconnect/restart and dropped-link cleanup.
 - Offline provider adapter tests, crate package verification, strict documentation
-  build, plus extracted Linux native archive/MCP launch without Rust in PATH.
+  build, plus extracted Linux native archive/runtime launch without Rust in PATH.
 - Color-enabled renderer profile: 16 cases including 135 world-drop types. CPU
   composition/ANSI costs exclude simulation, kernel I/O, emulator, models and WAN.
 

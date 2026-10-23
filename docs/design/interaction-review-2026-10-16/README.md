@@ -42,7 +42,7 @@ chosen pixel artwork and corrects the actual interaction paths.
   before/after census files. These are fresh chunks; existing saved deposits and
   structures are not regenerated.
 
-Verification: 697 Rust tests; four real localhost TCP/MCP integration tests;
+Verification: 697 Rust tests; four real localhost TCP/process integration tests;
 Linux native/cooperative PTY movement, jump, focus and all-view door checks.
 `native-input.json` records the movement/door checks before the final held-gear and cave-entrance
 lighting corrections. `native-actions.json` checks the current game build in both

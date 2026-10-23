@@ -29,6 +29,9 @@ def main():
 
     def add(record, group, images):
         record = dict(record)
+        if record['id'] == 'game-master-chat':
+            return  # Keep experimental UI outside the public tour.
+        record['caption'] = record['caption'].replace(' No LLM was called to create this gallery.', '')
         record['images'] = []
         for mode, title, filename, width, height in images:
             path = args.raw / group / filename

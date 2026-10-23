@@ -1,51 +1,59 @@
-# termcraft
+# termcraft — Terminal Reborn
 
-`termcraft` is a terminal-first 2D sandbox game written in Rust. The target feel is a classic early-2012 survival progression: survive the first night, mine ore, smelt gear, enter the Nether, find the stronghold, and beat the dragon.
+**Survive, build and explore a block world in your terminal. Bring friends over SSH.**
 
-> Version: `0.1.0`
->
-> Status: early alpha. The game is playable today, but some behavior is still rough, incomplete, or buggy.
+Termcraft is a 2D sandbox survival game written in Rust. Gather wood, build a
+shelter, mine and smelt better tools, explore the Nether and defeat the Ender
+Dragon. Terminal pixel art, shaped terrain and room cutaways adapt the world to
+a side-on view.
 
-<video src="assets/termcraft.mp4" controls autoplay muted loop playsinline width="100%">
-  Your browser does not support embedded video. Open <a href="assets/termcraft.mp4">termcraft.mp4</a>.
-</video>
+> These pages describe `beta/terminal-reborn`, the next beta in development.
+> The published `0.1.0` alpha predates these changes. Development executables
+> still report `0.1.0`; no beta has been published.
 
-> Highlight video: [termcraft.mp4](assets/termcraft.mp4)  
-> YouTube: https://youtu.be/kR986Xqzj7E  
-> Highlight soundtrack: [Fantasy Orchestral Theme](https://opengameart.org/content/fantasy-orchestral-theme) by Joth and [Boss Battle #2 \[Symphonic Metal\]](https://opengameart.org/content/boss-battle-2-symphonic-metal) by nene via OpenGameArt, both `CC0`. Full details: [Media Credits](media-credits.md)
+![Generated village cottage in the development renderer](design/world-atlas-2026-10-15/village-cottage-00.png)
 
-## Start Here
+## Start playing
 
-- [Installation](installation.md)
-- [Gameplay](gameplay.md)
-- [Supported Content](supported-content.md)
-- [Media Credits](media-credits.md)
-- [World Format](world-format.md)
-- [Developer](developer.md)
+- [Installation](installation.md): native Linux, Windows and macOS archives, or a source build.
+- [Gameplay](gameplay.md): movement, inventory, crafting, farming and portals.
+- [Co-op](multiplayer.md): up to eight players, reconnect saves and independent dimension travel.
+- [SSH joining](distribution.md#join-through-ssh): play remotely through an existing SSH account.
+- [Release notes](beta-release-notes.md): changes since the published alpha and current limits.
 
-## What The Current Build Supports
+Launch **Lantern Run** for a focused combat, traversal and building route, or
+start classic survival for the open world. The route has its own save.
 
-- local single-player survival as the main supported way to play
-- procedural Overworld, Nether, and End generation
-- mining, placing, inventory, crafting, furnaces, brewing, boats, and storage
-- health, hunger, combat, weather, fluids, crops, farming, and progression through the dragon fight
-- broad hostile/passive mob coverage plus villages, dungeons, strongholds, and Nether fortresses
+## What is in the development build
 
-## What To Expect In This Build
+- Coordinated pixel art for blocks, items and creatures across all three dimensions.
+- Overview, Wide and Detail views; press **=** from Overview for the detailed figure.
+- Refined walking, sprinting, jumping, ladders, collision and swimming.
+- A recipe book, manual crafting, explicit furnace slots, storage and item dropping.
+- Generated villages, caves, strongholds and Nether fortresses; functional portals.
+- Source-height water basins, irrigation, lava/fire, drowning and animal shore escape.
+- A front-facing dragon, slim pillars and a fourteen-second defeat sequence.
+- Shared building and combat with independent inventories and saved reconnect profiles.
 
-- This is still an early alpha.
-- The game is substantial and playable, but not polished to full parity.
-- Networking exists in the repo, but it is still experimental and should not be the headline feature.
+[Browse the world gallery](design/world-atlas-2026-10-15/index.html) for actual
+renderer captures. Positions and some actors are staged for inspection. The
+[movement and art review](feel-and-art.md) records changes and playtest questions.
 
-## Public Positioning
+## Before upgrading
 
-If you describe the project publicly, keep it accurate:
+Back up your full save directory, including hidden checkpoint data. Existing
+terrain remains intact; fresh village geometry and ore layouts need new chunks.
+Newer checkpoints cannot be opened by older executables. See
+[save formats and recovery](world-format.md).
 
-- terminal-first 2D sandbox survival in Rust
-- early alpha
-- local single-player first
-- broad content surface, but not full parity
+The four-platform pipeline builds and tests native archives. Automated checks do
+not replace manual terminal testing or full survival/co-op playthroughs. See
+[distribution status](distribution.md) and [supported content](supported-content.md).
 
-## Contact
+## Project
 
-For feedback, bug reports, or publishing questions, contact: `pagel.sebastian.1@gmail.com`
+[Developer guide](developer.md) · [Performance measurements](performance.md) ·
+[Media credits](media-credits.md) · [GitHub](https://github.com/pagel-s/termcraft)
+
+Unofficial fan project. Not affiliated with Mojang or Microsoft.
+For feedback, contact `pagel.sebastian.1@gmail.com` or open a GitHub issue.

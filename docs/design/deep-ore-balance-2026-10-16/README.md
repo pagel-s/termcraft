@@ -69,7 +69,7 @@ Connected-vein bounds tighten to 12/8/6/5/4 for coal/iron/redstone/gold/diamond.
 The existing deep-cave diamond-visibility threshold was retained.
 
 All **750 tests** pass on stable Rust and Rust 1.88. Strict all-target Clippy passes
-on both; formatting, the optimized build, six real TCP/MCP integrations and normal
+on both; formatting, the optimized build, six real TCP/process integrations and normal
 Lantern Run completion/save-reopen pass. Offline crate verification and strict
 documentation validation are recorded in `evidence.json`.
 

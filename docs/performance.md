@@ -14,7 +14,7 @@ Native single-player now retains chunks within six chunk columns of each viewer.
 Distant clean chunks are discarded. Distant dirty chunks are saved before being
 discarded, with at most one such write per frame. Save failures keep the data in
 memory and show a warning; disk failure can therefore exceed the normal working
-set. MCP sessions trim clean distant chunks after their checked saves. The server now trims against all active players, retaining failed dirty writes;
+set. Checked local sessions trim clean distant chunks after saves. The server now trims against all active players, retaining failed dirty writes;
 streaming and slow readers have a repeatable loopback test below; WAN and human input
 feel still need qualification.
 
@@ -185,7 +185,7 @@ and encryption against a disposable loopback Paramiko endpoint. Key/auth/forward
 rejection, restart/reconnect, dropped-link terminal restoration and tunnel cleanup
 pass. Setup is in `RELEASE_CHECKLIST.md` in the source checkout. These tests do
 not change host services or qualify remote accounts/WAN behavior. Raw reports
-and the interactive Codex-director check: [qualification evidence](assets/qualification-2026-10-11.json).
+for the network and SSH fixtures: [qualification evidence](assets/qualification-2026-10-11.json).
 
 ## Slow-client isolation, 16 October
 

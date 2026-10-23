@@ -1,8 +1,7 @@
 # Gameplay
 
-> Version: `0.1.0`
->
-> Status: early alpha. The intended survival loop is in place, but behavior is not yet bug-free.
+> This guide describes the unreleased `beta/terminal-reborn` development build.
+> Its executable still reports `0.1.0`; the published alpha predates these changes.
 
 ## Core Loop
 
@@ -34,7 +33,6 @@ The intended progression is:
 | Performance diagnostics | `F3` |
 | Zoom in / out | `=` or `+` / `-` |
 | Cycle world view | `F4` |
-| AI game master chat (local / co-op host) | `T` |
 | Quit / close UI | `Q` or `Esc` |
 
 The unreleased development build keeps detailed counters behind `F3`. See
@@ -48,12 +46,6 @@ sneak, not sprint. The HUD shows `Sprint ON` / `OFF`. A legacy input timeout
 clears the pending double tap so delayed OS repeat does not start sprinting.
 Intentional double-tap sprint requires directional key-up events (`keys:release`
 in F3); the repeat-only fallback cannot reliably distinguish that gesture.
-
-The experimental native chat accepts requests for battles, mobs, local ambience,
-weather and structures with a configured director. Typing pauses single-player;
-Enter submits and resumes play while the provider works. Esc closes chat and
-Ctrl+C cancels a pending request. See [AI game master setup](agents.md#in-game-ai-game-master)
-for the offline demo, model configuration, proactive controls and current limits.
 
 ## Settings And Rules
 
@@ -199,8 +191,9 @@ If you do not want these in the eventual public build, remove or gate them befor
 
 ## Scope Note
 
-- The core gameplay target is local single-player survival.
-- Networking exists for development/testing, but it is not yet documented as a polished feature path.
+- Classic survival and the separate Lantern Run route work locally.
+- Co-op supports shared building/combat and independent travel across dimensions;
+  use matching builds and see [setup and limitations](multiplayer.md).
 - For the currently implemented item and mob roster, see [Supported Content](supported-content.md).
 
 ## Death And Respawn
@@ -216,8 +209,8 @@ The game autosaves during play and persists local progression under the per-user
 
 ## Movement and readability updates in the development build
 
-Releasing movement now applies the same brake in native play, server simulation
-and MCP actions. Duplicate releases do not erase later knockback. Holding jump
+Releasing movement now applies the same brake in native play and server
+simulation. Duplicate releases do not erase later knockback. Holding jump
 climbs ladders continuously; holding sneak stays on the ladder. Sneak also stops
 residual sideways momentum at a supported ledge. Swept wall/ceiling collisions
 prevent high-speed tunnelling, and landing damage includes the final partial tick
@@ -292,3 +285,16 @@ waterlogged slabs/stairs and physical currents are not modeled.
 
 See the [basin review](design/water-basins-2026-10-16/README.md) for captures,
 connected-vessel and overflow checks, save/reopen and real co-op verification.
+
+### Building into water and animal swimming
+
+A solid block can replace water beside a support. If the aimed water cell has
+no support, placement follows the aim to a submerged bank or floor within normal
+reach. It still requires a real support and cannot place inside either player.
+Water continues flowing around the placed block.
+
+Cows, sheep, pigs, chickens, wolves and ocelots avoid walking into water/lava,
+paddle upward if submerged and seek a nearby reachable bank. They can climb a
+bank one block above the surface. This is local steering: animals can still drown
+under sealed roofs or where no air is reachable. See the
+[water behavior review](design/water-behavior-2026-10-19/README.md).

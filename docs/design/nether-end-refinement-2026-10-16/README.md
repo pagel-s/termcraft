@@ -92,7 +92,7 @@ above generated ground and a smaller-terminal End view.
 ## Validation and limits
 
 - 780 tests pass on stable Rust and minimum Rust 1.88. All-target strict Clippy
-  passes on both. Seven opt-in TCP/MCP integration tests pass.
+  passes on both. Seven opt-in TCP/process integration tests pass.
 - Legacy-height flight tests cover players on both sides and at the island edge,
   require contact reach, bound stalled intervals and check body clearance every
   tick. An embedded saved dragon escapes without altering terrain.
@@ -107,7 +107,7 @@ above generated ground and a smaller-terminal End view.
 - Actual solo terminal input visits both dimensions with F6/F7, then walks and
   jumps. Co-op starts from offline dimension fixtures because client debug travel
   is deliberately ignored by the host. Both generated dimensions pass movement,
-  rendering, clean exit and terminal restoration. MCP only observes the player.
+  rendering, clean exit and terminal restoration. The test interface only observes the player.
 
 [Final terminal report](terminal-input.json) ·
 [Solo Nether](native-nether.png) · [Solo End](native-end.png) ·

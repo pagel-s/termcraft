@@ -86,7 +86,7 @@ and saved flow levels after normal reopening. `checks.json` records those result
 
 All **732 unit tests** pass on stable Rust and Rust 1.88; both strict all-target
 Clippy checks, formatting and offline crate verification pass. All five real
-TCP/MCP tests pass. Native/co-op PTYs confirm run/jump, continued running, releases,
+TCP/process tests pass. Native/co-op PTYs confirm run/jump, continued running, releases,
 focus loss and terminal restoration on the installed executable. Lantern Run
 completes through normal rules and reopens with its progress intact.
 

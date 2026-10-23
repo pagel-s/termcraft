@@ -28,6 +28,7 @@ def main():
     name = f"termcraft-{version}-dev-{args.target}"
     binary_name = "termcraft.exe" if args.binary.suffix == ".exe" else "termcraft"
     files = {binary_name: args.binary.read_bytes(), "LICENSE": (root / "LICENSE").read_bytes()}
+    files["RELEASE_NOTES.md"] = (root / "RELEASE_NOTES.md").read_bytes()
     for path in sorted((root / "docs").rglob("*")):
         # Keep the current compact art review usable offline. Historical videos
         # and large gameplay recordings are deliberately outside native bundles.
@@ -46,7 +47,7 @@ def main():
         }
         if path.is_file() and (path.suffix in {".md", ".json", ".html", ".png"} or review_clip):
             files[path.relative_to(root).as_posix()] = path.read_bytes()
-    for script in ("demo_director.py", "generate_world.py", "test_lantern_trial.py"):
+    for script in ("test_lantern_trial.py",):
         files[f"scripts/{script}"] = (root / "scripts" / script).read_bytes()
     launch = ".\\termcraft.exe" if binary_name.endswith(".exe") else "./termcraft"
     if binary_name.endswith(".exe"):
@@ -78,8 +79,9 @@ def main():
         f"Host trusted local co-op: {launch} server\n"
         f"Join locally: {launch} client --player alice\n"
         f"Join through an existing SSH account: {launch} join user@host --player alice\n"
-        "Game master: press T, enter /connect, then connect your LLM using\n"
-        "the entry printed by termcraft mcp config. See docs/agents.md.\n\n"
+        "Controls: hold A/D to walk; double-tap and hold to sprint; Space to jump.\n"
+        "E: inventory/crafting; V/Shift+V: drop one/stack; =/-: zoom; F4: views.\n\n"
+        "See RELEASE_NOTES.md for the proposed release highlights.\n"
         "See docs/installation.md and docs/multiplayer.md for saves and limits.\n"
         "On Windows, use Windows Terminal with OpenSSH installed for SSH joining.\n"
     ).encode()

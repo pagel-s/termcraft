@@ -1,8 +1,7 @@
 # World Format
 
-> Version: `0.1.0`
->
-> Status: early alpha. This format description reflects the current implementation, not a frozen external save contract.
+> Scope: current development build, ahead of the published `v0.1.0` alpha.
+> This describes the implementation, not a frozen external save contract.
 
 This page documents the current on-disk save layout as implemented in the repo today. Treat it as a technical description, not a stable public save-format guarantee.
 
@@ -27,33 +26,17 @@ Set `TERMCRAFT_SAVE_DIR` to override this location. Existing repo-local `./saves
 
 Chunk saves are namespaced by dimension. Older legacy overworld chunk filenames are still migrated on load.
 
-The unreleased generated-world prototype uses independent directories at
-`<save-dir>/worlds/world-<ID>/`. Each contains a declarative `world.json` recipe,
-`request.json` recording the original prompt, and its own dimension chunk and
-player progression files. A `.session.lock` prevents concurrent writers. See
-[Agents and Generated Worlds](agents.md) for commands and format limitations.
+Named worlds and Lantern Run use independent directories at
+`<save-dir>/worlds/world-<ID>/`. These contain a `world.json` recipe, optional
+`request.json` provenance, dimension chunk files, player progression and a
+`.session.lock` preventing concurrent writers. Close the local owner before
+hosting the same named world.
 
-The experimental native game master can add two sidecars to either classic or
-named world roots:
-
-- `environment.json`, format version 1: up to 16 nonoverlapping local biome
-  ambience regions. These affect appearance, precipitation and biome-based
-  spawning; they do not replace terrain blocks or change the world recipe.
-- `director.json`, format version 1: the chosen proactive preference, the last
-  six request/results and conditional edit records for the last eight structures.
-  `/undo` removes only unchanged structure blocks, preserving storage/workstations
-  and subsequent player edits. `/reset` backs up this sidecar and resets the
-  preferences/history, leaving world changes in place.
-
-Both sidecars use synced temporary files and rename. Corrupt environment data
-blocks checked world startup; corrupt director metadata disables authoring until
-explicit reset while allowing ordinary play. These sidecars participate in the
-recoverable world checkpoint described below. Structures and ambience survive
-reopening. Weather/time use progression persistence and then follow normal game
-cycles. Spawned mobs and the active finite encounter now resume from the native
-v11 or server v5 checkpoint. Pending model requests and bridge connections are
-cancelled on exit and must be connected again. The proactive cooldown and attempt
-budget reset on entry; the selected preference persists.
+Additional metadata sidecars can be present. Keep them together with the full
+world directory and its hidden checkpoint files when backing up or recovering;
+do not copy only the visible terrain files. Corrupt required metadata is reported
+rather than silently replaced. Weather, clocks, entities and encounters resume
+from native v11 or server v5 checkpoints; the world does not advance while offline.
 
 ## Chunk Geometry
 
@@ -82,7 +65,7 @@ Fluid blocks retain their existing `Water(u8)` / `Lava(u8)` encoding. Water valu
 save/reopen and is rendered/used for immersion at full depth. Its supply is
 recomputed from loaded geometry when simulation resumes. No chunk schema bump is
 needed; older development binaries do not implement the new hydraulic semantics.
-Use matching protocol-16 clients/server for this build.
+Use matching protocol-18 clients/server for this build.
 
 The new `LitRedstoneOre(u8)` and `Fire(u8)` variants are appended to the block
 enum. Their timers persist with chunks and resume when simulated. Existing chunks
@@ -106,7 +89,7 @@ the in-memory chunk dirty for retry. Each compressed input and expanded payload
 is bounded to 8 MiB when loading.
 
 The unreleased build distinguishes an absent file from an unreadable or corrupt
-chunk. Only absence creates new terrain. Native and MCP world owners report
+chunk. Only absence creates new terrain. World owners report
 loading failures and preserve the existing file. Corrupt world seed and player
 progression files are also rejected by the checked startup path. Runtime chunk
 load errors stop native simulation; edits since the last successful save may
@@ -140,7 +123,7 @@ The progression payload currently contains:
 Version 11 is a bincode envelope containing the version, legacy player/world
 metadata, complete player session, sorted portal links and a runtime checkpoint.
 The runtime contains every visited dimension's entities, clocks, spawn timers,
-End boss/crystal state, active game-master wave and Lantern Run progress. Dropped
+End boss/crystal state, active encounter and Lantern Run progress. Dropped
 item/XP age, health, shearing, villager homes and projectile state are preserved.
 Inventories and pickups share this atomic write, preventing a reload from restoring
 both the collected item and the inventory that received it. The world pauses while
@@ -184,7 +167,7 @@ is cancelled when saving the source world fails.
 The unreleased build keeps synced before-images in private `.world-checkpoint/`
 before replacing any owned world file. This covers terrain and chest saves,
 including cache eviction, every visited dimension, native/server player records,
-entities, portal history, trial progress and environment/director sidecars. The
+entities, portal history, trial progress and world metadata sidecars. The
 owner flushes all dimensions and records before publishing a completion marker.
 Normal successful saves retain the new files; an interrupted checkpoint rolls
 all its files back together on the next checked startup. Newly created files in
@@ -197,13 +180,13 @@ interrupted or run out of space and then retried after the problem is resolved.
 Abandoned checkpoint initialization, completed cleanup and restore temporaries
 are removed after successful recovery. These hidden names are reserved.
 
-After a process crash, first verify that the original game/server/MCP owner is
+After a process crash, first verify that the original game/server owner is
 gone, then remove only its stale `.session.lock` if necessary. Reopen using this
 build to recover automatically. **Do not delete `.world-checkpoint/`.** Include
 hidden files when backing up or copying a world; keep the whole checkpoint
 together with its terrain and player files. Resolve pending recovery with a
 matching build before opening the world with an older binary. Native/chunk/server
-payload versions are 10/2/4; the new journal has its own version 1.
+payload versions are 11/2/5; the new journal has its own version 1.
 
 Linux tests inject ENOSPC, partial/slow writes, sync/rename errors and real
 SIGKILL during saves and rollback. They check item conservation and terrain in
@@ -239,7 +222,7 @@ A fatal native-loop error attempts to write `termcraft-recovery-<random>` in the
 system temporary directory, reports its absolute path after restoring the terminal,
 and leaves the original save files intact. On Unix the recovery directory is
 private (`0700`). It contains all **currently loaded chunks in the current
-dimension**, player progression, environment/seed/recipe data and valid director
+dimension**, player progression, seed/recipe data and valid world
 metadata, plus `RECOVERY.txt` explaining the limits.
 
 This is a **partial emergency copy**, not a full-world backup. It excludes unloaded
@@ -257,7 +240,7 @@ not acquire a second world lease or edit files independently.
 
 ### Recovering into a copy
 
-1. Close the game/server and any stepped MCP owner. Retain the complete terminal
+1. Close the game/server and any other save owner. Retain the complete terminal
    error and the reported `termcraft-recovery-...` path. Copy that temporary
    directory somewhere durable before the OS cleans it.
 2. Locate the original world directory: the save root for classic play,
@@ -271,7 +254,7 @@ not acquire a second world lease or edit files independently.
    startup could roll your newly overlaid emergency files back too. If recovery
    fails, preserve the copy and error; do not delete its journal to force entry.
 4. Read `RECOVERY.txt` and inspect which dimension/chunks were captured. Overlay
-   only the recovered chunk/progression/seed/environment/recipe/director files
+   only the recovered chunk/progression/seed and metadata files
    that you intend to restore. Keep the copy's unloaded chunks and other
    dimensions. Do not copy leases, bridge credentials or reconnect identities.
 5. Open the overlaid world as a standalone copy with the matching build:

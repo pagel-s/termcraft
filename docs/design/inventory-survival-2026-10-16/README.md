@@ -82,7 +82,7 @@ also succeed; Intel Mac is still running at evidence collection.
 [Native input capture](native-inventory-input.png) · [Co-op input capture](coop-inventory-input.png)
 
 774 library tests pass on stable Rust and minimum Rust 1.88. Strict all-target
-Clippy, the seven real TCP/MCP regressions, normal Lantern Run, storage-fault
+Clippy, the seven real TCP/process regressions, normal Lantern Run, storage-fault
 matrix and terminal checks are recorded in `evidence.json`. Additional renderer
 checks cover the final furnace panel cleanup.
 

@@ -2,7 +2,8 @@
 
 This branch is an unreleased development candidate for the next beta. Its binary
 still reports `0.1.0`; crates.io `0.1.0` is the older alpha and does not contain
-these changes. Ordinary play needs no LLM.
+these changes. Use the development branch or a matching native artifact to try
+the updated game.
 
 ## Play a native development build
 
@@ -52,7 +53,7 @@ into your Cargo bin directory, run `cargo install --path . --locked`.
 - Hold a direction to walk; tap, release, then quickly hold it again to sprint.
 - **E**: inventory; **Left Click**: mine/attack; **Right Click**: place/interact.
 - **F**: interact with the hovered block if right-click is unreliable.
-- **T**: game-master chat; `/help` lists commands. **Q**: save and quit.
+- **V / Shift+V**: drop one selected item / its stack. **Q**: save and quit.
 
 Lantern Run provides an encounter, supplies and a bridge/signal goal. Classic
 survival is a separate save. Back up existing saves before upgrading; new

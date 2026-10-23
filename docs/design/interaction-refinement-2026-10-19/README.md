@@ -95,7 +95,7 @@ save. Older binaries cannot read the new format.
   attacks through cover.
 - Six player-checkpoint fault cases and 24 multi-dimension rollback/interruption
   cases pass, conserving all inventory/chest/loot supplies.
-- The packaged Linux archive runs with an empty PATH, saves/reopens via MCP and
+- The packaged Linux archive runs with an empty PATH, saves/reopens through the test interface and
   restores its terminal. The source crate also packages and compiles offline on
   MSRV. Windows/macOS qualification runs in GitHub Actions.
 

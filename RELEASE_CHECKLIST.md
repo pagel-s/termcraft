@@ -1,9 +1,20 @@
 # Beta qualification and release handoff
 
-Updated 16 October 2026. Candidate: `0.2.0-beta.1`; current development
+Updated 23 October 2026. Candidate: `0.2.0-beta.1`; current development
 manifest/executable: `0.1.0`. Nothing here authorizes publication or public hosting.
 See [BETA_RELEASE_PLAN.md](BETA_RELEASE_PLAN.md) for results and limitations and
 [development release notes](docs/beta-release-notes.md) for player-facing changes.
+
+The public scope is survival, pixel art, physics, co-op and native distribution.
+The LLM integration is deferred and unadvertised after repeated onboarding
+request timeouts; its retained implementation/tests are not a beta acceptance
+requirement. See `internal/llm-integration.md` for engineering notes.
+
+The implementation at `efb36f4` passes
+[CI](https://github.com/pagel-s/termcraft/actions/runs/39374722180) and the
+[four-platform native archive matrix](https://github.com/pagel-s/termcraft/actions/runs/39374722036).
+Manual play/terminal gates below remain open. The proposed release announcement
+is [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ## Repeatable local gates
 
@@ -72,10 +83,10 @@ beta source pushes. Download and judge only the exact successful run you test;
 passes all four targets, including archive/launcher and no-Rust MCP checks. This
 is separate from human terminal qualification. No tag, crate or release was published.
 
-## Human, model and platform gates
+## Human and platform gates
 
 Record OS, terminal, executable hash, world/backup, participants, duration and
-failures. Test copies of saves: older builds cannot open progression v9.
+failures. Test copies of saves: older builds cannot open progression v11.
 
 - [x] **Art direction:** terminal pixel art selected from the initial comparison.
 - [ ] **Art readability and consistency:** assess the coordinated characters,
@@ -90,21 +101,15 @@ failures. Test copies of saves: older builds cannot open progression v9.
   `termcraft trial`; its normal-rule CLI completion is automated, human acceptance
   remains open.
 - [ ] **Classic survival:** fresh world through dragon/credits; early resources,
-  storage/workstations, death/respawn, v1–8 save upgrades, dimension travel and
+  storage/workstations, death/respawn, v1–10 save upgrades, dimension travel and
   reopen. Developer loadouts/teleports do not count as a playthrough.
 - [ ] **Physics feel:** walk/stop/sprint/jump, fast wall/ceiling impacts, stairs,
   sneaking at both ledges, ladders, knockback, fall damage, swimming/drowning,
   boats, falling blocks and fluids; repeat in supported shared play.
 - [ ] **60-minute human co-op:** at least two people, distant exploration,
-  contested edits/items/storage, combat/death, director, reconnect and restart.
+  contested edits/items/storage, combat/death, reconnect and restart.
   Include independent Nether/End travel, shared dragon progression and an actual
   remote SSH account/delayed link.
-- [ ] **Existing-client game master:** keep Codex/Claude actively waiting; ask
-  for a hard battle, passive mobs, snow and an accessible structure. Record
-  request-to-application latency, repair count, accepted/applied status, fidelity
-  and approval delays. Include cancellation and an unsupported request.
-- [ ] **Optional agent play:** gather wood/craft/build under normal rules, save
-  and leave, then human entry. Simultaneous human/LLM player entry is deferred.
 - [ ] **Clean native platforms:** Linux x86_64, Windows x86_64, macOS ARM64/x86_64;
   build/extract/checksum archives, launch without Rust, and test keyboard, mouse,
   glyphs, colors, 120×40/200×60 resize, disconnect and orderly shutdown.
@@ -113,8 +118,8 @@ failures. Test copies of saves: older builds cannot open progression v9.
   power-loss behavior. Automated all-dimension process interruption, hosted
   records and the native backup-copy overlay path pass; real-device qualification
   remains.
-- [ ] **Onboarding/demo:** an uncoached player joins, gathers/builds and requests
-  a change; record real shared play/screenshots. Label automated fixtures honestly.
+- [ ] **Onboarding/demo:** an uncoached player joins, gathers/builds and completes
+  a combat/traversal objective; record real shared play/screenshots. Label automated fixtures honestly.
 
 ## Release preparation after qualification
 
