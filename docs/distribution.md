@@ -1,8 +1,8 @@
 # Native archives and SSH
 
-The Terminal Reborn branch is an unreleased development build. Its native
-archives run without Cargo or a Rust installation. See [installation](installation.md)
-for downloads and terminal requirements.
+Terminal Reborn **`0.2.0-beta.1`** is prepared for prerelease publication. Its
+native CI archives run without Cargo or a Rust installation. See
+[installation](installation.md) for downloads and terminal requirements.
 
 ## Native archives
 
@@ -19,6 +19,11 @@ Arguments are forwarded, so `./play.sh --help` shows available commands. Classic
 survival uses the executable directly. The archive includes player documentation,
 a license, release notes, launch instructions, a file-hash manifest and an archive
 SHA-256 checksum. It excludes development reports, test scripts and review media.
+
+Archives are named `termcraft-0.2.0-beta.1-TARGET.tar.gz` on Linux/macOS or
+`termcraft-0.2.0-beta.1-TARGET.zip` on Windows. `MANIFEST.json` records the version,
+target, prerelease status and each bundled file's SHA-256 hash. The executable's
+`--version` output matches the archive version.
 
 Copying the executable does not copy your saves. See [saving and recovery](world-format.md).
 macOS builds are unsigned. Check the exact build when downloading from

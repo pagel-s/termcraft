@@ -1,10 +1,10 @@
-# Terminal Reborn — proposed v0.2.0-beta.1
+# Terminal Reborn — v0.2.0-beta.1
 
-**Draft release announcement, 23 October 2026. Not published.**
-The latest public release remains `v0.1.0`; development binaries still report
-`0.1.0`. Version/tag/package alignment and final qualification precede publication.
+**Beta prerelease prepared 23 October 2026. Publication pending.**
+The source, executable and native archives use `0.2.0-beta.1`. Until publication,
+the latest public release remains `v0.1.0`; use the beta branch or CI artifacts below.
 
-Termcraft's next release brings a new terminal pixel-art presentation, a broader
+Terminal Reborn brings a new terminal pixel-art presentation, a broader
 2D survival experience and shared adventures across the Overworld, Nether and End.
 Build a home, explore with friends over SSH and take on the dragon together.
 
@@ -40,7 +40,7 @@ Build a home, explore with friends over SSH and take on the dragon together.
 ## Try the candidate
 
 Get a successful native artifact for `beta/terminal-reborn` from
-[Native development artifacts](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml),
+[Native artifacts](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml),
 or build the branch with Rust 1.88+. Archive launchers start Lantern Run; run the
 executable directly for classic survival. Rust is not needed to run an archive.
 
@@ -59,7 +59,7 @@ Saved terrain is preserved, so new villages, ore layouts and terrain details
 require fresh chunks. Furnaces currently use each player's session rather than
 independent shared storage in every placed furnace.
 
-Development builds remain subject to terminal/input, long-session co-op and full
+This beta remains subject to terminal/input, long-session co-op and full
 survival playtesting. Native archives are unsigned. No public hosting service is
 provided; remote SSH requires an existing account and forwarding permission.
 

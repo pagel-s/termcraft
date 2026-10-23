@@ -3,7 +3,7 @@
   <p><strong>Survive, build and explore a block world in your terminal. Bring friends over SSH.</strong></p>
   <p>
     <a href="https://pagel-s.github.io/termcraft/"><img alt="Docs" src="https://img.shields.io/badge/docs-project%20guide-2f6feb?style=flat-square"></a>
-    <a href="https://github.com/pagel-s/termcraft/tree/beta/terminal-reborn"><img alt="Development branch" src="https://img.shields.io/badge/development-Terminal%20Reborn-7452aa?style=flat-square"></a>
+    <a href="https://github.com/pagel-s/termcraft/tree/beta/terminal-reborn"><img alt="Beta candidate" src="https://img.shields.io/badge/beta-0.2.0--beta.1-7452aa?style=flat-square"></a>
     <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Latest published release" src="https://img.shields.io/badge/published-0.1.0%20alpha-c97a00?style=flat-square"></a>
     <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-1.88%2B-93450a?style=flat-square&logo=rust"></a>
   </p>
@@ -17,9 +17,9 @@
 
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
-> **Terminal Reborn is the next beta in development.** These changes are on
-> `beta/terminal-reborn`; the published `0.1.0` release is the older alpha.
-> Development binaries still report `0.1.0`. The beta has not been published.
+> **Terminal Reborn — `0.2.0-beta.1` is prepared for prerelease publication.**
+> Use `beta/terminal-reborn` or its native CI archives to try the beta candidate.
+> The published `0.1.0` release is the older alpha; this beta is not published yet.
 
 ![A generated village cottage in Termcraft's terminal pixel view](docs/assets/termcraft.png)
 
@@ -30,7 +30,7 @@ villages, smelt better equipment, cross the Nether, find the stronghold and face
 the Ender Dragon. Termcraft adapts that survival progression to a side-on terminal
 world, with shaped terrain, room cutaways and distinct creature silhouettes.
 
-The development build includes:
+The beta includes:
 
 - **Terminal pixel art:** coordinated blocks, items and creatures, supported
   lights, cave shadows and three selectable color views.
@@ -47,10 +47,10 @@ The development build includes:
 
 [Supported content](docs/supported-content.md) · [Release notes](RELEASE_NOTES.md)
 
-## Play the development build
+## Play the beta candidate
 
 **Without Rust:** download your platform's archive from a successful
-[Native development artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
+[Native artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
 on `beta/terminal-reborn`. GitHub may require sign-in. Extract the artifact ZIP,
 then the game archive inside it, keeping all files together.
 
@@ -62,7 +62,7 @@ then the game archive inside it, keeping all files together.
 | macOS, Intel | `x86_64-apple-darwin` | `./PLAY.command` |
 
 For classic survival run `./termcraft` on Linux/macOS or `.\termcraft.exe` on
-Windows. macOS development builds are unsigned. See [installation](docs/installation.md)
+Windows. macOS archives are unsigned. See [installation](docs/installation.md)
 for terminal requirements and platform details.
 
 **From source:** install [Rust 1.88 or newer](https://rustup.rs/), then:
@@ -79,7 +79,7 @@ survival. `cargo install --path . --locked` installs this checkout into Cargo's 
 
 `cargo install termcraft` installs the published alpha, which predates these
 changes. Linux users can also find the [AUR package](https://aur.archlinux.org/packages/termcraft);
-check its version before comparing it with the development branch.
+check its version before comparing it with the beta candidate.
 
 ## Controls
 
@@ -110,7 +110,7 @@ See [gameplay](docs/gameplay.md) for crafting, furnaces and portal use.
 
 ## Play with friends
 
-Use matching development builds. Start a server and join from separate terminals:
+Use matching beta builds. Start a server and join from separate terminals:
 
 ```sh
 termcraft server
@@ -142,7 +142,7 @@ including hidden checkpoint files, before upgrading. Newer saves cannot be
 opened by older builds. Existing terrain is preserved; new village layouts,
 ore distribution and terrain details require fresh chunks.
 
-This remains a development build. Terminal input/presentation, long human co-op
+This is a beta prerelease. Terminal input/presentation, long human co-op
 sessions and complete survival progression need broader playtesting. Fluid
 volume is source-based, and furnaces currently use each player's session rather
 than independent shared storage. See [save recovery](docs/world-format.md)

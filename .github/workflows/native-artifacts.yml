@@ -1,4 +1,4 @@
-name: Native development artifacts
+name: Native artifacts
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ on:
       - 'scripts/test_ssh_join.py'
 
 concurrency:
-  group: native-development-${{ github.ref }}
+  group: native-artifacts-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -55,6 +55,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Read package version
+        id: package
+        run: python -c "import os, pathlib, tomllib; version = tomllib.loads(pathlib.Path('Cargo.toml').read_text())['package']['version']; pathlib.Path(os.environ['GITHUB_OUTPUT']).write_text('version=' + version + '\n', encoding='utf-8')"
       - name: Install minimum supported Rust
         run: rustup toolchain install 1.88.0 --profile minimal --component clippy
       - name: Verify
@@ -97,7 +100,7 @@ jobs:
         run: python scripts/test_native_archive.py --directory dist --report native-qualification.json
       - uses: actions/upload-artifact@v4
         with:
-          name: termcraft-dev-${{ matrix.target }}
+          name: termcraft-${{ steps.package.outputs.version }}-${{ matrix.target }}
           path: dist/*
       - uses: actions/upload-artifact@v4
         with:

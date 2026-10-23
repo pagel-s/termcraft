@@ -25,7 +25,9 @@ def main():
     reported = subprocess.check_output([str(args.binary.resolve()), "--version"], text=True).strip()
     if reported != f"termcraft {version}":
         parser.error("binary and manifest versions differ")
-    name = f"termcraft-{version}-dev-{args.target}"
+    prerelease = "-" in version
+    build_label = "prerelease" if prerelease else "release"
+    name = f"termcraft-{version}-{args.target}"
     binary_name = "termcraft.exe" if args.binary.suffix == ".exe" else "termcraft"
     files = {binary_name: args.binary.read_bytes(), "LICENSE": (root / "LICENSE").read_bytes()}
     files["README.md"] = (root / "README.md").read_bytes()
@@ -59,7 +61,7 @@ def main():
         ).encode()
     launcher_command = f".\\{launcher}" if binary_name.endswith(".exe") else f"./{launcher}"
     files["START_HERE.txt"] = (
-        f"Termcraft {version} development build. Beta qualification is unfinished.\n\n"
+        f"Termcraft {version} ({build_label}).\n\n"
         "No Rust installation required. Extract all files and open a terminal here.\n"
         f"Start the focused combat/building route: {launcher_command}\n"
         "The launcher forwards arguments; without arguments it starts Lantern Run.\n"
@@ -71,12 +73,12 @@ def main():
         "Controls: hold A/D to walk; double-tap and hold to sprint; Space to jump.\n"
         "E: inventory/crafting; V/Shift+V: drop one/stack; =/-: zoom; F4: views.\n\n"
         "Detail is the fresh-start default; saved view choices are respected.\n\n"
-        "See RELEASE_NOTES.md for the proposed release highlights.\n"
+        "See RELEASE_NOTES.md for highlights, compatibility and current limits.\n"
         "See docs/installation.md and docs/multiplayer.md for saves and limits.\n"
         "On Windows, use Windows Terminal with OpenSSH installed for SSH joining.\n"
     ).encode()
     files["MANIFEST.json"] = json.dumps({
-        "version": version, "target": args.target, "development_build": True,
+        "version": version, "target": args.target, "prerelease": prerelease,
         "files": {path: hashlib.sha256(data).hexdigest() for path, data in files.items()},
     }, indent=2).encode()
     args.output.mkdir(parents=True, exist_ok=True)

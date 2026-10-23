@@ -1,7 +1,7 @@
 # Gameplay
 
-> This guide describes the unreleased `beta/terminal-reborn` development build.
-> Its executable still reports `0.1.0`; the published alpha predates these changes.
+> This guide describes the `0.2.0-beta.1` candidate on `beta/terminal-reborn`.
+> Publication is pending; the published `0.1.0` alpha predates these changes.
 
 ## Core Loop
 

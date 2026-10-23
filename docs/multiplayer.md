@@ -1,4 +1,4 @@
-# Co-op in the development build
+# Co-op in Terminal Reborn
 
 Up to eight terminal clients can play across the Overworld, Nether and End.
 Each dimension has its own authoritative terrain, entities and simulation clock.
@@ -12,7 +12,7 @@ inventories are replicated to clients.
 Use trusted local connections or the SSH join command for a host you control.
 Native archives build and pass automated checks on Linux, Windows and both Mac
 architectures. Public hosting, sustained human sessions and remote-link input
-quality remain unfinished qualification work; no beta is published.
+quality still need broader playtesting. The `0.2.0-beta.1` candidate is not yet published.
 
 ## Try two players
 

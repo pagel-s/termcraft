@@ -132,7 +132,12 @@ def main():
         prefix = prefixes.pop()
         bundle = root / prefix
         manifest = json.loads((bundle / "MANIFEST.json").read_text())
-        assert manifest["development_build"] is True
+        assert manifest["prerelease"] == ("-" in manifest["version"])
+        assert prefix == f"termcraft-{manifest['version']}-{manifest['target']}"
+        assert archive.name == prefix + (".zip" if archive.suffix == ".zip" else ".tar.gz")
+        build_label = "prerelease" if manifest["prerelease"] else "release"
+        assert (bundle / "START_HERE.txt").read_text().startswith(
+            f"Termcraft {manifest['version']} ({build_label}).\n")
         assert set(contents) == {f"{prefix}/{p}" for p in manifest["files"]} | {f"{prefix}/MANIFEST.json"}
         for path, expected in manifest["files"].items():
             assert digest(contents[f"{prefix}/{path}"]) == expected, path

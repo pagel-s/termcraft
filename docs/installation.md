@@ -1,15 +1,14 @@
 # Installation
 
-This branch is an unreleased development candidate for the next beta. Its binary
-still reports `0.1.0`; crates.io `0.1.0` is the older alpha and does not contain
-these changes. Use the development branch or a matching native artifact to try
-the updated game.
+This branch builds the **`0.2.0-beta.1`** prerelease candidate. Publication is
+pending; crates.io `0.1.0` is the older alpha and does not contain these changes.
+Use `beta/terminal-reborn` or a matching native artifact to try the updated game.
 
-## Play a native development build
+## Play a native beta build
 
 Download the archive for your computer from the latest successful
-[Native development artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
-on `beta/terminal-reborn`. Open the run, then its `termcraft-dev-TARGET` artifact.
+[Native artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
+on `beta/terminal-reborn`. Open the run, then its `termcraft-0.2.0-beta.1-TARGET` artifact.
 GitHub may require sign-in to download artifacts. Extract the downloaded artifact,
 then extract the contained game archive with all its files.
 
@@ -23,9 +22,9 @@ then extract the contained game archive with all its files.
 Rust and Cargo are unnecessary for these archives. Launchers start the separate
 **Lantern Run** combat/building route by default, and forward any arguments:
 `./play.sh --help`, for example. Start classic survival with `./termcraft` on
-Linux/Mac or `.\termcraft.exe` on Windows. Mac development builds are unsigned;
+Linux/Mac or `.\termcraft.exe` on Windows. Mac archives are unsigned;
 use your system's normal controls for a downloaded executable you trust. These
-are development artifacts, with native human qualification still open.
+are beta candidates; broader human playtesting is still needed.
 
 Use a terminal with raw input, a monospace font and preferably true color,
 keyboard release events and mouse support. Start at **120×40** or larger for more

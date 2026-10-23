@@ -7,11 +7,11 @@ shelter, mine and smelt better tools, explore the Nether and defeat the Ender
 Dragon. Terminal pixel art, shaped terrain and room cutaways adapt the world to
 a side-on view.
 
-> These pages describe `beta/terminal-reborn`, the next beta in development.
-> The published `0.1.0` alpha predates these changes. Development executables
-> still report `0.1.0`; no beta has been published.
+> These pages describe the `0.2.0-beta.1` candidate on `beta/terminal-reborn`.
+> Source builds and native archives report that version. Publication is pending;
+> the published `0.1.0` alpha predates these changes.
 
-![Generated village cottage in the development renderer](assets/termcraft.png)
+![Generated village cottage in the beta renderer](assets/termcraft.png)
 
 ## Start playing
 
@@ -24,7 +24,7 @@ a side-on view.
 Launch **Lantern Run** for a focused combat, traversal and building route, or
 start classic survival for the open world. The route has its own save.
 
-## What is in the development build
+## What is in the beta
 
 - Coordinated pixel art for blocks, items and creatures across all three dimensions.
 - Detail by default; saved Overview/Wide selections are respected. Use **-** for more world context.

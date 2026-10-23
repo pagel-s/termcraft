@@ -5,34 +5,32 @@ build a home, explore three dimensions and face the Ender Dragon.
 
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
-> The published `0.1.0` is the early alpha. The **Terminal Reborn** development
-> branch prepares the next beta; its executables still report `0.1.0`.
-> No beta has been published.
-
-## Install the published alpha
-
-Install [Rust 1.88 or newer](https://rustup.rs/), then:
-
-```sh
-cargo install termcraft --locked
-termcraft
-```
-
-The alpha includes procedural Overworld, Nether and End terrain; mining,
-placement, crafting, furnaces, brewing, boats, storage, farming and combat.
-Expect rough edges and incomplete parity with the survival games that inspired it.
+> **Terminal Reborn — `0.2.0-beta.1`** is a beta prerelease candidate.
+> Publication is pending; crates.io `0.1.0` is the older alpha.
 
 ## Try Terminal Reborn
 
-The development branch adds coordinated terminal pixel art, movement and collision
+Download a matching native archive from a successful
+[Native artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
+on `beta/terminal-reborn`. No Rust installation is needed for an archive.
+The included launcher starts **Lantern Run**, a separate combat, traversal and
+bridge-building route. Run the executable directly for classic survival.
+
+To install from source, use [Rust 1.88 or newer](https://rustup.rs/), then:
+
+```sh
+cargo install --git https://github.com/pagel-s/termcraft --branch beta/terminal-reborn --locked
+termcraft
+```
+
+The beta adds coordinated terminal pixel art, movement and collision
 refinements, a recipe book and furnace slots, connected villages, fluid and
 survival fixes, and co-op with independent dimension travel and SSH joining.
-**Lantern Run** provides a separate combat, traversal and bridge-building route.
 Fresh setups start in Detail; saved view choices and terminal resizing preserve
 your selected view. Use **-** for more world context.
 
-Download a native development archive or build `beta/terminal-reborn` from source;
-these changes are not in crates.io `0.1.0`. See the
+Until beta publication, `cargo install termcraft --locked` installs the older
+alpha. See the
 [installation guide](https://pagel-s.github.io/termcraft/installation/) and
 [source README](https://github.com/pagel-s/termcraft/tree/beta/terminal-reborn).
 Use the branch documentation while the hosted site is being updated.
