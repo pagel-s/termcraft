@@ -30,7 +30,8 @@ def check(binary, fixture, root, mode):
         game.send(f'\x1b[<{button};{x+1};{y+1}M'.encode()); game.pump(0.10)
         game.send(f'\x1b[<{button};{x+1};{y+1}m'.encode()); game.pump(0.10)
     try:
-        game.send(b'-');game.pump(0.2)  # Wide view, one cell per block vertically.
+        game.send(b'--');game.pump(0.2)  # Detail -> Overview -> Wide for this mouse fixture.
+        assert 'Wide' in game.screen.text().splitlines()[0]
         found = False
         for y in range(29,34):
             for x in range(82,86):

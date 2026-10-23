@@ -21509,6 +21509,7 @@ mod tests {
         use rand::{SeedableRng, rngs::StdRng};
 
         let mut state = GameState::new();
+        state.time_of_day = 23000.0; // The fixture exercises an unlit outdoor night.
         for center in [-96, -64, -32, 0, 32, 64, 96] {
             state.world.load_chunks_around(center);
         }

@@ -32,10 +32,10 @@ def check(binary, fixture, root, mode):
         before=game.x();game.send(b'\x1b[100;1:1u');game.pump(0.2)
         game.send(b'\x1b[100;1:3u');game.pump(0.15)
         after=game.x();assert after>before+0.05,(mode,before,after)
-        game.send(b'\x1bOS');game.pump(0.12)
-        assert 'Wide' in game.screen.text().splitlines()[0]
-        game.send(b'\x1bOS');game.pump(0.12)
-        assert 'Detail' in game.screen.text().splitlines()[0]
+        # Select Overview explicitly from the fresh Detail default, then test F4.
+        for key, view in [(b'-', 'Overview'), (b'\x1bOS', 'Wide'), (b'\x1bOS', 'Detail')]:
+            game.send(key);game.pump(0.12)
+            assert view in game.screen.text().splitlines()[0], (mode, view)
         game.send(b'\x1b[13~');game.pump(0.1)
         start=time.monotonic()
         while time.monotonic()-start<18:
