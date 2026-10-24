@@ -55,7 +55,7 @@ privately toggles them for your player and unlocks the **Travel/loadout** settin
 in **O** for the current session. `/gamemode on` and `/gamemode off` also work.
 This applies in both solo and co-op; it does not switch survival rules to Creative.
 
-These are available in-game:
+In solo, these are available in-game:
 
 - `P`: cycle difficulty
 - `G`: cycle gamerule preset
@@ -64,6 +64,10 @@ These are available in-game:
 - `K`: toggle weather cycle
 - `L`: toggle keep inventory
 - `O`: open the settings menu
+
+In multiplayer, the host changes difficulty and shared rules in **O**. Select a
+row with the arrow keys and press **Enter** to change it. Difficulty cycles
+Peaceful → Easy → Normal → Hard. Guests cannot change these shared settings.
 
 ## Surface travel and nights
 
@@ -76,7 +80,8 @@ surface, keep at least twelve blocks from players, and use a closer range suited
 to the side view. Cave populations share a total limit but do not consume the
 entire surface refill allowance. Lit areas remain protected. In **O** settings,
 check that difficulty is above Peaceful and mob spawning is enabled if nights
-seem empty; **P** cycles difficulty and **H** toggles mob spawning.
+seem empty. In solo, **P** cycles difficulty and **H** toggles mob spawning;
+in multiplayer, the host uses **O**.
 
 ## Mining and ore depth
 
@@ -196,9 +201,10 @@ Incoming ghast and blaze fireballs can be hit with a normal left-click attack
 while within 2.6 blocks. Aim at the projectile: a successful return reverses its
 flight, deals 10 damage to the first creature hit, and cannot pass through walls.
 
-## Solo travel shortcuts
+## Personal travel shortcuts
 
-These shortcuts are available in the current solo build:
+These shortcuts work in solo and co-op after you enable them with `/gamemode on`
+in **T**. They start disabled for each new session:
 
 - `F5`: travel to Overworld
 - `F6`: travel to Nether
@@ -206,7 +212,7 @@ These shortcuts are available in the current solo build:
 - `F8`: return to spawn
 - `F9`: equip a diamond combat loadout
 
-These shortcuts are disabled on co-op servers.
+`/gamemode off` disables them again. This setting affects only your player.
 
 ## Scope Note
 
@@ -221,6 +227,11 @@ These shortcuts are disabled on co-op servers.
 - `R`, `Enter`, or `Space` respawns after the short delay
 - `Q` or `Esc` quits from the death screen
 - respawn gives brief grace time
+
+With **keepInventory OFF**, respawning clears your inventory, equipped armor
+and experience. Items are currently removed rather than dropped at the death
+location. With **keepInventory ON**, they are retained. Change this rule in
+**O: settings**; in multiplayer, only the host can change it for the world.
 
 ## Saves
 

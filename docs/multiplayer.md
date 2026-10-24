@@ -71,8 +71,10 @@ Inventory supports left-click swap, right-click split/place one and Shift-click
 quick transfer. Enter crafts the grid output; Shift+Enter crafts as many as
 possible; Delete clears the grid. Furnace/enchanting/anvil/brewing actions use
 the displayed slots and mouse options. Drag distribution and batch crafting use
-the same inventory rules in native and shared play. Global difficulty/rule/debug
-travel shortcuts are ignored by the server.
+the same inventory rules in native and shared play. The host can change shared
+difficulty and rules in **O: settings**; guests cannot change them. Select a row
+with the arrow keys and press **Enter** to change its value. Personal travel and
+loadout shortcuts require each player to opt in, as described below.
 
 ## Portals and shared progression
 
@@ -81,8 +83,8 @@ opening/frame to travel. Only the interacting player travels. Friends can follow
 through the same linked frame, remain behind, or explore another dimension.
 The End frame uses twelve Eyes of Ender. Players in the End share one dragon;
 one player viewing credits does not pause or teleport everyone else. Death
-returns that player to their Overworld spawn. Debug travel/loadout keys remain
-disabled on the server.
+returns that player to their Overworld spawn. Travel/loadout shortcuts remain
+disabled until that player enables them with `/gamemode`.
 
 Terrain, mobs, boats, pickups, collision and explosions are dimension-local.
 Clients receive avatars and terrain from their own dimension. Inputs carry the
