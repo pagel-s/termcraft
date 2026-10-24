@@ -36,10 +36,12 @@ def main():
     # accidentally become part of a download.
     for relative in (
         "index.md", "installation.md", "gameplay.md", "multiplayer.md",
-        "distribution.md", "supported-content.md", "world-format.md",
+        "distribution.md", "hosting.md", "supported-content.md", "world-format.md",
         "media-credits.md", "assets/termcraft.png",
     ):
         files[f"docs/{relative}"] = (root / "docs" / relative).read_bytes()
+    for relative in ("server.py", "Containerfile"):
+        files[f"hosting/{relative}"] = (root / "hosting" / relative).read_bytes()
     launch = ".\\termcraft.exe" if binary_name.endswith(".exe") else "./termcraft"
     if binary_name.endswith(".exe"):
         launcher = "PLAY.cmd"
@@ -78,6 +80,8 @@ def main():
         "Detail is the fresh-start default; saved view choices are respected.\n\n"
         "See RELEASE_NOTES.md for highlights, compatibility and current limits.\n"
         "See docs/installation.md and docs/multiplayer.md for saves and limits.\n"
+        "Optional rootless Linux hosting: python3 hosting/server.py start\n"
+        "Read docs/hosting.md before sharing remote access.\n"
         "On Windows, use Windows Terminal with OpenSSH installed for SSH joining.\n"
     ).encode()
     files["MANIFEST.json"] = json.dumps({

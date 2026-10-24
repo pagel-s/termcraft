@@ -9,6 +9,7 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'docs/**'
+      - 'hosting/**'
       - 'README.md'
       - 'README-crates.md'
       - 'RELEASE_NOTES.md'
@@ -21,6 +22,8 @@ on:
       - 'scripts/test_terminal_input.py'
       - 'scripts/test_player_chat.py'
       - 'scripts/test_host_input.py'
+      - 'scripts/test_hosting_launcher.py'
+      - 'scripts/test_sandbox_server.py'
       - 'scripts/test_inventory_input.py'
       - 'scripts/test_drop_input.py'
       - 'scripts/test_furnace_input.py'
@@ -133,3 +136,47 @@ jobs:
             furnace-qualification.json
             finale-qualification.json
             drop-qualification.json
+
+  sandbox-hosting:
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read package version
+        id: package
+        run: python -c "import os, pathlib, tomllib; version = tomllib.loads(pathlib.Path('Cargo.toml').read_text())['package']['version']; pathlib.Path(os.environ['GITHUB_OUTPUT']).write_text('version=' + version + '\n', encoding='utf-8')"
+      - uses: actions/download-artifact@v4
+        with:
+          name: termcraft-${{ steps.package.outputs.version }}-x86_64-unknown-linux-gnu
+          path: candidate
+      - name: Prepare rootless Podman on the disposable runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman uidmap slirp4netns fuse-overlayfs dbus-user-session
+          if ! rg -q "^$(id -un):" /etc/subuid; then
+            sudo usermod --add-subuids 500000-565535 "$(id -un)"
+          fi
+          if ! rg -q "^$(id -un):" /etc/subgid; then
+            sudo usermod --add-subgids 500000-565535 "$(id -un)"
+          fi
+          sudo loginctl enable-linger "$(id -un)"
+          sudo mkdir -p "/etc/systemd/system/user@$(id -u).service.d"
+          printf '[Service]\nDelegate=cpu cpuset io memory pids\n' | sudo tee "/etc/systemd/system/user@$(id -u).service.d/termcraft-ci.conf"
+          sudo systemctl daemon-reload
+          sudo systemctl restart "user@$(id -u).service"
+          echo "XDG_RUNTIME_DIR=/run/user/$(id -u)" >> "$GITHUB_ENV"
+          echo "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus" >> "$GITHUB_ENV"
+          python -m pip install pillow==12.1.1
+      - name: Extract and qualify the shipped server launcher
+        run: |
+          mkdir sandbox-bundle
+          tar -xzf candidate/*.tar.gz --strip-components=1 -C sandbox-bundle
+          python scripts/test_sandbox_server.py --bundle sandbox-bundle --report sandbox-qualification.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-hosting-qualification-linux
+          path: sandbox-qualification.json

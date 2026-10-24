@@ -11,7 +11,8 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Gameplay: gameplay.md
-  - Co-op: multiplayer.md
+  - Multiplayer Setup: multiplayer.md
+  - Safe Hosting: hosting.md
   - Native Archives and SSH: distribution.md
   - Release Notes: https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/RELEASE_NOTES.md
   - Supported Content: supported-content.md

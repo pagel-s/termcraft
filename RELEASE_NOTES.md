@@ -45,6 +45,10 @@ Build a home, explore with friends over SSH and take on the dragon together.
 - **Safer saves and native distribution.** Persistent entities and encounter state,
   recoverable interrupted checkpoints, emergency recovery copies, and
   Linux/Windows/macOS archives with launchers and checksums.
+- **Guided private hosting.** Step-by-step local, LAN and remote setup, plus a
+  bundled rootless Linux server launcher with private address binding, a dedicated
+  save mount, reduced privileges and resource limits. Guides cover game-only VPN
+  access, reconnect profiles, graceful shutdown, backup restore and updates.
 
 ## Try the candidate
 

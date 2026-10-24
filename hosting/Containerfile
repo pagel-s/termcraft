@@ -1,0 +1,12 @@
+FROM docker.io/library/debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
+LABEL org.opencontainers.image.source="https://github.com/pagel-s/termcraft" \
+      org.opencontainers.image.licenses="AGPL-3.0-only"
+COPY termcraft /usr/local/bin/termcraft
+COPY LICENSE /usr/share/doc/termcraft/LICENSE
+ENV TERMCRAFT_SAVE_DIR=/data
+WORKDIR /data
+USER 10001:10001
+EXPOSE 25565/tcp
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["/usr/local/bin/termcraft"]
+CMD ["server", "0.0.0.0:25565"]

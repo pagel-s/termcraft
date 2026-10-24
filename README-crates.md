@@ -50,6 +50,11 @@ Run `termcraft host` to host and play in one terminal. Friends on the same
 network join with `termcraft client ADDRESS --player bob`; press **T** for the
 address. PvP starts enabled; the host can turn it off in **O: settings**.
 
+See the repository's [multiplayer setup guide](https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/docs/multiplayer.md)
+for local and remote play, and [safe hosting](https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/docs/hosting.md)
+for the rootless Linux server. Native archives include the optional hosting
+launcher and container recipe; `cargo install` installs the game executable.
+
 ## Saves
 
 - Linux: `$XDG_DATA_HOME/termcraft/saves`, or `~/.local/share/termcraft/saves`.

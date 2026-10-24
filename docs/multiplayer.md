@@ -1,4 +1,4 @@
-# Co-op in Terminal Reborn
+# Multiplayer setup
 
 Up to eight terminal clients can play across the Overworld, Nether and End.
 Each dimension has its own authoritative terrain, entities and simulation clock.
@@ -14,73 +14,176 @@ Native archives build and pass automated checks on Linux, Windows and both Mac
 architectures. Public hosting, sustained human sessions and remote-link input
 quality still need broader playtesting. The `0.2.0-beta.1` candidate is not yet published.
 
-## Try two players
+## Before you start
 
-For the simplest setup, run `termcraft host`. It starts a server and joins your
-player automatically in the same terminal. Press **T** for the join address;
-a friend on the same network runs `termcraft client ADDRESS --player bob`.
-The default host listens on port 25565 on local network interfaces; you can
-choose an address with `termcraft host 0.0.0.0:25566`. Firewall permission may be
-needed on the host. Internet play still needs SSH or an existing network route.
-Quitting the host game saves and stops its background server. Use a dedicated
-server below if you want it to remain running after that player leaves.
+1. Every player needs the **same build** for their own operating system. Get the
+   matching [native archives](installation.md); Rust is not needed to run them.
+2. Extract all files and open a terminal in the folder containing the executable.
+   Open each additional terminal in that folder too.
+3. Commands below use Linux/macOS `./termcraft`. On Windows, use
+   `.\termcraft.exe` in Windows Terminal. If you installed through Cargo, use
+   `termcraft`. From source, build with `cargo build --release --locked` and use
+   `./target/release/termcraft` in place of `./termcraft`.
 
-Build once, then use three terminals in the repository directory:
+Choose the setup that matches where your players are:
 
-```bash
-cargo build --release --locked
-```
+| Players | Address friends use | Start here |
+| --- | --- | --- |
+| One computer, several terminals | `127.0.0.1:25565` | [Same computer](#same-computer) |
+| Different computers on one trusted network | Host's LAN address | [Same network](#same-network) |
+| Different networks | Host's private VPN address | [Separate networks](#separate-networks) |
 
-Terminal 1 starts an independent multiplayer save:
+Hosting opens a separate multiplayer world. It does not import your solo
+inventory. Players start with empty inventories and can mine, build and fight in
+the shared world. Back up worlds you care about before inviting others.
 
-```bash
-./target/release/termcraft server
-```
+## Same computer
 
-Terminals 2 and 3 join with different local profiles:
+1. In terminal 1, start hosting **and playing**:
 
-```bash
-./target/release/termcraft client --player alice
-./target/release/termcraft client --player bob
-```
+   ```sh
+   ./termcraft host 127.0.0.1:25565
+   ```
 
-For another machine, use [SSH joining](distribution.md#join-through-ssh).
+   This address accepts players on this computer only. Keep this terminal open.
 
-Use the same profile and address to reconnect as the same player. A profile is
-local to the computer and server address; it is not a display name. The default
-profile is `player`, so use `--player` when running multiple clients on one machine.
-Profiles accept 1–32 letters, digits, underscores or hyphens. The default address
-is `127.0.0.1:25565`; both commands also accept an explicit address.
+2. Open terminal 2 and join as a different saved player:
 
-Each terminal on the same computer needs a different profile. For three local
-players, keep `termcraft host` running in the first terminal, then run these in
-two more terminals:
+   ```sh
+   ./termcraft client 127.0.0.1:25565 --player bob
+   ```
+
+3. For a third player, open terminal 3:
+
+   ```sh
+   ./termcraft client 127.0.0.1:25565 --player charlie
+   ```
+
+4. Press **T**, type a message and press **Enter**. Confirm the other terminals
+   receive it. Players in the same dimension should see each other's characters.
+
+Every terminal on one computer needs a **different `--player` profile**. Reusing
+one while it is connected gives an "already connected" rejection. A profile is
+a local reconnect identity, not a public display name. Names accept 1–32 letters,
+digits, underscores or hyphens. Use the same profile and server address later to
+restore that player; changing between `127.0.0.1` and a LAN address creates a
+different local identity.
+
+## Same network
+
+1. On the host computer, start:
+
+   ```sh
+   ./termcraft host
+   ```
+
+   The default listens on local interfaces on TCP port 25565. Use this setup on
+   a trusted home network. For an isolated dedicated server, use
+   [safe hosting](hosting.md) instead.
+
+2. In the host game, press **T** and read the **Join:** command. For example,
+   it might show `192.168.0.147:25565`; use your actual displayed address.
+
+3. On each friend's computer, enter that command with their profile. Example:
+
+   ```sh
+   ./termcraft client 192.168.0.147:25565 --player bob
+   ```
+
+   Replace `NAME` in the displayed command with a name such as `bob`. Another
+   local terminal uses a different profile, such as `charlie`.
+
+4. Send a message with **T** and confirm everyone receives it. If a connection
+   fails, allow the game through the host's firewall on the private network and
+   check that guest Wi-Fi is not isolating the computers.
+
+**Do not give another computer `127.0.0.1` or `0.0.0.0` as its join address.**
+`127.0.0.1` means the computer typing it; `0.0.0.0` is a server listening address.
+If the host's displayed address is loopback, check the LAN address in the host's
+network settings. Prefer a wired connection when diagnosing network pauses.
+
+## Separate networks
+
+The recommended Linux host setup is the [rootless container and restricted
+Tailscale guide](hosting.md). It limits the server's host-file access and gives
+friends access to the game port through a private network.
+
+1. The host follows [safe hosting](hosting.md), including the game-only network
+   rules, then starts the sandbox on its actual Tailscale IPv4 address:
+
+   ```sh
+   python3 hosting/server.py start --bind 100.101.102.103
+   ```
+
+   `100.101.102.103` is an example; replace it with the host's `tailscale ip -4`
+   result. The host must have the Linux archive; players can use any supported OS.
+
+2. Each friend installs Tailscale, signs in with their own account and accepts
+   the host's machine-sharing invitation. Keep Tailscale connected while playing.
+
+3. Players join using the host's actual private address:
+
+   ```sh
+   ./termcraft client 100.101.102.103:25565 --player bob
+   ```
+
+4. Check player chat. The host also runs a client to play; the sandbox is a
+   dedicated server and has no game window. The first connected player controls
+   shared settings, so the host should join first.
+
+If you already have administrator-provisioned SSH access, use
+[SSH joining](distribution.md#join-through-ssh). Ordinary SSH credentials can
+grant shell/file access; use a forwarding-only account for game guests. Neither
+Termcraft nor the sandbox configures SSH accounts, VPN policies or routers.
+Direct game TCP has no TLS or account login. Keep port 25565 off the public
+internet; a container does not add those protocol protections.
+
+## Leaving, reconnecting and stopping
+
+- **Dying:** the server keeps running. Press **R** or **Enter** to respawn.
+- **Guest quits:** other players continue; that player's records are saved.
+- **`termcraft host` player quits:** the managed server saves and stops for
+  everyone. Restart the same command, then reconnect with the same profiles.
+- **Dedicated server player's window closes:** the server remains running. A
+  remaining player becomes the settings host if the first player leaves.
+- **Sandbox stop:** use `python3 hosting/server.py stop`; wait for the saved/stopped
+  message before backing up, replacing the binary or shutting down the machine.
+
+For a native dedicated server on Linux/macOS, keep one terminal running:
 
 ```sh
-termcraft client 127.0.0.1:25565 --player bob
-termcraft client 127.0.0.1:25565 --player charlie
+./termcraft server 127.0.0.1:25565
 ```
 
-An "already connected" error means that profile is already playing. Host death
-does not stop the world; respawn with **R** or **Enter**. Quitting `termcraft host`
-ends the session for everyone and saves the world. Guests can reconnect after
-the host starts it again. A dedicated `termcraft server` stays running when its
-first player leaves; a remaining player becomes the settings host.
+Join from separate terminals with the `client` commands above. Stop this native
+server with **Ctrl+C** and wait for exit. The sandbox is Linux-only; Windows
+players can use native `host` for managed startup/shutdown or join a Linux server.
 
-For connection errors, check that the host is still running and every player
-uses the same build. Restart the host after replacing its executable; a running
-server continues using its previous build.
+To serve an existing named world, close its local owner first and run:
 
-To share an existing named/generated world, close its local owner first:
-
-```bash
-./target/release/termcraft world serve WORLD_ID 127.0.0.1:25565
+```sh
+./termcraft world serve WORLD_ID 127.0.0.1:25565
 ```
 
-A writer lease prevents simultaneous local/server owners of the named world.
 The server uses that world's blocks and chests, with separate multiplayer player
-records. New players start with empty inventories. Existing single-player
-inventories are not imported into multiplayer records.
+records. A writer lease prevents simultaneous owners. New players' inventories
+remain separate from the solo player's inventory.
+
+## Troubleshooting
+
+| Message or symptom | Check |
+| --- | --- |
+| Player already connected | Use a different `--player` in each local terminal. |
+| Connection refused | Host is still running; address/port match; firewall allows the intended private connection. |
+| Build mismatch or connection closes while joining | Update everyone from the same build and restart the host process. Replacing its file alone does not update a running server. |
+| Unrecognized credential or server identity changed | This address now serves a different world. Keep the old credentials; use a new profile to join fresh. |
+| World already open / `.session.lock` | Close the original owner. After a crash, verify no owner is running before following [recovery](hosting.md#after-a-crash); never remove a live world's lock. |
+| Lost connection when host quit | Expected for managed `host`; use a dedicated server if friends should keep playing. |
+| Sandbox cannot start or cannot save | Read `python3 hosting/server.py logs` and the [sandbox troubleshooting](hosting.md#troubleshooting) section. |
+
+Back up the server's complete data folder **and each client's local `clients/`
+credential folder**. Save paths and current storage limits are below; the
+[safe hosting guide](hosting.md#back-up-and-restore) gives sandbox backup commands.
 
 ## Controls
 

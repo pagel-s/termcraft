@@ -17,7 +17,8 @@ a side-on view.
 
 - [Installation](installation.md): native Linux, Windows and macOS archives, or a source build.
 - [Gameplay](gameplay.md): movement, inventory, crafting, farming and portals.
-- [Co-op](multiplayer.md): up to eight players, reconnect saves and independent dimension travel.
+- [Multiplayer setup](multiplayer.md): one computer, one network or separate networks, with connection checks.
+- [Safe hosting](hosting.md): a rootless Linux server, restricted network access, backups and restore.
 - [SSH joining](distribution.md#join-through-ssh): play remotely through an existing SSH account.
 - [Release notes](https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/RELEASE_NOTES.md): changes since the published alpha and current limits.
 

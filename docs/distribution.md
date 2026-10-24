@@ -55,6 +55,17 @@ loopback; SSH provides the protected transport. The SSH server and account must
 already permit TCP forwarding. Termcraft does not create accounts or hosts.
 Windows requires OpenSSH in PATH.
 
+An ordinary SSH account may also allow shell, command and file access. The
+client's `-N` option does not restrict what its credentials can do elsewhere.
+Do not give game guests your personal login or private key. Have the server
+administrator provide a dedicated forwarding-only account: deny shell/subsystem
+sessions (`MaxSessions 0`), allow only local TCP forwarding, restrict `PermitOpen`
+to `127.0.0.1:25565`, and disable remote/Unix-socket forwarding, agent forwarding
+and X11. Validate the effective SSH configuration and test that shell/SFTP access
+is refused before sharing access. These settings are server-administrator
+requirements; the game does not apply them. See the [OpenSSH manual](https://man.openbsd.org/sshd_config).
+For a setup without SSH accounts, use [safe hosting](hosting.md).
+
 Use the same SSH destination, ports and player profile to reconnect. Changing a
 host alias or connection details creates a different local identity key. Each
 player needs a distinct profile when sharing a computer. Authentication/startup

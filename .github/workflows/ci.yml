@@ -51,5 +51,8 @@ jobs:
       - name: Test optional world provider adapters (offline)
         run: python3 -m unittest discover -s scripts -p 'test_generate_world.py'
 
+      - name: Test private hosting boundaries
+        run: python3 -m unittest discover -s scripts -p 'test_hosting_launcher.py'
+
       - name: Verify package
         run: cargo +"$RUST_VERSION" publish --dry-run --locked

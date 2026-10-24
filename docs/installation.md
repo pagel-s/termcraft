@@ -71,16 +71,14 @@ are copied into the default user data directory on first run. See
 
 ## Play with friends
 
-Use matching builds. Start a local server and two clients in separate terminals:
+Use matching builds. Host and play in the first terminal:
 
 ```sh
-./termcraft server
-./termcraft client --player alice
-./termcraft client --player bob
+./termcraft host 127.0.0.1:25565
 ```
 
-For a remote machine with an existing SSH account:
-`./termcraft join user@host --player alice`. The server supports independent
-Overworld/Nether/End travel. See [co-op](multiplayer.md) and
-[SSH and native archives](distribution.md) for named worlds, saved identities,
-requirements and current qualification limits.
+Join another terminal with `./termcraft client 127.0.0.1:25565 --player bob`.
+Follow [multiplayer setup](multiplayer.md) for all three network arrangements and
+[safe hosting](hosting.md) for the optional rootless Linux server launcher bundled
+in native archives. For an administrator-provisioned SSH host, see
+[SSH joining](distribution.md#join-through-ssh).

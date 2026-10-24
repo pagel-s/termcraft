@@ -119,25 +119,15 @@ termcraft host
 
 The host starts the server and joins automatically. Press **T** to see the join
 address; friends on the same network run `termcraft client ADDRESS --player bob`.
-Quitting the host saves and stops its server. **O** opens settings; the host can
-disable PvP there. For a dedicated server and separate clients:
+Each terminal on one computer needs a different `--player` profile. **O** opens
+shared settings for the host. Dying does not stop the server; quitting `host` does.
 
-```sh
-termcraft server
-termcraft client --player alice
-termcraft client --player bob
-```
-
-From another computer, join through an existing SSH account:
-
-```sh
-termcraft join user@host --player alice
-```
-
-Run the server on that host first, with the game port bound to loopback. SSH
-accounts, OpenSSH and forwarding permission must already be available. Local
-co-op uses plain TCP; SSH provides the protected remote transport.
-See [co-op](docs/multiplayer.md) and [SSH setup](docs/distribution.md#join-through-ssh).
+Follow the **[multiplayer setup guide](docs/multiplayer.md)** for one computer,
+one network or separate networks, with connection checks and troubleshooting.
+The **[safe hosting guide](docs/hosting.md)** provides a rootless Linux container
+launcher, restricted private-network access, backups, restore and updates.
+Native archives include both guides and the hosting files. For an existing
+administrator-provisioned SSH host, see [SSH joining](docs/distribution.md#join-through-ssh).
 
 ## Saves and current limits
 

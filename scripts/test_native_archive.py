@@ -151,14 +151,19 @@ def main():
         assert (bundle / "LICENSE").is_file() and (bundle / "START_HERE.txt").is_file()
         assert (bundle / "README.md").is_file()
         assert (bundle / "RELEASE_NOTES.md").is_file()
+        hosting_help = subprocess.check_output(
+            [sys.executable, str(bundle / "hosting/server.py"), "--help"], text=True, timeout=10)
+        assert 'rootless Podman' in hosting_help
         player_docs = {
             "index.md", "installation.md", "gameplay.md", "multiplayer.md",
-            "distribution.md", "supported-content.md", "world-format.md",
+            "distribution.md", "hosting.md", "supported-content.md", "world-format.md",
             "media-credits.md", "assets/termcraft.png",
         }
         assert set(manifest["files"]) == {
             binary_name, launcher_name, "LICENSE", "START_HERE.txt", "README.md", "RELEASE_NOTES.md",
-        } | {f"docs/{p}" for p in player_docs}, "unexpected development files in player archive"
+        } | {f"docs/{p}" for p in player_docs} | {
+            "hosting/server.py", "hosting/Containerfile",
+        }, "unexpected development files in player archive"
         for path in [bundle / "START_HERE.txt", bundle / "README.md", bundle / "RELEASE_NOTES.md",
                      *(bundle / "docs").glob("*.md")]:
             assert not re.search(r"\b(?:LLM|MCP|Codex|Claude)\b|game.master|/connect", path.read_text(encoding="utf-8"), re.I)
