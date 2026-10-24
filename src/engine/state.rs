@@ -379,6 +379,7 @@ const SWIM_CONTROL_MIN_SUBMERSION: f64 = 0.46;
 const SWIM_PHYSICS_MIN_SUBMERSION: f64 = 0.36;
 const PORTAL_SEARCH_RADIUS: i32 = 48;
 const QUICK_TRAVEL_PORTAL_ANCHOR_RADIUS: i32 = 12;
+const NETHER_PORTAL_DWELL_TICKS: u16 = 40;
 const ENDER_PEARL_MAX_THROW_DISTANCE: f64 = 32.0;
 const ENDER_PEARL_LANDING_SEARCH_RADIUS: i32 = 20;
 const ENDER_PEARL_DAMAGE: f32 = 5.0;
@@ -10939,7 +10940,7 @@ impl GameState {
             self.portal_timer = 0;
             return false;
         }
-        let target = match self.player_portal_contact() {
+        let target = match touching {
             Some((PortalKind::Nether, Some(anchor))) => PortalUseTarget::Nether(anchor),
             Some((PortalKind::End, _)) => PortalUseTarget::End,
             _ => {
@@ -10948,8 +10949,13 @@ impl GameState {
             }
         };
         self.portal_timer = self.portal_timer.saturating_add(1);
-        // A two-block membrane must trigger during a normal walking crossing.
-        if self.portal_timer < 4 {
+        // Walking/running past a Nether portal is ordinary movement. Automatic
+        // travel needs two continuous seconds inside; explicit use stays quick.
+        let dwell = match target {
+            PortalUseTarget::Nether(_) => NETHER_PORTAL_DWELL_TICKS,
+            PortalUseTarget::End => 4,
+        };
+        if self.portal_timer < dwell {
             return false;
         }
         let previous = self.current_dimension;
@@ -19751,11 +19757,11 @@ mod tests {
     }
 
     #[test]
-    fn test_walking_through_active_portal_from_either_side_transfers_without_clicking() {
-        for right in [false, true] {
+    fn walking_or_sprinting_past_a_nether_portal_does_not_travel() {
+        for (right, sprint) in [(false, false), (true, false), (false, true), (true, true)] {
             let mut state = GameState::new();
             configure_quiet_world(&mut state);
-            for x in 12..=20 {
+            for x in 0..=40 {
                 for y in 0..20 {
                     state.world.set_block(x, y, BlockType::Air);
                 }
@@ -19766,27 +19772,66 @@ mod tests {
             state.player.x = if right { 13.5 } else { 20.5 };
             state.player.y = 10.0;
             state.player.grounded = true;
-            state.apply_client_command(if right {
+            let direction = if right {
                 ClientCommand::SetMoveRight(true)
             } else {
                 ClientCommand::SetMoveLeft(true)
-            });
+            };
+            state.apply_client_command(direction);
+            if sprint {
+                state.apply_client_command(if right {
+                    ClientCommand::SetMoveRight(false)
+                } else {
+                    ClientCommand::SetMoveLeft(false)
+                });
+                state.apply_client_command(direction);
+                assert!(state.is_sprinting());
+            }
 
-            for _ in 0..30 {
+            for _ in 0..40 {
                 state.update(16, 8);
-                if state.current_dimension == Dimension::Nether {
-                    break;
-                }
             }
-
-            assert_eq!(state.current_dimension, Dimension::Nether);
-            assert!(!state.moving_left && !state.moving_right);
-            let dimension = state.current_dimension;
-            for _ in 0..80 {
-                state.update(0, 0);
-            }
-            assert_eq!(state.current_dimension, dimension, "arrival bounced back");
+            assert_eq!(state.current_dimension, Dimension::Overworld);
+            assert!(if right {
+                state.player.x > 18.0
+            } else {
+                state.player.x < 16.0
+            });
         }
+    }
+
+    #[test]
+    fn nether_portal_requires_continuous_dwell_and_does_not_bounce_on_arrival() {
+        let mut state = GameState::new();
+        configure_quiet_world(&mut state);
+        for x in 12..=20 {
+            for y in 0..20 {
+                state.world.set_block(x, y, BlockType::Air);
+            }
+            state.world.set_block(x, 10, BlockType::Stone);
+        }
+        state.ensure_nether_portal_at(16, 10);
+        state.player.x = 16.5;
+        state.player.y = 10.0;
+        for _ in 0..NETHER_PORTAL_DWELL_TICKS - 1 {
+            assert!(!state.handle_portal_transition());
+        }
+        state.player.x = 20.5;
+        assert!(!state.handle_portal_transition());
+        state.player.x = 16.5;
+        for _ in 0..NETHER_PORTAL_DWELL_TICKS - 1 {
+            assert!(!state.handle_portal_transition());
+        }
+        assert!(state.handle_portal_transition());
+        assert_eq!(state.current_dimension, Dimension::Nether);
+        for _ in 0..80 {
+            state.update(0, 0);
+        }
+        assert_eq!(
+            state.current_dimension,
+            Dimension::Nether,
+            "arrival bounced back"
+        );
     }
 
     #[test]

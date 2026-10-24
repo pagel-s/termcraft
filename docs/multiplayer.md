@@ -52,6 +52,25 @@ profile is `player`, so use `--player` when running multiple clients on one mach
 Profiles accept 1–32 letters, digits, underscores or hyphens. The default address
 is `127.0.0.1:25565`; both commands also accept an explicit address.
 
+Each terminal on the same computer needs a different profile. For three local
+players, keep `termcraft host` running in the first terminal, then run these in
+two more terminals:
+
+```sh
+termcraft client 127.0.0.1:25565 --player bob
+termcraft client 127.0.0.1:25565 --player charlie
+```
+
+An "already connected" error means that profile is already playing. Host death
+does not stop the world; respawn with **R** or **Enter**. Quitting `termcraft host`
+ends the session for everyone and saves the world. Guests can reconnect after
+the host starts it again. A dedicated `termcraft server` stays running when its
+first player leaves; a remaining player becomes the settings host.
+
+For connection errors, check that the host is still running and every player
+uses the same build. Restart the host after replacing its executable; a running
+server continues using its previous build.
+
 To share an existing named/generated world, close its local owner first:
 
 ```bash
@@ -81,6 +100,8 @@ loadout shortcuts require each player to opt in, as described below.
 Build and ignite a normal Nether portal, then right-click or press F on the
 opening/frame to travel. Only the interacting player travels. Friends can follow
 through the same linked frame, remain behind, or explore another dimension.
+Standing in a Nether opening for two seconds also travels; walking or running
+past it does not.
 The End frame uses twelve Eyes of Ender. Players in the End share one dragon;
 one player viewing credits does not pause or teleport everyone else. Death
 returns that player to their Overworld spawn. Travel/loadout shortcuts remain

@@ -4207,7 +4207,7 @@ impl Renderer {
         .collect();
         self.put_str(x + 2, y + 1, &hint, Color::Grey, bg);
         if let Some(address) = &state.connection_address {
-            let join: String = format!("Join: termcraft client {address}")
+            let join: String = format!("Join: termcraft client {address} --player NAME")
                 .chars()
                 .take((w - 4) as usize)
                 .collect();

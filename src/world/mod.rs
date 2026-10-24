@@ -2193,7 +2193,11 @@ impl World {
                 if block == BlockType::Air {
                     continue;
                 }
-                if wx == cx && wy == cy {
+                // Only consume an explosive unconditionally at its origin.
+                // A projectile can detonate inside the first solid impact cell;
+                // that cell still needs its normal blast resistance.
+                if wx == cx && wy == cy && matches!(block, BlockType::Tnt | BlockType::PrimedTnt(_))
+                {
                     self.set_block(wx, wy, BlockType::Air);
                     continue;
                 }
@@ -10309,6 +10313,37 @@ mod tests {
         world.update_redstone_outputs(0);
 
         assert_eq!(world.get_block(6, 5), BlockType::Obsidian);
+    }
+
+    #[test]
+    fn direct_explosion_impacts_respect_resistance_at_the_origin() {
+        let mut world = World::new();
+        world.load_chunks_around(0);
+        for block in [
+            BlockType::Obsidian,
+            BlockType::Bedrock,
+            BlockType::EndPortalFrame { filled: true },
+            BlockType::EndPortal,
+            BlockType::Water(0),
+            BlockType::Lava(0),
+        ] {
+            world.set_block(5, 5, block);
+            world.trigger_explosion(5, 5, 1, 2.4, 8);
+            assert_eq!(
+                world.get_block(5, 5),
+                block,
+                "direct hit destroyed {block:?}"
+            );
+        }
+        world.set_block(5, 5, BlockType::Netherrack);
+        world.trigger_explosion(5, 5, 1, 2.4, 8);
+        assert_eq!(world.get_block(5, 5), BlockType::Air);
+        assert!(
+            world
+                .recent_explosion_block_losses
+                .iter()
+                .any(|&(x, y, b, _)| (x, y, b) == (5, 5, BlockType::Netherrack))
+        );
     }
 
     #[test]

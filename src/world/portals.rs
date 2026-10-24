@@ -190,4 +190,27 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn direct_blasts_cannot_break_a_lit_obsidian_frame_or_its_opening() {
+        let mut state = crate::engine::state::GameState::network_view();
+        let air = vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT];
+        state.world.apply_chunk_column_snapshot(0, &air);
+        for x in 9..=12 {
+            for y in 8..=12 {
+                if x == 9 || x == 12 || y == 8 || y == 12 {
+                    state.world.set_block(x, y, BlockType::Obsidian);
+                }
+            }
+        }
+        for x in 10..=11 {
+            for y in 9..=11 {
+                state.world.set_block(x, y, BlockType::NetherPortal);
+            }
+        }
+        for (x, y) in [(9, 10), (12, 10), (10, 8), (10, 12), (10, 10)] {
+            state.world.trigger_explosion(x, y, 4, 12.0, 8);
+            assert_eq!(state.world.nether_portal_anchor_at(10, 10), Some((10, 12)));
+        }
+    }
 }

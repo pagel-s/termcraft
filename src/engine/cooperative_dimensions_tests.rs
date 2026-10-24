@@ -361,7 +361,7 @@ fn end_encounter_is_shared_and_credits_do_not_freeze_or_teleport_the_other_playe
 }
 
 #[test]
-fn cooperative_walk_in_portal_and_action_poses_replicate_without_affecting_other_actor() {
+fn cooperative_portal_dwell_and_action_poses_do_not_affect_other_actors() {
     let (_root, mut sim) = fixture();
     light_portal(&mut sim, 1);
     sim.state.player.x = -3.5;
@@ -390,10 +390,17 @@ fn cooperative_walk_in_portal_and_action_poses_replicate_without_affecting_other
     command(&mut sim, 1, ClientCommand::SetMoveRight(true));
     for _ in 0..40 {
         sim.step(0, 0);
-        if sim.state.peer_dimension(1) == Dimension::Nether {
-            break;
-        }
     }
+    assert_eq!(sim.state.peer_dimension(1), Dimension::Overworld);
+    command(&mut sim, 1, ClientCommand::ClearDirectionalInput);
+    sim.state.activate_peer(1);
+    sim.state.player.x = 0.5;
+    sim.state.player.y = 80.0;
+    for _ in 0..39 {
+        sim.step(0, 0);
+        assert_eq!(sim.state.peer_dimension(1), Dimension::Overworld);
+    }
+    sim.step(0, 0);
     assert_eq!(sim.state.peer_dimension(1), Dimension::Nether);
     assert_eq!(sim.state.peer_dimension(2), Dimension::Overworld);
     sim.state.activate_peer(1);

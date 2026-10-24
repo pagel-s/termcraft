@@ -4,7 +4,9 @@ import argparse
 import json
 from pathlib import Path
 import socket
+import subprocess
 import tempfile
+import termios
 import time
 from test_terminal_input import TerminalGame
 
@@ -16,10 +18,21 @@ def check(binary, root):
     save = root / 'saves'
     host = TerminalGame(binary, save, root / 'host', observe=False,
                         command_override=[str(binary), 'host', address])
-    guest = None
+    guest = third = None
     try:
         guest = TerminalGame(binary, save, root / 'guest', address=address,
                              observe=False, start_server=False, profile='host-test-guest')
+        duplicate = subprocess.run(
+            [str(binary), 'client', address, '--player', 'host-test-guest'],
+            env=guest.env, capture_output=True, text=True, timeout=6)
+        assert duplicate.returncode != 0
+        assert 'already connected' in duplicate.stderr and '--player charlie' in duplicate.stderr
+        third = TerminalGame(binary, save, root / 'third', address=address,
+                             observe=False, start_server=False, profile='host-test-third')
+        third.send(b'tthird player here\r'); third.pump(0.15)
+        host.pump(0.15); guest.pump(0.15)
+        assert 'third player here' in host.screen.text()
+        assert 'third player here' in guest.screen.text()
         host.send(b'o'); host.pump(0.15)
         assert 'PvP combat' in host.screen.text()
         host.send(b'\x1b')
@@ -50,16 +63,27 @@ def check(binary, root):
         assert 'PvP combat        : OFF' in host.screen.text()
         host.capture('host-settings')
         host.send(b'\x1b'); host.pump(0.1)
-        guest.finish()
         host.finish()
+        for player in (guest, third):
+            deadline = time.monotonic() + 6
+            while player.process.poll() is None and time.monotonic() < deadline:
+                player.pump(0.05)
+            player.pump(0.1)
+            assert player.process.poll() is not None, 'guest stayed open after host stopped'
+            assert 'Disconnected from' in player.raw.decode(errors='replace')
+            assert b'\x1b[?1049l' in player.raw, 'disconnected guest did not restore its terminal'
+            assert player.before == termios.tcgetattr(player.slave)
         world = save / 'multiplayer/default'
         assert not (world / '.session.lock').exists(), 'managed host left its server running'
         state = json.loads((world / 'server-state.json').read_text())
         assert state['settings']['pvp'] is False, 'PvP host setting was not saved'
         return dict(one_terminal_host=True, private_per_player_shortcuts=True,
                     guest_host_permissions=True, host_quit_saves_and_stops_server=True,
+                    three_live_terminal_players=True, duplicate_profile_explained=True,
+                    guests_restore_terminal_on_host_exit=True,
                     persisted_pvp_setting=True)
     finally:
+        if third: third.close()
         if guest: guest.close()
         host.close()
 

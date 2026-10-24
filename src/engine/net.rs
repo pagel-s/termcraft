@@ -266,7 +266,11 @@ pub fn write_client_hello(writer: &mut impl Write, hello: &ClientHello) -> io::R
     )
 }
 fn read_client_hello(reader: &mut impl Read) -> io::Result<ClientHello> {
-    decode_protocol_message(&read_framed_payload(reader)?).map_err(codec_error_to_io)
+    // Keep the version until the main loop can send an explicit rejection.
+    // Silently closing here made mismatched builds look like broken pipes.
+    codec_options()
+        .deserialize(&read_framed_payload(reader)?)
+        .map_err(io::Error::other)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -1335,7 +1339,9 @@ fn accept_pending_clients(
     loop {
         match listener.accept() {
             Ok((writer, _)) => {
-                if clients.len() >= 8 {
+                // Allow a bounded set of pending handshakes alongside the eight
+                // players, so a ninth join receives a proper "server full" reply.
+                if clients.len() >= 16 {
                     let _ = writer.shutdown(std::net::Shutdown::Both);
                     continue;
                 }
@@ -1593,8 +1599,9 @@ fn run_headless_tcp_server_with_shutdown(
             match event {
                 ServerEvent::Hello(id, hello) => {
                     if let Some(client) = clients.iter_mut().find(|c| c.client_id == id) {
-                        let auth = simulation
-                            .authenticate(id, hello.token.as_deref())
+                        let auth = validate_protocol(hello.protocol)
+                            .map_err(codec_error_to_io)
+                            .and_then(|()| simulation.authenticate(id, hello.token.as_deref()))
                             .and_then(|welcome| {
                                 client.queue_message(&ServerWireMessage::Welcome(welcome), false)
                             });

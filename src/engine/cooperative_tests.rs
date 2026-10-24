@@ -449,6 +449,42 @@ fn nearest_player_takes_mob_damage_and_respawn_keeps_shared_world() {
     assert_eq!(sim.state.world.get_block(12, 79), BlockType::Planks);
     assert_eq!(sim.state.zombies.len(), 1);
 }
+
+#[test]
+fn three_players_keep_playing_when_the_primary_dies_or_leaves() {
+    let (_root, mut sim) = fixture();
+    sim.register_client(3);
+    sim.state.activate_peer(3);
+    sim.state.player.x = 8.5;
+    sim.state.player.y = 80.0;
+    sim.state.player.grounded = true;
+    sim.state.inventory.add_item(ItemType::Diamond, 3);
+    sim.state.activate_peer(1);
+    sim.state.player.health = 0.0;
+    for _ in 0..45 {
+        sim.step(0, 0);
+    }
+    assert!(sim.snapshot_for_client(1).unwrap().death_screen_active);
+    assert!(!sim.snapshot_for_client(2).unwrap().death_screen_active);
+    assert!(!sim.snapshot_for_client(3).unwrap().death_screen_active);
+    let before = sim.snapshot_for_client(3).unwrap().player.x;
+    command(&mut sim, 3, ClientCommand::SetMoveRight(true));
+    for _ in 0..10 {
+        sim.step(0, 0);
+    }
+    assert!(sim.snapshot_for_client(3).unwrap().player.x > before + 1.0);
+    command(&mut sim, 1, ClientCommand::RespawnFromDeathScreen);
+    assert!(!sim.snapshot_for_client(1).unwrap().death_screen_active);
+    assert_eq!(sim.snapshot_for_client(3).unwrap().host_client_id, Some(1));
+    sim.unregister_client(1);
+    sim.step(0, 0);
+    let guest = sim.snapshot_for_client(3).unwrap();
+    assert_eq!(guest.host_client_id, Some(2));
+    assert_eq!(guest.remote_players.len(), 1);
+    assert_eq!(count(&sim, 3, ItemType::Diamond), 3);
+    command(&mut sim, 2, ClientCommand::TogglePvp);
+    assert!(!sim.state.pvp_enabled);
+}
 #[test]
 fn disconnect_purges_queued_actions_and_stale_input_releases_holds() {
     let (_root, mut sim) = fixture();

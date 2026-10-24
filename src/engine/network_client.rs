@@ -6,7 +6,7 @@ use super::game_loop::{
 };
 use super::net::{
     ChunkDeltaPacket, ClientHello, ClientInputFrame, ClientPredictionState, NET_PROTOCOL_VERSION,
-    SERVER_TICK_RATE, ServerSnapshot, ServerWireMessage, read_framed_server_message,
+    SERVER_TICK_RATE, ServerSnapshot, ServerWireMessage, Welcome, read_framed_server_message,
     write_client_hello, write_framed_client_chat, write_framed_client_input,
 };
 use super::state::GameState;
@@ -35,6 +35,66 @@ const REMOTE_HORIZONTAL_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(32
 const REMOTE_JUMP_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(340);
 const REMOTE_JUMP_STALE_TIMEOUT_REPEAT: Duration = Duration::from_millis(160);
 const REMOTE_JUMP_PRESS_REPEAT_WINDOW: Duration = Duration::from_millis(420);
+
+fn connection_error(error: io::Error, address: &str, joining: bool) -> io::Error {
+    let message = match error.kind() {
+        io::ErrorKind::BrokenPipe
+        | io::ErrorKind::ConnectionAborted
+        | io::ErrorKind::ConnectionReset
+        | io::ErrorKind::UnexpectedEof
+        | io::ErrorKind::NotConnected => {
+            if joining {
+                format!(
+                    "The server at {address} closed the connection while joining. Check that the host is still running and every player uses the same build; restart the host after updating. ({error})"
+                )
+            } else {
+                format!(
+                    "Disconnected from {address}: the server stopped or the connection was lost. Quitting 'termcraft host' ends the shared session. Reconnect when the host is running again."
+                )
+            }
+        }
+        io::ErrorKind::ConnectionRefused => format!(
+            "No Termcraft server is accepting connections at {address}. Start 'termcraft host' and use the address shown in its T panel. ({error})"
+        ),
+        io::ErrorKind::InvalidData if error.to_string().contains("protocol") => format!(
+            "Client and server builds do not match. Update all players and restart the host. ({error})"
+        ),
+        _ => return error,
+    };
+    io::Error::new(error.kind(), message)
+}
+
+fn connect_to_server(address: &str, token: Option<String>) -> io::Result<(TcpStream, Welcome)> {
+    let connect = || {
+        let mut writer = TcpStream::connect(address)?;
+        writer.set_nodelay(true)?;
+        writer.set_write_timeout(Some(Duration::from_secs(5)))?;
+        writer.set_read_timeout(Some(Duration::from_secs(5)))?;
+        write_client_hello(
+            &mut writer,
+            &ClientHello {
+                protocol: NET_PROTOCOL_VERSION,
+                token,
+            },
+        )?;
+        let welcome = match read_framed_server_message(&mut writer)? {
+            ServerWireMessage::Welcome(w) => w,
+            ServerWireMessage::Rejected(_, message) => {
+                let help = if message.contains("already connected") {
+                    " Each terminal on one computer needs a different --player profile, for example --player bob or --player charlie."
+                } else {
+                    ""
+                };
+                return Err(io::Error::other(format!("Join rejected: {message}{help}")));
+            }
+            _ => return Err(io::Error::other("server did not send a welcome")),
+        };
+        writer.set_write_timeout(Some(Duration::from_millis(16)))?;
+        writer.set_read_timeout(None)?;
+        Ok((writer, welcome))
+    };
+    connect().map_err(|error| connection_error(error, address, true))
+}
 
 fn queue_client_command(
     prediction: &mut ClientPredictionState,
@@ -267,22 +327,8 @@ fn run_tcp_client_with_identity_and_hint(
     hint: &str,
 ) -> io::Result<()> {
     let previous = identity::read(identity_addr, profile)?;
-    let mut writer = TcpStream::connect(connect_addr)?;
-    writer.set_nodelay(true)?;
-    writer.set_write_timeout(Some(Duration::from_millis(16)))?;
-    writer.set_read_timeout(Some(Duration::from_secs(5)))?;
-    write_client_hello(
-        &mut writer,
-        &ClientHello {
-            protocol: NET_PROTOCOL_VERSION,
-            token: previous.as_ref().map(|p| p.token.clone()),
-        },
-    )?;
-    let welcome = match read_framed_server_message(&mut writer)? {
-        ServerWireMessage::Welcome(w) => w,
-        ServerWireMessage::Rejected(_, message) => return Err(io::Error::other(message)),
-        _ => return Err(io::Error::other("server did not send a welcome")),
-    };
+    let (mut writer, welcome) =
+        connect_to_server(connect_addr, previous.as_ref().map(|p| p.token.clone()))?;
     identity::store(identity_addr, profile, previous.as_ref(), &welcome)?;
     writer.set_read_timeout(None)?;
     let reader = writer.try_clone()?;
@@ -358,8 +404,10 @@ fn run_tcp_client_loop(
                         KeyCode::Enter if key.kind == KeyEventKind::Press => {
                             let prompt = std::mem::take(&mut state.chat.draft);
                             if !prompt.trim().is_empty() {
-                                flush_outbound_commands(writer, &mut pending_outbound)?;
-                                write_framed_client_chat(writer, &prompt)?;
+                                flush_outbound_commands(writer, &mut pending_outbound)
+                                    .map_err(|error| connection_error(error, hint, false))?;
+                                write_framed_client_chat(writer, &prompt)
+                                    .map_err(|error| connection_error(error, hint, false))?;
                             }
                             state.chat.open = false;
                         }
@@ -1214,7 +1262,8 @@ fn run_tcp_client_loop(
             );
             last_heartbeat = now;
         }
-        flush_outbound_commands(writer, &mut pending_outbound)?;
+        flush_outbound_commands(writer, &mut pending_outbound)
+            .map_err(|error| connection_error(error, hint, false))?;
 
         loop {
             match server_msg_rx.try_recv() {
@@ -1235,12 +1284,13 @@ fn run_tcp_client_loop(
                         }
                     }
                 }
-                Ok(Err(err)) => return Err(err),
+                Ok(Err(err)) => return Err(connection_error(err, hint, false)),
                 Err(mpsc::TryRecvError::Empty) => break,
                 Err(mpsc::TryRecvError::Disconnected) => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::UnexpectedEof,
-                        "server reader disconnected",
+                    return Err(connection_error(
+                        io::Error::new(io::ErrorKind::UnexpectedEof, "server reader disconnected"),
+                        hint,
+                        false,
                     ));
                 }
             }

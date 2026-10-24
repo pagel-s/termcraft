@@ -9,7 +9,14 @@ use termcraft::renderer::Renderer;
 use termcraft::world::recipe::WorldRecipe;
 use termcraft::worlds::{WorldLease, WorldStore};
 
-fn main() -> io::Result<()> {
+fn main() {
+    if let Err(error) = run() {
+        eprintln!("Error: {error}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> io::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("--help" | "-h" | "help") => {

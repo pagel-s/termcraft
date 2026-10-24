@@ -179,11 +179,13 @@ it removes its light on the next rendered frame.
 For a Nether portal, build a 4-block-wide, 5-block-high obsidian outline with a
 2×3 empty opening. The four corners are optional (ten obsidian blocks minimum).
 Hold Flint and Steel and right-click or press `F` on the frame to ignite it.
-Walk through the active opening from either side, or use the opening/frame within
-reach to travel. Active uprights sit behind the 2D walking plane; unlit or broken
+Stand inside the active opening for two continuous seconds, or use the opening/frame
+within reach to travel immediately. Walking or sprinting past it does not trigger
+automatic travel. Leaving the opening resets the delay. Active uprights sit behind the 2D walking plane; unlit or broken
 frames remain solid. Arrival does not automatically bounce you back. The target hint displays `R-click / F: travel`
 or `Portal recharging...` during the two-second cooldown. Breaking a required frame
 block extinguishes the whole opening. Repair the frame and ignite it again.
+Obsidian resists normal blasts, including a direct fireball impact on the frame.
 
 An End portal uses twelve frame blocks around a 2×2 opening. Fill each with an
 Eye of Ender, then use the opening or frame. The bedrock return portal uses the

@@ -26,6 +26,9 @@ Build a home, explore with friends over SSH and take on the dragon together.
 - **Better everyday interactions.** A recipe book and batch crafting, furnace
   input/fuel/output slots, stack handling, dropping, food feedback, working
   doors/portals, redstone-ore glow and projectile returns.
+  Nether portals allow passing traffic and require a two-second stay for automatic
+  travel; direct blasts respect obsidian's resistance. Multiplayer join failures
+  explain profile conflicts, build mismatches and lost host connections.
 - **Longer journeys over land.** Fewer river crossings, broader dry stretches,
   varied rolling terrain, gentler hills and graded banks. Nighttime surface encounters no longer get
   crowded out by cave populations or start entirely beyond normal awareness.

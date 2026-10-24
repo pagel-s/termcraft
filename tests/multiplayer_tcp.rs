@@ -115,6 +115,24 @@ fn eight_players_with_delayed_link_and_stalled_readers_keep_server_responsive() 
     for player in &players {
         player.until(|s| s.remote_players.len() == 7);
     }
+    for (protocol, expected) in [
+        (NET_PROTOCOL_VERSION, "server is full"),
+        (NET_PROTOCOL_VERSION - 1, "unsupported protocol"),
+    ] {
+        let mut extra = TcpStream::connect(&address)?;
+        extra.set_read_timeout(Some(Duration::from_secs(5)))?;
+        // Encode the old-version Hello directly; the regular client encoder
+        // intentionally refuses to generate an unsupported protocol.
+        let hello = bincode::serialize(&ClientHello {
+            protocol,
+            token: None,
+        })
+        .unwrap();
+        extra.write_all(&(hello.len() as u32).to_be_bytes())?;
+        extra.write_all(&hello)?;
+        assert!(matches!(read_framed_server_message(&mut extra)?,
+            ServerWireMessage::Rejected(_, reason) if reason.contains(expected)));
+    }
     let reconnect_token = players[7].welcome.token.clone();
     let server_id = players[7].welcome.server_id.clone();
     let duration = std::env::var("TERMCRAFT_NETWORK_SOAK_SECONDS")
@@ -260,6 +278,61 @@ fn eight_players_with_delayed_link_and_stalled_readers_keep_server_responsive() 
         std::fs::write(path, serde_json::to_vec_pretty(&report)?)?;
     }
     println!("{report}");
+    std::fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires local TCP sockets"]
+fn cli_join_explains_closed_connections_and_mismatched_builds_before_terminal_setup()
+-> io::Result<()> {
+    let root = std::env::temp_dir().join(format!(
+        "termcraft-join-errors-{:032x}",
+        rand::random::<u128>()
+    ));
+    std::fs::create_dir_all(&root)?;
+    for (old_protocol, expected) in [
+        (false, "closed the connection while joining"),
+        (true, "builds do not match"),
+    ] {
+        let listener = TcpListener::bind("127.0.0.1:0")?;
+        let address = listener.local_addr()?.to_string();
+        let handler = thread::spawn(move || -> io::Result<()> {
+            let (mut stream, _) = listener.accept()?;
+            stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+            let mut length = [0; 4];
+            stream.read_exact(&mut length)?;
+            let length = u32::from_be_bytes(length) as usize;
+            assert!(length < 8192);
+            stream.read_exact(&mut vec![0; length])?;
+            if old_protocol {
+                let response = bincode::serialize(&ServerWireMessage::Rejected(
+                    NET_PROTOCOL_VERSION - 1,
+                    "old server".into(),
+                ))
+                .unwrap();
+                stream.write_all(&(response.len() as u32).to_be_bytes())?;
+                stream.write_all(&response)?;
+            }
+            stream.shutdown(Shutdown::Both)
+        });
+        let result = Command::new(env!("CARGO_BIN_EXE_termcraft"))
+            .args(["client", &address, "--player", "join-errors"])
+            .env("TERMCRAFT_SAVE_DIR", &root)
+            .output()?;
+        handler.join().unwrap()?;
+        assert!(!result.status.success());
+        let error = String::from_utf8_lossy(&result.stderr);
+        assert!(error.contains(expected), "{error}");
+        assert!(!error.contains("Os {"), "raw OS debug output: {error}");
+        assert!(
+            !result
+                .stdout
+                .windows(8)
+                .any(|bytes| bytes == b"\x1b[?1049h"),
+            "failed join entered alternate screen"
+        );
+    }
     std::fs::remove_dir_all(root)?;
     Ok(())
 }
