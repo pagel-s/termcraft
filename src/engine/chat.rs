@@ -19,6 +19,9 @@ pub(crate) struct PlayerChat {
 }
 
 impl PlayerChat {
+    pub fn notice(&mut self, id: u16, message: String, tick: u64) {
+        self.notices.insert(id, (message, tick + PREVIEW_TICKS));
+    }
     pub fn submit(&mut self, id: u16, text: &str, tick: u64) {
         if text.chars().any(char::is_control) {
             return;

@@ -121,6 +121,9 @@ impl GameLoop {
 
     pub fn with_state(mut state: GameState) -> Self {
         let director = super::director::Director::for_gameplay(&mut state);
+        if !director.is_enabled() {
+            state.chat.mode = "commands".into();
+        }
         Self {
             state,
             director,
@@ -301,7 +304,15 @@ impl GameLoop {
                                     KeyCode::Enter if key_event.kind == KeyEventKind::Press => {
                                         self.state.chat.open = false;
                                         let request = std::mem::take(&mut self.state.chat.draft);
-                                        self.director.submit(&mut self.state, request);
+                                        if let Some(notice) =
+                                            self.state.private_player_command(&request)
+                                        {
+                                            self.state.chat.push(notice);
+                                        } else if self.director.is_enabled() {
+                                            self.director.submit(&mut self.state, request);
+                                        } else if !request.trim().is_empty() {
+                                            self.state.chat.push("Unknown command.");
+                                        }
                                     }
                                     KeyCode::Backspace => {
                                         self.state.chat.draft.pop();
@@ -345,10 +356,7 @@ impl GameLoop {
                                         self.state.show_debug_overlay =
                                             !self.state.show_debug_overlay;
                                     }
-                                    KeyCode::Char('t' | 'T')
-                                        if !self.state.inventory_open
-                                            && self.director.is_enabled() =>
-                                    {
+                                    KeyCode::Char('t' | 'T') if !self.state.inventory_open => {
                                         self.clear_horizontal_input_state();
                                         self.clear_jump_hold_state();
                                         self.state.apply_client_command(
@@ -388,22 +396,22 @@ impl GameLoop {
                                     KeyCode::Char(c) if c.eq_ignore_ascii_case(&'w') => {
                                         self.handle_jump_press(Instant::now(), false);
                                     }
-                                    KeyCode::F(5) => {
+                                    KeyCode::F(5) if self.state.shortcuts_enabled() => {
                                         self.state
                                             .apply_client_command(ClientCommand::TravelToOverworld);
                                     }
-                                    KeyCode::F(6) => {
+                                    KeyCode::F(6) if self.state.shortcuts_enabled() => {
                                         self.state
                                             .apply_client_command(ClientCommand::TravelToNether);
                                     }
-                                    KeyCode::F(7) => {
+                                    KeyCode::F(7) if self.state.shortcuts_enabled() => {
                                         self.state.apply_client_command(ClientCommand::TravelToEnd);
                                     }
-                                    KeyCode::F(8) => {
+                                    KeyCode::F(8) if self.state.shortcuts_enabled() => {
                                         self.state
                                             .apply_client_command(ClientCommand::TravelToSpawn);
                                     }
-                                    KeyCode::F(9) => {
+                                    KeyCode::F(9) if self.state.shortcuts_enabled() => {
                                         self.state.apply_client_command(
                                             ClientCommand::EquipDiamondLoadout,
                                         );

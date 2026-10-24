@@ -41,7 +41,7 @@ The beta includes:
 - **Three dimensions:** procedural Overworld, Nether and End; connected villages,
   dungeons, strongholds, fortresses, working portals and a revised dragon encounter.
 - **Co-op for up to eight:** independent inventories and dimension travel,
-  shared terrain and combat, player chat, saved reconnect profiles and joining over SSH.
+  shared terrain, PvP combat, player chat, saved reconnect profiles and joining over SSH.
 - **Lantern Run:** a separate combat, traversal and bridge-building route for a
   focused first session.
 
@@ -111,7 +111,16 @@ See [gameplay](docs/gameplay.md) for crafting, furnaces and portal use.
 
 ## Play with friends
 
-Use matching beta builds. Start a server and join from separate terminals:
+Use matching beta builds. Start hosting and playing in one terminal:
+
+```sh
+termcraft host
+```
+
+The host starts the server and joins automatically. Press **T** to see the join
+address; friends on the same network run `termcraft client ADDRESS --player bob`.
+Quitting the host saves and stops its server. **O** opens settings; the host can
+disable PvP there. For a dedicated server and separate clients:
 
 ```sh
 termcraft server

@@ -32,7 +32,7 @@ from capture_terminal_art import Screen, raster
 
 
 class TerminalGame:
-    def __init__(self, binary, save_root, artifacts, world_id=None, address=None, env_overrides=None, size=(160, 48), observe=True, start_server=True, profile="terminal-input-test"):
+    def __init__(self, binary, save_root, artifacts, world_id=None, address=None, env_overrides=None, size=(160, 48), observe=True, start_server=True, profile="terminal-input-test", command_override=None):
         self.binary = str(binary)
         self.artifacts = artifacts
         artifacts.mkdir(parents=True, exist_ok=True)
@@ -83,11 +83,17 @@ class TerminalGame:
             command = [self.binary]
             if world_id:
                 command += ["world", "play", world_id]
+        if command_override:
+            command = command_override
         self.process = subprocess.Popen(
             command, env=self.env, stdin=self.slave, stdout=self.slave, stderr=self.slave,
             preexec_fn=controlling_terminal,
         )
         self.pump(0.4)
+        if command_override:
+            deadline = time.monotonic() + 20
+            while not self.queries and self.process.poll() is None and time.monotonic() < deadline:
+                self.pump(0.05)
         if not address:
             self.send(b" ")
             self.pump(0.25)

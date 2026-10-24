@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 20;
+pub const NET_PROTOCOL_VERSION: u16 = 21;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;
@@ -160,6 +160,8 @@ pub struct PeerPlayerSnapshot {
 pub struct ServerSnapshot {
     pub protocol: u16,
     pub client_id: u16,
+    pub host_client_id: Option<u16>,
+    pub shortcuts: Option<bool>,
     pub acknowledged_sequence: u32,
     pub tick: u64,
     pub dimension: SnapshotDimension,
@@ -192,6 +194,8 @@ impl ServerSnapshot {
         Self {
             protocol: NET_PROTOCOL_VERSION,
             client_id: 0,
+            host_client_id: None,
+            shortcuts: None,
             acknowledged_sequence: 0,
             tick,
             dimension: state.current_dimension.into(),
@@ -676,6 +680,7 @@ impl ServerSimulation {
     }
     pub fn unregister_client(&mut self, client_id: u16) {
         self.player_chat.disconnect(client_id);
+        self.state.shortcut_players.remove(&client_id);
         // Drop queued work before a client ID can be reused; disconnected inputs
         // must never re-register a player or continue an attack.
         for inputs in self.pending_inputs.values_mut() {
@@ -708,6 +713,8 @@ impl ServerSimulation {
         }
         let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
         snapshot.client_id = client_id;
+        snapshot.host_client_id = self.primary_client_id;
+        snapshot.shortcuts = self.state.shortcut_players.get(&client_id).copied();
         snapshot.chat = self.player_chat.view(
             client_id,
             self.tick,
@@ -790,12 +797,18 @@ impl ServerSimulation {
                 .unwrap_or((mouse_target_x, mouse_target_y));
             self.state.tick_cooperative_player(x, y);
         }
-        let mut occupied = BTreeMap::new();
+        let mut occupied: BTreeMap<Dimension, Vec<u16>> = BTreeMap::new();
         for &id in &ids {
-            occupied.entry(self.state.peer_dimension(id)).or_insert(id);
+            occupied
+                .entry(self.state.peer_dimension(id))
+                .or_default()
+                .push(id);
         }
-        for id in occupied.values() {
-            self.state.activate_peer(*id);
+        for players in occupied.values() {
+            // A cave-dwelling first player must not permanently anchor every
+            // spawn attempt while friends are exploring the surface elsewhere.
+            let index = (self.tick / (SERVER_TICK_RATE * 2)) as usize % players.len();
+            self.state.activate_peer(players[index]);
             self.state.tick_cooperative_boats();
             self.state.update(mouse_target_x, mouse_target_y);
         }
@@ -817,6 +830,11 @@ impl ServerSimulation {
         if text.len() > 2000 || text.chars().any(char::is_control) {
             return;
         }
+        self.state.activate_peer(id);
+        if let Some(notice) = self.state.private_player_command(&text) {
+            self.player_chat.notice(id, notice, self.tick);
+            return;
+        }
         if self.director.is_enabled()
             && self.primary_client_id == Some(id)
             && text.trim().starts_with('/')
@@ -835,6 +853,10 @@ impl ServerSimulation {
         }
         let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
         snapshot.client_id = self.primary_client_id.unwrap_or(0);
+        snapshot.host_client_id = self.primary_client_id;
+        snapshot.shortcuts = self
+            .primary_client_id
+            .and_then(|id| self.state.shortcut_players.get(&id).copied());
         snapshot.chat = self.player_chat.view(
             self.primary_client_id.unwrap_or(0),
             self.tick,
@@ -885,23 +907,36 @@ impl ServerSimulation {
                 }
                 let before = self.state.current_dimension;
                 match frame.command {
-                    ClientCommand::AimAt(x, y) => {
-                        if x.abs_diff(0) <= 100_000 && (0..128).contains(&y) {
-                            self.targets.insert(frame.client_id, (x, y));
-                        }
-                    }
                     ClientCommand::TravelToOverworld
                     | ClientCommand::TravelToNether
                     | ClientCommand::TravelToEnd
                     | ClientCommand::TravelToSpawn
                     | ClientCommand::EquipDiamondLoadout
+                    | ClientCommand::ToggleShortcuts => {
+                        if self.state.shortcuts_enabled()
+                            || (matches!(frame.command, ClientCommand::ToggleShortcuts)
+                                && self.state.shortcuts_unlocked())
+                        {
+                            self.state.apply_client_command(frame.command);
+                        }
+                    }
+                    ClientCommand::TogglePvp
                     | ClientCommand::CycleDifficulty
                     | ClientCommand::CycleGameRulesPreset
                     | ClientCommand::ToggleRuleMobSpawning
                     | ClientCommand::ToggleRuleDaylightCycle
                     | ClientCommand::ToggleRuleWeatherCycle
-                    | ClientCommand::ToggleRuleKeepInventory
-                    | ClientCommand::ToggleSettingsMenu
+                    | ClientCommand::ToggleRuleKeepInventory => {
+                        if self.primary_client_id == Some(frame.client_id) {
+                            self.state.apply_client_command(frame.command);
+                        }
+                    }
+                    ClientCommand::AimAt(x, y) => {
+                        if x.abs_diff(0) <= 100_000 && (0..128).contains(&y) {
+                            self.targets.insert(frame.client_id, (x, y));
+                        }
+                    }
+                    ClientCommand::ToggleSettingsMenu
                     | ClientCommand::SettingsMoveUp
                     | ClientCommand::SettingsMoveDown
                     | ClientCommand::SettingsApply => {}
@@ -1482,6 +1517,14 @@ impl ServerShutdown {
                 .signals
                 .push(signal_hook::flag::register(signal, shutdown.stop.clone())?);
         }
+        if std::env::var("TERMCRAFT_MANAGED_SERVER").is_ok_and(|v| v == "1") {
+            let stop = shutdown.stop.clone();
+            thread::spawn(move || {
+                let mut byte = [0];
+                let _ = std::io::stdin().read(&mut byte);
+                stop.store(true, std::sync::atomic::Ordering::Relaxed);
+            });
+        }
         Ok(shutdown)
     }
 }
@@ -1663,6 +1706,34 @@ fn run_headless_tcp_server_with_shutdown(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn private_shortcut_commands_never_broadcast_and_only_the_host_controls_pvp() {
+        let mut sim = ServerSimulation::with_state(GameState::network_view());
+        sim.register_client(1);
+        sim.register_client(2);
+        assert_eq!(sim.snapshot_for_client(1).unwrap().shortcuts, None);
+        sim.submit_chat(2, "/gamemode".into());
+        let guest = sim.snapshot_for_client(2).unwrap();
+        assert_eq!(guest.shortcuts, Some(true));
+        assert!(
+            guest
+                .chat
+                .lines
+                .iter()
+                .all(|line| !line.contains("/gamemode"))
+        );
+        assert!(sim.snapshot_for_client(1).unwrap().chat.lines.is_empty());
+        sim.enqueue_input(ClientInputFrame::new(2, 1, 0, ClientCommand::TogglePvp));
+        sim.step(0, 0);
+        assert!(sim.state.pvp_enabled);
+        sim.enqueue_input(ClientInputFrame::new(1, 1, 0, ClientCommand::TogglePvp));
+        sim.step(0, 0);
+        assert!(!sim.state.pvp_enabled);
+        sim.unregister_client(2);
+        sim.register_client(2);
+        assert_eq!(sim.snapshot_for_client(2).unwrap().shortcuts, None);
+    }
     use std::collections::HashSet;
     use std::io::Cursor;
 

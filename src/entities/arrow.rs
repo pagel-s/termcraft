@@ -8,6 +8,10 @@ pub struct Arrow {
     pub dead: bool,
     pub from_player: bool,
     pub damage: f32,
+    // Connection identities are only valid in the running session. Restored
+    // arrows keep their PvE behavior, without reusing an old player's identity.
+    #[serde(skip)]
+    pub owner: Option<u16>,
 }
 
 impl Arrow {
@@ -25,6 +29,7 @@ impl Arrow {
             dead: false,
             from_player: false,
             damage: 2.0,
+            owner: None,
         }
     }
 
@@ -38,6 +43,7 @@ impl Arrow {
             dead: false,
             from_player: true,
             damage,
+            owner: None,
         }
     }
 

@@ -5,6 +5,7 @@ pub mod command;
 pub mod director;
 mod director_bridge;
 pub mod game_loop;
+pub mod host;
 pub mod mcp;
 pub mod metrics;
 pub mod net;

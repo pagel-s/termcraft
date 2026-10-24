@@ -14,7 +14,7 @@ fn main() -> io::Result<()> {
     match args.first().map(String::as_str) {
         Some("--help" | "-h" | "help") => {
             println!(
-                "termcraft {}\n\nPlay:\n  termcraft\n  termcraft trial [ID]           Lantern Run: traverse, fight, rebuild\n  termcraft trial create ID      Create the trial without launching\n  termcraft server [ADDRESS]\n  termcraft client [ADDRESS] [--player PROFILE]\n  termcraft join USER@HOST [--player PROFILE] [--ssh-port PORT] [--game-port PORT]\n\nSaved worlds:\n  termcraft world list\n  termcraft world play ID\n  termcraft world serve ID [ADDRESS]\n\nControls:\n  A/D: walk; double-tap and hold: sprint; Space: jump\n  E: inventory/crafting; V/Shift+V: drop one/stack\n  T: player chat in co-op; Enter: send; Esc: close\n  +/-: zoom; F4: cycle views; O: settings; Q/Esc: save and quit",
+                "termcraft {}\n\nPlay:\n  termcraft\n  termcraft trial [ID]           Lantern Run: traverse, fight, rebuild\n  termcraft trial create ID      Create the trial without launching\n  termcraft host [ADDRESS] [--player PROFILE]\n  termcraft server [ADDRESS]\n  termcraft client [ADDRESS] [--player PROFILE]\n  termcraft join USER@HOST [--player PROFILE] [--ssh-port PORT] [--game-port PORT]\n\nSaved worlds:\n  termcraft world list\n  termcraft world play ID\n  termcraft world serve ID [ADDRESS]\n\nControls:\n  A/D: walk; double-tap and hold: sprint; Space: jump\n  E: inventory/crafting; V/Shift+V: drop one/stack\n  T: player chat in co-op / solo commands; Enter: send; Esc: close\n  +/-: zoom; F4: cycle views; O: settings; Q/Esc: save and quit",
                 env!("CARGO_PKG_VERSION")
             );
             if termcraft::engine::director::Director::experimental_enabled() {
@@ -27,6 +27,27 @@ fn main() -> io::Result<()> {
         Some("--version" | "-V") => {
             println!("termcraft {}", env!("CARGO_PKG_VERSION"));
             Ok(())
+        }
+        Some("host") => {
+            let mut address = "0.0.0.0:25565";
+            let mut profile = "host";
+            let mut i = 1;
+            while i < args.len() {
+                if args[i] == "--player" {
+                    profile = args
+                        .get(i + 1)
+                        .ok_or_else(|| io::Error::other("--player requires a profile"))?;
+                    i += 2;
+                } else if i == 1 {
+                    address = &args[i];
+                    i += 1;
+                } else {
+                    return Err(io::Error::other(
+                        "use: termcraft host [ADDRESS] [--player PROFILE]",
+                    ));
+                }
+            }
+            termcraft::engine::host::host(address, profile)
         }
         Some("server") => run_headless_tcp_server(
             args.get(1)

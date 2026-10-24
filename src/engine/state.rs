@@ -19,6 +19,8 @@ mod drops;
 mod environment;
 #[path = "furnace.rs"]
 mod furnace;
+#[path = "player_controls.rs"]
+mod player_controls;
 pub use furnace::{FURNACE_FUEL_UI_SLOT, FURNACE_INPUT_UI_SLOT, FURNACE_OUTPUT_UI_SLOT};
 #[path = "legacy_entities.rs"]
 mod legacy_entities;
@@ -348,13 +350,11 @@ const MOB_REROUTE_REPATH_INTERVAL: u8 = 4;
 const MOB_PATHFIND_SEARCH_RADIUS_X: i32 = 34;
 const MOB_PATHFIND_SEARCH_RADIUS_Y: i32 = 18;
 const MOB_PATHFIND_MAX_EXPANSIONS: usize = 520;
-const SETTINGS_MENU_ITEM_COUNT: u8 = 7;
+#[cfg(test)]
 const SETTINGS_MENU_ROW_DIFFICULTY: u8 = 0;
+#[cfg(test)]
 const SETTINGS_MENU_ROW_GAMERULE_PRESET: u8 = 1;
-const SETTINGS_MENU_ROW_MOB_SPAWNING: u8 = 2;
-const SETTINGS_MENU_ROW_DAYLIGHT_CYCLE: u8 = 3;
-const SETTINGS_MENU_ROW_WEATHER_CYCLE: u8 = 4;
-const SETTINGS_MENU_ROW_KEEP_INVENTORY: u8 = 5;
+#[cfg(test)]
 const SETTINGS_MENU_ROW_CLOSE: u8 = 6;
 const PLAYER_PROGRESS_VERSION: u16 = 11;
 const PLAYER_PROGRESS_VERSION_V10: u16 = 10;
@@ -963,6 +963,11 @@ pub use actors::{PlayerSession, SharedSettings};
 pub(crate) use dimensions::{MAX_CHECKPOINT_BYTES, RuntimeCheckpoint, SharedProgress};
 
 pub struct GameState {
+    pub pvp_enabled: bool,
+    pub host_client_id: Option<u16>,
+    pub connection_address: Option<String>,
+    pub(crate) shortcut_players: std::collections::BTreeMap<u16, bool>,
+    solo_shortcuts: Option<bool>,
     pub(super) action_visuals: std::collections::BTreeMap<u16, super::action::ActionRecord>,
     active_peer: Option<u16>,
     cooperative_players: std::collections::BTreeMap<u16, PlayerSession>,
@@ -1992,6 +1997,11 @@ impl GameState {
             player: Player::new(player_x, spawn_y),
             remote_players: Vec::new(),
             local_player_id: None,
+            pvp_enabled: true,
+            host_client_id: None,
+            connection_address: None,
+            shortcut_players: Default::default(),
+            solo_shortcuts: None,
             action_visuals: Default::default(),
             inventory: Inventory::new(PLAYER_INVENTORY_CAPACITY),
             armor_slots: [None, None, None, None],
@@ -3867,7 +3877,7 @@ impl GameState {
             return;
         }
         let next = (self.settings_menu_selected as i16 + delta as i16)
-            .rem_euclid(SETTINGS_MENU_ITEM_COUNT as i16);
+            .rem_euclid(self.settings_rows().len() as i16);
         self.settings_menu_selected = next as u8;
     }
 
@@ -3875,20 +3885,21 @@ impl GameState {
         if !self.settings_menu_open {
             return;
         }
-        match self.settings_menu_selected {
-            SETTINGS_MENU_ROW_DIFFICULTY => self.cycle_difficulty(),
-            SETTINGS_MENU_ROW_GAMERULE_PRESET => self.cycle_game_rules_preset(),
-            SETTINGS_MENU_ROW_MOB_SPAWNING => self.toggle_rule_mob_spawning(),
-            SETTINGS_MENU_ROW_DAYLIGHT_CYCLE => self.toggle_rule_daylight_cycle(),
-            SETTINGS_MENU_ROW_WEATHER_CYCLE => self.toggle_rule_weather_cycle(),
-            SETTINGS_MENU_ROW_KEEP_INVENTORY => self.toggle_rule_keep_inventory(),
-            SETTINGS_MENU_ROW_CLOSE => self.close_settings_menu(),
-            _ => {}
+        if let Some(command) = self.settings_selected_command() {
+            self.apply_client_command(command);
+        } else {
+            self.close_settings_menu();
         }
     }
 
     pub fn apply_client_command(&mut self, command: ClientCommand) {
         match command {
+            ClientCommand::TogglePvp => self.pvp_enabled = !self.pvp_enabled,
+            ClientCommand::ToggleShortcuts => {
+                if self.shortcuts_unlocked() {
+                    self.toggle_shortcuts();
+                }
+            }
             ClientCommand::DropItem(stack) => {
                 self.drop_selected_item(stack);
             }
@@ -6547,13 +6558,15 @@ impl GameState {
         let speed = 0.22 + 0.62 * power;
         let bow_enchant = self.selected_hotbar_enchant_level() as f32;
         let arrow_damage = 2.0 + (power as f32 * 6.0) + bow_enchant;
-        self.arrows.push(Arrow::new_player(
+        let mut arrow = Arrow::new_player(
             spawn_x,
             origin_y,
             dir_x * speed,
             dir_y * speed,
             arrow_damage,
-        ));
+        );
+        arrow.owner = self.active_peer;
+        self.arrows.push(arrow);
 
         self.inventory.remove_item(ItemType::Arrow, 1);
         if self.inventory.slots[self.hotbar_index as usize]
@@ -8335,6 +8348,12 @@ impl GameState {
     }
 
     // Find a floor on this cave level, rather than the first surface from the sky.
+    fn ambient_spawn_clearance(block: BlockType) -> bool {
+        !block.is_solid()
+            && !block.is_fluid()
+            && !matches!(block, BlockType::Fire(_) | BlockType::Cactus)
+    }
+
     fn dark_spawn_floor_near(
         &self,
         x: i32,
@@ -8346,8 +8365,8 @@ impl GameState {
             .filter(|&y| (y - reference_y).abs() <= radius)
             .filter(|&y| {
                 self.world.get_block(x, y).is_solid()
-                    && self.world.get_block(x, y - 1) == BlockType::Air
-                    && self.world.get_block(x, y - 2) == BlockType::Air
+                    && Self::ambient_spawn_clearance(self.world.get_block(x, y - 1))
+                    && Self::ambient_spawn_clearance(self.world.get_block(x, y - 2))
             })
             .filter(|&y| !daylight || !self.world.has_open_sky(x, y - 1))
             .filter(|&y| {
@@ -8401,11 +8420,29 @@ impl GameState {
     }
 
     fn find_spawn_surface_for_daylight_mob(&self, x: i32) -> Option<f64> {
-        let surface_y = Self::progression_spawn_surface_y(&self.world, x)?;
-        if !Self::is_safe_spawn_column(&self.world, x, surface_y, true) {
-            return None;
+        // Wildlife needs a safe body-sized landing place, rather than the
+        // flat escape runway reserved for the human's initial spawn. Grass,
+        // flowers and gentle slopes must not suppress an entire night's mobs.
+        for y in 2..CHUNK_HEIGHT as i32 - 2 {
+            let ground = self.world.get_block(x, y);
+            if ground.is_solid()
+                && !ground.is_fluid()
+                && !matches!(
+                    ground,
+                    BlockType::Cactus
+                        | BlockType::Leaves
+                        | BlockType::BirchLeaves
+                        | BlockType::Wood
+                        | BlockType::BirchWood
+                )
+                && Self::ambient_spawn_clearance(self.world.get_block(x, y - 1))
+                && Self::ambient_spawn_clearance(self.world.get_block(x, y - 2))
+                && self.world.has_open_sky(x, y - 2)
+            {
+                return Some(y as f64 - 0.1);
+            }
         }
-        Some(surface_y as f64 - 0.1)
+        None
     }
 
     fn find_water_spawn_for_squid(&self, x: i32) -> Option<f64> {
@@ -11258,6 +11295,12 @@ impl GameState {
         if self.chat.open {
             return;
         }
+        if self.chat.mode == "commands" {
+            self.chat.notice_ticks = self.chat.notice_ticks.saturating_sub(1);
+            if self.chat.notice_ticks == 0 {
+                self.chat.status.clear();
+            }
+        }
         self.world_tick = self.world_tick.saturating_add(1);
         self.update_trial();
         if !self.cooperative() {
@@ -13344,7 +13387,13 @@ impl GameState {
                 }
             });
             let hit = if from_player {
-                self.hit_player_arrow_segment(previous, (ax, ay), arrow_damage, terrain_t)
+                self.hit_owned_player_arrow_segment(
+                    previous,
+                    (ax, ay),
+                    arrow_damage,
+                    terrain_t,
+                    self.arrows[i].owner,
+                )
             } else {
                 let bounds = [
                     self.player.x - PLAYER_HALF_WIDTH,
@@ -21610,7 +21659,7 @@ mod tests {
     }
 
     #[test]
-    fn test_daylight_passive_spawn_surface_avoids_cave_floors() {
+    fn test_daylight_passive_spawn_surface_uses_exposed_floor_and_never_a_cave_below_water() {
         let mut state = GameState::new();
         state.world.load_chunks_around(0);
         state.world.newly_generated_chunks.clear();
@@ -21626,6 +21675,9 @@ mod tests {
         state.world.set_block(0, 26, BlockType::Stone);
 
         assert_eq!(state.find_spawn_surface_for_mob(0), Some(19.9));
+        // A three-block ledge is valid habitat without a player spawn runway.
+        assert_eq!(state.find_spawn_surface_for_daylight_mob(0), Some(19.9));
+        state.world.set_block(0, 19, BlockType::Water(8));
         assert_eq!(state.find_spawn_surface_for_daylight_mob(0), None);
     }
 

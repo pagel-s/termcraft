@@ -31,6 +31,8 @@ def check(binary, fixture, root, mode, start_dimension=None):
     game = TerminalGame(binary, save, root / mode / 'captures', 'terminal-input', address)
     visits = []
     try:
+        game.send(b't/gamemode on\r')
+        game.pump(0.2)
         if mode == 'native':
             game.send(b'\x1b[20~')  # F9: ordinary debug loadout.
             game.pump(0.15)

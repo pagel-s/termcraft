@@ -32,6 +32,8 @@ def check(binary, fixture, root, mode):
         address = fixture_address
     game = TerminalGame(binary, save, root / mode / 'captures', 'terminal-input', address)
     try:
+        game.send(b't/gamemode on\r')
+        game.pump(0.2)
         if mode == 'native':
             game.send(b'\x1b[20~')  # F9, confined to this disposable solo save.
             game.pump(0.2)

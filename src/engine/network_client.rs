@@ -94,6 +94,8 @@ fn clear_remote_runtime_entities(state: &mut GameState) {
 
 pub(crate) fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerSnapshot) {
     state.local_player_id = (snapshot.client_id != 0).then_some(snapshot.client_id);
+    state.host_client_id = snapshot.host_client_id;
+    state.install_shortcuts(snapshot.shortcuts);
     let target_dimension: Dimension = snapshot.dimension.into();
     if state.current_dimension != target_dimension {
         state.current_dimension = target_dimension;
@@ -244,10 +246,25 @@ pub fn run_tcp_client(connect_addr: &str) -> io::Result<()> {
 pub fn run_tcp_client_with_profile(connect_addr: &str, profile: &str) -> io::Result<()> {
     run_tcp_client_with_identity(connect_addr, profile, connect_addr)
 }
+pub(crate) fn run_tcp_client_with_hint(
+    connect_addr: &str,
+    profile: &str,
+    hint: &str,
+) -> io::Result<()> {
+    run_tcp_client_with_identity_and_hint(connect_addr, profile, connect_addr, hint)
+}
 pub(crate) fn run_tcp_client_with_identity(
     connect_addr: &str,
     profile: &str,
     identity_addr: &str,
+) -> io::Result<()> {
+    run_tcp_client_with_identity_and_hint(connect_addr, profile, identity_addr, identity_addr)
+}
+fn run_tcp_client_with_identity_and_hint(
+    connect_addr: &str,
+    profile: &str,
+    identity_addr: &str,
+    hint: &str,
 ) -> io::Result<()> {
     let previous = identity::read(identity_addr, profile)?;
     let mut writer = TcpStream::connect(connect_addr)?;
@@ -284,6 +301,7 @@ pub(crate) fn run_tcp_client_with_identity(
         &server_msg_rx,
         &mut renderer,
         welcome.client_id,
+        hint,
     );
     let _ = writer.shutdown(std::net::Shutdown::Both);
     result.and(renderer.restore())
@@ -294,8 +312,10 @@ fn run_tcp_client_loop(
     server_msg_rx: &mpsc::Receiver<io::Result<ServerWireMessage>>,
     renderer: &mut Renderer,
     client_id: u16,
+    hint: &str,
 ) -> io::Result<()> {
     let mut state = GameState::network_view();
+    state.connection_address = Some(hint.into());
     clear_remote_runtime_entities(&mut state);
     state.inventory.slots.fill(None);
     state.inventory_open = false;
@@ -370,6 +390,37 @@ fn run_tcp_client_loop(
                 }
                 continue;
             }
+            if state.is_settings_menu_open() {
+                if let Event::Key(key) = &ev
+                    && key.kind != KeyEventKind::Release
+                {
+                    match key.code {
+                        KeyCode::Esc | KeyCode::Char('o' | 'O' | 'q' | 'Q') => {
+                            state.apply_client_command(ClientCommand::ToggleSettingsMenu)
+                        }
+                        KeyCode::Up | KeyCode::Char('w' | 'W') => {
+                            state.apply_client_command(ClientCommand::SettingsMoveUp)
+                        }
+                        KeyCode::Down | KeyCode::Char('s' | 'S') => {
+                            state.apply_client_command(ClientCommand::SettingsMoveDown)
+                        }
+                        KeyCode::Enter | KeyCode::Char(' ') if key.kind == KeyEventKind::Press => {
+                            if let Some(command) = state.settings_selected_command() {
+                                queue_client_command(
+                                    &mut prediction,
+                                    &mut pending_outbound,
+                                    command,
+                                );
+                                state.apply_client_command(command);
+                            } else {
+                                state.apply_client_command(ClientCommand::ToggleSettingsMenu);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                continue;
+            }
             match ev {
                 Event::Key(key_event) => {
                     match key_event.kind {
@@ -381,11 +432,12 @@ fn run_tcp_client_loop(
                             KeyCode::PageUp if state.inventory_open => {
                                 renderer.scroll_recipe_book(-8)
                             }
-                            KeyCode::Char('t' | 'T') if !state.inventory_open => {
+                            KeyCode::Char('t' | 'T' | 'o' | 'O') if !state.inventory_open => {
                                 for command in [
                                     ClientCommand::ClearDirectionalInput,
                                     ClientCommand::SetPrimaryAction(false),
                                     ClientCommand::SetJumpHeld(false),
+                                    ClientCommand::SetSneakHeld(false),
                                 ] {
                                     queue_client_command(
                                         &mut prediction,
@@ -402,7 +454,12 @@ fn run_tcp_client_loop(
                                 jump_held_sent = false;
                                 jump_last_input_at = None;
                                 jump_repeat_observed = false;
-                                state.chat.open = true;
+                                sneak_held_sent = false;
+                                if matches!(key_event.code, KeyCode::Char('o' | 'O')) {
+                                    state.apply_client_command(ClientCommand::ToggleSettingsMenu);
+                                } else {
+                                    state.chat.open = true;
+                                }
                                 state.chat.scroll = 0;
                             }
                             KeyCode::F(4) => renderer.toggle_zoom(),
@@ -504,27 +561,27 @@ fn run_tcp_client_loop(
                                     ClientCommand::QueueJump,
                                 );
                             }
-                            KeyCode::F(5) => queue_client_command(
+                            KeyCode::F(5) if state.shortcuts_enabled() => queue_client_command(
                                 &mut prediction,
                                 &mut pending_outbound,
                                 ClientCommand::TravelToOverworld,
                             ),
-                            KeyCode::F(6) => queue_client_command(
+                            KeyCode::F(6) if state.shortcuts_enabled() => queue_client_command(
                                 &mut prediction,
                                 &mut pending_outbound,
                                 ClientCommand::TravelToNether,
                             ),
-                            KeyCode::F(7) => queue_client_command(
+                            KeyCode::F(7) if state.shortcuts_enabled() => queue_client_command(
                                 &mut prediction,
                                 &mut pending_outbound,
                                 ClientCommand::TravelToEnd,
                             ),
-                            KeyCode::F(8) => queue_client_command(
+                            KeyCode::F(8) if state.shortcuts_enabled() => queue_client_command(
                                 &mut prediction,
                                 &mut pending_outbound,
                                 ClientCommand::TravelToSpawn,
                             ),
-                            KeyCode::F(9) => queue_client_command(
+                            KeyCode::F(9) if state.shortcuts_enabled() => queue_client_command(
                                 &mut prediction,
                                 &mut pending_outbound,
                                 ClientCommand::EquipDiamondLoadout,

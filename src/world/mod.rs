@@ -2439,11 +2439,15 @@ impl World {
     }
 
     fn overworld_surface_y(perlin: &Perlin, world_x: i32) -> i32 {
-        let broad = perlin.get([world_x as f64 * 0.006, 0.0]) * 12.0;
-        let detail = perlin.get([world_x as f64 * 0.018, 100.0]);
-        // Inland valleys stay above the shared water table. Otherwise a river
-        // at sea level becomes a perched ridge across lower, artificially dry land.
-        ((32.0 + broad + detail).round() as i32).min(OVERWORLD_SEA_LEVEL - 2)
+        let x = world_x as f64;
+        let warped = x + perlin.get([x * 0.0017, 314.0]) * 44.0;
+        let broad = perlin.get([warped * 0.0028, 19.0]) * 9.0;
+        let rolling = perlin.get([warped * 0.0087, 107.0]) * 6.0;
+        let detail = perlin.get([x * 0.029, 211.0]) * 1.5;
+        // Compress valleys smoothly above sea level, rather than clipping large
+        // sections to exactly one height. Warped, overlapping scales avoid the
+        // repetitive staircase profile while retaining walkable grades.
+        (28.0 + 6.0 * ((broad + rolling) / 6.0).tanh() + detail).round() as i32
     }
 
     fn continental_noise(perlin: &Perlin, world_x: i32) -> f64 {

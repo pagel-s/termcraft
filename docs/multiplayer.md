@@ -16,6 +16,15 @@ quality still need broader playtesting. The `0.2.0-beta.1` candidate is not yet 
 
 ## Try two players
 
+For the simplest setup, run `termcraft host`. It starts a server and joins your
+player automatically in the same terminal. Press **T** for the join address;
+a friend on the same network runs `termcraft client ADDRESS --player bob`.
+The default host listens on port 25565 on local network interfaces; you can
+choose an address with `termcraft host 0.0.0.0:25566`. Firewall permission may be
+needed on the host. Internet play still needs SSH or an existing network route.
+Quitting the host game saves and stops its background server. Use a dedicated
+server below if you want it to remain running after that player leaves.
+
 Build once, then use three terminals in the repository directory:
 
 ```bash
@@ -123,15 +132,27 @@ reconnect profile, not a public display name.
 Messages are limited to 280 characters, with a short burst allowance and one new
 message per second thereafter. Recent messages appear briefly in the HUD. The
 last 32 messages remain available in chat until the server stops; chat is not
-saved with the world. Normal solo play has no chat panel.
+saved with the world. Solo **T** opens a command console.
+
+### Personal shortcuts
+
+F5–F9 travel and loadout shortcuts start disabled. Type `/gamemode` in **T** to
+toggle them for your player, or use `/gamemode on` / `/gamemode off`. The command
+is handled privately and never broadcast as a chat message. It unlocks a
+**Travel/loadout** setting under **O** for that session. This enables shortcuts;
+it does not grant flight, invulnerability or unlimited blocks. Reconnecting
+starts with shortcuts disabled again. Other players' settings are unaffected.
 
 ## Compatibility and transport
 
-Direct player-versus-player combat is not implemented; swords and player arrows
-target creatures. Player colors are assigned automatically, and equipped armor
-is visible to other players. There is no appearance selector yet.
+PvP starts enabled. Swords and bows can damage other players, with armor,
+knockback, line-of-sight checks and a damage cooldown. The host can disable it
+in **O: settings**; guests cannot change shared rules. Equipped armor and each
+player's assigned colors appear consistently to other players. There is no
+appearance selector yet. Arrows restored after a server restart keep PvE damage
+and do not retain a previous connection's PvP ownership.
 
-Protocol **20** requires matching builds. Terrain and nearby entities stream
+Protocol **21** requires matching builds. Terrain and nearby entities stream
 around each player. Disconnected and stale actors release held actions. Live
 clients send a periodic heartbeat, so holding the mouse can continue mining
 without pointer movement.

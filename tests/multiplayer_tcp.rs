@@ -498,6 +498,100 @@ struct Client {
 }
 
 #[test]
+#[ignore = "requires real loopback TCP and Unix process signals"]
+fn real_players_take_melee_and_bow_damage_and_host_can_disable_pvp() -> io::Result<()> {
+    use termcraft::{
+        engine::{
+            server_save::{ServerSave, token},
+            state::PlayerSession,
+        },
+        world::item::ItemStack,
+    };
+    let root = std::env::temp_dir().join(format!("termcraft-pvp-{}", token()));
+    std::fs::create_dir_all(&root)?;
+    let mut recipe = WorldRecipe::example();
+    recipe.terrain = Terrain::Plains;
+    recipe.relief = 0;
+    recipe.regions.clear();
+    recipe.landmarks.clear();
+    let world = WorldStore::new(root.join("worlds"))
+        .create("tcp", "PvP regression", &recipe)
+        .unwrap();
+    let mut state = GameState::open_in_directory(&world)?;
+    state.apply_client_command(ClientCommand::ToggleRuleMobSpawning);
+    state.player.x = 0.5;
+    state.player.y = 64.0;
+    state.inventory.slots.fill(None);
+    for (i, item, count) in [
+        (0, ItemType::DiamondSword, 1),
+        (1, ItemType::Bow, 1),
+        (2, ItemType::Arrow, 32),
+    ] {
+        state.inventory.slots[i] = Some(ItemStack {
+            item_type: item,
+            count,
+            durability: item.max_durability(),
+        });
+    }
+    let mut saved = ServerSave::read(&state)?;
+    let (a, b) = (token(), token());
+    saved
+        .players
+        .insert(a.clone(), PlayerSession::capture(&state));
+    state.player.x = 2.0;
+    state.inventory.slots.fill(None);
+    saved
+        .players
+        .insert(b.clone(), PlayerSession::capture(&state));
+    state.try_persist_world_and_progress()?;
+    saved.write(&world)?;
+    drop(state);
+    let reservation = TcpListener::bind("127.0.0.1:0")?;
+    let address = reservation.local_addr()?.to_string();
+    drop(reservation);
+    let mut server = Server::start(&root, &address);
+    let mut attacker = Client::connect(&address, Some(a));
+    let defender = Client::connect(&address, Some(b));
+    attacker.until(|s| s.remote_players.len() == 1);
+    attacker.send(ClientCommand::AimAt(2, 63));
+    attacker.send(ClientCommand::SetPrimaryAction(true));
+    let melee = defender.until(|s| s.player.health < 20.0);
+    attacker.send(ClientCommand::SetPrimaryAction(false));
+    let target = defender.until(|s| s.tick >= melee.tick + 14);
+    attacker.send(ClientCommand::SelectHotbarSlot(1));
+    attacker.send(ClientCommand::AimAt(
+        target.player.x.floor() as i32,
+        (target.player.y - 1.5).floor() as i32,
+    ));
+    attacker.send(ClientCommand::SetPrimaryAction(true));
+    attacker.until(|s| s.tick >= target.tick + 18);
+    attacker.send(ClientCommand::SetPrimaryAction(false));
+    let arrow = defender.until(|s| s.player.health < melee.player.health);
+    assert!(arrow.player.health > 0.0);
+    attacker.send(ClientCommand::TogglePvp);
+    let disabled = attacker.until(|s| serde_json::to_value(&s.settings).unwrap()["pvp"] == false);
+    attacker.send(ClientCommand::AimAt(
+        arrow.player.x.floor() as i32,
+        (arrow.player.y - 1.5).floor() as i32,
+    ));
+    attacker.send(ClientCommand::SetPrimaryAction(true));
+    attacker.until(|s| s.tick >= disabled.tick + 18);
+    attacker.send(ClientCommand::SetPrimaryAction(false));
+    let after = defender.until(|s| s.tick >= disabled.tick + 32);
+    assert!(
+        after.player.health >= arrow.player.health,
+        "PvP-off still dealt damage; natural food regeneration may raise health"
+    );
+    drop((attacker, defender));
+    server.stop();
+    let saved: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(world.join("server-state.json"))?)?;
+    assert_eq!(saved["settings"]["pvp"], false);
+    std::fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 #[ignore = "requires local TCP sockets and Unix process signals"]
 fn interrupting_server_startup_releases_the_world_lease() -> io::Result<()> {
     let root =

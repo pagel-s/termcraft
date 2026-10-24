@@ -1,6 +1,57 @@
 use super::*;
 use rand::{SeedableRng, rngs::StdRng};
 
+#[test]
+fn native_generated_nights_produce_surface_enemies_across_multiple_seeds() {
+    for seed in [1337u32, 42, 73, 2026] {
+        let root = std::env::temp_dir().join(format!(
+            "termcraft-natural-night-{seed}-{}",
+            rand::random::<u64>()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let seeds = (
+            seed,
+            seed.wrapping_add(5994),
+            seed.wrapping_add(8580),
+            seed.wrapping_add(71),
+        );
+        std::fs::write(
+            root.join("overworld_world_seed.bin"),
+            bincode::serialize(&seeds).unwrap(),
+        )
+        .unwrap();
+        let mut s = GameState::open_in_directory(&root).unwrap();
+        s.dismiss_startup_splash();
+        s.time_of_day = 23000.0;
+        s.world.load_chunks_around(s.player.x.floor() as i32);
+        let mut rng = StdRng::seed_from_u64(seed as u64);
+        for _ in 0..40 {
+            s.overworld_hostile_spawn_timer = 0;
+            s.update_ambient_respawns(&mut rng, false);
+        }
+        let surface = s
+            .zombies
+            .iter()
+            .map(|m| (m.x, m.y))
+            .chain(s.creepers.iter().map(|m| (m.x, m.y)))
+            .chain(s.skeletons.iter().map(|m| (m.x, m.y)))
+            .chain(s.spiders.iter().map(|m| (m.x, m.y)))
+            .filter(|(x, y)| {
+                s.world
+                    .has_open_sky(x.floor() as i32, (y - 1.0).floor() as i32)
+            })
+            .count();
+        assert!(
+            surface > 0,
+            "seed {seed}: no surface enemies near spawn ({},{})",
+            s.player.x,
+            s.player.y
+        );
+        drop(s);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
 fn surface_with_cave() -> GameState {
     let mut s = GameState::network_view();
     s.dismiss_startup_splash();
@@ -19,6 +70,71 @@ fn surface_with_cave() -> GameState {
     s.player.x = 0.5;
     s.player.y = 31.9;
     s
+}
+
+#[test]
+fn co_op_surface_spawns_continue_when_the_first_player_is_underground() {
+    let mut s = surface_with_cave();
+    s.join_peer(1);
+    s.player.x = 0.5;
+    s.player.y = 60.0;
+    s.join_peer(2);
+    s.activate_peer(2);
+    s.player.x = 40.5;
+    s.player.y = 32.0;
+    s.activate_peer(1);
+    let mut sim = crate::engine::net::ServerSimulation::with_state(s);
+    for _ in 0..120 {
+        sim.step(0, 0);
+    }
+    let s = sim.state();
+    assert!(
+        s.zombies.iter().any(|m| m.y < 40.0)
+            || s.creepers.iter().any(|m| m.y < 40.0)
+            || s.skeletons.iter().any(|m| m.y < 40.0)
+            || s.spiders.iter().any(|m| m.y < 40.0)
+    );
+}
+
+#[test]
+fn outdoor_mobs_accept_vegetation_and_slopes_without_a_player_spawn_runway() {
+    let mut s = surface_with_cave();
+    for x in -96i32..=96 {
+        let ground = 30 + x.rem_euclid(3);
+        for y in 25..=35 {
+            s.world.set_block(
+                x,
+                y,
+                if y >= ground {
+                    BlockType::Stone
+                } else {
+                    BlockType::Air
+                },
+            );
+        }
+        s.world.set_block(x, ground, BlockType::Grass);
+        s.world.set_block(
+            x,
+            ground - 1,
+            if x % 2 == 0 {
+                BlockType::TallGrass
+            } else {
+                BlockType::YellowFlower
+            },
+        );
+    }
+    assert!(s.find_dark_overworld_spawn(40).is_some());
+    let mut rng = StdRng::seed_from_u64(99);
+    for _ in 0..12 {
+        s.overworld_hostile_spawn_timer = 0;
+        s.update_ambient_respawns(&mut rng, false);
+    }
+    assert!(
+        !s.zombies.is_empty()
+            || !s.creepers.is_empty()
+            || !s.skeletons.is_empty()
+            || !s.spiders.is_empty()
+    );
 }
 
 #[test]

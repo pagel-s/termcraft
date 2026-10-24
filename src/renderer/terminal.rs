@@ -3721,14 +3721,12 @@ impl Renderer {
         } else {
             let chat_hint = if state.chat.mode.is_empty() {
                 ""
+            } else if state.chat.mode == "commands" {
+                "T: commands  "
             } else {
                 "T: chat  "
             };
-            let settings_hint = if state.world.is_replica() {
-                ""
-            } else {
-                "  O: settings"
-            };
+            let settings_hint = "  O: settings";
             self.put_str(
                 1,
                 0,
@@ -3777,7 +3775,7 @@ impl Renderer {
             self.put_str(1, 2, fishing_status, Color::Yellow, Color::Reset);
         }
         if !state.chat.status.is_empty() {
-            let status = if state.chat.player_id().is_some() {
+            let status = if state.chat.player_id().is_some() || state.chat.mode == "commands" {
                 state.chat.status.clone()
             } else {
                 format!("GM: {}", state.chat.status)
@@ -4181,16 +4179,25 @@ impl Renderer {
             self.put_char(x + w - 1, py, '│', Color::Cyan, bg);
         }
         let player_id = state.chat.player_id();
+        let commands = state.chat.mode == "commands";
         let title: String = player_id
             .map_or_else(
-                || format!(" AI GAME MASTER | {} ", state.chat.mode),
+                || {
+                    if commands {
+                        " COMMANDS ".into()
+                    } else {
+                        format!(" AI GAME MASTER | {} ", state.chat.mode)
+                    }
+                },
                 |id| format!(" PLAYER CHAT | You are P{id} "),
             )
             .chars()
             .take((w - 4) as usize)
             .collect();
         self.put_str(x + 2, y, &title, Color::Cyan, bg);
-        let hint: String = if player_id.is_some() {
+        let hint: String = if commands {
+            "Type a command. Esc returns to the game."
+        } else if player_id.is_some() {
             "Everyone on this server can read your messages, across all dimensions."
         } else {
             "Describe a battle, mobs, weather or structure. /connect: your LLM client."
@@ -4199,6 +4206,13 @@ impl Renderer {
         .take((w - 4) as usize)
         .collect();
         self.put_str(x + 2, y + 1, &hint, Color::Grey, bg);
+        if let Some(address) = &state.connection_address {
+            let join: String = format!("Join: termcraft client {address}")
+                .chars()
+                .take((w - 4) as usize)
+                .collect();
+            self.put_str(x + 2, y + 2, &join, Color::Cyan, bg);
+        }
         let width = (w - 4) as usize;
         let mut lines = Vec::new();
         for message in &state.chat.lines {
@@ -4237,7 +4251,9 @@ impl Renderer {
             Color::White,
             Color::AnsiValue(237),
         );
-        let controls: String = if player_id.is_some() {
+        let controls: String = if commands {
+            "Enter: apply   Esc: close".into()
+        } else if player_id.is_some() {
             format!(
                 "Enter: send  Esc: close  PgUp/PgDn: history  {}/280",
                 prompt.len()
@@ -4489,7 +4505,7 @@ impl Renderer {
         }
 
         let panel_w = (self.width as i32 - 18).clamp(54, 82);
-        let panel_h = (self.height as i32 - 8).clamp(16, 22);
+        let panel_h = (self.height as i32 - 4).clamp(18, 22);
         let panel_x = ((self.width as i32 - panel_w) / 2).max(0);
         let panel_y = ((self.height as i32 - panel_h) / 2).max(0);
         let panel_bg = Color::AnsiValue(235);
@@ -4549,35 +4565,12 @@ impl Renderer {
             panel_bg,
         );
 
-        let (rule_spawn, rule_day, rule_weather, rule_keep_inv) = state.game_rule_flags();
-        let difficulty_name = state.difficulty_name();
-        let game_rules_preset_name = state.game_rules_preset_name();
-        let rows = [
-            format!("Difficulty        : {difficulty_name}"),
-            format!("Gamerule preset   : {game_rules_preset_name}"),
-            format!(
-                "doMobSpawning     : {}",
-                if rule_spawn { "ON" } else { "OFF" }
-            ),
-            format!(
-                "doDaylightCycle   : {}",
-                if rule_day { "ON" } else { "OFF" }
-            ),
-            format!(
-                "doWeatherCycle    : {}",
-                if rule_weather { "ON" } else { "OFF" }
-            ),
-            format!(
-                "keepInventory     : {}",
-                if rule_keep_inv { "ON" } else { "OFF" }
-            ),
-            "Close settings menu".to_string(),
-        ];
+        let rows = state.settings_rows();
 
         let selected = state.settings_menu_selected_index() as usize;
         let line_width = (panel_w - 6).max(8) as usize;
         let text_top = panel_y + 6;
-        for (idx, row) in rows.iter().enumerate() {
+        for (idx, (row, _)) in rows.iter().enumerate() {
             let y = text_top + idx as i32;
             if y >= panel_y + panel_h - 2 {
                 break;

@@ -23,6 +23,9 @@ def check(binary, root):
         solo.pump(0.2)
         assert "GAME MASTER" not in solo.screen.text()
         assert "PLAYER CHAT" not in solo.screen.text()
+        assert "COMMANDS" in solo.screen.text()
+        solo.send(b"\x1b")
+        solo.pump(0.15)
         solo.finish()
     finally:
         solo.close()

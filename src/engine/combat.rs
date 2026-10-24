@@ -16,6 +16,7 @@ pub(super) fn melee_strike_ready(windup: &mut u8, cooldown: u8, contact: bool, h
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Target {
+    Player(u16),
     Zombie(usize),
     Pigman(usize),
     Skeleton(usize),
@@ -47,6 +48,9 @@ struct Body {
 }
 impl GameState {
     fn combat_bodies(&self) -> Vec<Body> {
+        self.combat_bodies_for(self.active_peer.or(self.local_player_id))
+    }
+    fn combat_bodies_for(&self, attacker: Option<u16>) -> Vec<Body> {
         let mut bodies = Vec::new();
         macro_rules! bodies {
             ($field:ident, $kind:ident, $half:expr, $height:expr) => {
@@ -100,6 +104,34 @@ impl GameState {
         bodies!(squids, Squid, 0.625, 1.0);
         bodies!(villagers, Villager, 0.375, 1.75);
         bodies!(end_crystals, Crystal, 0.5, 1.0);
+        if self.pvp_enabled && attacker.is_some() {
+            let mut player_body = |id, x, y, health| {
+                if Some(id) != attacker && health > 0.0 {
+                    bodies.push(Body {
+                        target: Target::Player(id),
+                        x,
+                        y,
+                        half: PLAYER_HALF_WIDTH,
+                        height: PLAYER_HEIGHT,
+                        health,
+                    });
+                }
+            };
+            if let Some(id) = self.active_peer
+                && !self.death_screen_active
+            {
+                player_body(id, self.player.x, self.player.y, self.player.health);
+            }
+            for (&id, actor) in &self.cooperative_players {
+                if self.peer_dimension(id) == self.current_dimension && !actor.dead() {
+                    let p = actor.player();
+                    player_body(id, p.x, p.y, p.health);
+                }
+            }
+            for remote in &self.remote_players {
+                player_body(remote.client_id, remote.x, remote.y, remote.health);
+            }
+        }
         bodies
     }
     fn pick_combat_target(&self, mx: f64, my: f64) -> Option<Target> {
@@ -139,6 +171,7 @@ impl GameState {
     pub fn focused_entity(&self, x: i32, y: i32) -> Option<(&'static str, f32)> {
         let target = self.pick_combat_target(x as f64 + 0.5, y as f64 + 0.5)?;
         let name = match target {
+            Target::Player(_) => "Player",
             Target::Zombie(_) => "Zombie",
             Target::Pigman(_) => "Pigman",
             Target::Skeleton(_) => "Skeleton",
@@ -170,9 +203,14 @@ impl GameState {
         };
         Some((name, health))
     }
-    fn first_arrow_body(&self, from: (f64, f64), to: (f64, f64)) -> Option<(f64, Target)> {
+    fn first_arrow_body(
+        &self,
+        from: (f64, f64),
+        to: (f64, f64),
+        owner: Option<u16>,
+    ) -> Option<(f64, Target)> {
         let mut best = None;
-        for b in self.combat_bodies() {
+        for b in self.combat_bodies_for(owner) {
             if let Some(t) =
                 segment_box_hit(from, to, [b.x - b.half, b.y - b.height, b.x + b.half, b.y])
                 && best.is_none_or(|(old, _)| t < old)
@@ -206,6 +244,7 @@ impl GameState {
         }
         best
     }
+    #[cfg(test)]
     pub(super) fn hit_player_arrow_segment(
         &mut self,
         from: (f64, f64),
@@ -223,8 +262,29 @@ impl GameState {
         damage: f32,
         terrain_t: f64,
     ) -> Option<(f64, f64)> {
+        self.hit_owned_projectile_segment(from, to, damage, terrain_t, None)
+    }
+    pub(super) fn hit_owned_player_arrow_segment(
+        &mut self,
+        from: (f64, f64),
+        to: (f64, f64),
+        damage: f32,
+        terrain_t: f64,
+        owner: Option<u16>,
+    ) -> bool {
+        self.hit_owned_projectile_segment(from, to, damage, terrain_t, owner)
+            .is_some()
+    }
+    fn hit_owned_projectile_segment(
+        &mut self,
+        from: (f64, f64),
+        to: (f64, f64),
+        damage: f32,
+        terrain_t: f64,
+        owner: Option<u16>,
+    ) -> Option<(f64, f64)> {
         if let Some((t, target)) = self
-            .first_arrow_body(from, to)
+            .first_arrow_body(from, to, owner)
             .filter(|(t, _)| *t < terrain_t)
         {
             self.apply_target_hit(
@@ -313,6 +373,21 @@ impl GameState {
             }};
         }
         match target {
+            Target::Player(id) => {
+                let selected = self.active_peer;
+                if self.activate_peer(id) {
+                    if self.apply_player_combat_damage(damage) {
+                        self.apply_player_contact_knockback(px, 0.32, 0.22);
+                        if let Some((vx, vy)) = impulse {
+                            self.player.vx = vx;
+                            self.player.vy = vy;
+                        }
+                    }
+                    if let Some(selected) = selected {
+                        self.activate_peer(selected);
+                    }
+                }
+            }
             Target::Zombie(i) => hit!(zombies, i, 0.4, 0.3),
             Target::Skeleton(i) => hit!(skeletons, i, 0.4, 0.3),
             Target::Creeper(i) => hit!(creepers, i, 0.4, 0.3),

@@ -33,7 +33,7 @@ The intended progression is:
 | Performance diagnostics | `F3` |
 | Zoom in / out | `=` or `+` / `-` |
 | Cycle world view | `F4` |
-| Player chat (co-op) | `T`; `Enter` sends, `Esc` closes |
+| Player chat / solo commands | `T`; `Enter` sends, `Esc` closes |
 | Quit / close UI | `Q` or `Esc` |
 
 **F3** shows input mode and rolling simulation/render timings. Save warnings appear
@@ -49,6 +49,11 @@ Intentional double-tap sprint requires directional key-up events (`keys:release`
 in F3); the repeat-only fallback cannot reliably distinguish that gesture.
 
 ## Settings And Rules
+
+F5–F9 travel/loadout shortcuts are disabled by default. In **T**, `/gamemode`
+privately toggles them for your player and unlocks the **Travel/loadout** setting
+in **O** for the current session. `/gamemode on` and `/gamemode off` also work.
+This applies in both solo and co-op; it does not switch survival rules to Creative.
 
 These are available in-game:
 
@@ -185,7 +190,7 @@ momentum and accumulated fall distance reset during travel.
 Dimension travel works in single-player and co-op. In co-op only the interacting
 player travels; friends can follow or remain in another dimension. Terrain,
 entities, inventories and saved portal links remain separate, with one shared
-dragon encounter for players in the End. Use matching protocol-20 clients/server.
+dragon encounter for players in the End. Use matching protocol-21 clients/server.
 
 Incoming ghast and blaze fireballs can be hit with a normal left-click attack
 while within 2.6 blocks. Aim at the projectile: a successful return reverses its

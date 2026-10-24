@@ -41,4 +41,6 @@ pub enum ClientCommand {
     ClearCraftGrid,
     CraftRecipeMax(u16),
     DropItem(bool),
+    TogglePvp,
+    ToggleShortcuts,
 }

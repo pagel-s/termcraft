@@ -36,6 +36,8 @@ pub struct ChatView {
     pub draft: String,
     #[serde(skip)]
     pub scroll: usize,
+    #[serde(skip)]
+    pub notice_ticks: u16,
     pub lines: VecDeque<String>,
     pub pending: bool,
     pub status: String,
@@ -54,6 +56,7 @@ impl ChatView {
             .take(1200)
             .collect();
         self.status = text.clone();
+        self.notice_ticks = 160;
         self.lines.push_back(text);
         while self.lines.len() > 16 {
             self.lines.pop_front();

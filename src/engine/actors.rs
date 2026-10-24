@@ -345,6 +345,8 @@ impl GameState {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SharedSettings {
+    #[serde(default = "pvp_default")]
+    pvp: bool,
     time: f32,
     weather: u8,
     weather_timer: u32,
@@ -356,9 +358,13 @@ pub struct SharedSettings {
     weather_cycle: bool,
     keep_inventory: bool,
 }
+fn pvp_default() -> bool {
+    true
+}
 impl SharedSettings {
     pub fn capture(s: &GameState) -> Self {
         Self {
+            pvp: s.pvp_enabled,
             time: s.time_of_day,
             weather: GameState::encode_weather(s.weather),
             weather_timer: s.weather_timer,
@@ -372,6 +378,7 @@ impl SharedSettings {
         }
     }
     pub fn apply(&self, s: &mut GameState) -> Result<(), String> {
+        s.pvp_enabled = self.pvp;
         if !self.time.is_finite() || !(0.0..24000.0).contains(&self.time) {
             return Err("invalid server clock".into());
         }

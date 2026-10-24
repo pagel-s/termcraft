@@ -19,13 +19,18 @@ Build a home, explore with friends over SSH and take on the dragon together.
 - **Build and survive together.** Up to eight players with independent inventories,
   crafting, health and dimension travel; shared terrain, combat and reconnect saves.
   Press **T** for player chat across all dimensions on your server.
+  `termcraft host` starts a server and joins automatically in one terminal.
+  PvP combat starts enabled, with a host setting to disable it. Personal
+  travel/loadout shortcuts start disabled and can be toggled privately.
   Join with `termcraft join user@host --player alice` through an existing SSH account.
 - **Better everyday interactions.** A recipe book and batch crafting, furnace
   input/fuel/output slots, stack handling, dropping, food feedback, working
   doors/portals, redstone-ore glow and projectile returns.
 - **Longer journeys over land.** Fewer river crossings, broader dry stretches,
-  gentler hills and graded banks. Nighttime surface encounters no longer get
+  varied rolling terrain, gentler hills and graded banks. Nighttime surface encounters no longer get
   crowded out by cave populations or start entirely beyond normal awareness.
+  Ground vegetation and a cave-dwelling first co-op player no longer suppress
+  nighttime surface spawning.
 - **Richer places to explore.** Connected village buildings and irrigated gardens,
   refined Nether materials and landmarks, balanced ore pockets, and a front-facing
   dragon with slim pillars and a colorful fourteen-second defeat sequence.
@@ -54,7 +59,7 @@ item / its stack. See [installation](docs/installation.md) and
 ## Before upgrading
 
 Back up the whole save directory, including hidden checkpoint data. Native saves
-use version **11**, server checkpoints **5**, and co-op protocol **20**; all peers
+use version **11**, server checkpoints **5**, and co-op protocol **21**; all peers
 need matching builds. Older executables cannot read the new checkpoints.
 Saved terrain is preserved, so new villages, ore layouts and terrain details
 require fresh chunks. Furnaces currently use each player's session rather than
