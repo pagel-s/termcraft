@@ -297,6 +297,13 @@ restore a backup into a new folder as above instead of editing the original.
 The lock's recorded PID belongs to the container's PID namespace. Do not treat
 it as a host PID or kill a host process with the same number.
 
+An emergency recovery path printed in the logs belongs to the container, not
+your host's `/tmp`. If the container is still running, copy an available recovery
+directory out with `podman cp termcraft-server:/tmp/PATH ./recovered-copy` before
+stopping it. Replace `PATH` with the exact reported name. Container tmpfs files
+are lost when the container stops; persistent checkpoints and your offline
+backups remain the recovery path afterward.
+
 ## Troubleshooting
 
 | Problem | Action |

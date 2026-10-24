@@ -78,6 +78,17 @@ def check(bundle, root):
         quota, period = podman('exec', name, 'cat', '/sys/fs/cgroup/cpu.max').split()
         assert int(quota) == int(period) * 2
         assert not (data.stat().st_mode & 0o077), 'save directory is not private'
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route:
+            # Select the local route address without sending a datagram.
+            route.connect(('192.0.2.1', 9))
+            lan_address = route.getsockname()[0]
+        try:
+            unexpected = socket.create_connection((lan_address, port), timeout=0.5)
+        except OSError:
+            pass
+        else:
+            unexpected.close()
+            raise AssertionError('loopback server accepted a connection on the host network interface')
 
         alice, bob, charlie = [join(p) for p in ('alice', 'bob', 'charlie')]
         charlie.send(b'tsandbox-three-player-check\r'); charlie.pump(0.2)

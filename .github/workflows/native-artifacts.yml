@@ -139,7 +139,7 @@ jobs:
 
   sandbox-hosting:
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -157,17 +157,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y podman uidmap slirp4netns fuse-overlayfs dbus-user-session
-          if ! rg -q "^$(id -un):" /etc/subuid; then
+          if ! grep -q "^$(id -un):" /etc/subuid; then
             sudo usermod --add-subuids 500000-565535 "$(id -un)"
           fi
-          if ! rg -q "^$(id -un):" /etc/subgid; then
+          if ! grep -q "^$(id -un):" /etc/subgid; then
             sudo usermod --add-subgids 500000-565535 "$(id -un)"
           fi
           sudo loginctl enable-linger "$(id -un)"
-          sudo mkdir -p "/etc/systemd/system/user@$(id -u).service.d"
-          printf '[Service]\nDelegate=cpu cpuset io memory pids\n' | sudo tee "/etc/systemd/system/user@$(id -u).service.d/termcraft-ci.conf"
-          sudo systemctl daemon-reload
-          sudo systemctl restart "user@$(id -u).service"
+          sudo systemctl start "user@$(id -u).service" || {
+            sudo journalctl -u "user@$(id -u).service" -n 80 --no-pager
+            exit 1
+          }
           echo "XDG_RUNTIME_DIR=/run/user/$(id -u)" >> "$GITHUB_ENV"
           echo "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus" >> "$GITHUB_ENV"
           python -m pip install pillow==12.1.1
