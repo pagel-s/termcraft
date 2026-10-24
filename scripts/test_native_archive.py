@@ -169,6 +169,7 @@ def main():
         empty.mkdir()
         env = dict(os.environ, PATH=str(empty), TERMCRAFT_SAVE_DIR=str(root / "saves"), TERM="xterm-256color")
         env.pop("TERMCRAFT_DIRECTOR", None)
+        env.pop("TERMCRAFT_EXPERIMENTAL_GAME_MASTER", None)
         env.pop("TERMCRAFT_WORLD_GENERATOR", None)
         version = subprocess.check_output([str(binary), "--version"], env=env, text=True, timeout=10).strip()
         assert version == f"termcraft {manifest['version']}"
@@ -179,7 +180,9 @@ def main():
             launcher_command = [str(launcher), "--version"]
         assert subprocess.check_output(launcher_command, cwd=root, env=env, text=True,
                                        timeout=10).strip() == version
-        assert "join" in subprocess.check_output([str(binary), "--help"], env=env, text=True, timeout=10)
+        help_text = subprocess.check_output([str(binary), "--help"], env=env, text=True, timeout=10)
+        assert "join" in help_text and "player chat" in help_text
+        assert not re.search(r"\b(?:LLM|MCP|Codex|Claude)\b|game.master|/connect", help_text, re.I)
         config = json.loads(subprocess.check_output([str(binary), "mcp", "config"], env=env, timeout=10))
         assert Path(config["mcpServers"]["termcraft"]["command"]) == binary
         recipe = json.loads(subprocess.check_output([str(binary), "world", "schema"], env=env, timeout=10))["example"]

@@ -120,7 +120,7 @@ impl GameLoop {
     }
 
     pub fn with_state(mut state: GameState) -> Self {
-        let director = super::director::Director::new(&mut state);
+        let director = super::director::Director::for_gameplay(&mut state);
         Self {
             state,
             director,
@@ -345,7 +345,10 @@ impl GameLoop {
                                         self.state.show_debug_overlay =
                                             !self.state.show_debug_overlay;
                                     }
-                                    KeyCode::Char('t' | 'T') if !self.state.inventory_open => {
+                                    KeyCode::Char('t' | 'T')
+                                        if !self.state.inventory_open
+                                            && self.director.is_enabled() =>
+                                    {
                                         self.clear_horizontal_input_state();
                                         self.clear_jump_hold_state();
                                         self.state.apply_client_command(

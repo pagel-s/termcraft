@@ -107,7 +107,26 @@ with each dimension's clocks, health and timers. Restarting resumes surviving wa
 members and End boss/crystal damage. Nothing advances while offline. Normal live
 spawn/despawn rules still apply. Old server records have no entities to restore.
 
-Protocol **18** requires matching builds. Terrain and nearby entities stream
+## Player chat
+
+Press **T** while playing co-op, type a message, then press **Enter** to send.
+**Esc** closes chat and keeps the draft; **Ctrl+C** discards it. **Page Up / Page
+Down** scroll through the recent history. Movement and held attacks stop when
+you open chat; the server keeps running, so find a safe place before typing.
+
+Messages reach everyone on that server, including players in other dimensions.
+Your server-assigned label (such as **P1** or **P2**) appears in the chat title and beside your
+messages, matching the player labels in the world. `--player` selects a local
+reconnect profile, not a public display name.
+
+Messages are limited to 280 characters, with a short burst allowance and one new
+message per second thereafter. Recent messages appear briefly in the HUD. The
+last 32 messages remain available in chat until the server stops; chat is not
+saved with the world. Normal solo play has no chat panel.
+
+## Compatibility and transport
+
+Protocol **19** requires matching builds. Terrain and nearby entities stream
 around each player. Disconnected and stale actors release held actions. Live
 clients send a periodic heartbeat, so holding the mouse can continue mining
 without pointer movement.

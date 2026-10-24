@@ -1,5 +1,6 @@
 pub mod action;
 pub mod agent;
+mod chat;
 pub mod command;
 pub mod director;
 mod director_bridge;

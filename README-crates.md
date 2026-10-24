@@ -44,6 +44,7 @@ Use the branch documentation while the hosted site is being updated.
 - **V / Shift+V** drops one item / its stack.
 - **= or + / -** zooms; **F4** cycles views; **F3** shows diagnostics.
 - **O** opens settings; **Q/Esc** closes UI or saves and quits from the world.
+- **T** opens player chat in co-op; **Enter** sends and **Esc** closes.
 
 ## Saves
 

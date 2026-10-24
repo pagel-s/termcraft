@@ -34,6 +34,8 @@ pub struct ChatView {
     pub open: bool,
     #[serde(skip)]
     pub draft: String,
+    #[serde(skip)]
+    pub scroll: usize,
     pub lines: VecDeque<String>,
     pub pending: bool,
     pub status: String,
@@ -41,6 +43,9 @@ pub struct ChatView {
 }
 
 impl ChatView {
+    pub fn player_id(&self) -> Option<u16> {
+        self.mode.strip_prefix("players:")?.parse().ok()
+    }
     pub fn push(&mut self, text: impl AsRef<str>) {
         let text: String = text
             .as_ref()
@@ -55,7 +60,12 @@ impl ChatView {
         }
     }
     pub fn insert(&mut self, text: &str) {
-        for c in text.chars().filter(|c| !c.is_control()) {
+        let remaining = if self.player_id().is_some() {
+            super::chat::MAX_MESSAGE_CHARS.saturating_sub(self.draft.chars().count())
+        } else {
+            usize::MAX
+        };
+        for c in text.chars().filter(|c| !c.is_control()).take(remaining) {
             if self.draft.len() + c.len_utf8() > MAX_PROMPT {
                 break;
             }
@@ -375,6 +385,7 @@ struct ExternalRequest {
 }
 
 pub struct Director {
+    enabled: bool,
     bridge: Option<super::director_bridge::Host>,
     bridge_activity: Option<Instant>,
     external: Option<ExternalRequest>,
@@ -392,24 +403,47 @@ pub struct Director {
 
 impl Director {
     pub fn new(state: &mut GameState) -> Self {
+        Self::with_enabled(state, true)
+    }
+    pub fn for_gameplay(state: &mut GameState) -> Self {
+        Self::with_enabled(state, Self::experimental_enabled())
+    }
+    pub fn experimental_enabled() -> bool {
+        std::env::var("TERMCRAFT_EXPERIMENTAL_GAME_MASTER").is_ok_and(|v| v == "1")
+    }
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+    fn with_enabled(state: &mut GameState, enabled: bool) -> Self {
         let mut config_valid = true;
-        let config = Config::read(state.world.save_root()).unwrap_or_else(|e| {
-            config_valid = false;
-            state
-                .chat
-                .push(format!("Could not load game master preferences: {e}"));
+        let config = if enabled {
+            Config::read(state.world.save_root()).unwrap_or_else(|e| {
+                config_valid = false;
+                state
+                    .chat
+                    .push(format!("Could not load game master preferences: {e}"));
+                Config::default()
+            })
+        } else {
             Config::default()
-        });
-        state.chat.mode = config
-            .proactive
-            .clone()
-            .unwrap_or_else(|| "request-only".into());
+        };
+        if enabled {
+            state.chat.mode = config
+                .proactive
+                .clone()
+                .unwrap_or_else(|| "request-only".into());
+        } else {
+            state.chat = ChatView::default();
+        }
         Self {
+            enabled,
             bridge: None,
             bridge_activity: None,
             external: None,
             bridge_result: Value::Null,
-            program: std::env::var_os("TERMCRAFT_DIRECTOR")
+            program: enabled
+                .then(|| std::env::var_os("TERMCRAFT_DIRECTOR"))
+                .flatten()
                 .filter(|p| !p.is_empty())
                 .map(PathBuf::from),
             config,
@@ -436,6 +470,9 @@ impl Director {
         state.chat.pending = false;
     }
     pub fn submit(&mut self, state: &mut GameState, request: String) {
+        if !self.enabled {
+            return;
+        }
         let request = request.trim().to_string();
         if request.is_empty() {
             return;
@@ -632,9 +669,15 @@ impl Director {
         Ok(())
     }
     pub fn enable_bridge(&mut self, state: &mut GameState) -> Result<(), String> {
+        if !self.enabled {
+            return Err("Experimental game master is disabled.".into());
+        }
         self.command(state, "/connect")
     }
     pub(crate) fn host_left(&mut self, state: &mut GameState) {
+        if !self.enabled {
+            return;
+        }
         self.cancel(state);
         self.bridge = None;
         self.bridge_activity = None;
@@ -727,6 +770,9 @@ impl Director {
         }
     }
     pub fn poll(&mut self, state: &mut GameState, now: Instant) {
+        if !self.enabled {
+            return;
+        }
         if self.external.is_some()
             && self
                 .pending
@@ -978,14 +1024,14 @@ impl Director {
         }
     }
     pub fn save(&mut self, state: &GameState) -> Result<(), String> {
-        if self.config_dirty && self.config_valid {
+        if self.enabled && self.config_dirty && self.config_valid {
             self.config.write(state.world.save_root())?;
             self.config_dirty = false;
         }
         Ok(())
     }
     pub(crate) fn write_recovery(&self, root: &Path) -> Result<(), String> {
-        if self.config_valid {
+        if self.enabled && self.config_valid {
             self.config.write(root)
         } else {
             Ok(())
@@ -1323,6 +1369,44 @@ mod tests {
         drop(director);
         drop(state);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn disabled_gameplay_ignores_saved_preferences_and_cannot_open_a_bridge() {
+        let (root, mut state, director) = fixture();
+        drop(director);
+        let path = state.world.save_root().join(CONFIG_FILE);
+        let preferences = br#"{"proactive":"combat"}"#;
+        std::fs::write(&path, preferences).unwrap();
+        state.chat = ChatView::default();
+        let mut director = Director::with_enabled(&mut state, false);
+        assert!(!director.is_enabled());
+        assert!(director.enable_bridge(&mut state).is_err());
+        director.submit(&mut state, "/connect".into());
+        director.host_left(&mut state);
+        director.poll(&mut state, Instant::now() + Duration::from_secs(500));
+        director.save(&state).unwrap();
+        let recovery = root.join("recovery");
+        std::fs::create_dir(&recovery).unwrap();
+        director.write_recovery(&recovery).unwrap();
+        assert_eq!(state.chat, ChatView::default());
+        assert!(director.pending.is_none() && director.bridge.is_none());
+        assert_eq!(std::fs::read(&path).unwrap(), preferences);
+        assert!(!recovery.join(CONFIG_FILE).exists());
+        finish(root, state, director);
+    }
+
+    #[test]
+    fn player_drafts_limit_characters_and_strip_pasted_terminal_controls() {
+        let mut chat = ChatView {
+            mode: "players:2".into(),
+            ..ChatView::default()
+        };
+        chat.insert("hello\n\x1b");
+        chat.insert(&"界".repeat(300));
+        assert_eq!(chat.draft.chars().count(), 280);
+        assert!(chat.draft.starts_with("hello"));
+        assert!(!chat.draft.chars().any(char::is_control));
     }
 
     #[test]

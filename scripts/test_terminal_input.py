@@ -32,13 +32,18 @@ from capture_terminal_art import Screen, raster
 
 
 class TerminalGame:
-    def __init__(self, binary, save_root, artifacts, world_id=None, address=None, env_overrides=None, size=(160, 48)):
+    def __init__(self, binary, save_root, artifacts, world_id=None, address=None, env_overrides=None, size=(160, 48), observe=True, start_server=True, profile="terminal-input-test"):
         self.binary = str(binary)
         self.artifacts = artifacts
         artifacts.mkdir(parents=True, exist_ok=True)
         self.env = dict(os.environ, TERM="xterm-256color", TERMCRAFT_SAVE_DIR=str(save_root))
         self.env.pop("NO_COLOR", None)
         self.env.pop("TERMCRAFT_DIRECTOR", None)
+        # This harness explicitly opts in to the private observation bridge.
+        # Default release behavior is exercised by test_player_chat.py.
+        self.env.pop("TERMCRAFT_EXPERIMENTAL_GAME_MASTER", None)
+        if observe:
+            self.env["TERMCRAFT_EXPERIMENTAL_GAME_MASTER"] = "1"
         self.env.update(env_overrides or {})
         self.master, self.slave = pty.openpty()
         columns, rows = size
@@ -59,10 +64,11 @@ class TerminalGame:
             fcntl.ioctl(self.slave, termios.TIOCSCTTY, 0)
 
         if address:
-            self.server = subprocess.Popen(
-                [self.binary, "world", "serve", world_id, address], env=self.env,
-                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+            if start_server:
+                self.server = subprocess.Popen(
+                    [self.binary, "world", "serve", world_id, address], env=self.env,
+                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
             host, port = address.split(":")
             deadline = time.monotonic() + 6
             while True:
@@ -72,7 +78,7 @@ class TerminalGame:
                 except OSError:
                     assert time.monotonic() < deadline, "local co-op server did not start"
                     time.sleep(0.02)
-            command = [self.binary, "client", address, "--player", "terminal-input-test"]
+            command = [self.binary, "client", address, "--player", profile]
         else:
             command = [self.binary]
             if world_id:
@@ -86,6 +92,8 @@ class TerminalGame:
             self.send(b" ")
             self.pump(0.25)
         assert self.queries, "terminal keyboard capability query missing"
+        if not observe:
+            return
         self.send(b"t")
         self.pump(0.1)
         self.send(b"/connect\r")

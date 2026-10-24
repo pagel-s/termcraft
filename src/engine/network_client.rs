@@ -333,24 +333,26 @@ fn run_tcp_client_loop(
                 match &ev {
                     Event::Key(key) if key.kind != KeyEventKind::Release => match key.code {
                         KeyCode::Esc => state.chat.open = false,
-                        KeyCode::Enter => {
-                            if state.chat.mode == "host-only" {
-                                state.chat.open = false;
-                                continue;
-                            }
+                        KeyCode::Enter if key.kind == KeyEventKind::Press => {
                             let prompt = std::mem::take(&mut state.chat.draft);
-                            flush_outbound_commands(writer, &mut pending_outbound)?;
-                            write_framed_client_chat(writer, &prompt)?;
+                            if !prompt.trim().is_empty() {
+                                flush_outbound_commands(writer, &mut pending_outbound)?;
+                                write_framed_client_chat(writer, &prompt)?;
+                            }
                             state.chat.open = false;
                         }
                         KeyCode::Backspace => {
                             state.chat.draft.pop();
                         }
                         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            if state.chat.mode != "host-only" {
-                                flush_outbound_commands(writer, &mut pending_outbound)?;
-                                write_framed_client_chat(writer, "/cancel")?;
-                            }
+                            state.chat.draft.clear();
+                            state.chat.open = false;
+                        }
+                        KeyCode::PageUp => {
+                            state.chat.scroll = state.chat.scroll.saturating_add(8).min(8192)
+                        }
+                        KeyCode::PageDown => {
+                            state.chat.scroll = state.chat.scroll.saturating_sub(8)
                         }
                         KeyCode::Char(c)
                             if !key
@@ -399,6 +401,7 @@ fn run_tcp_client_loop(
                                 jump_last_input_at = None;
                                 jump_repeat_observed = false;
                                 state.chat.open = true;
+                                state.chat.scroll = 0;
                             }
                             KeyCode::F(4) => renderer.toggle_zoom(),
                             KeyCode::Char('+' | '=') => renderer.zoom_in(),

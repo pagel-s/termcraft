@@ -203,8 +203,10 @@ fn eight_players_with_delayed_link_and_stalled_readers_keep_server_responsive() 
         stalled.push(stream);
     }
     host.until(|s| s.remote_players.len() == 7);
-    for _ in 0..16 {
-        write_framed_client_chat(&mut host.writer, &"network qualification ".repeat(70))?;
+    for _ in 0..5 {
+        // Legal Unicode chat fills snapshots without bypassing message limits
+        // or the per-player burst budget.
+        write_framed_client_chat(&mut host.writer, &"界".repeat(280))?;
     }
     let stall_started = Instant::now();
     let mut previous = Instant::now();
@@ -317,14 +319,19 @@ fn live_game_master_uses_mcp_without_second_save_owner_and_rejects_stale_plans()
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let addr = listener.local_addr()?.to_string();
     drop(listener);
-    let mut server = Server::start(&root, &addr);
+    let mut server = Server::start_with_env(
+        &root,
+        &addr,
+        &[("TERMCRAFT_EXPERIMENTAL_GAME_MASTER", "1".into())],
+    );
     let mut host = Client::connect(&addr, None);
     let mut guest = Client::connect(&addr, None);
     host.until(|s| s.remote_players.len() == 1);
-    guest.until(|s| s.chat.mode == "host-only");
+    guest.until(|s| s.chat.player_id() == Some(guest.welcome.client_id));
     write_framed_client_chat(&mut guest.writer, "/connect")?;
     thread::sleep(Duration::from_millis(120));
     assert!(!world.join(".director-bridge.json").exists());
+    write_framed_client_chat(&mut guest.writer, "Hello")?;
     let mut mcp = Mcp::start(&root);
     assert_eq!(
         mcp.call("director_connect", json!({"world_id":"tcp"}))["isError"],
@@ -346,7 +353,7 @@ fn live_game_master_uses_mcp_without_second_save_owner_and_rejects_stale_plans()
             0o600
         );
     }
-    write_framed_client_chat(&mut host.writer, "Make this area snowy at dawn")?;
+    write_framed_client_chat(&mut host.writer, "/gm Make this area snowy at dawn")?;
     let before = host.until(|s| s.chat.pending);
     host.until(|s| s.tick >= before.tick + 2);
     let pending =
@@ -411,7 +418,7 @@ fn live_game_master_uses_mcp_without_second_save_owner_and_rejects_stale_plans()
     guest.until(|s| {
         s.chat.status.contains("Host disconnected")
             && !s.chat.pending
-            && s.chat.mode == "request-only"
+            && s.chat.player_id() == Some(guest.welcome.client_id)
     });
     assert!(!world.join(".director-bridge.json").exists());
     assert_eq!(mcp.call("director_observe", json!({}))["isError"], true);
@@ -435,6 +442,8 @@ impl Server {
         let child = Command::new(env!("CARGO_BIN_EXE_termcraft"))
             .args(["world", "serve", "tcp", addr])
             .env("TERMCRAFT_SAVE_DIR", root)
+            .env_remove("TERMCRAFT_EXPERIMENTAL_GAME_MASTER")
+            .env_remove("TERMCRAFT_DIRECTOR")
             .envs(env.iter().map(|(key, value)| (*key, value)))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -483,6 +492,98 @@ struct Client {
     incoming: mpsc::Receiver<ServerWireMessage>,
     welcome: Welcome,
     sequence: u32,
+}
+
+#[test]
+#[ignore = "requires local TCP sockets and Unix process signals"]
+fn players_chat_across_dimensions_without_enabling_experimental_editing() -> io::Result<()> {
+    use termcraft::{
+        engine::{
+            server_save::{ServerSave, token},
+            state::PlayerSession,
+        },
+        world::{Dimension, World, block::BlockType},
+    };
+    let root = std::env::temp_dir().join(format!("termcraft-chat-{:032x}", rand::random::<u128>()));
+    std::fs::create_dir_all(&root)?;
+    let mut recipe = WorldRecipe::example();
+    recipe.terrain = Terrain::Plains;
+    recipe.relief = 0;
+    recipe.regions.clear();
+    recipe.landmarks.clear();
+    let world = WorldStore::new(root.join("worlds"))
+        .create("tcp", "Player chat regression", &recipe)
+        .unwrap();
+    let mut terrain = World::open_in_directory(Dimension::Nether, &world)?;
+    terrain.load_chunks_around(0);
+    for x in -8..=8 {
+        for y in 52..=64 {
+            terrain.set_block(
+                x,
+                y,
+                if y == 64 {
+                    BlockType::StoneBricks
+                } else {
+                    BlockType::Air
+                },
+            );
+        }
+    }
+    terrain.try_save_all()?;
+    drop(terrain);
+    let mut state = GameState::open_in_directory(&world)?;
+    state.apply_client_command(ClientCommand::ToggleRuleMobSpawning);
+    let guest_token = token();
+    let mut saved = ServerSave::read(&state)?;
+    saved
+        .players
+        .insert(guest_token.clone(), PlayerSession::capture(&state));
+    saved
+        .dimensions
+        .insert(guest_token.clone(), Dimension::Nether);
+    state.try_persist_world_and_progress()?;
+    saved.write(&world)?;
+    drop(state);
+    // Previously saved experimental preferences must not enable the feature.
+    std::fs::write(world.join("director.json"), br#"{"proactive":"combat"}"#)?;
+    let reservation = TcpListener::bind("127.0.0.1:0")?;
+    let address = reservation.local_addr()?.to_string();
+    drop(reservation);
+    let mut server = Server::start(&root, &address);
+    let mut host = Client::connect(&address, None);
+    let mut guest = Client::connect(&address, Some(guest_token));
+    host.until(|s| s.dimension == SnapshotDimension::Overworld);
+    guest.until(|s| s.dimension == SnapshotDimension::Nether);
+    let host_id = host.welcome.client_id;
+    let guest_id = guest.welcome.client_id;
+    write_framed_client_chat(&mut guest.writer, "Hello from the guest!")?;
+    let expected = format!("P{guest_id}: Hello from the guest!");
+    host.until(|s| s.chat.status == expected);
+    let received = guest.until(|s| s.chat.status == expected);
+    assert_eq!(received.chat.player_id(), Some(guest_id));
+    write_framed_client_chat(&mut host.writer, "Can you hear me in the Nether?")?;
+    let expected = format!("P{host_id}: Can you hear me in the Nether?");
+    guest.until(|s| s.chat.status == expected);
+    write_framed_client_chat(&mut host.writer, "/connect")?;
+    host.until(|s| s.chat.status.contains("Unknown chat command"));
+    write_framed_client_chat(&mut host.writer, "Make it rain")?;
+    let expected = format!("P{host_id}: Make it rain");
+    let seen = host.until(|s| s.chat.status == expected);
+    assert!(!seen.chat.pending);
+    assert!(seen.chat.lines.iter().all(|line| line.starts_with('P')));
+    assert!(!world.join(".director-bridge.json").exists());
+    drop(host);
+    write_framed_client_chat(&mut guest.writer, "Still here")?;
+    let expected = format!("P{guest_id}: Still here");
+    guest.until(|s| s.chat.status == expected);
+    drop(guest);
+    server.stop();
+    assert_eq!(
+        std::fs::read(world.join("director.json"))?,
+        br#"{"proactive":"combat"}"#
+    );
+    std::fs::remove_dir_all(root)?;
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]

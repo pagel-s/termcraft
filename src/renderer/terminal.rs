@@ -3760,10 +3760,12 @@ impl Renderer {
             self.put_str(1, 2, fishing_status, Color::Yellow, Color::Reset);
         }
         if !state.chat.status.is_empty() {
-            let text: String = format!("GM: {}", state.chat.status)
-                .chars()
-                .take((hud_x - 2).max(0) as usize)
-                .collect();
+            let status = if state.chat.player_id().is_some() {
+                state.chat.status.clone()
+            } else {
+                format!("GM: {}", state.chat.status)
+            };
+            let text: String = status.chars().take((hud_x - 2).max(0) as usize).collect();
             self.put_str(1, 3, &text, Color::Cyan, Color::Reset);
         }
 
@@ -4161,13 +4163,18 @@ impl Renderer {
             self.put_char(x, py, '│', Color::Cyan, bg);
             self.put_char(x + w - 1, py, '│', Color::Cyan, bg);
         }
-        let title: String = format!(" AI GAME MASTER | {} ", state.chat.mode)
+        let player_id = state.chat.player_id();
+        let title: String = player_id
+            .map_or_else(
+                || format!(" AI GAME MASTER | {} ", state.chat.mode),
+                |id| format!(" PLAYER CHAT | You are P{id} "),
+            )
             .chars()
             .take((w - 4) as usize)
             .collect();
         self.put_str(x + 2, y, &title, Color::Cyan, bg);
-        let hint: String = if state.chat.mode == "host-only" {
-            "Shared game-master messages. The first connected player controls requests."
+        let hint: String = if player_id.is_some() {
+            "Everyone on this server can read your messages, across all dimensions."
         } else {
             "Describe a battle, mobs, weather or structure. /connect: your LLM client."
         }
@@ -4178,7 +4185,9 @@ impl Renderer {
         let width = (w - 4) as usize;
         let mut lines = Vec::new();
         for message in &state.chat.lines {
-            let color = if message.starts_with("You:") {
+            let color = if message.starts_with("You:")
+                || player_id.is_some_and(|id| message.starts_with(&format!("P{id}: ")))
+            {
                 Color::Yellow
             } else {
                 Color::White
@@ -4189,9 +4198,12 @@ impl Renderer {
             }
         }
         let rows = (h - 7) as usize;
+        let scroll = state.chat.scroll.min(lines.len().saturating_sub(rows));
+        let end = lines.len().saturating_sub(scroll);
         for (row, (line, color)) in lines
             .iter()
-            .skip(lines.len().saturating_sub(rows))
+            .take(end)
+            .skip(end.saturating_sub(rows))
             .enumerate()
         {
             self.put_str(x + 2, y + 3 + row as i32, line, *color, bg);
@@ -4208,10 +4220,17 @@ impl Renderer {
             Color::White,
             Color::AnsiValue(237),
         );
-        let controls: String = "Enter: send/resume   Esc: close   Ctrl+C: cancel request"
-            .chars()
-            .take(width)
-            .collect();
+        let controls: String = if player_id.is_some() {
+            format!(
+                "Enter: send  Esc: close  PgUp/PgDn: history  {}/280",
+                prompt.len()
+            )
+        } else {
+            "Enter: send/resume   Esc: close   Ctrl+C: cancel request".into()
+        }
+        .chars()
+        .take(width)
+        .collect();
         self.put_str(x + 2, y + h - 2, &controls, Color::Grey, bg);
     }
 
@@ -5720,6 +5739,39 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn player_chat_shows_identity_history_and_controls_without_experimental_hints() {
+        let mut state = GameState::network_view();
+        state.chat.mode = "players:2".into();
+        state.chat.open = true;
+        state.chat.lines = (0..32).map(|i| format!("P1: message {i:02}")).collect();
+        for (width, height) in [(80, 24), (120, 40), (160, 48)] {
+            let mut renderer = Renderer::with_size(width, height);
+            let text = |renderer: &Renderer| {
+                renderer
+                    .back_buffer
+                    .chunks(width as usize)
+                    .map(|row| row.iter().map(|cell| cell.ch).collect::<String>())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            };
+            state.chat.scroll = 0;
+            renderer.draw_chat_overlay(&state);
+            let latest = text(&renderer);
+            assert!(latest.contains("PLAYER CHAT | You are P2"));
+            assert!(latest.contains("P1: message 31"));
+            assert!(latest.contains("PgUp/PgDn"));
+            for hidden in ["GAME MASTER", "LLM", "/connect", "request-only"] {
+                assert!(!latest.contains(hidden));
+            }
+            state.chat.scroll = 100;
+            renderer.draw_chat_overlay(&state);
+            let oldest = text(&renderer);
+            assert!(oldest.contains("P1: message 00"));
+            assert!(!oldest.contains("P1: message 31"));
+        }
+    }
 
     #[test]
     fn bag_recipe_and_grid_picking_matches_the_visible_controls_in_both_sizes() {

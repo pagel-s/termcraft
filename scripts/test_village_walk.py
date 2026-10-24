@@ -32,6 +32,7 @@ shutil.copytree(fixture['review_root'], root / 'save')
 env = dict(os.environ, TERMCRAFT_SAVE_DIR=str(root / 'save'), TERM='xterm-256color')
 env.pop('NO_COLOR', None)
 env.pop('TERMCRAFT_DIRECTOR', None)
+env['TERMCRAFT_EXPERIMENTAL_GAME_MASTER'] = '1'
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 48, 160, 0, 0))
 before = termios.tcgetattr(slave)

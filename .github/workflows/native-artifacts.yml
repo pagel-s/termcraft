@@ -19,6 +19,7 @@ on:
       - 'scripts/test_storage_recovery.py'
       - 'scripts/storage_faults.c'
       - 'scripts/test_terminal_input.py'
+      - 'scripts/test_player_chat.py'
       - 'scripts/test_inventory_input.py'
       - 'scripts/test_drop_input.py'
       - 'scripts/test_furnace_input.py'
@@ -75,6 +76,7 @@ jobs:
       - name: Check walking, sprinting and pixel views in live terminals (Linux)
         if: runner.os == 'Linux'
         run: |
+          python scripts/test_player_chat.py --binary target/${{ matrix.target }}/release/termcraft --report player-chat-qualification.json
           python scripts/test_terminal_input.py --binary target/${{ matrix.target }}/release/termcraft --report terminal-input-qualification.json
           python scripts/test_terminal_views.py --binary target/${{ matrix.target }}/release/termcraft --report terminal-views-qualification.json
           cargo +1.88.0 build --locked --example interaction_review
@@ -121,6 +123,7 @@ jobs:
         with:
           name: terminal-qualification-${{ matrix.target }}
           path: |
+            player-chat-qualification.json
             terminal-input-qualification.json
             terminal-views-qualification.json
             inventory-qualification.json

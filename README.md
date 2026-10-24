@@ -41,7 +41,7 @@ The beta includes:
 - **Three dimensions:** procedural Overworld, Nether and End; connected villages,
   dungeons, strongholds, fortresses, working portals and a revised dragon encounter.
 - **Co-op for up to eight:** independent inventories and dimension travel,
-  shared terrain and combat, saved reconnect profiles and joining over SSH.
+  shared terrain and combat, player chat, saved reconnect profiles and joining over SSH.
 - **Lantern Run:** a separate combat, traversal and bridge-building route for a
   focused first session.
 
@@ -100,6 +100,7 @@ or larger. Mouse support is recommended.
 | Zoom in / out | `=` or `+` / `-` |
 | Cycle Overview / Wide / Detail | `F4` |
 | Settings / diagnostics | `O` / `F3` |
+| Player chat (co-op) | `T`; `Enter` sends, `Esc` closes |
 | Close UI / save and quit | `Q` or `Esc` |
 
 **Detail is the default for a fresh setup.** Your saved view takes precedence;

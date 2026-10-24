@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 18;
+pub const NET_PROTOCOL_VERSION: u16 = 19;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;
@@ -496,6 +496,7 @@ pub fn read_framed_server_message<R: Read>(reader: &mut R) -> io::Result<ServerW
 
 pub struct ServerSimulation {
     director: super::director::Director,
+    player_chat: super::chat::PlayerChat,
     state: GameState,
     tick: u64,
     primary_client_id: Option<u16>,
@@ -519,10 +520,11 @@ impl ServerSimulation {
     }
 
     pub fn with_state(mut state: GameState) -> Self {
-        let director = super::director::Director::new(&mut state);
+        let director = super::director::Director::for_gameplay(&mut state);
         let saved = ServerSave::fresh(&state);
         Self {
             director,
+            player_chat: super::chat::PlayerChat::default(),
             saved,
             tokens: HashMap::new(),
             state,
@@ -670,6 +672,7 @@ impl ServerSimulation {
         }
     }
     pub fn unregister_client(&mut self, client_id: u16) {
+        self.player_chat.disconnect(client_id);
         // Drop queued work before a client ID can be reused; disconnected inputs
         // must never re-register a player or continue an attack.
         for inputs in self.pending_inputs.values_mut() {
@@ -701,9 +704,11 @@ impl ServerSimulation {
             return None;
         }
         let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
-        if self.primary_client_id != Some(client_id) {
-            snapshot.chat.mode = "host-only".into();
-        }
+        snapshot.chat = self.player_chat.view(
+            client_id,
+            self.tick,
+            self.director.is_enabled().then_some(&self.state.chat),
+        );
         snapshot.acknowledged_sequence = self
             .last_applied_sequence_by_client
             .get(&client_id)
@@ -801,14 +806,22 @@ impl ServerSimulation {
     }
 
     fn submit_chat(&mut self, id: u16, text: String) {
-        if self.primary_client_id != Some(id) {
+        if !self.state.peer_ids().contains(&id) {
             return;
         }
         if text.len() > 2000 || text.chars().any(char::is_control) {
             return;
         }
-        self.state.activate_peer(id);
-        self.director.submit(&mut self.state, text);
+        if self.director.is_enabled()
+            && self.primary_client_id == Some(id)
+            && text.trim().starts_with('/')
+        {
+            self.state.activate_peer(id);
+            let request = text.trim().strip_prefix("/gm ").unwrap_or(text.trim());
+            self.director.submit(&mut self.state, request.to_string());
+        } else {
+            self.player_chat.submit(id, &text, self.tick);
+        }
     }
 
     pub fn snapshot(&mut self) -> ServerSnapshot {
@@ -816,6 +829,11 @@ impl ServerSimulation {
             self.state.activate_peer(primary);
         }
         let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
+        snapshot.chat = self.player_chat.view(
+            self.primary_client_id.unwrap_or(0),
+            self.tick,
+            self.director.is_enabled().then_some(&self.state.chat),
+        );
         snapshot.acknowledged_sequence = self
             .primary_client_id
             .and_then(|id| self.last_applied_sequence_by_client.get(&id))

@@ -14,9 +14,14 @@ fn main() -> io::Result<()> {
     match args.first().map(String::as_str) {
         Some("--help" | "-h" | "help") => {
             println!(
-                "termcraft {}\n\nPlay:\n  termcraft\n  termcraft trial [ID]           Lantern Run: traverse, fight, rebuild\n  termcraft trial create ID      Create the trial without launching\n  termcraft server [ADDRESS]\n  termcraft client [ADDRESS] [--player PROFILE]\n  termcraft join USER@HOST [--player PROFILE] [--ssh-port PORT] [--game-port PORT]\n\nGenerated worlds (experimental):\n  termcraft world schema\n  termcraft world list\n  termcraft world create ID RECIPE.json [ORIGINAL_PROMPT]\n  termcraft world generate ID \"PROMPT\" [--generator PROGRAM]\n  termcraft world play ID\n  termcraft world serve ID [ADDRESS]\n\nIn-game game master (experimental, local Overworld):\n  T opens chat; Enter sends; /help lists commands.\n  Use /connect for your existing LLM client, or configure TERMCRAFT_DIRECTOR.\n  Co-op: the first connected player controls shared requests.\n  termcraft director schema\n\nLLM tools:\n  termcraft mcp                  Stdio MCP server for Claude/Codex\n  termcraft mcp config [--format json|toml]   Print client configuration\n\nEach generated world has independent saves. MCP worlds use stepped simulation.\nGeneration requires an explicitly configured runner (TERMCRAFT_WORLD_GENERATOR\nor --generator). Up to three design attempts; configured API runners may incur costs.\nUse world_schema and validate_world in your agent before create_world.",
+                "termcraft {}\n\nPlay:\n  termcraft\n  termcraft trial [ID]           Lantern Run: traverse, fight, rebuild\n  termcraft trial create ID      Create the trial without launching\n  termcraft server [ADDRESS]\n  termcraft client [ADDRESS] [--player PROFILE]\n  termcraft join USER@HOST [--player PROFILE] [--ssh-port PORT] [--game-port PORT]\n\nSaved worlds:\n  termcraft world list\n  termcraft world play ID\n  termcraft world serve ID [ADDRESS]\n\nControls:\n  A/D: walk; double-tap and hold: sprint; Space: jump\n  E: inventory/crafting; V/Shift+V: drop one/stack\n  T: player chat in co-op; Enter: send; Esc: close\n  +/-: zoom; F4: cycle views; O: settings; Q/Esc: save and quit",
                 env!("CARGO_PKG_VERSION")
             );
+            if termcraft::engine::director::Director::experimental_enabled() {
+                println!(
+                    "\nExperimental game master enabled:\n  Solo: T opens requests; /help lists commands.\n  Co-op host: /gm PROMPT sends a request; /connect enables live access.\n  termcraft director schema\n  termcraft mcp [config [--format json|toml]]\n  termcraft world schema\n  termcraft world create ID RECIPE.json [ORIGINAL_PROMPT]\n  termcraft world generate ID \"PROMPT\" [--generator PROGRAM]"
+                );
+            }
             Ok(())
         }
         Some("--version" | "-V") => {

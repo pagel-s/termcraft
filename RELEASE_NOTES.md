@@ -18,6 +18,7 @@ Build a home, explore with friends over SSH and take on the dragon together.
   paddle toward air and climb reachable banks.
 - **Build and survive together.** Up to eight players with independent inventories,
   crafting, health and dimension travel; shared terrain, combat and reconnect saves.
+  Press **T** for player chat across all dimensions on your server.
   Join with `termcraft join user@host --player alice` through an existing SSH account.
 - **Better everyday interactions.** A recipe book and batch crafting, furnace
   input/fuel/output slots, stack handling, dropping, food feedback, working
@@ -53,7 +54,7 @@ item / its stack. See [installation](docs/installation.md) and
 ## Before upgrading
 
 Back up the whole save directory, including hidden checkpoint data. Native saves
-use version **11**, server checkpoints **5**, and co-op protocol **18**; all peers
+use version **11**, server checkpoints **5**, and co-op protocol **19**; all peers
 need matching builds. Older executables cannot read the new checkpoints.
 Saved terrain is preserved, so new villages, ore layouts and terrain details
 require fresh chunks. Furnaces currently use each player's session rather than
