@@ -209,6 +209,7 @@ pub struct LightningBolt {
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemotePlayerState {
     pub client_id: u16,
+    pub armor: [Option<ItemType>; 4],
     pub action: Option<super::action::ActionVisual>,
     pub held_item: Option<ItemType>,
     pub hurt_ticks: u8,
@@ -975,6 +976,7 @@ pub struct GameState {
     pub save_error: std::cell::RefCell<Option<String>>,
     pub player: Player,
     pub remote_players: Vec<RemotePlayerState>,
+    pub local_player_id: Option<u16>,
     pub inventory: Inventory,
     armor_slots: [Option<ItemStack>; ARMOR_SLOT_COUNT],
     crafting_grid: [Option<ItemStack>; CRAFT_GRID_UI_SLOTS],
@@ -1989,6 +1991,7 @@ impl GameState {
             save_error: std::cell::RefCell::new(None),
             player: Player::new(player_x, spawn_y),
             remote_players: Vec::new(),
+            local_player_id: None,
             action_visuals: Default::default(),
             inventory: Inventory::new(PLAYER_INVENTORY_CAPACITY),
             armor_slots: [None, None, None, None],

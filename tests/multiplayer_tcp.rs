@@ -203,10 +203,13 @@ fn eight_players_with_delayed_link_and_stalled_readers_keep_server_responsive() 
         stalled.push(stream);
     }
     host.until(|s| s.remote_players.len() == 7);
-    for _ in 0..5 {
-        // Legal Unicode chat fills snapshots without bypassing message limits
-        // or the per-player burst budget.
-        write_framed_client_chat(&mut host.writer, &"界".repeat(280))?;
+    // Fill all 32 history slots using four legal messages from each of the
+    // eight authenticated players, within every sender's burst allowance.
+    // A single sender can no longer fill the history by flooding large prompts.
+    for writer in std::iter::once(&mut host.writer).chain(stalled.iter_mut()) {
+        for _ in 0..4 {
+            write_framed_client_chat(writer, &"λ".repeat(280))?;
+        }
     }
     let stall_started = Instant::now();
     let mut previous = Instant::now();
@@ -492,6 +495,58 @@ struct Client {
     incoming: mpsc::Receiver<ServerWireMessage>,
     welcome: Welcome,
     sequence: u32,
+}
+
+#[test]
+#[ignore = "requires local TCP sockets and Unix process signals"]
+fn interrupting_server_startup_releases_the_world_lease() -> io::Result<()> {
+    let root =
+        std::env::temp_dir().join(format!("termcraft-startup-{:032x}", rand::random::<u128>()));
+    std::fs::create_dir_all(&root)?;
+    let log = std::fs::File::create(root.join("startup.log"))?;
+    let mut process = Command::new(env!("CARGO_BIN_EXE_termcraft"))
+        .args(["server", "127.0.0.1:0"])
+        .env("TERMCRAFT_SAVE_DIR", &root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(log)
+        .spawn()?;
+    let lock = root.join("multiplayer/default/.session.lock");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !lock.exists() {
+        assert!(
+            process.try_wait()?.is_none(),
+            "server exited before acquiring its lease"
+        );
+        assert!(Instant::now() < deadline, "startup lease timeout");
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert!(
+        Command::new("kill")
+            .args(["-INT", &process.id().to_string()])
+            .status()?
+            .success()
+    );
+    loop {
+        if let Some(status) = process.try_wait()? {
+            assert!(status.success(), "startup interruption failed: {status}");
+            break;
+        }
+        if Instant::now() >= deadline {
+            let _ = process.kill();
+            let _ = process.wait();
+            panic!("server did not finish cancelling startup");
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert!(!lock.exists(), "cancelled startup left a stale lease");
+    let text = std::fs::read_to_string(root.join("startup.log"))?;
+    assert!(
+        !text.contains("Starting headless server"),
+        "fixture missed startup cancellation"
+    );
+    std::fs::remove_dir_all(root)?;
+    Ok(())
 }
 
 #[test]

@@ -394,6 +394,9 @@ impl SharedSettings {
     }
 }
 impl PlayerSession {
+    pub(crate) fn armor_items(&self) -> [Option<ItemType>; 4] {
+        std::array::from_fn(|i| self.armor_slots[i].as_ref().map(|stack| stack.item_type))
+    }
     pub(crate) fn chest(&self, state: &GameState) -> Option<(i32, i32, Inventory)> {
         let (x, y) = self.open_chest_pos?;
         Some((x, y, state.world.chest_inventory(x, y)?.clone()))

@@ -1,7 +1,7 @@
 use std::io::{self, Read};
 use termcraft::engine::GameLoop;
 use termcraft::engine::net::{
-    DEFAULT_SERVER_ADDR, run_headless_tcp_server, run_headless_tcp_server_with_state,
+    DEFAULT_SERVER_ADDR, run_headless_tcp_server, run_headless_tcp_server_in_directory,
 };
 use termcraft::engine::network_client::run_tcp_client_with_profile;
 use termcraft::engine::state::GameState;
@@ -234,12 +234,11 @@ fn world_command(args: &[String]) -> io::Result<()> {
         }
         Some("serve") if (2..=3).contains(&args.len()) => {
             let root = store.open(&args[1]).map_err(io::Error::other)?;
-            let _lease = WorldLease::acquire(&root).map_err(io::Error::other)?;
-            run_headless_tcp_server_with_state(
+            run_headless_tcp_server_in_directory(
                 args.get(2)
                     .map(String::as_str)
                     .unwrap_or(DEFAULT_SERVER_ADDR),
-                GameState::open_in_directory(&root)?,
+                &root,
             )
         }
         Some("play") if args.len() == 2 => {

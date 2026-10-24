@@ -54,7 +54,7 @@ item / its stack. See [installation](docs/installation.md) and
 ## Before upgrading
 
 Back up the whole save directory, including hidden checkpoint data. Native saves
-use version **11**, server checkpoints **5**, and co-op protocol **19**; all peers
+use version **11**, server checkpoints **5**, and co-op protocol **20**; all peers
 need matching builds. Older executables cannot read the new checkpoints.
 Saved terrain is preserved, so new villages, ore layouts and terrain details
 require fresh chunks. Furnaces currently use each player's session rather than

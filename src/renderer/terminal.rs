@@ -602,27 +602,46 @@ impl Renderer {
     }
 
     fn player_visible_colors(state: &GameState, light_factor: f32) -> (Color, Color, Color) {
-        let skin_rgb = Self::scale_rgb(Self::player_skin_rgb(), light_factor);
-        let tunic_rgb = Self::scale_rgb(Self::player_tunic_rgb(), light_factor);
-        let lower_rgb = Self::scale_rgb(Self::player_lower_rgb(), light_factor);
+        Self::equipped_player_colors(
+            state.local_player_id,
+            std::array::from_fn(|i| state.armor_slot_item(i).map(|s| s.item_type)),
+            light_factor,
+        )
+    }
 
-        let head_rgb = state
-            .armor_slot_item(0)
-            .and_then(|stack| Self::armor_tint_rgb(stack.item_type))
+    fn equipped_player_colors(
+        client_id: Option<u16>,
+        armor: [Option<ItemType>; 4],
+        light_factor: f32,
+    ) -> (Color, Color, Color) {
+        let (tunic, lower) = client_id.map_or(
+            (Self::player_tunic_rgb(), Self::player_lower_rgb()),
+            |id| match id % 6 {
+                0 => ((88, 170, 214), (48, 102, 170)),
+                1 => ((204, 122, 88), (134, 72, 48)),
+                2 => ((128, 176, 92), (68, 112, 54)),
+                3 => ((182, 98, 154), (118, 64, 106)),
+                4 => ((112, 154, 170), (62, 96, 118)),
+                _ => ((198, 158, 76), (132, 92, 38)),
+            },
+        );
+        let skin_rgb = Self::scale_rgb(Self::player_skin_rgb(), light_factor);
+        let tunic_rgb = Self::scale_rgb(tunic, light_factor);
+        let lower_rgb = Self::scale_rgb(lower, light_factor);
+
+        let head_rgb = armor[0]
+            .and_then(Self::armor_tint_rgb)
             .map(|rgb| Self::scale_rgb(rgb, light_factor))
             .unwrap_or(skin_rgb);
-        let torso_rgb = state
-            .armor_slot_item(1)
-            .and_then(|stack| Self::armor_tint_rgb(stack.item_type))
+        let torso_rgb = armor[1]
+            .and_then(Self::armor_tint_rgb)
             .map(|rgb| Self::scale_rgb(rgb, light_factor))
             .unwrap_or(tunic_rgb);
-        let lower_armor_rgb = state
-            .armor_slot_item(2)
-            .and_then(|stack| Self::armor_tint_rgb(stack.item_type))
+        let lower_armor_rgb = armor[2]
+            .and_then(Self::armor_tint_rgb)
             .map(|rgb| Self::scale_rgb(rgb, light_factor));
-        let boots_rgb = state
-            .armor_slot_item(3)
-            .and_then(|stack| Self::armor_tint_rgb(stack.item_type))
+        let boots_rgb = armor[3]
+            .and_then(Self::armor_tint_rgb)
             .map(|rgb| Self::scale_rgb(rgb, light_factor));
         let limb_rgb = boots_rgb
             .map(|boot_rgb| Self::lerp_rgb(lower_armor_rgb.unwrap_or(lower_rgb), boot_rgb, 0.6))
@@ -633,22 +652,6 @@ impl Renderer {
             Self::rgb(head_rgb),
             Self::rgb(torso_rgb),
             Self::rgb(limb_rgb),
-        )
-    }
-
-    fn remote_player_visible_colors(client_id: u16, light_factor: f32) -> (Color, Color, Color) {
-        let palette = match client_id % 6 {
-            0 => ((228, 210, 186), (88, 170, 214), (48, 102, 170)),
-            1 => ((232, 214, 192), (204, 122, 88), (134, 72, 48)),
-            2 => ((224, 214, 188), (128, 176, 92), (68, 112, 54)),
-            3 => ((232, 210, 194), (182, 98, 154), (118, 64, 106)),
-            4 => ((222, 212, 194), (112, 154, 170), (62, 96, 118)),
-            _ => ((232, 214, 188), (198, 158, 76), (132, 92, 38)),
-        };
-        (
-            Self::rgb(Self::scale_rgb(palette.0, light_factor)),
-            Self::rgb(Self::scale_rgb(palette.1, light_factor)),
-            Self::rgb(Self::scale_rgb(palette.2, light_factor)),
         )
     }
 
@@ -1823,8 +1826,9 @@ impl Renderer {
             let light_y = (remote_by - min_by).clamp(0, height_b as i32 - 1) as usize;
             let light_val = light[light_y * width_b + light_x];
             let light_factor = (light_val as f32 / 15.0).clamp(0.38, 1.0);
-            let (head_fg, torso_fg, limb_fg) = Self::remote_player_visible_colors(
-                remote.client_id,
+            let (head_fg, torso_fg, limb_fg) = Self::equipped_player_colors(
+                Some(remote.client_id),
+                remote.armor,
                 if self.pixel_colors { 1.0 } else { light_factor },
             );
             self.actor_sprites.push(
@@ -1835,7 +1839,15 @@ impl Renderer {
                     remote.facing_right,
                     remote.vx,
                     state.player.age,
-                    [head_fg, torso_fg, limb_fg],
+                    [
+                        if self.pixel_colors {
+                            Self::rgb(Self::player_skin_rgb())
+                        } else {
+                            head_fg
+                        },
+                        torso_fg,
+                        limb_fg,
+                    ],
                     remote.sneaking,
                     false,
                 )
@@ -1843,6 +1855,11 @@ impl Renderer {
                 .with_hit(remote.hurt_ticks > 5)
                 .with_label(remote.client_id)
                 .with_item(remote.held_item)
+                .with_helmet(
+                    remote.armor[0]
+                        .and_then(Self::armor_tint_rgb)
+                        .map(Self::rgb),
+                )
                 .with_pose(!remote.grounded)
                 .with_motion(remote.vy)
                 .with_action(remote.action),
@@ -6047,6 +6064,7 @@ mod tests {
             .push(crate::engine::state::RemotePlayerState {
                 hurt_ticks: 0,
                 client_id: 7,
+                armor: [None; 4],
                 action: None,
                 held_item: None,
                 x: 3.0,

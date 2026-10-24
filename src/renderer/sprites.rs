@@ -1874,6 +1874,65 @@ mod tests {
     }
 
     #[test]
+    fn both_clients_render_the_same_player_colors_and_equipped_armor_in_every_view() {
+        use crate::engine::{
+            command::ClientCommand,
+            net::{ServerSimulation, decode_server_snapshot, encode_server_snapshot},
+            network_client::sync_state_from_snapshot,
+        };
+        for armored in [false, true] {
+            let mut state = fixture();
+            state.join_peer(1);
+            if armored {
+                state.apply_client_command(ClientCommand::EquipDiamondLoadout);
+            }
+            state.join_peer(2);
+            let mut server = ServerSimulation::with_state(state);
+            let mut views = [fixture(), fixture()];
+            for (i, view) in views.iter_mut().enumerate() {
+                let snapshot = server.snapshot_for_client(i as u16 + 1).unwrap();
+                let decoded =
+                    decode_server_snapshot(&encode_server_snapshot(&snapshot).unwrap()).unwrap();
+                sync_state_from_snapshot(view, &decoded);
+                assert_eq!(view.local_player_id, Some(i as u16 + 1));
+            }
+            for zoom in 0..3 {
+                let mut actors = Vec::new();
+                for view in &views {
+                    let mut renderer = Renderer::with_size(120, 40);
+                    for _ in 0..zoom {
+                        renderer.toggle_zoom();
+                    }
+                    renderer.render_to(view, 0.0, &mut Vec::new()).unwrap();
+                    let local = renderer
+                        .actor_sprites
+                        .iter()
+                        .find(|a| matches!(a.kind, SpriteKind::Player) && a.label.is_none())
+                        .unwrap();
+                    let remote = renderer
+                        .actor_sprites
+                        .iter()
+                        .find(|a| a.label.is_some())
+                        .unwrap();
+                    actors.push(((local.colors, local.helmet), (remote.colors, remote.helmet)));
+                }
+                assert_eq!(
+                    actors[0].0, actors[1].1,
+                    "P1 changed between clients, armor={armored}, view={zoom}"
+                );
+                assert_eq!(
+                    actors[1].0, actors[0].1,
+                    "P2 changed between clients, armor={armored}, view={zoom}"
+                );
+                if armored {
+                    assert_eq!(actors[1].1.1, Some(Renderer::rgb((92, 236, 224))));
+                    assert_eq!(actors[1].1.0[1], Renderer::rgb((92, 236, 224)));
+                }
+            }
+        }
+    }
+
+    #[test]
     fn damage_and_alert_are_explicit_and_do_not_replace_species_palette() {
         let ghast = ActorSprite::mob(
             0,

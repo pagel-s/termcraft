@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const NET_PROTOCOL_VERSION: u16 = 19;
+pub const NET_PROTOCOL_VERSION: u16 = 20;
 pub const SERVER_TICK_RATE: u64 = 20;
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 pub const MAX_NET_FRAME_BYTES: usize = 256 * 1024;
@@ -149,6 +149,7 @@ impl PlayerSnapshot {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PeerPlayerSnapshot {
     pub client_id: u16,
+    pub armor: [Option<ItemType>; 4],
     pub player: PlayerSnapshot,
     pub action: Option<super::action::ActionVisual>,
     pub held_item: Option<ItemType>,
@@ -158,6 +159,7 @@ pub struct PeerPlayerSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ServerSnapshot {
     pub protocol: u16,
+    pub client_id: u16,
     pub acknowledged_sequence: u32,
     pub tick: u64,
     pub dimension: SnapshotDimension,
@@ -189,6 +191,7 @@ impl ServerSnapshot {
         let chest = session.chest(state);
         Self {
             protocol: NET_PROTOCOL_VERSION,
+            client_id: 0,
             acknowledged_sequence: 0,
             tick,
             dimension: state.current_dimension.into(),
@@ -704,6 +707,7 @@ impl ServerSimulation {
             return None;
         }
         let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
+        snapshot.client_id = client_id;
         snapshot.chat = self.player_chat.view(
             client_id,
             self.tick,
@@ -723,6 +727,7 @@ impl ServerSimulation {
             .filter_map(|id| {
                 self.state.peer_session(id).map(|p| PeerPlayerSnapshot {
                     client_id: id,
+                    armor: p.armor_items(),
                     hurt_ticks: p.hurt_ticks(),
                     player: PlayerSnapshot::from_player(p.player()),
                     action: self.state.peer_action_visual(id, p.player().age, 0.0),
@@ -829,6 +834,7 @@ impl ServerSimulation {
             self.state.activate_peer(primary);
         }
         let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
+        snapshot.client_id = self.primary_client_id.unwrap_or(0);
         snapshot.chat = self.player_chat.view(
             self.primary_client_id.unwrap_or(0),
             self.tick,
@@ -1454,13 +1460,73 @@ pub fn run_headless_tcp_server(bind_addr: &str) -> io::Result<()> {
     let root = crate::save_path::save_dir()
         .join("multiplayer")
         .join("default");
-    std::fs::create_dir_all(&root)?;
-    let _lease = crate::worlds::WorldLease::acquire(&root).map_err(io::Error::other)?;
-    run_headless_tcp_server_with_state(bind_addr, GameState::open_in_directory(&root)?)
+    run_headless_tcp_server_in_directory(bind_addr, &root)
 }
+
+struct ServerShutdown {
+    stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    #[cfg(unix)]
+    signals: Vec<signal_hook::SigId>,
+}
+impl ServerShutdown {
+    fn new() -> io::Result<Self> {
+        #[allow(unused_mut)] // Only Unix adds signal registrations to the guard.
+        let mut shutdown = Self {
+            stop: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            #[cfg(unix)]
+            signals: Vec::new(),
+        };
+        #[cfg(unix)]
+        for signal in [signal_hook::consts::SIGINT, signal_hook::consts::SIGTERM] {
+            shutdown
+                .signals
+                .push(signal_hook::flag::register(signal, shutdown.stop.clone())?);
+        }
+        Ok(shutdown)
+    }
+}
+impl Drop for ServerShutdown {
+    fn drop(&mut self) {
+        #[cfg(unix)]
+        for signal in &self.signals {
+            signal_hook::low_level::unregister(*signal);
+        }
+    }
+}
+
+pub fn run_headless_tcp_server_in_directory(
+    bind_addr: &str,
+    root: &std::path::Path,
+) -> io::Result<()> {
+    // Install before the lease or save loading: cancelling a cold start must
+    // unwind normally and release the same lock as cancelling a running host.
+    let shutdown = ServerShutdown::new()?;
+    std::fs::create_dir_all(root)?;
+    let _lease = crate::worlds::WorldLease::acquire(root).map_err(io::Error::other)?;
+    eprintln!("Loading server world…");
+    let state = GameState::open_in_directory(root)?;
+    run_headless_tcp_server_with_shutdown(bind_addr, state, &shutdown)
+}
+
 pub fn run_headless_tcp_server_with_state(bind_addr: &str, state: GameState) -> io::Result<()> {
+    let shutdown = ServerShutdown::new()?;
+    run_headless_tcp_server_with_shutdown(bind_addr, state, &shutdown)
+}
+
+fn run_headless_tcp_server_with_shutdown(
+    bind_addr: &str,
+    state: GameState,
+    shutdown: &ServerShutdown,
+) -> io::Result<()> {
+    let stop = &shutdown.stop;
+    if stop.load(std::sync::atomic::Ordering::Relaxed) {
+        return Ok(());
+    }
     let mut simulation = ServerSimulation::with_state(state);
     simulation.load_persistent()?;
+    if stop.load(std::sync::atomic::Ordering::Relaxed) {
+        return Ok(());
+    }
     let listener = TcpListener::bind(bind_addr)?;
     listener.set_nonblocking(true)?;
     eprintln!(
@@ -1468,12 +1534,6 @@ pub fn run_headless_tcp_server_with_state(bind_addr: &str, state: GameState) -> 
         listener.local_addr()?,
         NET_PROTOCOL_VERSION
     );
-    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    #[cfg(unix)]
-    {
-        signal_hook::flag::register(signal_hook::consts::SIGINT, stop.clone())?;
-        signal_hook::flag::register(signal_hook::consts::SIGTERM, stop.clone())?;
-    }
     let (tx, rx) = mpsc::sync_channel(1024);
     let mut clients = Vec::new();
     let mut counter = 1;

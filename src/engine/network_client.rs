@@ -93,6 +93,7 @@ fn clear_remote_runtime_entities(state: &mut GameState) {
 }
 
 pub(crate) fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerSnapshot) {
+    state.local_player_id = (snapshot.client_id != 0).then_some(snapshot.client_id);
     let target_dimension: Dimension = snapshot.dimension.into();
     if state.current_dimension != target_dimension {
         state.current_dimension = target_dimension;
@@ -134,6 +135,7 @@ pub(crate) fn sync_state_from_snapshot(state: &mut GameState, snapshot: &ServerS
         .iter()
         .map(|remote| crate::engine::state::RemotePlayerState {
             client_id: remote.client_id,
+            armor: remote.armor,
             action: remote.action,
             held_item: remote.held_item,
             hurt_ticks: remote.hurt_ticks,

@@ -97,6 +97,7 @@ credential and server-record files are written with mode `0600`.
 The server supports at most eight concurrent connections and 64 saved player
 identities. It saves before issuing a reconnect credential, on disconnect, every
 45 seconds and on Unix SIGINT/SIGTERM. Stop it with Ctrl+C and wait for exit.
+Cancelling startup also releases the world lock after loading finishes.
 Chunk and player files are written individually inside a recoverable world
 checkpoint. Interrupted writes roll back to the last completed checkpoint; a
 forced kill can lose work since that boundary. Keep the hidden checkpoint data
@@ -126,7 +127,11 @@ saved with the world. Normal solo play has no chat panel.
 
 ## Compatibility and transport
 
-Protocol **19** requires matching builds. Terrain and nearby entities stream
+Direct player-versus-player combat is not implemented; swords and player arrows
+target creatures. Player colors are assigned automatically, and equipped armor
+is visible to other players. There is no appearance selector yet.
+
+Protocol **20** requires matching builds. Terrain and nearby entities stream
 around each player. Disconnected and stale actors release held actions. Live
 clients send a periodic heartbeat, so holding the mouse can continue mining
 without pointer movement.
