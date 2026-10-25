@@ -24,7 +24,7 @@ def check_schema(prepared):
     manifests = list((prepared / "winget" / manifest["version"]).glob("*.yaml"))
     assert len(manifests) == 3
     for path in manifests:
-        record = json.loads(path.read_text())
+        record = d.read_winget(path.read_bytes())
         assert record["PackageVersion"] == manifest["version"] and record["PackageIdentifier"] == d.IDENTIFIER
         schema = json.loads((schemas / (record["ManifestType"] + ".json")).read_text())
         jsonschema.validate(record, schema)

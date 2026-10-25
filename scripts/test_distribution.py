@@ -117,7 +117,9 @@ class Distribution(unittest.TestCase):
     @unittest.skipUnless(shutil.which("dpkg-deb"), "Debian package tools required")
     def test_generated_winget_manifests_pass_pinned_microsoft_schemas(self):
         import jsonschema
-        _, manifest = self.prepared()
+        from check_distribution import check_schema
+        output, manifest = self.prepared()
+        self.assertEqual(check_schema(output), manifest)
         directory = Path(__file__).resolve().parent.parent / "tests/fixtures/winget-schema-1.10.0"
         source = json.loads((directory / "SOURCE.json").read_text())
         for kind, record in source["files"].items():
