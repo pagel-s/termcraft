@@ -85,7 +85,9 @@ jobs:
         run: cargo +1.88.0 test --locked
       - name: Real loopback co-op and live MCP
         if: runner.os != 'Windows'
-        run: cargo +1.88.0 test --locked --test multiplayer_tcp -- --ignored
+        run: |
+          cargo +1.88.0 test --locked --lib temporary_socket_backpressure -- --ignored
+          cargo +1.88.0 test --locked --test multiplayer_tcp -- --ignored
       - name: Strict Clippy
         run: cargo +1.88.0 clippy --all-targets --locked -- -D warnings
       - name: Build native binary

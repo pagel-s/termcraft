@@ -6,8 +6,9 @@ use super::game_loop::{
 };
 use super::net::{
     ChunkDeltaPacket, ClientHello, ClientInputFrame, ClientPredictionState, NET_PROTOCOL_VERSION,
-    SERVER_TICK_RATE, ServerSnapshot, ServerWireMessage, Welcome, read_framed_server_message,
-    write_client_hello, write_framed_client_chat, write_framed_client_input,
+    SERVER_TICK_RATE, SOCKET_WRITE_TIMEOUT, ServerSnapshot, ServerWireMessage, Welcome,
+    read_framed_server_message, write_client_hello, write_framed_client_chat,
+    write_framed_client_input,
 };
 use super::state::GameState;
 use crate::renderer::Renderer;
@@ -49,7 +50,7 @@ fn connection_error(error: io::Error, address: &str, joining: bool) -> io::Error
                 )
             } else {
                 format!(
-                    "Disconnected from {address}: the server stopped or the connection was lost. Quitting 'termcraft host' ends the shared session. Reconnect when the host is running again."
+                    "Disconnected from {address}: {error}. Check the host's host.log for the disconnect reason. Quitting 'termcraft host' ends the shared session; reconnect when it is running again."
                 )
             }
         }
@@ -89,7 +90,7 @@ fn connect_to_server(address: &str, token: Option<String>) -> io::Result<(TcpStr
             }
             _ => return Err(io::Error::other("server did not send a welcome")),
         };
-        writer.set_write_timeout(Some(Duration::from_millis(16)))?;
+        writer.set_write_timeout(Some(SOCKET_WRITE_TIMEOUT))?;
         writer.set_read_timeout(None)?;
         Ok((writer, welcome))
     };
@@ -105,14 +106,69 @@ fn queue_client_command(
     pending_outbound.extend(prediction.take_outbound_inputs());
 }
 
+enum ClientPacket {
+    Input(ClientInputFrame),
+    Chat(String),
+}
+
+struct ClientWriter {
+    outgoing: mpsc::SyncSender<ClientPacket>,
+    errors: mpsc::Receiver<io::Error>,
+}
+
+impl ClientWriter {
+    fn spawn(mut writer: TcpStream) -> Self {
+        let (outgoing, incoming) = mpsc::sync_channel(256);
+        let (errors_tx, errors) = mpsc::sync_channel(1);
+        thread::spawn(move || {
+            while let Ok(packet) = incoming.recv() {
+                let result = match packet {
+                    ClientPacket::Input(frame) => write_framed_client_input(&mut writer, &frame),
+                    ClientPacket::Chat(text) => write_framed_client_chat(&mut writer, &text),
+                };
+                if let Err(error) = result {
+                    let _ = errors_tx.send(error);
+                    let _ = writer.shutdown(std::net::Shutdown::Both);
+                    break;
+                }
+            }
+        });
+        Self { outgoing, errors }
+    }
+
+    fn check(&self) -> io::Result<()> {
+        match self.errors.try_recv() {
+            Ok(error) => Err(error),
+            Err(mpsc::TryRecvError::Disconnected) => Err(io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "client socket writer closed",
+            )),
+            Err(mpsc::TryRecvError::Empty) => Ok(()),
+        }
+    }
+
+    fn send(&self, packet: ClientPacket) -> io::Result<()> {
+        self.check()?;
+        self.outgoing.try_send(packet).map_err(|error| match error {
+            mpsc::TrySendError::Full(_) => io::Error::new(
+                io::ErrorKind::WouldBlock,
+                "connection stalled: client input queue is full",
+            ),
+            mpsc::TrySendError::Disconnected(_) => {
+                io::Error::new(io::ErrorKind::BrokenPipe, "client socket writer closed")
+            }
+        })
+    }
+}
+
 fn flush_outbound_commands(
-    writer: &mut TcpStream,
+    writer: &ClientWriter,
     pending_outbound: &mut VecDeque<ClientInputFrame>,
 ) -> io::Result<()> {
     while let Some(frame) = pending_outbound.pop_front() {
-        write_framed_client_input(writer, &frame)?;
+        writer.send(ClientPacket::Input(frame))?;
     }
-    Ok(())
+    writer.check()
 }
 
 fn clear_remote_runtime_entities(state: &mut GameState) {
@@ -327,12 +383,13 @@ fn run_tcp_client_with_identity_and_hint(
     hint: &str,
 ) -> io::Result<()> {
     let previous = identity::read(identity_addr, profile)?;
-    let (mut writer, welcome) =
+    let (writer, welcome) =
         connect_to_server(connect_addr, previous.as_ref().map(|p| p.token.clone()))?;
     identity::store(identity_addr, profile, previous.as_ref(), &welcome)?;
     writer.set_read_timeout(None)?;
     let reader = writer.try_clone()?;
     reader.set_nodelay(true)?;
+    let client_writer = ClientWriter::spawn(writer.try_clone()?);
 
     let (server_msg_tx, server_msg_rx) = mpsc::sync_channel::<io::Result<ServerWireMessage>>(128);
     let mut renderer = Renderer::new()?;
@@ -343,7 +400,7 @@ fn run_tcp_client_with_identity_and_hint(
 
     spawn_server_message_reader(reader, server_msg_tx);
     let result = run_tcp_client_loop(
-        &mut writer,
+        &client_writer,
         &server_msg_rx,
         &mut renderer,
         welcome.client_id,
@@ -354,7 +411,7 @@ fn run_tcp_client_with_identity_and_hint(
 }
 
 fn run_tcp_client_loop(
-    writer: &mut TcpStream,
+    writer: &ClientWriter,
     server_msg_rx: &mpsc::Receiver<io::Result<ServerWireMessage>>,
     renderer: &mut Renderer,
     client_id: u16,
@@ -417,7 +474,8 @@ fn run_tcp_client_loop(
                             if !prompt.trim().is_empty() {
                                 flush_outbound_commands(writer, &mut pending_outbound)
                                     .map_err(|error| connection_error(error, hint, false))?;
-                                write_framed_client_chat(writer, &prompt)
+                                writer
+                                    .send(ClientPacket::Chat(prompt))
                                     .map_err(|error| connection_error(error, hint, false))?;
                             }
                             state.chat.open = false;

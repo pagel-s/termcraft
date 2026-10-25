@@ -102,6 +102,22 @@ different local identity.
 If the host's displayed address is loopback, check the LAN address in the host's
 network settings. Prefer a wired connection when diagnosing network pauses.
 
+Brief network pauses are buffered without blocking the server's simulation or
+the client's rendering. Connections that remain blocked are still disconnected
+with bounded queues. If a player is repeatedly kicked while the host stays open,
+check `multiplayer/default/host.log` inside the host's save directory: it records
+joins, socket errors and output-queue limits. Keep the full client error too.
+
+To use a separate multiplayer world, prefix **one** host command with a save root:
+
+```sh
+TERMCRAFT_SAVE_DIR="$HOME/.local/share/termcraft/saves/coop-fresh-1" ./termcraft host
+```
+
+Use the same command to resume that world. Do not paste a second `./termcraft host`
+after it: the shell will run that second command when you quit the first session,
+opening the default world.
+
 ## Separate networks
 
 The recommended Linux host setup is the [rootless container and restricted

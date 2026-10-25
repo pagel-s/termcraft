@@ -38,7 +38,9 @@ jobs:
         run: cargo +"$RUST_VERSION" test --locked --quiet
 
       - name: Test local multiplayer over TCP
-        run: cargo +"$RUST_VERSION" test --locked --test multiplayer_tcp -- --ignored
+        run: |
+          cargo +"$RUST_VERSION" test --locked --lib temporary_socket_backpressure -- --ignored
+          cargo +"$RUST_VERSION" test --locked --test multiplayer_tcp -- --ignored
 
       - name: Play Lantern Run through normal CLI tools
         run: python3 scripts/test_lantern_trial.py --binary target/debug/termcraft

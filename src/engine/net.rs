@@ -13,7 +13,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::sync::mpsc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+    mpsc,
+};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -28,9 +32,12 @@ const MAX_PENDING_INPUTS_PER_SCHEDULED_TICK: usize = 128;
 const MAX_CLIENT_INPUT_LEAD_TICKS: u64 = SERVER_TICK_RATE * 4;
 const CLIENT_SEQUENCE_PRUNE_INTERVAL_TICKS: u64 = SERVER_TICK_RATE * 15;
 const CLIENT_SEQUENCE_STALE_TICKS: u64 = SERVER_TICK_RATE * 180;
-// Allow Welcome and a full catch-up burst (snapshot + terrain per tick) even if
-// the writer has not been scheduled yet. Sustained backpressure stays bounded.
-const CLIENT_OUTBOUND_QUEUE_PACKETS: usize = 2 * SERVER_MAX_CATCHUP_TICKS_PER_LOOP as usize + 2;
+// Writers run outside simulation. Allow a brief Wi-Fi/terminal pause plus a
+// catch-up burst without disconnecting, while bounding both packets and bytes.
+pub(crate) const SOCKET_WRITE_TIMEOUT: Duration = Duration::from_secs(2);
+const CLIENT_OUTBOUND_QUEUE_PACKETS: usize =
+    4 * SERVER_TICK_RATE as usize + 2 * SERVER_MAX_CATCHUP_TICKS_PER_LOOP as usize + 2;
+const CLIENT_OUTBOUND_QUEUE_BYTES: usize = 4 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ClientInputFrame {
@@ -1231,20 +1238,55 @@ struct ConnectedClient {
     known_dimension: Option<SnapshotDimension>,
     client_id: u16,
     writer: TcpStream,
-    outgoing: mpsc::SyncSender<QueuedPacket>,
+    outgoing: OutgoingPackets,
     known_chunk_revisions: HashMap<i32, u64>,
     authenticated: bool,
 }
 struct QueuedPacket {
     payload: Vec<u8>,
     close_after: bool,
+    budget: Arc<AtomicUsize>,
 }
-impl ConnectedClient {
-    fn queue_payload(&self, payload: Vec<u8>, close_after: bool) -> io::Result<()> {
-        self.outgoing
+impl Drop for QueuedPacket {
+    fn drop(&mut self) {
+        self.budget.fetch_sub(self.payload.len(), Ordering::Relaxed);
+    }
+}
+#[derive(Debug)]
+struct OutgoingPackets {
+    sender: mpsc::SyncSender<QueuedPacket>,
+    budget: Arc<AtomicUsize>,
+}
+impl OutgoingPackets {
+    fn channel() -> (Self, mpsc::Receiver<QueuedPacket>) {
+        let (sender, incoming) = mpsc::sync_channel(CLIENT_OUTBOUND_QUEUE_PACKETS);
+        (
+            Self {
+                sender,
+                budget: Arc::new(AtomicUsize::new(0)),
+            },
+            incoming,
+        )
+    }
+
+    fn try_send(&self, payload: Vec<u8>, close_after: bool) -> io::Result<()> {
+        self.budget
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |bytes| {
+                bytes
+                    .checked_add(payload.len())
+                    .filter(|total| *total <= CLIENT_OUTBOUND_QUEUE_BYTES)
+            })
+            .map_err(|_| {
+                io::Error::new(
+                    io::ErrorKind::WouldBlock,
+                    "client output exceeded its bounded byte budget",
+                )
+            })?;
+        self.sender
             .try_send(QueuedPacket {
                 payload,
                 close_after,
+                budget: self.budget.clone(),
             })
             .map_err(|error| match error {
                 mpsc::TrySendError::Full(_) => io::Error::new(
@@ -1255,6 +1297,11 @@ impl ConnectedClient {
                     io::Error::new(io::ErrorKind::BrokenPipe, "client writer disconnected")
                 }
             })
+    }
+}
+impl ConnectedClient {
+    fn queue_payload(&self, payload: Vec<u8>, close_after: bool) -> io::Result<()> {
+        self.outgoing.try_send(payload, close_after)
     }
     fn queue_message(&self, message: &ServerWireMessage, close_after: bool) -> io::Result<()> {
         let payload = encode_server_message(message).map_err(codec_error_to_io)?;
@@ -1278,7 +1325,7 @@ enum ServerEvent {
     Hello(u16, ClientHello),
     Input(ClientInputFrame),
     Chat(u16, String),
-    Disconnected(u16),
+    Disconnected(u16, String),
 }
 fn drain_client_packets(
     writer: &mut impl Write,
@@ -1296,14 +1343,19 @@ fn spawn_client_writer_thread(
     client_id: u16,
     mut writer: TcpStream,
     tx: mpsc::SyncSender<ServerEvent>,
-) -> mpsc::SyncSender<QueuedPacket> {
-    let (outgoing, incoming) = mpsc::sync_channel(CLIENT_OUTBOUND_QUEUE_PACKETS);
+) -> OutgoingPackets {
+    let (outgoing, incoming) = OutgoingPackets::channel();
     thread::spawn(move || {
         // Socket timeouts may be much coarser than requested on some platforms.
         // No socket write, including a partial framed write, may hold up simulation.
-        let _ = drain_client_packets(&mut writer, incoming);
+        if let Err(error) = drain_client_packets(&mut writer, incoming) {
+            eprintln!("Client {client_id} socket write failed: {error}");
+        }
         let _ = writer.shutdown(std::net::Shutdown::Both);
-        let _ = tx.send(ServerEvent::Disconnected(client_id));
+        let _ = tx.send(ServerEvent::Disconnected(
+            client_id,
+            "socket writer closed".into(),
+        ));
     });
     outgoing
 }
@@ -1313,11 +1365,13 @@ fn spawn_client_reader_thread(
     tx: mpsc::SyncSender<ServerEvent>,
 ) {
     thread::spawn(move || {
-        if let Ok(hello) = read_client_hello(&mut reader)
-            && tx.send(ServerEvent::Hello(client_id, hello)).is_ok()
-        {
-            let _ = reader.set_read_timeout(None);
-            while let Ok(message) = read_framed_client_message(&mut reader) {
+        let result = (|| -> io::Result<()> {
+            let hello = read_client_hello(&mut reader)?;
+            tx.send(ServerEvent::Hello(client_id, hello))
+                .map_err(io::Error::other)?;
+            reader.set_read_timeout(None)?;
+            loop {
+                let message = read_framed_client_message(&mut reader)?;
                 let event = match message {
                     ClientWireMessage::Input(mut input) => {
                         input.client_id = client_id;
@@ -1328,14 +1382,23 @@ fn spawn_client_reader_thread(
                     {
                         ServerEvent::Chat(client_id, text)
                     }
-                    _ => break,
+                    _ => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "invalid client message",
+                        ));
+                    }
                 };
                 if tx.send(event).is_err() {
-                    break;
+                    return Ok(());
                 }
             }
-        }
-        let _ = tx.send(ServerEvent::Disconnected(client_id));
+        })();
+        let reason = result.err().map_or_else(
+            || "server closed".into(),
+            |error| format!("socket read: {error}"),
+        );
+        let _ = tx.send(ServerEvent::Disconnected(client_id, reason));
     });
 }
 fn accept_pending_clients(
@@ -1358,7 +1421,7 @@ fn accept_pending_clients(
                 // otherwise a quiet connection is dropped on WouldBlock.
                 writer.set_nonblocking(false)?;
                 writer.set_nodelay(true)?;
-                writer.set_write_timeout(Some(Duration::from_millis(16)))?;
+                writer.set_write_timeout(Some(SOCKET_WRITE_TIMEOUT))?;
                 let reader = writer.try_clone()?;
                 reader.set_read_timeout(Some(Duration::from_secs(5)))?;
                 let mut id = next_client_id(counter);
@@ -1636,6 +1699,7 @@ fn run_headless_tcp_server_with_shutdown(
                             disconnected = true;
                         } else {
                             client.authenticated = true;
+                            eprintln!("Client {id} joined from {}", client.writer.peer_addr()?);
                         }
                     }
                 }
@@ -1652,9 +1716,12 @@ fn run_headless_tcp_server_with_shutdown(
                         simulation.submit_chat(id, text);
                     }
                 }
-                ServerEvent::Disconnected(id) => {
+                ServerEvent::Disconnected(id, reason) => {
                     // Both socket threads report closure; handle it only once.
                     if let Some(index) = clients.iter().position(|c| c.client_id == id) {
+                        if clients[index].authenticated {
+                            eprintln!("Client {id} disconnected: {reason}");
+                        }
                         clients.swap_remove(index);
                         simulation.unregister_client(id);
                         disconnected = true;
@@ -1689,15 +1756,14 @@ fn run_headless_tcp_server_with_shutdown(
                     .snapshot_for_client(clients[index].client_id)
                     .ok_or_else(|| io::Error::other("missing player"))?;
                 let payload = build_snapshot_wire_payload(&snapshot)?;
-                if send_tick_messages_to_client(
+                if let Err(error) = send_tick_messages_to_client(
                     &mut clients[index],
                     simulation.state(),
                     &snapshot,
                     payload,
-                )
-                .is_err()
-                {
+                ) {
                     let id = clients[index].client_id;
+                    eprintln!("Client {id} disconnected while queuing world update: {error}");
                     clients.swap_remove(index);
                     simulation.unregister_client(id);
                     disconnected = true;
@@ -1757,7 +1823,7 @@ mod tests {
 
     #[test]
     fn outbound_queue_accepts_one_full_catchup_burst_before_writer_runs() {
-        let (tx, rx) = mpsc::sync_channel(CLIENT_OUTBOUND_QUEUE_PACKETS);
+        let (tx, rx) = OutgoingPackets::channel();
         let welcome = encode_server_message(&ServerWireMessage::Welcome(Welcome {
             protocol: NET_PROTOCOL_VERSION,
             client_id: 1,
@@ -1765,21 +1831,14 @@ mod tests {
             token: "fixture".into(),
         }))
         .unwrap();
-        tx.try_send(QueuedPacket {
-            payload: welcome.clone(),
-            close_after: false,
-        })
-        .unwrap();
+        tx.try_send(welcome.clone(), false).unwrap();
         let mut expected = vec![welcome];
         // Each tick can enqueue both a snapshot and a changed-terrain packet.
         for tick in 0..SERVER_MAX_CATCHUP_TICKS_PER_LOOP {
             for kind in 0..2 {
                 let payload = vec![tick, kind];
-                tx.try_send(QueuedPacket {
-                    payload: payload.clone(),
-                    close_after: false,
-                })
-                .expect("a catch-up burst must not be mistaken for a stalled reader");
+                tx.try_send(payload.clone(), false)
+                    .expect("a catch-up burst must not be mistaken for a stalled reader");
                 expected.push(payload);
             }
         }
@@ -1795,13 +1854,9 @@ mod tests {
 
     #[test]
     fn outbound_frames_keep_order_and_rejection_is_written_before_close() {
-        let (tx, rx) = mpsc::sync_channel(CLIENT_OUTBOUND_QUEUE_PACKETS);
+        let (tx, rx) = OutgoingPackets::channel();
         for (payload, close_after) in [(vec![1, 2], false), (vec![3, 4], true), (vec![5], false)] {
-            tx.send(QueuedPacket {
-                payload,
-                close_after,
-            })
-            .unwrap();
+            tx.try_send(payload, close_after).unwrap();
         }
         drop(tx);
         let mut output = Vec::new();
@@ -1836,7 +1891,7 @@ mod tests {
                 Ok(())
             }
         }
-        let (tx, rx) = mpsc::sync_channel(CLIENT_OUTBOUND_QUEUE_PACKETS);
+        let (tx, rx) = OutgoingPackets::channel();
         let (entered_tx, entered_rx) = mpsc::sync_channel(1);
         let (release_tx, release_rx) = mpsc::sync_channel(1);
         let worker = thread::spawn(move || {
@@ -1849,26 +1904,15 @@ mod tests {
             drain_client_packets(&mut writer, rx).unwrap();
             writer.bytes
         });
-        tx.try_send(QueuedPacket {
-            payload: vec![0],
-            close_after: false,
-        })
-        .unwrap();
+        tx.try_send(vec![0], false).unwrap();
         entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
         for _ in 0..CLIENT_OUTBOUND_QUEUE_PACKETS {
-            tx.try_send(QueuedPacket {
-                payload: vec![1],
-                close_after: false,
-            })
-            .unwrap();
+            tx.try_send(vec![1], false).unwrap();
         }
-        assert!(matches!(
-            tx.try_send(QueuedPacket {
-                payload: vec![2],
-                close_after: false
-            }),
-            Err(mpsc::TrySendError::Full(_))
-        ));
+        assert_eq!(
+            tx.try_send(vec![2], false).unwrap_err().kind(),
+            io::ErrorKind::WouldBlock
+        );
         release_tx.send(()).unwrap();
         drop(tx);
         let mut input = Cursor::new(worker.join().unwrap());
@@ -1877,6 +1921,71 @@ mod tests {
             assert_eq!(read_framed_payload(&mut input).unwrap(), vec![1]);
         }
         assert_eq!(input.position() as usize, input.get_ref().len());
+    }
+
+    #[test]
+    fn queued_byte_budget_includes_in_flight_packet_and_releases_failed_sends() {
+        let (tx, rx) = OutgoingPackets::channel();
+        for _ in 0..CLIENT_OUTBOUND_QUEUE_BYTES / MAX_NET_FRAME_BYTES {
+            tx.try_send(vec![0; MAX_NET_FRAME_BYTES], false).unwrap();
+        }
+        let packet = rx.recv().unwrap();
+        assert_eq!(
+            tx.try_send(vec![1], false).unwrap_err().kind(),
+            io::ErrorKind::WouldBlock
+        );
+        drop(packet);
+        tx.try_send(vec![1; MAX_NET_FRAME_BYTES], false).unwrap();
+        drop(rx);
+        assert_eq!(tx.budget.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            tx.try_send(vec![1], false).unwrap_err().kind(),
+            io::ErrorKind::BrokenPipe
+        );
+        assert_eq!(tx.budget.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    #[ignore = "requires local TCP sockets"]
+    fn temporary_socket_backpressure_recovers_without_losing_or_reordering_frames() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let mut reader = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        reader
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let (writer, _) = listener.accept().unwrap();
+        writer
+            .set_write_timeout(Some(SOCKET_WRITE_TIMEOUT))
+            .unwrap();
+        writer.set_nodelay(true).unwrap();
+        let (events, disconnected) = mpsc::sync_channel(4);
+        let outgoing = spawn_client_writer_thread(1, writer, events);
+        let producer = thread::spawn(move || {
+            // Four MiB exceeds normal socket buffering. Stop reading for long
+            // enough to block writes, without filling the bounded application
+            // queue; the old 16 ms timeout drops this healthy connection.
+            for sequence in 0u8..64 {
+                outgoing
+                    .try_send(vec![sequence; 64 * 1024], sequence == 63)
+                    .unwrap();
+                thread::sleep(Duration::from_millis(10));
+            }
+            outgoing
+        });
+        thread::sleep(Duration::from_millis(900));
+        assert!(
+            matches!(disconnected.try_recv(), Err(mpsc::TryRecvError::Empty)),
+            "a temporary read pause was treated as a disconnected client"
+        );
+        for sequence in 0u8..64 {
+            assert_eq!(
+                read_framed_payload(&mut reader).unwrap(),
+                vec![sequence; 64 * 1024]
+            );
+        }
+        let outgoing = producer.join().unwrap();
+        disconnected.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(outgoing.budget.load(Ordering::Relaxed), 0);
     }
 
     #[test]

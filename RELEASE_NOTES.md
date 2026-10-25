@@ -62,6 +62,9 @@ Build a home, explore with friends over SSH and take on the dragon together.
   Furnaces share block-owned contents and progress, beds coordinate sleeping
   across living Overworld players, and leaving multiplayer asks for confirmation.
   Larger villager groups fill rooms from the far side and spread out outdoors.
+  Brief network stalls no longer hit a 16 ms write deadline; bounded buffering
+  preserves ordered terrain updates, client writes run outside rendering, and
+  host logs record disconnect causes.
 - **Lantern Run.** A separate combat, traversal and bridge/signal route gives new
   players a focused place to start.
 - **Safer saves and native distribution.** Persistent entities and encounter state,
