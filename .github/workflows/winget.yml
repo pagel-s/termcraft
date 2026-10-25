@@ -76,6 +76,8 @@ jobs:
           if ($helpCode -notin @(0, 1) -or ($helpOutput -join "`n") -notmatch 'Windows Package Manager Manifest Creator v1\.12\.13\.0') {
             throw 'WinGetCreate did not display its expected help'
           }
+          # GitHub's PowerShell wrapper otherwise forwards the help command's 1.
+          exit 0
       - name: Submit when explicitly enabled and credentials are configured
         shell: pwsh
         env:
