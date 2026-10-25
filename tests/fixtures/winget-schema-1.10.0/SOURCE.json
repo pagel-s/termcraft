@@ -1,0 +1,18 @@
+{
+  "repository": "microsoft/winget-cli",
+  "commit": "5d302e449b63ca1534bf4b7c871f048ad07d5dca",
+  "files": {
+    "installer": {
+      "url": "https://raw.githubusercontent.com/microsoft/winget-cli/5d302e449b63ca1534bf4b7c871f048ad07d5dca/schemas/JSON/manifests/v1.10.0/manifest.installer.1.10.0.json",
+      "sha256": "cca7bea1fbdaa18a3d5231de7f9f896b1dd41283c33a03a0565771861d393b31"
+    },
+    "defaultLocale": {
+      "url": "https://raw.githubusercontent.com/microsoft/winget-cli/5d302e449b63ca1534bf4b7c871f048ad07d5dca/schemas/JSON/manifests/v1.10.0/manifest.defaultLocale.1.10.0.json",
+      "sha256": "77e406d25b35f908f70fb893335155e9e8a83aa59a6f3e9f959692e995e51e3c"
+    },
+    "version": {
+      "url": "https://raw.githubusercontent.com/microsoft/winget-cli/5d302e449b63ca1534bf4b7c871f048ad07d5dca/schemas/JSON/manifests/v1.10.0/manifest.version.1.10.0.json",
+      "sha256": "330a3ece4ed602afb0c4f35290d14dec1e188e7b3c2fb330893ac3daac82b547"
+    }
+  }
+}

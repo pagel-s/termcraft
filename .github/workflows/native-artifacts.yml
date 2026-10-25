@@ -1,7 +1,17 @@
 name: Native artifacts
 
 on:
+  workflow_call:
+    inputs:
+      source_ref:
+        type: string
+        default: ''
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Existing source ref to qualify (blank uses the selected branch)
+        type: string
+        default: ''
   push:
     branches: ['beta/terminal-reborn']
     paths:
@@ -16,6 +26,10 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'scripts/package_release.py'
+      - 'scripts/distribution.py'
+      - 'scripts/check_distribution.py'
+      - 'scripts/test_distribution.py'
+      - 'tests/fixtures/winget-schema-1.10.0/**'
       - 'scripts/test_native_archive.py'
       - 'scripts/test_storage_recovery.py'
       - 'scripts/storage_faults.c'
@@ -33,7 +47,7 @@ on:
       - 'scripts/test_ssh_join.py'
 
 concurrency:
-  group: native-artifacts-${{ github.ref }}
+  group: native-artifacts-${{ github.ref }}-${{ inputs.source_ref }}
   cancel-in-progress: true
 
 permissions:
@@ -57,6 +71,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -143,6 +159,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -180,3 +198,60 @@ jobs:
         with:
           name: sandbox-hosting-qualification-linux
           path: sandbox-qualification.json
+
+  package-payload:
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install jsonschema==4.25.1
+      - name: Test package identity and signed repository boundaries
+        run: python -m unittest discover -s scripts -p test_distribution.py -v
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: termcraft-*
+          path: candidates
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-qualification-*
+          path: qualifications
+      - name: Prepare one version from the four qualified binaries
+        run: |
+          revision="$(git rev-parse HEAD)"
+          tag="v$(python -c "import tomllib; print(tomllib.load(open('Cargo.toml','rb'))['package']['version'])")"
+          python scripts/distribution.py prepare --native candidates --output prepared --revision "$revision" --tag "$tag" --qualifications qualifications
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-manager-candidate
+          path: prepared/
+
+  package-managers:
+    needs: package-payload
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install jsonschema==4.25.1
+      - uses: actions/download-artifact@v4
+        with:
+          name: package-manager-candidate
+          path: prepared
+      - name: Install and exercise package-manager candidate
+        run: python scripts/check_distribution.py --prepared prepared --report manager-qualification.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manager-qualification-${{ matrix.os }}
+          path: manager-qualification.json

@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--binary", required=True, type=pathlib.Path)
     parser.add_argument("--target", required=True)
     parser.add_argument("--output", required=True, type=pathlib.Path)
+    parser.add_argument("--source-revision")
     args = parser.parse_args()
     if not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", args.target):
         parser.error("invalid target")
@@ -26,6 +27,13 @@ def main():
     if reported != f"termcraft {version}":
         parser.error("binary and manifest versions differ")
     prerelease = "-" in version
+    revision = args.source_revision
+    if revision is None:
+        detected = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root,
+                                  capture_output=True, text=True)
+        revision = detected.stdout.strip() if detected.returncode == 0 else "unknown"
+    if revision != "unknown" and not re.fullmatch(r"[0-9a-f]{40}", revision):
+        parser.error("source revision must be a full Git commit")
     build_label = "prerelease" if prerelease else "release"
     name = f"termcraft-{version}-{args.target}"
     binary_name = "termcraft.exe" if args.binary.suffix == ".exe" else "termcraft"
@@ -86,6 +94,7 @@ def main():
     ).encode()
     files["MANIFEST.json"] = json.dumps({
         "version": version, "target": args.target, "prerelease": prerelease,
+        "source_commit": revision,
         "files": {path: hashlib.sha256(data).hexdigest() for path, data in files.items()},
     }, indent=2).encode()
     args.output.mkdir(parents=True, exist_ok=True)

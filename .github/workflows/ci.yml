@@ -54,5 +54,10 @@ jobs:
       - name: Test private hosting boundaries
         run: python3 -m unittest discover -s scripts -p 'test_hosting_launcher.py'
 
+      - name: Test release packaging and official WinGet schemas
+        run: |
+          python3 -m pip install jsonschema==4.25.1
+          python3 -m unittest discover -s scripts -p 'test_distribution.py' -v
+
       - name: Verify package
         run: cargo +"$RUST_VERSION" publish --dry-run --locked

@@ -1,0 +1,97 @@
+name: Prepare WinGet submission
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag to check
+        required: true
+        type: string
+      submit:
+        description: Submit the checked manifests to Microsoft's community repository
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: winget-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.fetch.outputs.available }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - id: fetch
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: python scripts/distribution.py fetch --kind winget --tag "$RELEASE_TAG" --output candidate
+      - name: Extract only the qualified manifest set
+        if: steps.fetch.outputs.available == 'true'
+        id: version
+        run: |
+          python scripts/distribution.py unpack-winget --candidate candidate --output manifests
+          python - <<'PY'
+          import json,os,pathlib
+          m=json.loads(pathlib.Path('candidate/latest.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output: output.write('version='+m['version']+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: steps.fetch.outputs.available == 'true'
+        with:
+          name: winget-submission
+          path: manifests/
+
+  submit:
+    needs: prepare
+    if: needs.prepare.outputs.available == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: winget-submission
+          path: manifests
+      - name: Check the pinned official submission tool
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/microsoft/winget-create/releases/download/v1.12.13.0/wingetcreate.exe -OutFile wingetcreate.exe
+          $hash=(Get-FileHash wingetcreate.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne '24042bd37915805615e6cf969ac57c6439124c3fe85823327f5f3fb24bd9ffea') { throw 'Unexpected WinGetCreate checksum' }
+          & .\wingetcreate.exe --help
+          if ($LASTEXITCODE -ne 0) { throw 'WinGetCreate did not run' }
+      - name: Submit when explicitly enabled and credentials are configured
+        shell: pwsh
+        env:
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_SUBMISSION_TOKEN }}
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.version }}
+          SUBMIT: ${{ github.event_name == 'release' || inputs.submit }}
+        run: |
+          if ($env:SUBMIT -ne 'true') {
+            "Manifests checked. Submission was not requested." >> $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
+          if (-not $env:WINGET_CREATE_GITHUB_TOKEN) {
+            "Manifests ready. Configure WINGET_SUBMISSION_TOKEN to enable automatic community submissions." >> $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
+          $headers=@{Authorization="Bearer $env:WINGET_CREATE_GITHUB_TOKEN"; Accept='application/vnd.github+json'}
+          $version=$env:PACKAGE_VERSION
+          $title="New version: PagelS.Termcraft version $version"
+          $query=[uri]::EscapeDataString(('repo:microsoft/winget-pkgs is:pr "{0}" in:title' -f $title))
+          $existing=Invoke-RestMethod "https://api.github.com/search/issues?q=$query" -Headers $headers
+          if ($existing.total_count -gt 0) {
+            "A submission for this version already exists; review it before retrying." >> $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
+          & .\wingetcreate.exe submit --no-open --prtitle $title (Join-Path manifests $version)
+          if ($LASTEXITCODE -ne 0) { throw 'WinGet submission failed' }

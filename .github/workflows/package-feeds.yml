@@ -1,0 +1,162 @@
+name: Update published package feeds
+
+on:
+  workflow_call:
+    inputs:
+      kind:
+        required: true
+        type: string
+      source_revision:
+        required: true
+        type: string
+    secrets:
+      APT_SIGNING_PRIVATE_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    outputs:
+      available: ${{ steps.fetch.outputs.available }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: channel
+      - uses: actions/checkout@v4
+        with:
+          repository: pagel-s/termcraft
+          ref: ${{ inputs.source_revision }}
+          path: tools
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require the intended channel repository and pinned tools
+        env:
+          CHANNEL_KIND: ${{ inputs.kind }}
+          SOURCE_REVISION: ${{ inputs.source_revision }}
+        run: |
+          python - <<'PY'
+          import os,re
+          expected={'homebrew':'pagel-s/homebrew-termcraft','apt':'pagel-s/termcraft-apt'}
+          assert os.environ['GITHUB_REPOSITORY']==expected[os.environ['CHANNEL_KIND']]
+          assert re.fullmatch(r'[0-9a-f]{40}',os.environ['SOURCE_REVISION'])
+          PY
+      - id: fetch
+        name: Find a published version that needs updating
+        env:
+          CHANNEL_KIND: ${{ inputs.kind }}
+        run: |
+          if [ "$CHANNEL_KIND" = apt ]; then
+            current=https://pagel-s.github.io/termcraft-apt/apt/current.json
+          else
+            current=channel/.release.json
+          fi
+          python tools/scripts/distribution.py fetch --kind "$CHANNEL_KIND" --output candidate --current "$current"
+      - uses: actions/upload-artifact@v4
+        if: steps.fetch.outputs.available == 'true'
+        with:
+          name: channel-candidate
+          path: candidate/
+
+  homebrew-test:
+    needs: prepare
+    if: needs.prepare.outputs.available == 'true' && inputs.kind == 'homebrew'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: pagel-s/termcraft
+          ref: ${{ inputs.source_revision }}
+          path: tools
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: channel-candidate
+          path: candidate
+      - run: python tools/scripts/check_distribution.py --prepared candidate --homebrew-feed --report homebrew-qualification.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: homebrew-qualification-${{ matrix.os }}
+          path: homebrew-qualification.json
+
+  homebrew-publish:
+    needs: [prepare, homebrew-test]
+    if: needs.prepare.outputs.available == 'true' && inputs.kind == 'homebrew'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: channel-candidate
+          path: candidate
+      - name: Update the tap only after both install checks pass
+        run: |
+          mkdir -p Formula
+          cp candidate/termcraft.rb Formula/termcraft.rb
+          cp candidate/release.json .release.json
+          git config user.name "Sebastian Pagel"
+          git config user.email "pagel.sebastian.1@gmail.com"
+          git add Formula/termcraft.rb .release.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update Termcraft to the verified published release"
+            git push
+          fi
+
+  apt-build:
+    needs: prepare
+    if: needs.prepare.outputs.available == 'true' && inputs.kind == 'apt'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      pages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: channel
+      - uses: actions/checkout@v4
+        with:
+          repository: pagel-s/termcraft
+          ref: ${{ inputs.source_revision }}
+          path: tools
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: channel-candidate
+          path: candidate
+      - name: Build the signed repository with the configured key
+        env:
+          APT_SIGNING_PRIVATE_KEY: ${{ secrets.APT_SIGNING_PRIVATE_KEY }}
+        run: python tools/scripts/distribution.py apt --candidate candidate --output site --fingerprint "$(cat channel/signing-fingerprint.txt)"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  apt-deploy:
+    needs: apt-build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

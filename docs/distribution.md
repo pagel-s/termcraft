@@ -22,13 +22,83 @@ SHA-256 checksum. It excludes development reports, test scripts and review media
 
 Archives are named `termcraft-0.2.0-beta.1-TARGET.tar.gz` on Linux/macOS or
 `termcraft-0.2.0-beta.1-TARGET.zip` on Windows. `MANIFEST.json` records the version,
-target, prerelease status and each bundled file's SHA-256 hash. The executable's
+target, source commit, prerelease status and each bundled file's SHA-256 hash. The executable's
 `--version` output matches the archive version.
 
 Copying the executable does not copy your saves. See [saving and recovery](world-format.md).
 macOS builds are unsigned. Check the exact build when downloading from
 [Native artifacts](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml),
 and use matching builds for co-op.
+
+## Package-manager channels
+
+The beta is not published yet. These channels are prepared for the approved release;
+use the native CI archives until a version is available. They are our own channels,
+not inclusion in Homebrew core or Debian's official repositories.
+
+| Platform | Channel | Command after publication |
+| --- | --- | --- |
+| macOS, Apple Silicon or Intel | Homebrew tap | `brew install pagel-s/termcraft/termcraft` |
+| Windows x64 | WinGet community repository, pending Microsoft review | `winget install --id PagelS.Termcraft --exact` |
+| Ubuntu 22.04+ / Debian 12+, x64 | Signed Termcraft APT feed | Configure the source below, then `sudo apt install termcraft` |
+| Rust users, any supported native target | crates.io, Rust 1.88+ | `cargo install termcraft --version 0.2.0-beta.1 --locked` |
+
+Homebrew and APT automatically follow supported published releases. The APT
+`beta` suite includes prereleases. WinGet becomes available after the community
+submission is accepted. Native archives remain available for manual installation.
+
+### APT setup after publication
+
+Download the repository's public key and check its fingerprint against
+[`signing-fingerprint.txt`](https://github.com/pagel-s/termcraft-apt/blob/main/signing-fingerprint.txt)
+before installing the key:
+
+```sh
+curl -fsSLo /tmp/termcraft-archive-keyring.gpg https://pagel-s.github.io/termcraft-apt/apt/termcraft-archive-keyring.gpg
+gpg --show-keys --with-fingerprint /tmp/termcraft-archive-keyring.gpg
+sudo install -m 0644 /tmp/termcraft-archive-keyring.gpg /usr/share/keyrings/termcraft-archive-keyring.gpg
+sudo tee /etc/apt/sources.list.d/termcraft.sources >/dev/null <<'EOF'
+Types: deb
+URIs: https://pagel-s.github.io/termcraft-apt/apt
+Suites: beta
+Components: main
+Architectures: amd64
+Signed-By: /usr/share/keyrings/termcraft-archive-keyring.gpg
+EOF
+sudo apt update
+sudo apt install termcraft
+```
+
+The feed retains three supported releases; metadata is signed and refreshed weekly.
+The native Linux binary requires glibc 2.35 or later. APT installs the executable
+under `/usr/bin`, guides under `/usr/share/doc/termcraft`, and hosting resources
+under `/usr/share/termcraft/hosting`. Save locations stay the same.
+
+### Preparing a release
+
+1. Finish playtesting and choose the version in `Cargo.toml` and release notes.
+   Create its matching tag only when the source is approved.
+2. Run **Prepare verified draft release** with that existing tag. It builds all
+   four native targets, exercises the terminal/server, checks native archives,
+   installs the candidate Homebrew formula on both Macs, and checks the signed APT
+   repository and Windows portable package. Every package must identify the same
+   source commit. The workflow creates a draft and refuses to overwrite a published version.
+3. Review the draft's assets, checksums and notes, then publish it. Publishing
+   triggers Cargo and the WinGet submission workflow. Homebrew and APT check hourly;
+   their **Update** workflows can also be run manually for an immediate refresh.
+
+The tap and APT repositories use their own Actions tokens and pinned shared tooling.
+APT's private signing key belongs only in its `APT_SIGNING_PRIVATE_KEY` Actions
+secret; the public key and fingerprint are committed in the APT repository.
+Keep an independent secure private-key backup for rotation and recovery.
+
+Cargo needs a crates.io trusted publisher configured for owner `pagel-s`, repository
+`termcraft`, workflow `publish.yml`, environment `release`. Its manual workflow runs
+are package dry runs and never publish. WinGet automation needs a GitHub token
+with the permissions required by WinGetCreate in Termcraft's `WINGET_SUBMISSION_TOKEN`
+Actions secret. Without it, the workflow preserves checked manifests for manual submission.
+Store credentials through GitHub settings; never commit them. A failed submission
+or missing credential does not prevent downloading the native release archives.
 
 ## Join through SSH
 

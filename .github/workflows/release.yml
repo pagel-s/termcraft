@@ -1,0 +1,86 @@
+name: Prepare verified draft release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag (must match Cargo.toml)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      revision: ${{ steps.source.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - id: source
+        name: Require a matching existing tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          python - <<'PY'
+          import os, re, subprocess, tomllib
+          tag=os.environ['RELEASE_TAG']
+          version=tomllib.load(open('Cargo.toml','rb'))['package']['version']
+          assert re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?',tag) and tag=='v'+version
+          revision=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          resolved=subprocess.check_output(['git','rev-parse',tag+'^{commit}'],text=True).strip()
+          assert resolved==revision
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output: output.write('revision='+revision+'\n')
+          PY
+
+  qualify:
+    needs: validate
+    uses: ./.github/workflows/native-artifacts.yml
+    with:
+      source_ref: ${{ needs.validate.outputs.revision }}
+
+  draft:
+    needs: [validate, qualify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: package-manager-candidate
+          path: prepared
+      - name: Create or refresh a draft, preserving published releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_REVISION: ${{ needs.validate.outputs.revision }}
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,subprocess
+          tag=os.environ['RELEASE_TAG']
+          manifest=json.loads(pathlib.Path('prepared/termcraft-distribution.json').read_text())
+          assert manifest['tag']==tag and manifest['source_commit']==os.environ['EXPECTED_REVISION']
+          assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==os.environ['EXPECTED_REVISION'], 'Tag moved during qualification'
+          existing=subprocess.run(['gh','release','view',tag,'--json','isDraft'],capture_output=True,text=True)
+          if existing.returncode==0:
+            assert json.loads(existing.stdout)['isDraft'], 'A published version is immutable; choose a new version'
+          else:
+            command=['gh','release','create',tag,'--draft','--verify-tag','--title','Termcraft '+manifest['version'],'--notes-file','RELEASE_NOTES.md']
+            if manifest['prerelease']: command.append('--prerelease')
+            subprocess.run(command,check=True)
+          assets=[str(p) for p in sorted(pathlib.Path('prepared').iterdir()) if p.is_file()]
+          subprocess.run(['gh','release','upload',tag,'--clobber',*assets],check=True)
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as summary:
+            summary.write('Verified draft ready. Publish it when the candidate is approved; this workflow does not publish it.\n')
+          PY
