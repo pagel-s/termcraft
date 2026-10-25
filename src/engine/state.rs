@@ -9,6 +9,8 @@ mod surface_spawn_tests;
 #[path = "trial.rs"]
 mod trial;
 pub use trial::{Trial, TrialStage};
+#[path = "ambient_population.rs"]
+mod ambient_population;
 #[path = "animal_water.rs"]
 mod animal_water;
 #[path = "combat.rs"]
@@ -8531,9 +8533,8 @@ impl GameState {
     }
 
     fn can_refill_overworld_hostiles(&self) -> bool {
-        // Daytime cave occupants should not consume the entire night's surface
-        // allowance. Keep the total hard cap, but measure refill pressure on the
-        // player's level rather than every cave in the resident chunk columns.
+        // Measure local pressure separately from the resident population. A full
+        // save may contain only cave mobs; those must not block every night.
         let mut total = 0;
         let mut local = 0;
         let outdoor_night = !(4000.0..=20000.0).contains(&self.time_of_day)
@@ -8562,7 +8563,8 @@ impl GameState {
             );
         }
         let cap = self.scaled_hostile_cap(OVERWORLD_HOSTILE_CAP);
-        total < cap && local < Self::spawn_refill_threshold(cap, 2, 3)
+        local < Self::spawn_refill_threshold(cap, 2, 3)
+            && (total < cap || (total == cap && self.inactive_overworld_hostile().is_some()))
     }
 
     fn try_spawn_overworld_passive_mob(
@@ -9535,6 +9537,9 @@ impl GameState {
                                     OVERWORLD_HOSTILE_SPAWN_MIN_DIST_SQ,
                                 ) {
                                     continue;
+                                }
+                                if !self.reserve_overworld_hostile_slot() {
+                                    break;
                                 }
                                 if can_try_slime
                                     && self.slimes.len() < slime_cap
@@ -11422,6 +11427,9 @@ impl GameState {
                                 OVERWORLD_HOSTILE_SPAWN_MIN_DIST_SQ,
                             ) {
                                 continue;
+                            }
+                            if !self.reserve_overworld_hostile_slot() {
+                                break;
                             }
                             if can_try_slime
                                 && self.slimes.len() < slime_cap

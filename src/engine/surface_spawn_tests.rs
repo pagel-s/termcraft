@@ -275,3 +275,147 @@ fn thirty_seconds_of_unforced_night_spawning_remain_bounded() {
         )));
     }
 }
+
+#[test]
+fn multiplayer_night_recovers_from_a_full_persisted_cave_population() {
+    let mut s = surface_with_cave();
+    s.zombies = (0..OVERWORLD_HOSTILE_CAP)
+        .map(|i| {
+            let mut m = Zombie::new(-12.0 + i as f64, 59.9);
+            m.age = 600;
+            m
+        })
+        .collect();
+    s.respawn_grace_ticks = 1200;
+    let mut sim = crate::engine::net::ServerSimulation::with_state(s);
+    sim.register_client(1);
+    sim.register_client(2);
+    let mut surface_peak = 0;
+    for _ in 0..600 {
+        sim.step(0, 0);
+        let s = sim.state();
+        let mobs: Vec<_> = s
+            .zombies
+            .iter()
+            .map(|m| (m.x, m.y))
+            .chain(s.creepers.iter().map(|m| (m.x, m.y)))
+            .chain(s.skeletons.iter().map(|m| (m.x, m.y)))
+            .chain(s.spiders.iter().map(|m| (m.x, m.y)))
+            .chain(s.slimes.iter().map(|m| (m.x, m.y)))
+            .collect();
+        assert!(mobs.len() <= OVERWORLD_HOSTILE_CAP);
+        surface_peak = surface_peak.max(
+            mobs.iter()
+                .filter(|(x, y)| (x - s.player.x).abs() <= 40.0 && *y < 40.0)
+                .count(),
+        );
+    }
+    assert!(
+        surface_peak >= 3,
+        "a full cave population left both surface players without night enemies"
+    );
+}
+
+fn full_old_cave_population() -> GameState {
+    let mut s = surface_with_cave();
+    s.world_tick = 1000;
+    s.zombies = (0..s.scaled_hostile_cap(OVERWORLD_HOSTILE_CAP))
+        .map(|i| {
+            let mut m = Zombie::new(-12.0 + i as f64, 59.9);
+            m.age = 600;
+            m
+        })
+        .collect();
+    s
+}
+
+#[test]
+fn ambient_slot_replacement_preserves_every_players_visible_and_nearby_mobs() {
+    let mut s = full_old_cave_population();
+    assert!(s.inactive_overworld_hostile().is_some());
+    // A second player in the cave protects those occupants from surface refill.
+    s.join_peer(1);
+    s.join_peer(2);
+    s.activate_peer(2);
+    s.player.y = 59.9;
+    s.activate_peer(1);
+    let before = s.zombies.clone();
+    assert!(!s.reserve_overworld_hostile_slot());
+    assert_eq!(s.zombies, before);
+
+    // Keep a clear sight line to the mobs, beyond the unconditional 24-block gap.
+    s.activate_peer(2);
+    s.player.x = -50.5;
+    s.activate_peer(1);
+    assert!(!s.reserve_overworld_hostile_slot());
+    assert_eq!(s.zombies, before);
+}
+
+#[test]
+fn ambient_slot_replacement_preserves_new_recently_fought_and_managed_mobs() {
+    for protection in 0..5 {
+        let mut s = full_old_cave_population();
+        for m in &mut s.zombies {
+            match protection {
+                0 => m.age = 199,
+                1 => m.hit_timer = 1,
+                2 => m.last_player_damage_tick = s.world_tick - 199,
+                3 => m.director_event = 1,
+                _ => m.attack_windup = 1,
+            }
+        }
+        let before = s.zombies.clone();
+        assert!(!s.reserve_overworld_hostile_slot());
+        assert_eq!(s.zombies, before);
+        assert!(s.item_entities.is_empty() && s.experience_orbs.is_empty());
+    }
+}
+
+#[test]
+fn invalid_surface_sites_do_not_evict_cave_mobs() {
+    let mut s = full_old_cave_population();
+    for x in -96..=96 {
+        for y in 28..32 {
+            s.world.set_block(x, y, BlockType::Water(8));
+        }
+    }
+    let before = s.zombies.clone();
+    let mut rng = StdRng::seed_from_u64(42);
+    for _ in 0..12 {
+        s.overworld_hostile_spawn_timer = 0;
+        s.update_ambient_respawns(&mut rng, false);
+    }
+    assert_eq!(s.zombies, before);
+    assert!(s.creepers.is_empty() && s.skeletons.is_empty() && s.spiders.is_empty());
+}
+
+#[test]
+fn replacing_an_inactive_slot_respects_difficulty_caps_without_drops() {
+    for difficulty in [Difficulty::Easy, Difficulty::Normal, Difficulty::Hard] {
+        let mut s = full_old_cave_population();
+        s.difficulty = difficulty;
+        let cap = s.scaled_hostile_cap(OVERWORLD_HOSTILE_CAP);
+        s.zombies.resize_with(cap, || {
+            let mut m = Zombie::new(0.5, 59.9);
+            m.age = 600;
+            m
+        });
+        s.overworld_hostile_spawn_timer = 0;
+        s.update_ambient_respawns(&mut StdRng::seed_from_u64(42), false);
+        assert_eq!(
+            s.zombies.len()
+                + s.creepers.len()
+                + s.skeletons.len()
+                + s.spiders.len()
+                + s.slimes.len(),
+            cap
+        );
+        assert!(
+            s.zombies.iter().any(|m| m.y < 40.0)
+                || s.creepers.iter().any(|m| m.y < 40.0)
+                || s.skeletons.iter().any(|m| m.y < 40.0)
+                || s.spiders.iter().any(|m| m.y < 40.0)
+        );
+        assert!(s.item_entities.is_empty() && s.experience_orbs.is_empty());
+    }
+}
