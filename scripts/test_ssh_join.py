@@ -180,6 +180,9 @@ class Client:
         while time.monotonic() < deadline:
             self.pump()
         os.write(self.master, b"q")
+        wait_for(lambda: (self.pump(), b"LEAVE MULTIPLAYER?" in re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"", self.output))[1])
+        assert self.process.poll() is None, "Q bypassed multiplayer confirmation"
+        os.write(self.master, b"\r")
         wait_for(lambda: (self.pump(), self.process.poll() is not None)[1])
         self.drain()
         assert self.process.returncode == 0
