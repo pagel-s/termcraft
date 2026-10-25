@@ -1,14 +1,14 @@
 # Installation
 
-This branch builds the **`0.2.0-beta.1`** prerelease candidate. Publication is
+The current source builds the **`0.2.0-beta.1`** prerelease candidate. Publication is
 pending; crates.io `0.1.0` is the older alpha and does not contain these changes.
-Use `beta/terminal-reborn` or a matching native artifact to try the updated game.
+Build from source or use a matching native artifact to try the updated game.
 
 ## Play a native beta build
 
 Download the archive for your computer from the latest successful
 [Native artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
-on `beta/terminal-reborn`. Open the run, then its `termcraft-0.2.0-beta.1-TARGET` artifact.
+for this version. Open the run, then its `termcraft-0.2.0-beta.1-TARGET` artifact.
 GitHub may require sign-in to download artifacts. Extract the downloaded artifact,
 then extract the contained game archive with all its files.
 
@@ -38,7 +38,7 @@ Rust **1.88 or newer** is required only to build. Install it from
 [rustup.rs](https://rustup.rs/), then:
 
 ```sh
-git clone --branch beta/terminal-reborn https://github.com/pagel-s/termcraft.git
+git clone https://github.com/pagel-s/termcraft.git
 cd termcraft
 cargo build --release --locked
 ./target/release/termcraft trial

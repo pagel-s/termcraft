@@ -3,7 +3,7 @@
   <p><strong>Survive, build and explore a block world in your terminal. Bring friends over SSH.</strong></p>
   <p>
     <a href="https://pagel-s.github.io/termcraft/"><img alt="Docs" src="https://img.shields.io/badge/docs-project%20guide-2f6feb?style=flat-square"></a>
-    <a href="https://github.com/pagel-s/termcraft/tree/beta/terminal-reborn"><img alt="Beta candidate" src="https://img.shields.io/badge/beta-0.2.0--beta.1-7452aa?style=flat-square"></a>
+    <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Beta candidate" src="https://img.shields.io/badge/beta-0.2.0--beta.1-7452aa?style=flat-square"></a>
     <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Latest published release" src="https://img.shields.io/badge/published-0.1.0%20alpha-c97a00?style=flat-square"></a>
     <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-1.88%2B-93450a?style=flat-square&logo=rust"></a>
   </p>
@@ -18,7 +18,7 @@
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
 > **Terminal Reborn — `0.2.0-beta.1` is prepared for prerelease publication.**
-> Use `beta/terminal-reborn` or its native CI archives to try the beta candidate.
+> Build from source or use matching native CI archives to try the beta candidate.
 > The published `0.1.0` release is the older alpha; this beta is not published yet.
 
 ![Termcraft beta gameplay: co-op exploration, crafting, the Nether and the Ender Dragon](https://raw.githubusercontent.com/pagel-s/termcraft/c0999ee2c9989f30d7462e29e1015e1da74dcf2e/docs/assets/termcraft.gif)
@@ -54,7 +54,7 @@ The beta includes:
 
 **Without Rust:** download your platform's archive from a successful
 [Native artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
-on `beta/terminal-reborn`. GitHub may require sign-in. Extract the artifact ZIP,
+for this version. GitHub may require sign-in. Extract the artifact ZIP,
 then the game archive inside it, keeping all files together.
 
 | Platform | Artifact target | Start Lantern Run |
@@ -71,7 +71,7 @@ for terminal requirements and platform details.
 **From source:** install [Rust 1.88 or newer](https://rustup.rs/), then:
 
 ```sh
-git clone --branch beta/terminal-reborn https://github.com/pagel-s/termcraft.git
+git clone https://github.com/pagel-s/termcraft.git
 cd termcraft
 cargo build --release --locked
 ./target/release/termcraft trial
@@ -147,8 +147,8 @@ ore distribution and terrain details require fresh chunks.
 
 This is a beta prerelease. Terminal input/presentation, long human co-op
 sessions and complete survival progression need broader playtesting. Fluid
-volume is source-based, and furnaces currently use each player's session rather
-than independent shared storage. See [save recovery](docs/world-format.md)
+volume is source-based. Placed furnaces share their contents and progress across
+players. See [save recovery](docs/world-format.md)
 and [release notes](RELEASE_NOTES.md).
 
 ## Feedback

@@ -8,7 +8,7 @@ on:
       source_ref:
         description: Source ref for a package dry run (never publishes)
         type: string
-        default: beta/terminal-reborn
+        default: main
 
 permissions:
   contents: read

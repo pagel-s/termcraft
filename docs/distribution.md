@@ -146,8 +146,8 @@ submission or missing credential does not prevent downloading native release arc
 ### Final publication checklist
 
 1. Finish the two account setups above. Keep the approved version and release notes
-   on `beta/terminal-reborn`.
-2. Open a pull request from `beta/terminal-reborn` into `main`, review it, and merge
+   together with the source changes.
+2. Open a pull request into `main`, review it, and merge
    once its required checks pass. This activates the new release workflows.
 3. Tag the approved merged source as `v0.2.0-beta.1` and push that tag. Do not move
    an existing release tag or reuse an already published version.

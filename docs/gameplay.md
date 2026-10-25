@@ -1,6 +1,6 @@
 # Gameplay
 
-> This guide describes the `0.2.0-beta.1` candidate on `beta/terminal-reborn`.
+> This guide describes the `0.2.0-beta.1` candidate.
 > Publication is pending; the published `0.1.0` alpha predates these changes.
 
 ## Core Loop

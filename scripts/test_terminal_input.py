@@ -169,11 +169,20 @@ class TerminalGame:
 
     def finish(self):
         self.send(b"q")
-        self.pump(0.4)
-        if self.process.poll() is None and "LEAVE MULTIPLAYER?" in self.screen.text():
-            self.send(b"\r")
-            self.pump(0.2)
-        self.process.wait(timeout=6)
+        deadline = time.monotonic() + 6
+        confirmed = False
+        # Keep acting as a terminal while the game draws its confirmation and
+        # restores the screen. A blocking wait can fill the PTY and prevent
+        # shutdown; the prompt may also arrive after a fixed initial pump.
+        while self.process.poll() is None and time.monotonic() < deadline:
+            self.pump(0.05)
+            if not confirmed and "LEAVE MULTIPLAYER?" in self.screen.text():
+                self.send(b"\r")
+                confirmed = True
+        assert self.process.poll() is not None, (
+            "game did not exit within six seconds while consuming terminal output; "
+            f"quit confirmation sent: {confirmed}\n{self.screen.text()}"
+        )
         assert self.process.returncode == 0, self.process.returncode
         # Saving can outlast the first pump. After exit, consume the final PTY
         # trailer before checking that the game restored the terminal.

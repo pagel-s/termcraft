@@ -14,7 +14,7 @@ nav:
   - Multiplayer Setup: multiplayer.md
   - Safe Hosting: hosting.md
   - Native Archives and SSH: distribution.md
-  - Release Notes: https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/RELEASE_NOTES.md
+  - Release Notes: https://github.com/pagel-s/termcraft/blob/main/RELEASE_NOTES.md
   - Supported Content: supported-content.md
   - Media Credits: media-credits.md
   - Saving and Recovery: world-format.md

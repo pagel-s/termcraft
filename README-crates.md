@@ -12,14 +12,14 @@ build a home, explore three dimensions and face the Ender Dragon.
 
 Download a matching native archive from a successful
 [Native artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
-on `beta/terminal-reborn`. No Rust installation is needed for an archive.
+for this version. No Rust installation is needed for an archive.
 The included launcher starts **Lantern Run**, a separate combat, traversal and
 bridge-building route. Run the executable directly for classic survival.
 
 To install from source, use [Rust 1.88 or newer](https://rustup.rs/), then:
 
 ```sh
-cargo install --git https://github.com/pagel-s/termcraft --branch beta/terminal-reborn --locked
+cargo install --git https://github.com/pagel-s/termcraft --locked
 termcraft
 ```
 
@@ -32,8 +32,7 @@ your selected view. Use **-** for more world context.
 Until beta publication, `cargo install termcraft --locked` installs the older
 alpha. See the
 [installation guide](https://pagel-s.github.io/termcraft/installation/) and
-[source README](https://github.com/pagel-s/termcraft/tree/beta/terminal-reborn).
-Use the branch documentation while the hosted site is being updated.
+[source README](https://github.com/pagel-s/termcraft).
 
 ## Controls
 
@@ -50,8 +49,8 @@ Run `termcraft host` to host and play in one terminal. Friends on the same
 network join with `termcraft client ADDRESS --player bob`; press **T** for the
 address. PvP starts enabled; the host can turn it off in **O: settings**.
 
-See the repository's [multiplayer setup guide](https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/docs/multiplayer.md)
-for local and remote play, and [safe hosting](https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/docs/hosting.md)
+See the repository's [multiplayer setup guide](https://github.com/pagel-s/termcraft/blob/main/docs/multiplayer.md)
+for local and remote play, and [safe hosting](https://github.com/pagel-s/termcraft/blob/main/docs/hosting.md)
 for the rootless Linux server. Native archives include the optional hosting
 launcher and container recipe; `cargo install` installs the game executable.
 

@@ -81,7 +81,7 @@ Build a home, explore with friends over SSH and take on the dragon together.
 
 ## Try the candidate
 
-Get a successful native artifact for `beta/terminal-reborn` from
+Get a successful native artifact for this version from
 [Native artifacts](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml),
 or build the branch with Rust 1.88+. Archive launchers start Lantern Run; run the
 executable directly for classic survival. Rust is not needed to run an archive.

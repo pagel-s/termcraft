@@ -7,7 +7,7 @@ shelter, mine and smelt better tools, explore the Nether and defeat the Ender
 Dragon. Terminal pixel art, shaped terrain and room cutaways adapt the world to
 a side-on view.
 
-> These pages describe the `0.2.0-beta.1` candidate on `beta/terminal-reborn`.
+> These pages describe the `0.2.0-beta.1` candidate.
 > Source builds and native archives report that version. Publication is pending;
 > the published `0.1.0` alpha predates these changes.
 
@@ -20,7 +20,7 @@ a side-on view.
 - [Multiplayer setup](multiplayer.md): one computer, one network or separate networks, with connection checks.
 - [Safe hosting](hosting.md): a rootless Linux server, restricted network access, backups and restore.
 - [SSH joining](distribution.md#join-through-ssh): play remotely through an existing SSH account.
-- [Release notes](https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/RELEASE_NOTES.md): changes since the published alpha and current limits.
+- [Release notes](https://github.com/pagel-s/termcraft/blob/main/RELEASE_NOTES.md): changes since the published alpha and current limits.
 
 Launch **Lantern Run** for a focused combat, traversal and building route, or
 start classic survival for the open world. The route has its own save.
