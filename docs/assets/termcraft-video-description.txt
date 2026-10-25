@@ -1,12 +1,12 @@
-Termcraft — Terminal Reborn | Beta Gameplay Showcase
+Termcraft | Beta Gameplay Showcase
 
 A survival world inside your terminal. Gather resources, explore villages and caves, smelt iron, craft tools and armour, and take on the Nether and the End with friends.
 
 Actual recorded co-op gameplay, shown in Termcraft's detailed terminal view.
 
-Play / source: https://github.com/pagel-s/termcraft/tree/beta/terminal-reborn
-Installation: https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/docs/installation.md
-Multiplayer: https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/docs/multiplayer.md
+Play / source: https://github.com/pagel-s/termcraft
+Installation: https://github.com/pagel-s/termcraft/blob/main/docs/installation.md
+Multiplayer: https://github.com/pagel-s/termcraft/blob/main/docs/multiplayer.md
 
 00:00 Gather, explore and survive the caves
 00:23 Smelt iron, craft tools and equip armour

@@ -5,10 +5,10 @@ build a home, explore three dimensions and face the Ender Dragon.
 
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
-> **Terminal Reborn — `0.2.0-beta.1`** is a beta prerelease candidate.
+> **Termcraft `0.2.0-beta.1`** is a beta prerelease candidate.
 > Publication is pending; crates.io `0.1.0` is the older alpha.
 
-## Try Terminal Reborn
+## Try Termcraft
 
 Download a matching native archive from a successful
 [Native artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)

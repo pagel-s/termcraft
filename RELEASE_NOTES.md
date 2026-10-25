@@ -1,10 +1,10 @@
-# Terminal Reborn — v0.2.0-beta.1
+# Termcraft — v0.2.0-beta.1
 
 **Beta prerelease prepared 23 October 2026. Publication pending.**
 The source, executable and native archives use `0.2.0-beta.1`. Until publication,
 the latest public release remains `v0.1.0`; use the beta branch or CI artifacts below.
 
-Terminal Reborn brings a new terminal pixel-art presentation, a broader
+Termcraft's beta brings a new terminal pixel-art presentation, a broader
 2D survival experience and shared adventures across the Overworld, Nether and End.
 Build a home, explore with friends over SSH and take on the dragon together.
 

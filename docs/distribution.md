@@ -1,6 +1,6 @@
 # Native archives and SSH
 
-Terminal Reborn **`0.2.0-beta.1`** is prepared for prerelease publication. Its
+Termcraft **`0.2.0-beta.1`** is prepared for prerelease publication. Its
 native CI archives run without Cargo or a Rust installation. See
 [installation](installation.md) for downloads and terminal requirements.
 

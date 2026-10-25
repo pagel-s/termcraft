@@ -1,4 +1,4 @@
-# termcraft — Terminal Reborn
+# termcraft
 
 **Survive, build and explore a block world in your terminal. Bring friends over SSH.**
 

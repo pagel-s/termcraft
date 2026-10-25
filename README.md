@@ -17,7 +17,7 @@
 
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
-> **Terminal Reborn — `0.2.0-beta.1` is prepared for prerelease publication.**
+> **Termcraft `0.2.0-beta.1` is prepared for prerelease publication.**
 > Build from source or use matching native CI archives to try the beta candidate.
 > The published `0.1.0` release is the older alpha; this beta is not published yet.
 
