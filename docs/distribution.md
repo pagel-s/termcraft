@@ -102,13 +102,65 @@ APT's private signing key belongs only in its `APT_SIGNING_PRIVATE_KEY` Actions
 secret; the public key and fingerprint are committed in the APT repository.
 Keep an independent secure private-key backup for rotation and recovery.
 
-Cargo needs a crates.io trusted publisher configured for owner `pagel-s`, repository
-`termcraft`, workflow `publish.yml`, environment `release`. Its manual workflow runs
-are package dry runs and never publish. WinGet automation needs a GitHub token
-with the permissions required by WinGetCreate in Termcraft's `WINGET_SUBMISSION_TOKEN`
-Actions secret. Without it, the workflow preserves checked manifests for manual submission.
-Store credentials through GitHub settings; never commit them. A failed submission
-or missing credential does not prevent downloading the native release archives.
+### One-time Cargo account setup
+
+Sign in to [Termcraft's crates.io settings](https://crates.io/crates/termcraft/settings)
+as `pagel-s`, the existing crate owner. Under Trusted Publishing, add a GitHub
+publisher with these exact values:
+
+| Field | Value |
+| --- | --- |
+| Repository owner | `pagel-s` |
+| Repository name | `termcraft` |
+| Workflow filename | `publish.yml` |
+| Environment | `release` |
+
+Use the filename alone, without `.github/workflows/`. Save the publisher and check
+that it appears in the crate settings. No long-lived Cargo token is needed: the
+workflow exchanges its GitHub identity for short-lived publishing credentials.
+The GitHub `release` environment already permits only `v*` tags. Manual runs of
+**Publish Cargo release** are package dry runs and never publish.
+See [crates.io trusted publishing](https://crates.io/docs/trusted-publishing).
+
+### One-time WinGet account setup
+
+1. Open [GitHub's classic-token creation page](https://github.com/settings/tokens/new).
+   Complete any sign-in or two-factor authentication yourself.
+2. Name the token `Termcraft WinGet publishing`, choose a 90-day expiration, and
+   select only `public_repo`. Leave the broader `repo`, `workflow` and
+   `delete_repo` scopes unchecked. WinGetCreate currently requires a classic token;
+   fine-grained tokens are not supported. The scope allows changes to public
+   repositories that your account can access, so use a dedicated token.
+3. Generate the token and copy it directly into a new
+   [Termcraft Actions repository secret](https://github.com/pagel-s/termcraft/settings/secrets/actions/new)
+   named `WINGET_SUBMISSION_TOKEN`. Do not paste it into chat, commit it, or pass
+   it as a command-line argument.
+4. Save the secret and check that its name appears under Actions repository
+   secrets. Replace the stored token before it expires; the secret does not renew it.
+
+The workflow passes the secret to WinGetCreate through its environment, following
+[Microsoft's token guidance](https://github.com/microsoft/winget-create/blob/main/doc/token.md).
+Without the secret, it preserves checked manifests for manual submission. A failed
+submission or missing credential does not prevent downloading native release archives.
+
+### Final publication checklist
+
+1. Finish the two account setups above. Keep the approved version and release notes
+   on `beta/terminal-reborn`.
+2. Open a pull request from `beta/terminal-reborn` into `main`, review it, and merge
+   once its required checks pass. This activates the new release workflows.
+3. Tag the approved merged source as `v0.2.0-beta.1` and push that tag. Do not move
+   an existing release tag or reuse an already published version.
+4. In Termcraft's Actions tab, run **Prepare verified draft release** on `main`
+   with tag `v0.2.0-beta.1`. Wait for all native and package-manager checks to pass.
+5. Open the resulting draft under Releases. Check the release notes, prerelease
+   marker, four native archives, Debian package, checksums and distribution metadata.
+6. Publish the reviewed draft when the release is approved. Cargo publication and
+   WinGet submission start automatically. Homebrew and APT pick up the release
+   within their hourly checks, or their **Update** workflows can be run immediately.
+7. Check all publishing runs and test the installation commands in the channel
+   table. WinGet installation becomes available only after Microsoft accepts the
+   submission; preparing or submitting manifests does not make the package live.
 
 ## Join through SSH
 
