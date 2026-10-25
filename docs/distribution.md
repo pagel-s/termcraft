@@ -118,8 +118,12 @@ publisher with these exact values:
 Use the filename alone, without `.github/workflows/`. Save the publisher and check
 that it appears in the crate settings. No long-lived Cargo token is needed: the
 workflow exchanges its GitHub identity for short-lived publishing credentials.
-The GitHub `release` environment already permits only `v*` tags. Manual runs of
-**Publish Cargo release** are package dry runs and never publish.
+The GitHub `release` environment permits only `v*` tags. Manual runs of
+**Publish Cargo release** default to package dry runs. A publication retry must
+explicitly enable `publish`, select an already-published release tag as
+`source_ref`, and run the workflow from a `v*` tag. This lets corrected publishing
+tools upload the existing release without moving its game-source tag or weakening
+the environment's tag restriction.
 See [crates.io trusted publishing](https://crates.io/docs/trusted-publishing).
 
 ### One-time WinGet account setup

@@ -67,8 +67,15 @@ jobs:
           Invoke-WebRequest https://github.com/microsoft/winget-create/releases/download/v1.12.13.0/wingetcreate.exe -OutFile wingetcreate.exe
           $hash=(Get-FileHash wingetcreate.exe -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($hash -ne '24042bd37915805615e6cf969ac57c6439124c3fe85823327f5f3fb24bd9ffea') { throw 'Unexpected WinGetCreate checksum' }
-          & .\wingetcreate.exe --help
-          if ($LASTEXITCODE -ne 0) { throw 'WinGetCreate did not run' }
+          $helpOutput = & .\wingetcreate.exe --help 2>&1
+          $helpCode = $LASTEXITCODE
+          $helpOutput | Write-Output
+          Write-Output "WinGetCreate help exit code: $helpCode"
+          # The pinned CLI returns 1 when displaying help. Verify the banner too,
+          # so accepting its help output cannot hide a failed executable.
+          if ($helpCode -notin @(0, 1) -or ($helpOutput -join "`n") -notmatch 'Windows Package Manager Manifest Creator v1\.12\.13\.0') {
+            throw 'WinGetCreate did not display its expected help'
+          }
       - name: Submit when explicitly enabled and credentials are configured
         shell: pwsh
         env:

@@ -6,9 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: Source ref for a package dry run (never publishes)
+        description: Source ref for a dry run, or an already-published release tag
         type: string
         default: main
+      publish:
+        description: Publish that existing release (run this workflow from a v* tag)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,13 +38,20 @@ jobs:
       - run: rustup toolchain install "$RUST_VERSION" --profile minimal
       - id: package
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || (inputs.publish && inputs.source_ref) || '' }}
+          MANUAL_PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           python - <<'PYCODE'
-          import os,subprocess,tomllib
+          import json,os,subprocess,tomllib
           version=tomllib.load(open('Cargo.toml','rb'))['package']['version']
           tag=os.environ.get('RELEASE_TAG')
-          if tag: assert tag=='v'+version
+          if tag:
+            assert tag=='v'+version
+            release=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/releases/tags/'+tag],text=True))
+            assert release['tag_name']==tag and not release['draft'], 'Only an already-published release may be uploaded'
+          if os.environ['MANUAL_PUBLISH']=='true':
+            assert tag and os.environ['GITHUB_REF_TYPE']=='tag' and os.environ['GITHUB_REF_NAME'].startswith('v'), 'Manual publication requires a v* workflow tag'
           revision=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
           with open(os.environ['GITHUB_OUTPUT'],'a') as output:
             output.write('version='+version+'\nrevision='+revision+'\n')
@@ -50,7 +61,7 @@ jobs:
 
   publish:
     needs: verify
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || inputs.publish
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -66,7 +77,7 @@ jobs:
         env:
           PACKAGE_VERSION: ${{ needs.verify.outputs.version }}
         run: |
-          status="$(curl -sS -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/termcraft/$PACKAGE_VERSION")"
+          status="$(curl -sS --user-agent 'Termcraft release automation (https://github.com/pagel-s/termcraft)' -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/termcraft/$PACKAGE_VERSION")"
           case "$status" in
             200) echo "published=true" >> "$GITHUB_OUTPUT" ;;
             404) echo "published=false" >> "$GITHUB_OUTPUT" ;;
