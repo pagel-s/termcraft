@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import struct
 from pathlib import Path, PurePosixPath
 import subprocess
 import sys
@@ -21,6 +22,51 @@ import zipfile
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def windows_imports(data):
+    """Read PE32+ import names, independently of the build flags or runner DLLs.
+
+    Layout: https://learn.microsoft.com/windows/win32/debug/pe-format
+    Native Windows packages currently target x86_64-pc-windows-msvc only.
+    """
+    pe = struct.unpack_from("<I", data, 0x3c)[0]
+    assert data[:2] == b"MZ" and data[pe:pe + 4] == b"PE\0\0"
+    sections = struct.unpack_from("<H", data, pe + 6)[0]
+    optional_size = struct.unpack_from("<H", data, pe + 20)[0]
+    optional = pe + 24
+    assert struct.unpack_from("<H", data, optional)[0] == 0x20b, "expected PE32+"
+    assert optional_size >= 128 and struct.unpack_from("<I", data, optional + 108)[0] >= 2
+    table, size = struct.unpack_from("<II", data, optional + 120)
+    assert table and size >= 20
+    section_table = optional + optional_size
+
+    def offset(rva):
+        for index in range(sections):
+            section = section_table + index * 40
+            address, raw_size, raw_offset = struct.unpack_from("<III", data, section + 12)
+            if address <= rva < address + raw_size:
+                result = raw_offset + rva - address
+                assert result < len(data)
+                return result
+        raise AssertionError(f"import RVA outside file-backed sections: {rva:x}")
+
+    imports = []
+    for entry in range(table, table + size, 20):
+        descriptor = struct.unpack_from("<IIIII", data, offset(entry))
+        if not any(descriptor):
+            return sorted(imports)
+        name = offset(descriptor[3])
+        end = data.index(b"\0", name, min(name + 512, len(data)))
+        imports.append(data[name:end].decode("ascii").lower())
+    raise AssertionError("unterminated PE import directory")
+
+
+def check_windows_runtime(data):
+    imports = windows_imports(data)
+    extra = [name for name in imports if re.match(r"(?:vcruntime|msvcp|msvcr|concrt)\d", name)]
+    assert not extra, f"standalone archive requires a separate Visual C++ runtime: {extra}"
+    return imports
 
 
 def terminal_smoke(command, env, cwd):
@@ -147,6 +193,7 @@ def main():
             "PLAY.command" if "apple-darwin" in manifest["target"] else "play.sh")
         launcher = bundle / launcher_name
         assert binary.is_file(), "archive does not match this native platform"
+        windows_dlls = check_windows_runtime(binary.read_bytes()) if os.name == "nt" else None
         assert launcher.is_file(), "missing native launcher"
         assert (bundle / "LICENSE").is_file() and (bundle / "START_HERE.txt").is_file()
         assert (bundle / "README.md").is_file()
@@ -223,6 +270,7 @@ def main():
                       manifest_files_verified=len(manifest["files"]), empty_path_runtime=True,
                       player_docs_omit_experimental_integration=True,
                       player_bundle_only=True,
+                      windows_dll_imports=windows_dlls,
                       absolute_mcp_config=True, stepped_mcp_save_reopen=True,
                       launcher_arguments_from_spaced_path=True,
                       unix_launcher_default_trial=os.name != "nt",

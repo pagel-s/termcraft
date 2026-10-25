@@ -92,6 +92,8 @@ jobs:
       - name: Strict Clippy
         run: cargo +1.88.0 clippy --all-targets --locked -- -D warnings
       - name: Build native binary
+        env:
+          RUSTFLAGS: ${{ runner.os == 'Windows' && '-C target-feature=+crt-static' || '' }}
         run: cargo +1.88.0 build --release --locked --target ${{ matrix.target }}
       - name: Install SSH and native recovery test dependencies (Linux)
         if: runner.os == 'Linux'
