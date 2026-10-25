@@ -1,18 +1,99 @@
-//! Explicit input/fuel/output storage for the player's existing furnace session.
+//! Explicit input/fuel/output storage shared by everyone using the same block.
 use super::*;
 pub const FURNACE_INPUT_UI_SLOT: usize = 60;
 pub const FURNACE_FUEL_UI_SLOT: usize = 61;
 pub const FURNACE_OUTPUT_UI_SLOT: usize = 62;
 
 impl GameState {
+    pub(super) fn furnace_storage(&self) -> FurnaceStorage {
+        FurnaceStorage {
+            slots: self.furnace_slots.clone(),
+            job: self.furnace_job,
+            progress: self.furnace_progress_ticks,
+            burn: self.furnace_burn_ticks,
+        }
+    }
+    pub(super) fn install_furnace_storage(&mut self, f: FurnaceStorage) {
+        self.furnace_slots = f.slots;
+        self.furnace_job = f.job;
+        self.furnace_progress_ticks = f.progress;
+        self.furnace_burn_ticks = f.burn;
+    }
+    pub(super) fn bound_furnace(&self) -> Option<&FurnaceStorage> {
+        if !self.at_furnace {
+            return None;
+        }
+        let (x, y) = self.open_chest_pos?;
+        self.world.furnace(x, y)
+    }
+    pub(crate) fn refresh_furnace_view(&mut self) {
+        if let Some(f) = self.bound_furnace().cloned() {
+            self.install_furnace_storage(f);
+        }
+    }
+    pub(super) fn commit_furnace_view(&mut self) {
+        if self.at_furnace
+            && let Some((x, y)) = self.open_chest_pos
+        {
+            self.world.set_furnace(x, y, self.furnace_storage());
+        }
+    }
+    pub(super) fn open_placed_furnace(&mut self, x: i32, y: i32) {
+        // Old saves kept a personal queue. Transfer it once to this furnace;
+        // if occupied, preserve the old items in the bag or as ground drops.
+        let legacy = self.furnace_storage();
+        let prior_bound = self.at_furnace && self.open_chest_pos.is_some();
+        self.open_furnace_inventory_view();
+        let mut shared = self.world.furnace(x, y).cloned().unwrap_or_default();
+        if !prior_bound && legacy != FurnaceStorage::default() {
+            if shared == FurnaceStorage::default() {
+                shared = legacy;
+            } else {
+                for stack in legacy.slots.into_iter().flatten() {
+                    self.add_item_to_inventory_or_drop(stack.item_type, stack.count);
+                }
+                if let Some(job) = legacy.job {
+                    self.add_item_to_inventory_or_drop(job.input, job.input_count);
+                }
+            }
+        }
+        self.world.set_furnace(x, y, shared.clone());
+        self.open_chest_pos = Some((x, y));
+        self.install_furnace_storage(shared);
+    }
+    pub(super) fn clear_bound_furnace_view(&mut self) {
+        if self.at_furnace && self.open_chest_pos.is_some() {
+            self.install_furnace_storage(FurnaceStorage::default());
+        }
+    }
+    pub(super) fn tick_placed_furnaces(&mut self) {
+        let personal = self.furnace_storage();
+        for (x, y) in self.world.furnace_positions() {
+            let Some(f) = self.world.furnace(x, y).cloned() else {
+                continue;
+            };
+            self.install_furnace_storage(f);
+            self.update_explicit_furnace();
+            self.world.set_furnace(x, y, self.furnace_storage());
+        }
+        self.install_furnace_storage(personal);
+        self.refresh_furnace_view();
+    }
     pub fn furnace_cook_fraction(&self) -> f32 {
-        self.furnace_progress_ticks as f32 / FURNACE_COOK_TICKS as f32
+        self.bound_furnace()
+            .map_or(self.furnace_progress_ticks, |f| f.progress) as f32
+            / FURNACE_COOK_TICKS as f32
     }
     pub fn furnace_has_heat(&self) -> bool {
-        self.furnace_burn_ticks > 0
+        self.bound_furnace()
+            .map_or(self.furnace_burn_ticks, |f| f.burn)
+            > 0
     }
     pub fn furnace_slot_stack(&self, index: usize) -> Option<&ItemStack> {
-        self.furnace_slots.get(index)?.as_ref()
+        self.bound_furnace()
+            .map_or(&self.furnace_slots, |f| &f.slots)
+            .get(index)?
+            .as_ref()
     }
     pub(super) fn furnace_ui_index(&self, slot: usize) -> Option<usize> {
         (self.at_furnace && self.furnace_explicit && (60..63).contains(&slot)).then(|| slot - 60)
@@ -27,12 +108,13 @@ impl GameState {
     }
     pub(super) fn explicit_furnace_can_load(&self, job: FurnaceJob) -> bool {
         self.inventory.has_item(job.input, job.input_count)
-            && self.furnace_slots[0].as_ref().is_none_or(|s| {
+            && self.furnace_slot_stack(0).is_none_or(|s| {
                 s.item_type == job.input
                     && s.count + job.input_count <= s.item_type.max_stack_size()
             })
     }
     pub(super) fn load_furnace_recipe(&mut self, job: FurnaceJob) -> bool {
+        self.refresh_furnace_view();
         if !self.explicit_furnace_can_load(job) {
             return false;
         }
@@ -56,6 +138,7 @@ impl GameState {
                 durability: None,
             });
         }
+        self.commit_furnace_view();
         true
     }
     fn explicit_furnace_has_room(&self, job: FurnaceJob) -> bool {

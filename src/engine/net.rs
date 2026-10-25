@@ -715,6 +715,7 @@ impl ServerSimulation {
         if !self.state.activate_peer(client_id) {
             return None;
         }
+        self.state.refresh_furnace_view();
         let mut snapshot = ServerSnapshot::from_state(self.tick, &self.state);
         snapshot.client_id = client_id;
         snapshot.host_client_id = self.primary_client_id;
@@ -822,6 +823,10 @@ impl ServerSimulation {
         for id in ids {
             self.state.activate_peer(id);
             self.state.finish_cooperative_damage();
+        }
+        self.state.poll_sleep();
+        for (id, message) in std::mem::take(&mut self.state.player_notices) {
+            self.player_chat.notice(id, message, self.tick);
         }
         if let Some(primary) = self.primary_client_id {
             self.state.activate_peer(primary);
@@ -1434,8 +1439,11 @@ fn build_world_chunk_delta_packet(
         changed_chunks.push(chunk);
     }
 
-    let retention = CHUNK_STREAM_RADIUS + 4;
-    known_chunk_revisions.retain(|chunk_x, _| (*chunk_x - center).abs() <= retention);
+    // A client may evict terrain after leaving the stream window. Forget it
+    // here too, even when its revision is unchanged: returning must rehydrate
+    // the column instead of assuming that the client still owns its old copy.
+    known_chunk_revisions
+        .retain(|chunk_x, _| chunk_x.abs_diff(center) <= CHUNK_STREAM_RADIUS as u32);
 
     if changed_chunks.is_empty() {
         None
@@ -2584,6 +2592,32 @@ mod tests {
         let _ = build_chunk_delta_packet(&state, 9, state.player.x, &mut known);
         assert!(known.contains_key(&center));
         assert!(!known.contains_key(&far_chunk));
+    }
+
+    #[test]
+    fn returning_to_evicted_unchanged_terrain_resends_it_to_each_client() {
+        let mut state = GameState::network_view();
+        for x in -3..=11 {
+            state.world.apply_chunk_column_snapshot(
+                x,
+                &vec![BlockType::Stone; CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT],
+            );
+        }
+        let mut known = HashMap::new();
+        while build_chunk_delta_packet(&state, 1, 0.5, &mut known).is_some() {}
+        assert!(known.contains_key(&0));
+        // Previously the server remembered x=0 at this distance even though
+        // the client had discarded it (resident radius six versus seven).
+        while build_chunk_delta_packet(&state, 2, 7.0 * CHUNK_WIDTH as f64, &mut known).is_some() {}
+        assert!(!known.contains_key(&0));
+        let mut resent = false;
+        while let Some(delta) = build_chunk_delta_packet(&state, 3, 0.5, &mut known) {
+            resent |= delta.chunks.iter().any(|c| c.chunk_x == 0);
+        }
+        assert!(
+            resent,
+            "unchanged terrain must be rehydrated after a round trip"
+        );
     }
 
     #[test]

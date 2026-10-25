@@ -1053,9 +1053,9 @@ impl Renderer {
             .map(|x| {
                 (0..CHUNK_HEIGHT as i32)
                     .find(|&y| {
-                        (0..3).all(|dy| {
+                        let terrain = |x, y| {
                             matches!(
-                                state.world.get_block(x, y + dy),
+                                state.world.get_block(x, y),
                                 BlockType::Grass
                                     | BlockType::Dirt
                                     | BlockType::Sand
@@ -1066,7 +1066,12 @@ impl Renderer {
                                     | BlockType::Farmland(_)
                                     | BlockType::Ice
                             )
-                        })
+                        };
+                        (0..3).all(|dy| terrain(x, y + dy))
+                            // Excavating below a thin dirt/stone shelf must not
+                            // erase the cutaway wall. A connected terrain roof
+                            // counts too; an isolated floating prop does not.
+                            || (-2..=0).any(|dx| (0..3).all(|i| terrain(x + dx + i, y)))
                     })
                     .unwrap_or(CHUNK_HEIGHT as i32)
             })
@@ -3782,7 +3787,7 @@ impl Renderer {
                 1,
                 0,
                 &format!(
-                    "Termcraft | {:?} | {} +/- F4 | {} | {}    {chat_hint}E: inventory  V: drop{settings_hint}  F3: diagnostics",
+                    "Termcraft | {:?} | {} +/- F4 | {} | {}    {chat_hint}E: inventory  V/Shift+V: drop one/stack{settings_hint}",
                     state.current_dimension,
                     self.view_name(),
                     Self::local_weather_label(state),
@@ -4123,7 +4128,32 @@ impl Renderer {
             self.put_str(hud_x, target_y + 3, &feedback, Color::Cyan, Color::Reset);
         }
 
-        if state.is_showing_startup_splash() {
+        if state.quit_confirmation {
+            let w = (self.width as i32 - 2).clamp(8, 70);
+            let x = (self.width as i32 - w) / 2;
+            let y = (self.height as i32 / 2 - 3).max(1);
+            let bg = Color::Rgb {
+                r: 24,
+                g: 28,
+                b: 35,
+            };
+            for row in y..y + 7 {
+                self.put_str(x, row, &" ".repeat(w as usize), Color::White, bg);
+            }
+            let lines = [
+                "LEAVE MULTIPLAYER?",
+                if state.local_player_id == state.host_client_id {
+                    "If you launched with host, this ends everyone's session."
+                } else {
+                    "Your progress stays on the server."
+                },
+                "Enter / Y: leave     Esc / N: keep playing",
+            ];
+            for (i, line) in lines.iter().enumerate() {
+                let text: String = line.chars().take(w.saturating_sub(4) as usize).collect();
+                self.put_str(x + 2, y + 1 + i as i32 * 2, &text, Color::White, bg);
+            }
+        } else if state.is_showing_startup_splash() {
             self.draw_startup_splash_overlay(state);
         } else if state.is_showing_death_screen() {
             self.draw_death_overlay(state);

@@ -145,9 +145,19 @@ fn pty_fixture(
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().collect();
-    if args.get(1).is_some_and(|s| s == "--session-inspect") {
-        let state =
+    if args
+        .get(1)
+        .is_some_and(|s| s == "--session-inspect" || s == "--furnace-inspect")
+    {
+        let mut state =
             GameState::open_in_directory(Path::new(args.get(2).ok_or("save root required")?))?;
+        if args[1] == "--furnace-inspect" {
+            state.player.x = 0.5;
+            state.player.y = 40.0;
+            state.inventory_open = false;
+            state.apply_client_command(ClientCommand::UseAt(2, 39));
+            assert!(state.at_furnace, "expected the fixture's placed furnace");
+        }
         println!(
             "{}",
             serde_json::to_string(&termcraft::engine::state::PlayerSession::capture(&state))?

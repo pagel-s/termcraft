@@ -67,7 +67,8 @@ def check(binary, fixture, root, mode):
         session=next(iter(json.loads((world/'server-state.json').read_text())['players'].values()))
     else:
         session=json.loads(subprocess.check_output([str(fixture),'--session-inspect',str(world)]))
-    bag=session['inventory']['slots']; slots=session['furnace_slots']; job=session['furnace_job']
+    placed=json.loads(subprocess.check_output([str(fixture),'--furnace-inspect',str(world)]))
+    bag=session['inventory']['slots']; slots=placed['furnace_slots']; job=placed['furnace_job']
     ingots=sum(s['count'] for s in bag if s and s['item_type']=='IronIngot')
     assert ingots>=1,(mode,session)
     total=ingots+sum(s['count'] for s in slots if s and s['item_type'] in ['RawIron','IronIngot'])

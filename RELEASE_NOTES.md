@@ -55,6 +55,11 @@ Build a home, explore with friends over SSH and take on the dragon together.
   encounters, while preserving nearby enemies and the shared population limit.
   Shallow hollows keep their sky background; deep narrow shafts retain an
   underground backdrop below their open-air mouths while admitting skylight.
+  Thin excavated terrain roofs retain their cave background. Returning to an
+  evicted chunk resends unchanged terrain instead of leaving a transparent gap.
+  Furnaces share block-owned contents and progress, beds coordinate sleeping
+  across living Overworld players, and leaving multiplayer asks for confirmation.
+  Larger villager groups fill rooms from the far side and spread out outdoors.
 - **Lantern Run.** A separate combat, traversal and bridge/signal route gives new
   players a focused place to start.
 - **Safer saves and native distribution.** Persistent entities and encounter state,

@@ -1547,6 +1547,58 @@ mod tests {
     }
 
     #[test]
+    fn thin_excavated_roofs_retain_the_cave_backdrop_across_views_and_chunk_boundaries() {
+        let mut state = GameState::network_view();
+        for cx in -1..=2 {
+            state.world.apply_chunk_column_snapshot(
+                cx,
+                &vec![
+                    BlockType::Air;
+                    crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+                ],
+            );
+        }
+        for x in -32..96 {
+            for y in 27..64 {
+                state.world.set_block(x, y, BlockType::Stone);
+            }
+        }
+        // A two-cell-thick shelf over a dug room, spanning a chunk boundary.
+        for x in 27..39 {
+            state.world.set_block(x, 20, BlockType::Grass);
+            state.world.set_block(x, 21, BlockType::Dirt);
+        }
+        let profile = Renderer::overworld_backdrop_profile(&state, 24, 42);
+        for x in 27..39 {
+            assert_eq!(profile[(x - 24) as usize], 20, "roof at {x}");
+            assert_eq!(
+                Renderer::overworld_backdrop_profile(&state, x, x)[0],
+                20,
+                "camera-relative roof"
+            );
+        }
+        for scale in [1, 2, 4] {
+            let lighting =
+                super::super::shading::SceneLighting::new(&state, &[15; 32 * 64], (16, 0, 32, 64));
+            let mut r = Renderer::with_size(160, 48);
+            r.world_view = Some((24 * scale * 2, 21 * scale, 0, 0, scale));
+            r.render_pixel_sky(&state, &lighting, 0.0);
+            let sx = (32 * 2 + 1 - 24 * 2) * scale;
+            let sy = 3 * scale;
+            let sky = Renderer::screen_sky_pixel(
+                &state,
+                (sx, sy),
+                (160, 88),
+                (
+                    Renderer::day_mix(state.time_of_day),
+                    Renderer::twilight_mix(state.time_of_day),
+                ),
+            );
+            assert_ne!(Renderer::color_rgb(attachment_pixel(&r, sx, sy)), Some(sky));
+        }
+    }
+
+    #[test]
     fn shallow_surface_hollows_keep_sky_to_the_floor_at_every_scale() {
         let shapes = (1..=4)
             .flat_map(|width| (1..=4).map(move |depth| (width, depth, false)))

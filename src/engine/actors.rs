@@ -238,6 +238,7 @@ impl GameState {
         self.dismiss_startup_splash();
     }
     pub(crate) fn leave_peer(&mut self, id: u16) {
+        self.sleeping_beds.remove(&id);
         if self.active_peer == Some(id) {
             if let Some(next) = self.cooperative_players.keys().copied().next() {
                 self.activate_peer(next);
@@ -314,6 +315,13 @@ impl GameState {
         }
     }
     pub(crate) fn tick_cooperative_player(&mut self, x: i32, y: i32) {
+        if self
+            .active_peer
+            .is_some_and(|id| self.sleeping_beds.contains_key(&id))
+        {
+            self.tick_player_survival(&mut rand::thread_rng());
+            return;
+        }
         self.handle_portal_transition();
         if self.credits_active {
             self.update_completion_credits();

@@ -170,6 +170,9 @@ class TerminalGame:
     def finish(self):
         self.send(b"q")
         self.pump(0.4)
+        if self.process.poll() is None and "LEAVE MULTIPLAYER?" in self.screen.text():
+            self.send(b"\r")
+            self.pump(0.2)
         self.process.wait(timeout=6)
         assert self.process.returncode == 0, self.process.returncode
         # Saving can outlast the first pump. After exit, consume the final PTY

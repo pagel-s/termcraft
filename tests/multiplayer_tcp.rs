@@ -1662,3 +1662,116 @@ fn farm_feeding_birth_and_young_animals_replicate_and_survive_restart() -> io::R
     std::fs::remove_dir_all(root)?;
     Ok(())
 }
+
+#[test]
+#[ignore = "requires local TCP sockets and process signals"]
+fn shared_beds_and_block_owned_furnaces_replicate_and_survive_restart() -> io::Result<()> {
+    use termcraft::{
+        engine::{
+            server_save::{ServerSave, token},
+            state::PlayerSession,
+        },
+        world::{block::BlockType, item::ItemStack},
+    };
+    let root = std::env::temp_dir().join(format!("termcraft-beds-furnace-tcp-{}", token()));
+    let mut recipe = WorldRecipe::example();
+    recipe.relief = 0;
+    recipe.surface_y = 64;
+    recipe.regions.clear();
+    recipe.landmarks.clear();
+    let world = WorldStore::new(root.join("worlds"))
+        .create("tcp", "Shared beds and furnaces", &recipe)
+        .unwrap();
+    let mut state = GameState::open_in_directory(&world)?;
+    state.dismiss_startup_splash();
+    state.apply_client_command(ClientCommand::ToggleRuleMobSpawning);
+    state.apply_client_command(ClientCommand::ToggleRuleWeatherCycle);
+    for x in -16..48 {
+        for y in 0..64 {
+            state.world.set_block(x, y, BlockType::Air);
+        }
+        state.world.set_block(x, 64, BlockType::Grass);
+    }
+    state.world.set_block(-2, 63, BlockType::Bed);
+    state.world.set_block(5, 63, BlockType::Bed);
+    state.world.set_block(2, 63, BlockType::Furnace);
+    state.time_of_day = 22000.0;
+    state.player.x = 0.5;
+    state.player.y = 64.0;
+    state.player.grounded = true;
+    state.inventory.slots.fill(None);
+    state.inventory.slots[0] = Some(ItemStack {
+        item_type: ItemType::RawIron,
+        count: 2,
+        durability: None,
+    });
+    state.inventory.slots[1] = Some(ItemStack {
+        item_type: ItemType::Coal,
+        count: 1,
+        durability: None,
+    });
+    state.try_persist_world_and_progress()?;
+    let a_token = token();
+    let b_token = token();
+    let mut saved = ServerSave::read(&state)?;
+    saved
+        .players
+        .insert(a_token.clone(), PlayerSession::capture(&state));
+    state.inventory.slots.fill(None);
+    state.player.x = 3.5;
+    saved
+        .players
+        .insert(b_token.clone(), PlayerSession::capture(&state));
+    saved.write(&world)?;
+    drop(state);
+    let reserve = TcpListener::bind("127.0.0.1:0")?;
+    let address = reserve.local_addr()?.to_string();
+    drop(reserve);
+    let output = |s: &ServerSnapshot| {
+        serde_json::to_value(&s.session).unwrap()["furnace_slots"][2]["count"]
+            .as_u64()
+            .unwrap_or(0)
+    };
+    let mut server = Server::start(&root, &address);
+    let mut a = Client::connect(&address, Some(a_token.clone()));
+    let mut b = Client::connect(&address, Some(b_token.clone()));
+    a.until(|s| s.remote_players.len() == 1);
+    a.send(ClientCommand::UseAt(-2, 63));
+    a.until(|s| s.chat.status.contains("Sleeping 1/2") && s.time_of_day > 20000.0);
+    b.send(ClientCommand::UseAt(5, 63));
+    for client in [&a, &b] {
+        client.until(|s| s.chat.status.contains("Good morning") && s.time_of_day < 6000.0);
+    }
+    a.send(ClientCommand::UseAt(2, 63));
+    a.until(|s| serde_json::to_value(&s.session).unwrap()["at_furnace"] == true);
+    a.send(ClientCommand::InventoryClick(0, 2));
+    a.send(ClientCommand::InventoryClick(1, 2));
+    b.send(ClientCommand::UseAt(2, 63));
+    for client in [&a, &b] {
+        client.until(|s| output(s) == 1);
+    }
+    drop(a);
+    drop(b);
+    server.stop();
+    let mut server = Server::start(&root, &address);
+    let mut a = Client::connect(&address, Some(a_token));
+    let mut b = Client::connect(&address, Some(b_token));
+    a.send(ClientCommand::UseAt(2, 63));
+    b.send(ClientCommand::UseAt(2, 63));
+    for client in [&a, &b] {
+        client.until(|s| output(s) == 2);
+    }
+    b.send(ClientCommand::InventoryClick(62, 2));
+    b.until(|s| count(s, ItemType::IronIngot) == 2 && output(s) == 0);
+    a.send(ClientCommand::InventoryClick(62, 2));
+    a.until(|s| output(s) == 0 && s.acknowledged_sequence >= a.sequence);
+    assert_eq!(count(&a.until(|_| true), ItemType::IronIngot), 0);
+    drop(a);
+    drop(b);
+    server.stop();
+    let disk = GameState::open_in_directory(&world)?;
+    assert!(disk.world.get_block(2, 63) == BlockType::Furnace);
+    drop(disk);
+    std::fs::remove_dir_all(root)?;
+    Ok(())
+}

@@ -1,5 +1,6 @@
 mod attachments;
 mod fluids;
+pub(crate) mod furnace;
 mod heat;
 mod lighting;
 mod ores;
@@ -671,6 +672,42 @@ impl World {
             .map(|chunk| (chunk.blocks_revision(), chunk.blocks.clone()))
     }
 
+    pub(crate) fn furnace(&self, x: i32, y: i32) -> Option<&furnace::FurnaceStorage> {
+        if self.get_block(x, y) != BlockType::Furnace {
+            return None;
+        }
+        self.chunks
+            .get(&x.div_euclid(CHUNK_WIDTH as i32))?
+            .furnaces
+            .get(&(x.rem_euclid(CHUNK_WIDTH as i32) as usize, y as usize))
+    }
+
+    pub(crate) fn set_furnace(&mut self, x: i32, y: i32, storage: furnace::FurnaceStorage) {
+        if self.get_block(x, y) != BlockType::Furnace {
+            return;
+        }
+        let chunk = self
+            .chunks
+            .get_mut(&x.div_euclid(CHUNK_WIDTH as i32))
+            .unwrap();
+        let key = (x.rem_euclid(CHUNK_WIDTH as i32) as usize, y as usize);
+        if chunk.furnaces.get(&key) != Some(&storage) {
+            chunk.furnaces.insert(key, storage);
+            chunk.dirty = true;
+        }
+    }
+
+    pub(crate) fn furnace_positions(&self) -> Vec<(i32, i32)> {
+        self.chunks
+            .iter()
+            .flat_map(|(&cx, c)| {
+                c.furnaces
+                    .keys()
+                    .map(move |&(x, y)| (cx * CHUNK_WIDTH as i32 + x as i32, y as i32))
+            })
+            .collect()
+    }
+
     pub(crate) fn is_chunk_loaded_at(&self, world_x: i32) -> bool {
         self.chunks
             .contains_key(&world_x.div_euclid(CHUNK_WIDTH as i32))
@@ -714,6 +751,23 @@ impl World {
             return;
         };
         let previous = chunk.get_block(local_x, local_y);
+        if previous == BlockType::Furnace
+            && block != BlockType::Furnace
+            && let Some(storage) = chunk.furnaces.get(&(local_x, local_y))
+        {
+            for stack in storage.slots.iter().flatten() {
+                for _ in 0..stack.count {
+                    self.recent_environment_drops
+                        .push((world_x, world_y, stack.item_type));
+                }
+            }
+            if let Some(job) = storage.job {
+                for _ in 0..job.input_count {
+                    self.recent_environment_drops
+                        .push((world_x, world_y, job.input));
+                }
+            }
+        }
         chunk.set_block(local_x, local_y, block);
         if previous == block {
             return;

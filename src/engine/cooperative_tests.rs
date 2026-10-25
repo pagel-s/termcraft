@@ -110,6 +110,87 @@ pub(super) fn count(sim: &ServerSimulation, id: u16, item: ItemType) -> u32 {
 }
 
 #[test]
+fn beds_wait_for_living_overworld_players_and_wake_on_input_or_disconnect() {
+    let (_fixture, mut sim) = fixture();
+    sim.state.time_of_day = 22000.0;
+    sim.state.world.set_block(1, 79, BlockType::Bed);
+    sim.state.world.set_block(5, 79, BlockType::Bed);
+    command(&mut sim, 1, ClientCommand::UseAt(1, 79));
+    assert!(sim.state.time_of_day > 20000.0, "first sleeper must wait");
+    for _ in 0..20 {
+        sim.step(0, 0);
+    }
+    assert!(
+        sim.snapshot_for_client(1)
+            .unwrap()
+            .chat
+            .status
+            .contains("Sleeping 1/2")
+    );
+    command(&mut sim, 1, ClientCommand::SetMoveLeft(true));
+    command(&mut sim, 1, ClientCommand::ClearDirectionalInput);
+    command(&mut sim, 2, ClientCommand::UseAt(5, 79));
+    assert!(sim.state.time_of_day > 20000.0, "movement cancels sleep");
+    command(&mut sim, 1, ClientCommand::UseAt(1, 79));
+    for id in [1, 2] {
+        let s = sim.snapshot_for_client(id).unwrap();
+        assert!(s.time_of_day >= 4000.0 && s.time_of_day < 4010.0);
+        assert!(s.chat.status.contains("Good morning"));
+    }
+    sim.state.time_of_day = 22000.0;
+    command(&mut sim, 1, ClientCommand::UseAt(1, 79));
+    sim.unregister_client(2);
+    sim.step(0, 0);
+    assert!(
+        sim.state.time_of_day < 4010.0,
+        "offline players do not block sleep"
+    );
+}
+
+#[test]
+fn furnace_contents_are_block_owned_and_two_users_cannot_collect_the_same_output() {
+    let (_fixture, mut sim) = fixture();
+    sim.state.world.set_block(2, 79, BlockType::Furnace);
+    sim.state.world.set_block(3, 79, BlockType::Furnace);
+    sim.state.activate_peer(1);
+    sim.state.inventory.slots.fill(None);
+    sim.state.inventory.add_item(ItemType::RawIron, 3);
+    sim.state.inventory.add_item(ItemType::Coal, 1);
+    sim.state.activate_peer(2);
+    sim.state.inventory.slots.fill(None);
+    sim.state.player.x = 1.5;
+    command(&mut sim, 1, ClientCommand::UseAt(2, 79));
+    command(&mut sim, 1, ClientCommand::InventoryClick(0, 2));
+    command(&mut sim, 1, ClientCommand::InventoryClick(1, 2));
+    command(&mut sim, 2, ClientCommand::UseAt(2, 79));
+    for _ in 0..260 {
+        sim.step(0, 0);
+    }
+    for id in [1, 2] {
+        let view = sim.client_view(id).unwrap();
+        assert_eq!(
+            view.furnace_slot_stack(2)
+                .unwrap_or_else(|| panic!("player {id}: no output"))
+                .count,
+            3
+        );
+    }
+    command(&mut sim, 1, ClientCommand::InventoryClick(62, 2));
+    command(&mut sim, 2, ClientCommand::InventoryClick(62, 2));
+    assert_eq!(count(&sim, 1, ItemType::IronIngot), 3);
+    assert_eq!(count(&sim, 2, ItemType::IronIngot), 0);
+    command(&mut sim, 2, ClientCommand::ToggleInventory);
+    sim.state.activate_peer(2);
+    sim.state.player.x = 4.5;
+    command(&mut sim, 2, ClientCommand::UseAt(3, 79));
+    let other = sim.client_view(2).unwrap();
+    assert!(other.at_furnace);
+    assert!(other.furnace_slot_stack(2).is_none());
+    command(&mut sim, 1, ClientCommand::ToggleInventory);
+    assert!(sim.state.world.furnace(2, 79).unwrap().slots[2].is_none());
+}
+
+#[test]
 fn obstacle_routes_match_native_motion_for_every_tick_in_shared_play() {
     use crate::entities::boat::Boat;
     for course in [

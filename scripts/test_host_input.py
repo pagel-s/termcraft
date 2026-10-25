@@ -63,6 +63,13 @@ def check(binary, root):
         assert 'PvP combat        : OFF' in host.screen.text()
         host.capture('host-settings')
         host.send(b'\x1b'); host.pump(0.1)
+        host.send(b'q'); host.pump(0.15)
+        assert 'LEAVE MULTIPLAYER?' in host.screen.text()
+        assert "ends everyone's session" in host.screen.text()
+        assert host.process.poll() is None and guest.process.poll() is None
+        host.send(b'\x1b'); host.pump(0.15)
+        assert 'LEAVE MULTIPLAYER?' not in host.screen.text()
+        assert host.process.poll() is None
         host.finish()
         for player in (guest, third):
             deadline = time.monotonic() + 6

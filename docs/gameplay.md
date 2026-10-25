@@ -153,9 +153,21 @@ Coal, logs, planks and sticks work as fuel. The progress bar and heat indicator
 show cooking; cooking pauses if fuel runs out or the output is blocked. On wide
 terminals the recipe book remains a shortcut for loading a batch; compact
 terminals keep the three slots visible. Closing/reopening or saving preserves
-queued input, fuel, cooked output and the in-progress job. Furnace storage follows
-the existing per-player furnace session; separate placed furnaces do not yet have
-independent shared storage.
+queued input, fuel, cooked output and the in-progress job. Each placed furnace has
+its own storage. Everyone using that furnace shares its slots and cooking progress,
+including after disconnecting or restarting the server. Breaking it spills its
+remaining contents. Older personal furnace queues transfer when first opening a furnace.
+
+Right-click a bed in the Overworld to set your respawn point. At night, solo play
+skips to dawn. In multiplayer, every living player currently in the Overworld needs
+their own bed; the status shows how many are sleeping. Move or jump to leave the
+bed. Damage, a broken bed or dimension travel interrupts sleep; disconnected players
+and players in other dimensions do not block dawn. Beds explode in the Nether/End.
+Sleeping requires the daylight cycle to be enabled.
+
+In multiplayer, **Q** or **Esc** asks before leaving. **Enter/Y** confirms;
+**Esc/N** keeps playing. Quitting a session started with `termcraft host` also
+stops its server, so everyone disconnects.
 
 Crafting refuses to consume ingredients when its complete output would not fit.
 Full-bag drops settle on the ground instead of orbiting the player; they become

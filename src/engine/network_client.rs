@@ -397,6 +397,17 @@ fn run_tcp_client_loop(
                 key_releases = true;
                 renderer.note_key_release();
             }
+            if state.quit_confirmation {
+                match ev {
+                    Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
+                        KeyCode::Enter | KeyCode::Char('y' | 'Y') => running = false,
+                        KeyCode::Esc | KeyCode::Char('n' | 'N') => state.quit_confirmation = false,
+                        _ => {}
+                    },
+                    _ => {}
+                }
+                continue;
+            }
             if state.chat.open {
                 match &ev {
                     Event::Key(key) if key.kind != KeyEventKind::Release => match key.code {
@@ -514,7 +525,7 @@ fn run_tcp_client_loop(
                             KeyCode::Char('+' | '=') => renderer.zoom_in(),
                             KeyCode::Char('-') => renderer.zoom_out(),
                             KeyCode::F(3) => state.show_debug_overlay = !state.show_debug_overlay,
-                            KeyCode::Char('q') | KeyCode::Esc => {
+                            KeyCode::Char('q' | 'Q') | KeyCode::Esc => {
                                 if state.inventory_open {
                                     queue_client_command(
                                         &mut prediction,
@@ -522,7 +533,23 @@ fn run_tcp_client_loop(
                                         ClientCommand::ToggleInventory,
                                     );
                                 } else {
-                                    running = false;
+                                    state.quit_confirmation = true;
+                                    left_active = false;
+                                    right_active = false;
+                                    jump_held_sent = false;
+                                    sneak_held_sent = false;
+                                    for command in [
+                                        ClientCommand::ClearDirectionalInput,
+                                        ClientCommand::SetPrimaryAction(false),
+                                        ClientCommand::SetJumpHeld(false),
+                                        ClientCommand::SetSneakHeld(false),
+                                    ] {
+                                        queue_client_command(
+                                            &mut prediction,
+                                            &mut pending_outbound,
+                                            command,
+                                        );
+                                    }
                                 }
                             }
                             KeyCode::Char('e') => {

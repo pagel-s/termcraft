@@ -23,6 +23,8 @@ mod environment;
 mod furnace;
 #[path = "player_controls.rs"]
 mod player_controls;
+#[path = "sleep.rs"]
+mod sleep;
 pub use furnace::{FURNACE_FUEL_UI_SLOT, FURNACE_INPUT_UI_SLOT, FURNACE_OUTPUT_UI_SLOT};
 #[path = "husbandry.rs"]
 mod husbandry;
@@ -198,13 +200,7 @@ struct MovementTuning {
     air_drag: f64,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-struct FurnaceJob {
-    input: ItemType,
-    input_count: u32,
-    output: ItemType,
-    output_count: u32,
-}
+use crate::world::furnace::{FurnaceJob, FurnaceStorage};
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LightningBolt {
@@ -980,6 +976,9 @@ pub use actors::{PlayerSession, SharedSettings};
 pub(crate) use dimensions::{MAX_CHECKPOINT_BYTES, RuntimeCheckpoint, SharedProgress};
 
 pub struct GameState {
+    pub quit_confirmation: bool,
+    sleeping_beds: std::collections::BTreeMap<u16, (i32, i32, f32)>,
+    pub(crate) player_notices: Vec<(u16, String)>,
     pub pvp_enabled: bool,
     pub host_client_id: Option<u16>,
     pub connection_address: Option<String>,
@@ -2012,6 +2011,9 @@ impl GameState {
             .map_or(spawn_x as f64 + 0.5, |saved| saved.player_x);
 
         let mut state = Self {
+            quit_confirmation: false,
+            sleeping_beds: Default::default(),
+            player_notices: Vec::new(),
             active_peer: None,
             cooperative_players: Default::default(),
             cooperative_dimensions: Default::default(),
@@ -3038,6 +3040,7 @@ impl GameState {
     }
 
     fn clear_container_interaction_state(&mut self) {
+        self.clear_bound_furnace_view();
         self.flush_crafting_grid_items_to_inventory();
         self.inventory_open = false;
         self.at_crafting_table = false;
@@ -3054,6 +3057,7 @@ impl GameState {
     }
 
     fn clear_live_input_for_container_open(&mut self) {
+        self.clear_bound_furnace_view();
         self.left_click_down = false;
         self.moving_left = false;
         self.moving_right = false;
@@ -3195,6 +3199,20 @@ impl GameState {
     }
 
     fn close_chest_if_out_of_range(&mut self) {
+        if self.at_furnace
+            && self.inventory_open
+            && let Some((x, y)) = self.open_chest_pos
+        {
+            let dx = self.player.x - (x as f64 + 0.5);
+            let dy = self.player.y - 1.0 - (y as f64 + 0.5);
+            if self.world.get_block(x, y) != BlockType::Furnace
+                || dx * dx + dy * dy > 4.8 * 4.8
+                || !self.can_see_block(self.player.x, self.player.y - 1.0, x, y)
+            {
+                self.clear_container_interaction_state();
+            }
+            return;
+        }
         if !self.at_chest || !self.inventory_open {
             return;
         }
@@ -3276,7 +3294,7 @@ impl GameState {
 
     fn ui_slot_item_clone(&self, ui_slot: usize) -> Option<Option<ItemStack>> {
         if let Some(index) = self.furnace_ui_index(ui_slot) {
-            return Some(self.furnace_slots[index].clone());
+            return Some(self.furnace_slot_stack(index).cloned());
         }
         if self.at_chest {
             let (bx, by) = self.open_chest_pos?;
@@ -3296,6 +3314,7 @@ impl GameState {
 
     fn set_ui_slot_item(&mut self, ui_slot: usize, stack: Option<ItemStack>) -> bool {
         if let Some(index) = self.furnace_ui_index(ui_slot) {
+            self.refresh_furnace_view();
             if let Some(item) = &stack {
                 if index == 2 {
                     if !self.furnace_slots[2].as_ref().is_some_and(|old| {
@@ -3308,6 +3327,7 @@ impl GameState {
                 }
             }
             self.furnace_slots[index] = stack;
+            self.commit_furnace_view();
             return true;
         }
         if self.at_chest {
@@ -3921,6 +3941,7 @@ impl GameState {
     }
 
     pub fn apply_client_command(&mut self, command: ClientCommand) {
+        self.wake_for_command(command);
         match command {
             ClientCommand::TogglePvp => self.pvp_enabled = !self.pvp_enabled,
             ClientCommand::ToggleShortcuts => {
@@ -4718,15 +4739,7 @@ impl GameState {
             if target_block == BlockType::Bed {
                 if self.current_dimension == Dimension::Overworld {
                     self.spawn_point = Some((bx, by));
-                    let is_night = !(4000.0..20000.0).contains(&self.time_of_day);
-                    if is_night && self.active_game_rules().do_daylight_cycle {
-                        self.time_of_day = 4000.0;
-                        self.weather = WeatherType::Clear;
-                        self.weather_rain_intensity = self.weather_rain_intensity.min(0.15);
-                        self.weather_thunder_intensity = 0.0;
-                        self.thunder_flash_timer = 0;
-                        self.weather_timer = self.weather_timer.max(1800);
-                    }
+                    self.use_bed(bx, by);
                 } else {
                     self.world.trigger_explosion(bx, by, 2, 3.0, 8);
                     self.apply_world_explosion_impacts();
@@ -4766,7 +4779,7 @@ impl GameState {
                 return;
             }
             if target_block == BlockType::Furnace {
-                self.open_furnace_inventory_view();
+                self.open_placed_furnace(bx, by);
                 return;
             }
             if target_block == BlockType::Water(8)
@@ -5249,6 +5262,9 @@ impl GameState {
     }
 
     fn update_furnace(&mut self) {
+        if self.at_furnace && self.open_chest_pos.is_some() {
+            return;
+        }
         if self.furnace_explicit {
             self.update_explicit_furnace();
             return;
@@ -9002,12 +9018,18 @@ impl GameState {
             }
             seats.push((x, y));
         }
-        seats.sort_by_key(|&(x, _)| ((x - base.0).abs(), x));
-        seats
-            .get(rank * 2)
-            .or_else(|| seats.get(rank))
-            .copied()
-            .or(Some(base))
+        // Fill the far end first. A villager parked beside the door otherwise
+        // blocks the queue trying to reach the more distant assigned seats.
+        seats.sort_by_key(|&(x, _)| (std::cmp::Reverse((x - base.0).abs()), x));
+        let occupants = self
+            .villagers
+            .iter()
+            .filter(|other| {
+                other.health > 0.0 && other.home_x == v.home_x && other.home_y == v.home_y
+            })
+            .count();
+        let stride = if seats.len() >= occupants * 2 { 2 } else { 1 };
+        seats.get(rank * stride).copied().or(Some(base))
     }
 
     fn try_open_wood_door_for_entity(&mut self, x: f64, y: f64, vx: f64) -> bool {
@@ -11401,6 +11423,7 @@ impl GameState {
             }
         }
         self.world_tick = self.world_tick.saturating_add(1);
+        self.tick_placed_furnaces();
         self.update_trial();
         if !self.cooperative() {
             self.update_furnace();
@@ -14215,6 +14238,29 @@ impl GameState {
             }
             let prefer_straight_path =
                 shelter_target.is_some() || outdoor_target.is_some() || seek_shelter;
+            if !seek_shelter && !sheltered_now && self.villagers[i].hit_timer == 0 {
+                let v = &self.villagers[i];
+                let nearest = self
+                    .villagers
+                    .iter()
+                    .enumerate()
+                    .filter(|&(j, other)| {
+                        j != i
+                            && other.health > 0.0
+                            && (other.y - v.y).abs() < 0.6
+                            && (other.x - v.x).abs() < 0.85
+                    })
+                    .min_by(|a, b| (a.1.x - v.x).abs().total_cmp(&(b.1.x - v.x).abs()));
+                if let Some((j, other)) = nearest {
+                    let dx = v.x - other.x;
+                    let away = if dx.abs() < 0.01 {
+                        if i < j { -1.0 } else { 1.0 }
+                    } else {
+                        dx.signum()
+                    };
+                    self.villagers[i].walk(away * (0.85 - dx.abs()).mul_add(0.14, 0.025));
+                }
+            }
             // Keep followers from piling into the leader at a narrow doorway.
             if self.villagers[i].hit_timer == 0 && self.villagers[i].vx.abs() > 0.01 {
                 let v = &self.villagers[i];

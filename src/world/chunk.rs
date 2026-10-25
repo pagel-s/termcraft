@@ -14,7 +14,7 @@ pub const CHUNK_WIDTH: usize = 32;
 pub const CHUNK_HEIGHT: usize = 128;
 const CHUNK_SAVE_MAGIC: &[u8; 4] = b"MCCF";
 const CHUNK_SAVE_CODEC_DEFLATE: u8 = 1;
-const CHUNK_SAVE_VERSION: u8 = 2;
+const CHUNK_SAVE_VERSION: u8 = 3;
 const CHUNK_SAVE_TMP_SUFFIX: &str = ".tmp";
 const MAX_CHUNK_SAVE_BYTES: u64 = 8 * 1024 * 1024;
 
@@ -26,10 +26,25 @@ struct ChestSaveData {
 }
 
 #[derive(Serialize, Deserialize)]
+struct FurnaceSaveData {
+    local_x: usize,
+    local_y: usize,
+    storage: super::furnace::FurnaceStorage,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ChunkSaveDataV2 {
+    version: u8,
+    blocks: Vec<BlockType>,
+    chests: Vec<ChestSaveData>,
+}
+
+#[derive(Serialize, Deserialize)]
 struct ChunkSaveData {
     version: u8,
     blocks: Vec<BlockType>,
     chests: Vec<ChestSaveData>,
+    furnaces: Vec<FurnaceSaveData>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -109,6 +124,7 @@ pub struct Chunk {
     pub x: i32,
     pub blocks: Vec<BlockType>,
     pub chests: HashMap<(usize, usize), Inventory>,
+    pub(crate) furnaces: HashMap<(usize, usize), super::furnace::FurnaceStorage>,
     pub dirty: bool,
     net_revision: u64,
     save_key: String,
@@ -216,10 +232,26 @@ impl Chunk {
         if let Ok(save_data) = bincode::deserialize::<ChunkSaveData>(buffer)
             && save_data.version == CHUNK_SAVE_VERSION
             && save_data.blocks.len() == CHUNK_WIDTH * CHUNK_HEIGHT
+            && save_data.furnaces.len() <= CHUNK_WIDTH * CHUNK_HEIGHT
+            && save_data
+                .furnaces
+                .iter()
+                .all(|f| f.local_x < CHUNK_WIDTH && f.local_y < CHUNK_HEIGHT && f.storage.valid())
         {
             return Some(save_data);
         }
 
+        if let Ok(v2) = bincode::deserialize::<ChunkSaveDataV2>(buffer)
+            && v2.version == 2
+            && v2.blocks.len() == CHUNK_WIDTH * CHUNK_HEIGHT
+        {
+            return Some(ChunkSaveData {
+                version: CHUNK_SAVE_VERSION,
+                blocks: v2.blocks,
+                chests: v2.chests,
+                furnaces: Vec::new(),
+            });
+        }
         let v1 = bincode::deserialize::<ChunkSaveDataV1>(buffer).ok()?;
         if v1.blocks.len() != CHUNK_WIDTH * CHUNK_HEIGHT {
             return None;
@@ -228,6 +260,7 @@ impl Chunk {
             version: CHUNK_SAVE_VERSION,
             blocks: v1.blocks,
             chests: Vec::new(),
+            furnaces: Vec::new(),
         })
     }
 
@@ -236,6 +269,7 @@ impl Chunk {
             x,
             blocks: vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT],
             chests: HashMap::new(),
+            furnaces: HashMap::new(),
             dirty: false,
             net_revision: 1,
             save_key: save_key.to_string(),
@@ -280,6 +314,9 @@ impl Chunk {
                 self.chests
                     .entry((x, y))
                     .or_insert_with(|| Inventory::new(27));
+            }
+            if previous == BlockType::Furnace && block != BlockType::Furnace {
+                self.furnaces.remove(&(x, y));
             }
             self.dirty = true;
             self.bump_net_revision();
@@ -340,6 +377,8 @@ impl Chunk {
         for slot in stale_chest_slots {
             self.chests.remove(&slot);
         }
+        self.furnaces
+            .retain(|&(x, y), _| self.blocks[y * CHUNK_WIDTH + x] == BlockType::Furnace);
         // Remote snapshot hydration should not mark local saves dirty.
         self.dirty = false;
         self.bump_net_revision();
@@ -416,6 +455,20 @@ impl Chunk {
             version: CHUNK_SAVE_VERSION,
             blocks: self.blocks.clone(),
             chests,
+            furnaces: {
+                let mut entries: Vec<_> = self
+                    .furnaces
+                    .iter()
+                    .filter(|&(&(x, y), _)| self.get_block(x, y) == BlockType::Furnace)
+                    .map(|(&(local_x, local_y), storage)| FurnaceSaveData {
+                        local_x,
+                        local_y,
+                        storage: storage.clone(),
+                    })
+                    .collect();
+                entries.sort_by_key(|f| (f.local_y, f.local_x));
+                entries
+            },
         };
 
         let encoded = Self::encode_save_data(&save_data)
@@ -429,6 +482,7 @@ impl Chunk {
         let mut copy = Self::new(self.x, &self.save_key);
         copy.blocks = self.blocks.clone();
         copy.chests = self.chests.clone();
+        copy.furnaces = self.furnaces.clone();
         copy.dirty = true;
         copy.set_save_root(root);
         copy.try_save_to_disk()
@@ -483,7 +537,12 @@ impl Chunk {
                 )
             })?;
         {
-            let ChunkSaveData { blocks, chests, .. } = save_data;
+            let ChunkSaveData {
+                blocks,
+                chests,
+                furnaces,
+                ..
+            } = save_data;
             let mut activity_counts = ChunkActivityCounts::default();
             for &block in &blocks {
                 activity_counts.add_block(block);
@@ -497,12 +556,18 @@ impl Chunk {
                 })
                 .map(|entry| ((entry.local_x, entry.local_y), entry.inventory))
                 .collect();
+            let furnace_map = furnaces
+                .into_iter()
+                .filter(|f| blocks[f.local_y * CHUNK_WIDTH + f.local_x] == BlockType::Furnace)
+                .map(|f| ((f.local_x, f.local_y), f.storage))
+                .collect();
             if loaded_from_legacy {
                 Self::migrate_legacy_chunk_path(&legacy_path, &namespaced_path);
             }
             Ok(Some(Self {
                 x,
                 blocks,
+                furnaces: furnace_map,
                 chests: chest_map,
                 dirty: false,
                 net_revision: 1,
@@ -517,6 +582,47 @@ impl Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn v2_chunks_import_and_furnace_queues_roundtrip_without_losing_chests() {
+        use super::super::item::{ItemStack, ItemType};
+        let mut blocks = vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT];
+        blocks[3 * CHUNK_WIDTH + 2] = BlockType::Furnace;
+        let v2 = bincode::serialize(&ChunkSaveDataV2 {
+            version: 2,
+            blocks: blocks.clone(),
+            chests: Vec::new(),
+        })
+        .unwrap();
+        let mut current = Chunk::decode_save_data(&v2).expect("existing v2 save imports");
+        assert_eq!(current.blocks, blocks);
+        assert!(current.furnaces.is_empty());
+        let storage = super::super::furnace::FurnaceStorage {
+            slots: [
+                Some(ItemStack {
+                    item_type: ItemType::RawIron,
+                    count: 3,
+                    durability: None,
+                }),
+                None,
+                None,
+            ],
+            ..Default::default()
+        };
+        current.furnaces.push(FurnaceSaveData {
+            local_x: 2,
+            local_y: 3,
+            storage: storage.clone(),
+        });
+        let payload = Chunk::encode_save_data(&current).unwrap();
+        let decoded = Chunk::decode_save_data(&payload).unwrap();
+        assert_eq!(decoded.furnaces[0].storage, storage);
+        current.furnaces[0].storage.slots[0].as_mut().unwrap().count = 10000;
+        assert!(
+            Chunk::decode_save_data(&Chunk::encode_save_data(&current).unwrap()).is_none(),
+            "invalid queue must be preserved/rejected, not loaded"
+        );
+    }
 
     fn chunk_path(save_key: &str, x: i32) -> PathBuf {
         Chunk::namespaced_chunk_path(save_key, x)
@@ -795,6 +901,7 @@ mod tests {
             version: CHUNK_SAVE_VERSION,
             blocks: namespaced_blocks,
             chests: Vec::new(),
+            furnaces: Vec::new(),
         })
         .expect("namespaced payload should serialize");
         std::fs::write(&namespaced, namespaced_payload).expect("namespaced payload should write");
