@@ -1,8 +1,8 @@
 # Termcraft — v0.2.0-beta.1
 
-**Beta prerelease prepared 23 October 2026. Publication pending.**
-The source, executable and native archives use `0.2.0-beta.1`. Until publication,
-the latest public release remains `v0.1.0`; use the beta branch or CI artifacts below.
+**Beta prerelease — 25 October 2026.**
+The source, executable and native archives use `0.2.0-beta.1`.
+Version `0.1.0` is the older alpha and predates these changes.
 
 Termcraft's beta brings a new terminal pixel-art presentation, a broader
 2D survival experience and shared adventures across the Overworld, Nether and End.
@@ -67,6 +67,8 @@ Build a home, explore with friends over SSH and take on the dragon together.
   host logs record disconnect causes.
   Clients catch up to current state after terminal pauses, retain the latest
   nearby terrain edits, and keep networking responsive during mouse-event bursts.
+  Passive mouse movement is coalesced before rendering so it cannot bury
+  movement keys, clicks or the quit confirmation behind a pointer-event backlog.
   Ghasts spawn near the player's cavern height, descend from high positions and
   approach a visible player before firing rather than drifting at the ceiling.
 - **Lantern Run.** A separate combat, traversal and bridge/signal route gives new
@@ -79,11 +81,11 @@ Build a home, explore with friends over SSH and take on the dragon together.
   save mount, reduced privileges and resource limits. Guides cover game-only VPN
   access, reconnect profiles, graceful shutdown, backup restore and updates.
 
-## Try the candidate
+## Play the beta
 
-Get a successful native artifact for this version from
-[Native artifacts](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml),
-or build the branch with Rust 1.88+. Archive launchers start Lantern Run; run the
+Get the matching native archive from
+[Releases](https://github.com/pagel-s/termcraft/releases),
+or build from source with Rust 1.88+. Archive launchers start Lantern Run; run the
 executable directly for classic survival. Rust is not needed to run an archive.
 
 Hold A/D or arrows to walk; double-tap and hold to sprint. **Detail is the default**

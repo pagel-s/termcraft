@@ -65,9 +65,9 @@ def check(binary, root):
         # High-rate mouse motion must not monopolize event handling, prediction
         # rebuilding, command writes or incoming authoritative updates.
         os.set_blocking(guest.master, False)
+        packet = (b"\x1b[<35;60;20M\x1b[<35;70;20M") * 16
         def flood_mouse():
             nonlocal mouse_bytes_written, mouse_partial_writes
-            packet = (b"\x1b[<35;60;20M\x1b[<35;70;20M") * 16
             pending = b""
             # PTY writes can be partial. Preserve every suffix and finish the
             # last packet on stop, or a truncated mouse escape can consume the
@@ -95,6 +95,8 @@ def check(binary, root):
         stop.set()
         flood.join(timeout=2)
         assert not flood.is_alive()
+        assert mouse_bytes_written >= 100_000, mouse_bytes_written
+        assert mouse_bytes_written % len(packet) == 0, mouse_bytes_written
         guest.pump(0.3)
         reference.pump(0.05)
         final, _ = values(guest)
@@ -102,13 +104,16 @@ def check(binary, root):
         assert final - after >= 45, (after, final)
         assert current - final <= 10, (current, final)
         os.set_blocking(guest.master, True)
+        quitting = time.monotonic()
         guest.finish()
+        guest_quit_seconds = time.monotonic() - quitting
         reference.finish()
         return dict(status="passed", blocked_terminal_seconds=6,
                     recovery_seconds=catchup_seconds, superseded_snapshots=skipped,
                     guest_tick_advance=after-before, continuous_mouse_seconds=3,
                     mouse_bytes_written=mouse_bytes_written,
                     mouse_partial_writes=mouse_partial_writes,
+                    guest_quit_seconds=guest_quit_seconds,
                     final_tick_gap=current-final,
                     both_clients_saved_and_restored=True,
                     limits="Local TCP and PTYs; does not reproduce radio packet loss or Ghostty itself.")
