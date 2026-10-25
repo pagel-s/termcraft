@@ -159,6 +159,20 @@ impl ClientWriter {
             }
         })
     }
+
+    fn finish(self) -> io::Result<()> {
+        // On a normal quit, finish ordered inputs before closing the socket so
+        // the server checkpoints the player's final inventory/settings changes.
+        drop(self.outgoing);
+        match self.errors.recv_timeout(SOCKET_WRITE_TIMEOUT) {
+            Ok(error) => Err(error),
+            Err(mpsc::RecvTimeoutError::Disconnected) => Ok(()),
+            Err(mpsc::RecvTimeoutError::Timeout) => Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "connection stalled while finishing queued inputs",
+            )),
+        }
+    }
 }
 
 fn flush_outbound_commands(
@@ -406,6 +420,11 @@ fn run_tcp_client_with_identity_and_hint(
         welcome.client_id,
         hint,
     );
+    let result = result.and_then(|()| {
+        client_writer
+            .finish()
+            .map_err(|error| connection_error(error, hint, false))
+    });
     let _ = writer.shutdown(std::net::Shutdown::Both);
     result.and(renderer.restore())
 }
@@ -1413,6 +1432,51 @@ mod tests {
     use crate::world::block::BlockType;
     use crate::world::chunk::{CHUNK_HEIGHT, CHUNK_WIDTH};
     use crate::world::item::ItemType;
+
+    #[test]
+    #[ignore = "requires local TCP sockets"]
+    fn temporary_socket_client_writer_flushes_inputs_before_closing() {
+        use crate::engine::net::read_framed_client_input;
+        use std::io::Read;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let writer = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        writer
+            .set_write_timeout(Some(SOCKET_WRITE_TIMEOUT))
+            .unwrap();
+        let (mut reader, _) = listener.accept().unwrap();
+        reader
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let sender = ClientWriter::spawn(writer);
+        let worker = thread::spawn(move || {
+            for sequence in 0..100 {
+                assert_eq!(
+                    read_framed_client_input(&mut reader).unwrap().sequence,
+                    sequence
+                );
+            }
+            let mut expected = Vec::new();
+            write_framed_client_chat(&mut expected, "last message").unwrap();
+            let mut actual = vec![0; expected.len()];
+            reader.read_exact(&mut actual).unwrap();
+            assert_eq!(actual, expected);
+        });
+        for sequence in 0..100 {
+            sender
+                .send(ClientPacket::Input(ClientInputFrame::new(
+                    1,
+                    sequence,
+                    0,
+                    ClientCommand::ClearDirectionalInput,
+                )))
+                .unwrap();
+        }
+        sender
+            .send(ClientPacket::Chat("last message".into()))
+            .unwrap();
+        sender.finish().unwrap();
+        worker.join().unwrap();
+    }
 
     #[test]
     fn sync_state_from_snapshot_updates_player_and_dimension() {
