@@ -69,7 +69,7 @@ impl Player {
             }
             self.grounded = false;
             if self.hunger > 0.0 {
-                self.hunger -= 0.04;
+                self.hunger -= 0.0005;
             }
         } else if lava_submersion > 0.0 {
             let lift = if lava_submersion >= 0.5 { 0.2 } else { 0.14 };
@@ -77,13 +77,13 @@ impl Player {
             self.vx *= 0.88;
             self.grounded = false;
             if self.hunger > 0.0 {
-                self.hunger -= 0.03;
+                self.hunger -= 0.0005;
             }
         } else if self.grounded {
             self.vy = -0.5; // Exactly enough to clear slightly more than 1 block
             self.grounded = false;
             if self.hunger > 0.0 {
-                self.hunger -= 0.2; // Jumping costs hunger
+                self.hunger -= 0.03;
             }
         }
     }

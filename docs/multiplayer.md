@@ -278,7 +278,7 @@ player's assigned colors appear consistently to other players. There is no
 appearance selector yet. Arrows restored after a server restart keep PvE damage
 and do not retain a previous connection's PvP ownership.
 
-Protocol **21** requires matching builds. Terrain and nearby entities stream
+Protocol **22** requires matching builds. Terrain and nearby entities stream
 around each player. Disconnected and stale actors release held actions. Live
 clients send a periodic heartbeat, so holding the mouse can continue mining
 without pointer movement.

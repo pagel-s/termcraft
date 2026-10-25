@@ -113,6 +113,30 @@ macro_rules! v10_value {
         v9_value!($field, $value)
     };
 }
+macro_rules! v11_type {
+    (cows, $ty:ty) => { Vec<legacy_animals::CowV11> };
+    (sheep, $ty:ty) => { Vec<legacy_animals::SheepV11> };
+    (pigs, $ty:ty) => { Vec<legacy_animals::PigV11> };
+    (chickens, $ty:ty) => { Vec<legacy_animals::ChickenV11> };
+    ($field:ident, $ty:ty) => { $ty };
+}
+macro_rules! v11_value {
+    (cows, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (sheep, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (pigs, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    (chickens, $value:expr) => {
+        $value.into_iter().map(Into::into).collect()
+    };
+    ($field:ident, $value:expr) => {
+        $value
+    };
+}
 macro_rules! dimension_fields {
     ($world:ident; $( $(#[$attr:meta])* $field:ident: $ty:ty = $fresh:expr; )*) => {
         pub(super) struct DimensionRuntime { $world: World, $( $field: $ty, )* }
@@ -123,6 +147,11 @@ macro_rules! dimension_fields {
         pub(crate) struct DimensionCheckpointV9 { $( $(#[$attr])* $field: v9_type!($field, $ty), )* }
         #[derive(Clone, Debug, Deserialize)]
         pub(crate) struct DimensionCheckpointV10 { $( $(#[$attr])* $field: v10_type!($field, $ty), )* }
+        #[derive(Clone, Debug, Serialize, Deserialize)]
+        pub(crate) struct DimensionCheckpointV11 { $( $(#[$attr])* $field: v11_type!($field, $ty), )* }
+        impl From<DimensionCheckpointV11> for DimensionCheckpoint {
+            fn from(old: DimensionCheckpointV11)->Self { Self { $($field:v11_value!($field,old.$field),)* } }
+        }
         impl From<DimensionCheckpointV10> for DimensionCheckpoint {
             fn from(old: DimensionCheckpointV10)->Self { Self { $($field:v10_value!($field,old.$field),)* } }
         }
@@ -426,6 +455,33 @@ impl From<RuntimeCheckpointV10> for RuntimeCheckpoint {
         }
     }
 }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct RuntimeCheckpointV11 {
+    version: u8,
+    selected: Dimension,
+    revision: u64,
+    progression: SharedProgress,
+    dimensions: BTreeMap<Dimension, DimensionCheckpointV11>,
+    encounter: Option<u64>,
+    trial: Option<Trial>,
+}
+impl From<RuntimeCheckpointV11> for RuntimeCheckpoint {
+    fn from(old: RuntimeCheckpointV11) -> Self {
+        Self {
+            version: old.version,
+            selected: old.selected,
+            revision: old.revision,
+            progression: old.progression,
+            dimensions: old
+                .dimensions
+                .into_iter()
+                .map(|(d, c)| (d, c.into()))
+                .collect(),
+            encounter: old.encounter,
+            trial: old.trial,
+        }
+    }
+}
 impl RuntimeCheckpoint {
     pub(crate) fn capture(state: &GameState) -> Self {
         let mut dimensions: BTreeMap<_, _> = state
@@ -504,6 +560,17 @@ fn valid_velocity(x: f64, y: f64) -> bool {
 impl DimensionCheckpoint {
     fn validate(&self) -> Result<usize, String> {
         let mut count = 0;
+        if self
+            .cows
+            .iter()
+            .map(|m| m.husbandry)
+            .chain(self.sheep.iter().map(|m| m.husbandry))
+            .chain(self.pigs.iter().map(|m| m.husbandry))
+            .chain(self.chickens.iter().map(|m| m.husbandry))
+            .any(|h| !h.valid())
+        {
+            return Err("invalid saved animal lifecycle; save preserved".into());
+        }
         macro_rules! moving {
             ($($field:ident),*) => { $(
                 count += self.$field.len();

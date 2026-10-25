@@ -14,6 +14,8 @@ pub struct Chicken {
     pub hit_timer: u8,
     pub last_player_damage_tick: u64,
     #[serde(default)]
+    pub husbandry: super::husbandry::Husbandry,
+    #[serde(default)]
     pub hazards: super::hazards::HazardState,
 }
 
@@ -22,6 +24,7 @@ impl Chicken {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         Self {
+            husbandry: Default::default(),
             hazards: Default::default(),
             x,
             y,

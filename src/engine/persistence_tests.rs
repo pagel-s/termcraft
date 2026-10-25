@@ -80,6 +80,38 @@ fn populate(s: &mut GameState) {
 }
 
 #[test]
+fn native_v11_animals_upgrade_and_breeding_survives_reopening() {
+    let (_f, mut s) = fixture();
+    populate(&mut s);
+    let frozen: dimensions::RuntimeCheckpointV11 =
+        serde_json::from_value(serde_json::to_value(RuntimeCheckpoint::capture(&s)).unwrap())
+            .unwrap();
+    let mut progress = s.to_progression_save_data();
+    progress.version = 11;
+    let old = PlayerCheckpointV11 {
+        version: 11,
+        progress,
+        session: PlayerSession::capture(&s),
+        portal_links: Vec::new(),
+        runtime: frozen,
+    };
+    let path = s.world.save_root().join(PLAYER_PROGRESS_FILE);
+    std::fs::write(&path, bincode::serialize(&old).unwrap()).unwrap();
+    let data = GameState::load_progression_data_from_path(&path).expect("native v11 migration");
+    data.runtime.unwrap().apply(&mut s);
+    assert_eq!(s.cows.len(), 1);
+    assert!(!s.cows[0].husbandry.persistent);
+    s.cows[0].husbandry.feed();
+    s.sheep[0].husbandry = crate::entities::husbandry::Husbandry::baby();
+    let expected = (s.cows[0].husbandry, s.sheep[0].husbandry);
+    s.try_persist_world_and_progress().unwrap();
+    let root = s.world.save_root().to_path_buf();
+    drop(s);
+    let s = GameState::open_in_directory(&root).unwrap();
+    assert_eq!((s.cows[0].husbandry, s.sheep[0].husbandry), expected);
+}
+
+#[test]
 fn persistence_villagers_sleep_without_terrain_and_recover_old_void_falls() {
     let (_fixture, mut s) = fixture();
     let root = s.world.save_root().to_path_buf();
@@ -811,6 +843,13 @@ fn persistence_real_v10_and_server_v4_add_default_hazards_without_losing_old_fie
             for e in dimension[field].as_array_mut().unwrap() {
                 assert_eq!(e["hazards"]["air"], 300);
                 e.as_object_mut().unwrap().remove("hazards");
+                if let Some(lifecycle) = e.as_object_mut().unwrap().remove("husbandry") {
+                    assert_eq!(
+                        lifecycle,
+                        serde_json::to_value(crate::entities::husbandry::Husbandry::default())
+                            .unwrap()
+                    );
+                }
             }
         }
     }

@@ -14,12 +14,15 @@ pub struct Sheep {
     pub last_player_damage_tick: u64,
     pub sheared: bool,
     #[serde(default)]
+    pub husbandry: super::husbandry::Husbandry,
+    #[serde(default)]
     pub hazards: super::hazards::HazardState,
 }
 
 impl Sheep {
     pub fn new(x: f64, y: f64) -> Self {
         Self {
+            husbandry: Default::default(),
             hazards: Default::default(),
             x,
             y,

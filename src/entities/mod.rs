@@ -26,3 +26,5 @@ pub mod zombie;
 pub mod zombie_pigman;
 
 pub mod hazards;
+
+pub mod husbandry;

@@ -24,6 +24,10 @@ mod furnace;
 #[path = "player_controls.rs"]
 mod player_controls;
 pub use furnace::{FURNACE_FUEL_UI_SLOT, FURNACE_INPUT_UI_SLOT, FURNACE_OUTPUT_UI_SLOT};
+#[path = "husbandry.rs"]
+mod husbandry;
+#[path = "legacy_animals.rs"]
+mod legacy_animals;
 #[path = "legacy_entities.rs"]
 mod legacy_entities;
 use super::command::ClientCommand;
@@ -358,7 +362,8 @@ const SETTINGS_MENU_ROW_DIFFICULTY: u8 = 0;
 const SETTINGS_MENU_ROW_GAMERULE_PRESET: u8 = 1;
 #[cfg(test)]
 const SETTINGS_MENU_ROW_CLOSE: u8 = 6;
-const PLAYER_PROGRESS_VERSION: u16 = 11;
+const PLAYER_PROGRESS_VERSION: u16 = 12;
+const PLAYER_PROGRESS_VERSION_V11: u16 = 11;
 const PLAYER_PROGRESS_VERSION_V10: u16 = 10;
 const PLAYER_PROGRESS_VERSION_V9: u16 = 9;
 const PLAYER_PROGRESS_VERSION_V8: u16 = 8;
@@ -406,8 +411,8 @@ pub const CRAFT_OUTPUT_UI_SLOT: usize = CRAFT_GRID_UI_OFFSET + CRAFT_GRID_UI_SLO
 const SPRINT_DOUBLE_TAP_WINDOW_TICKS: u8 = 8;
 const SPRINT_SPEED_MULTIPLIER: f64 = 1.3;
 const SPRINT_MIN_HUNGER: f32 = 6.0;
-const WALK_HUNGER_DRAIN_PER_TICK: f32 = 0.001;
-const SPRINT_HUNGER_DRAIN_PER_TICK: f32 = 0.003;
+const WALK_HUNGER_DRAIN_PER_TICK: f32 = 0.00075;
+const SPRINT_HUNGER_DRAIN_PER_TICK: f32 = 0.0025;
 const PLAYER_HALF_WIDTH: f64 = 0.25;
 const PLAYER_HEIGHT: f64 = 1.8;
 const BOAT_HALF_WIDTH: f64 = 0.48;
@@ -504,6 +509,15 @@ struct PlayerCheckpointV10 {
 
 #[derive(Serialize, Deserialize)]
 struct PlayerCheckpointV11 {
+    version: u16,
+    progress: PlayerProgressSaveData,
+    session: PlayerSession,
+    portal_links: Vec<PortalLink>,
+    runtime: dimensions::RuntimeCheckpointV11,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PlayerCheckpointV12 {
     version: u16,
     progress: PlayerProgressSaveData,
     session: PlayerSession,
@@ -1547,6 +1561,7 @@ impl GameState {
         if matches!(
             version,
             PLAYER_PROGRESS_VERSION
+                | PLAYER_PROGRESS_VERSION_V11
                 | PLAYER_PROGRESS_VERSION_V10
                 | PLAYER_PROGRESS_VERSION_V9
                 | PLAYER_PROGRESS_VERSION_V8
@@ -1565,13 +1580,23 @@ impl GameState {
                 Option<RuntimeCheckpoint>,
             ) = match version {
                 PLAYER_PROGRESS_VERSION => {
-                    let c: PlayerCheckpointV11 = options.deserialize(&encoded).ok()?;
+                    let c: PlayerCheckpointV12 = options.deserialize(&encoded).ok()?;
                     (
                         c.version,
                         c.progress,
                         c.session,
                         c.portal_links,
                         Some(c.runtime),
+                    )
+                }
+                PLAYER_PROGRESS_VERSION_V11 => {
+                    let c: PlayerCheckpointV11 = options.deserialize(&encoded).ok()?;
+                    (
+                        c.version,
+                        c.progress,
+                        c.session,
+                        c.portal_links,
+                        Some(c.runtime.into()),
                     )
                 }
                 PLAYER_PROGRESS_VERSION_V10 => {
@@ -4380,6 +4405,9 @@ impl GameState {
         if self.inventory_open {
             return;
         }
+        if !is_break && self.try_use_farm_animal_at(bx, by) {
+            return;
+        }
         if !is_break {
             if let Some(stack) = self.inventory.slots[self.hotbar_index as usize].as_mut() {
                 let food = matches!(
@@ -4525,11 +4553,13 @@ impl GameState {
                         ItemType::Wheat,
                     ));
                 }
-                self.item_entities.push(ItemEntity::new(
-                    bx as f64 + 0.5,
-                    by as f64 + 0.2,
-                    ItemType::WheatSeeds,
-                ));
+                for _ in 0..crate::world::wheat_seed_drop_count_at(bx, by, stage >= 7) {
+                    self.item_entities.push(ItemEntity::new(
+                        bx as f64 + 0.5,
+                        by as f64 + 0.2,
+                        ItemType::WheatSeeds,
+                    ));
+                }
                 self.world.set_block(bx, by, BlockType::Air);
                 self.player.mining_timer = 0.0;
                 return;
@@ -6190,7 +6220,7 @@ impl GameState {
         let Some(sheep) = self.sheep.get_mut(sheep_idx) else {
             return false;
         };
-        if sheep.sheared {
+        if sheep.sheared || sheep.husbandry.child_ticks > 0 {
             return false;
         }
 
@@ -8942,6 +8972,44 @@ impl GameState {
         !is_day || self.precipitation_at(x.floor() as i32) != PrecipitationType::None
     }
 
+    fn villager_shelter_target(&self, index: usize) -> Option<(i32, f64)> {
+        let v = &self.villagers[index];
+        let base = self.find_villager_shelter_surface_near_home(v.home_x, v.home_y)?;
+        let rank = self.villagers[..index]
+            .iter()
+            .filter(|other| {
+                other.health > 0.0 && other.home_x == v.home_x && other.home_y == v.home_y
+            })
+            .count();
+        let mut seats = Vec::new();
+        for x in v.home_x - 10..=v.home_x + 10 {
+            if (x - v.home_x).abs() < 2 {
+                continue;
+            }
+            let Some(y) = self.find_villager_spawn_surface_near_home(v.home_x, v.home_y, x) else {
+                continue;
+            };
+            if (y - base.1).abs() > 0.25 || self.is_exposed_to_sky(x as f64 + 0.5, y - 1.0) {
+                continue;
+            }
+            // Stay in this room, rather than selecting a roof beyond a wall or
+            // another entrance. A dwelling's occupants get stable separate seats.
+            if (x.min(base.0)..=x.max(base.0)).any(|col| {
+                self.entity_collides_with_world(col as f64 + 0.5, y, 0.3, 1.8)
+                    || self.is_exposed_to_sky(col as f64 + 0.5, y - 1.0)
+            }) {
+                continue;
+            }
+            seats.push((x, y));
+        }
+        seats.sort_by_key(|&(x, _)| ((x - base.0).abs(), x));
+        seats
+            .get(rank * 2)
+            .or_else(|| seats.get(rank))
+            .copied()
+            .or(Some(base))
+    }
+
     fn try_open_wood_door_for_entity(&mut self, x: f64, y: f64, vx: f64) -> bool {
         if vx.abs() < 0.01 {
             return false;
@@ -10511,28 +10579,28 @@ impl GameState {
                 .iter()
                 .map(|(px, py)| (c.x - px).powi(2) + (c.y - py).powi(2))
                 .fold(f64::INFINITY, f64::min);
-            dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ
+            dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ || c.husbandry.persistent
         });
         self.sheep.retain(|s| {
             let dist_sq = positions
                 .iter()
                 .map(|(px, py)| (s.x - px).powi(2) + (s.y - py).powi(2))
                 .fold(f64::INFINITY, f64::min);
-            dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ
+            dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ || s.husbandry.persistent
         });
         self.pigs.retain(|p| {
             let dist_sq = positions
                 .iter()
                 .map(|(px, py)| (p.x - px).powi(2) + (p.y - py).powi(2))
                 .fold(f64::INFINITY, f64::min);
-            dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ
+            dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ || p.husbandry.persistent
         });
         self.chickens.retain(|c| {
             let dist_sq = positions
                 .iter()
                 .map(|(px, py)| (c.x - px).powi(2) + (c.y - py).powi(2))
                 .fold(f64::INFINITY, f64::min);
-            dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ
+            dist_sq <= OVERWORLD_PASSIVE_DESPAWN_DIST_SQ || c.husbandry.persistent
         });
         self.wolves.retain(|w| {
             let dist_sq = positions
@@ -13455,6 +13523,8 @@ impl GameState {
             }
         }
 
+        self.tick_animal_husbandry();
+        let farm_goals = self.farm_animal_goals();
         let mut dead_cows = Vec::new();
         for i in 0..self.cows.len() {
             if self.cows[i].health > 0.0
@@ -13471,6 +13541,13 @@ impl GameState {
                 continue;
             }
             self.cows[i].update_ai();
+            if let Some(&vx) = farm_goals.get(&(husbandry::AnimalKind::Cow, i)) {
+                self.cows[i].vx = vx;
+                self.cows[i].wander_timer = 0;
+                if vx.abs() > 0.01 {
+                    self.cows[i].facing_right = vx > 0.0;
+                }
+            }
             self.cows[i].age += 1;
             let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_animal_movement(
                 self.cows[i].x,
@@ -13478,8 +13555,8 @@ impl GameState {
                 self.cows[i].vx,
                 self.cows[i].vy,
                 self.cows[i].grounded,
-                0.6,
-                1.375,
+                0.6 * self.cows[i].husbandry.scale(),
+                1.375 * self.cows[i].husbandry.scale(),
                 self.cows[i].hit_timer > 0,
             );
             self.cows[i].x = nx;
@@ -13519,6 +13596,13 @@ impl GameState {
                 continue;
             }
             self.sheep[i].update_ai();
+            if let Some(&vx) = farm_goals.get(&(husbandry::AnimalKind::Sheep, i)) {
+                self.sheep[i].vx = vx;
+                self.sheep[i].wander_timer = 0;
+                if vx.abs() > 0.01 {
+                    self.sheep[i].facing_right = vx > 0.0;
+                }
+            }
             self.sheep[i].age += 1;
             let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_animal_movement(
                 self.sheep[i].x,
@@ -13526,8 +13610,8 @@ impl GameState {
                 self.sheep[i].vx,
                 self.sheep[i].vy,
                 self.sheep[i].grounded,
-                0.55,
-                1.125,
+                0.55 * self.sheep[i].husbandry.scale(),
+                1.125 * self.sheep[i].husbandry.scale(),
                 self.sheep[i].hit_timer > 0,
             );
             self.sheep[i].x = nx;
@@ -13562,6 +13646,13 @@ impl GameState {
                 continue;
             }
             self.pigs[i].update_ai();
+            if let Some(&vx) = farm_goals.get(&(husbandry::AnimalKind::Pig, i)) {
+                self.pigs[i].vx = vx;
+                self.pigs[i].wander_timer = 0;
+                if vx.abs() > 0.01 {
+                    self.pigs[i].facing_right = vx > 0.0;
+                }
+            }
             self.pigs[i].age += 1;
             let (nx, ny, nvx, nvy, grounded, hit_wall) = self.calculate_animal_movement(
                 self.pigs[i].x,
@@ -13569,8 +13660,8 @@ impl GameState {
                 self.pigs[i].vx,
                 self.pigs[i].vy,
                 self.pigs[i].grounded,
-                0.5,
-                1.0,
+                0.5 * self.pigs[i].husbandry.scale(),
+                1.0 * self.pigs[i].husbandry.scale(),
                 self.pigs[i].hit_timer > 0,
             );
             self.pigs[i].x = nx;
@@ -13610,8 +13701,15 @@ impl GameState {
                 continue;
             }
             self.chickens[i].update_ai();
+            if let Some(&vx) = farm_goals.get(&(husbandry::AnimalKind::Chicken, i)) {
+                self.chickens[i].vx = vx;
+                self.chickens[i].wander_timer = 0;
+                if vx.abs() > 0.01 {
+                    self.chickens[i].facing_right = vx > 0.0;
+                }
+            }
             self.chickens[i].age += 1;
-            if self.chickens[i].egg_lay_timer == 0 {
+            if self.chickens[i].egg_lay_timer == 0 && self.chickens[i].husbandry.child_ticks == 0 {
                 self.item_entities.push(ItemEntity::new(
                     self.chickens[i].x,
                     self.chickens[i].y - 0.3,
@@ -13628,8 +13726,8 @@ impl GameState {
                 self.chickens[i].vx,
                 self.chickens[i].vy,
                 self.chickens[i].grounded,
-                0.3,
-                1.0,
+                0.3 * self.chickens[i].husbandry.scale(),
+                1.0 * self.chickens[i].husbandry.scale(),
                 self.chickens[i].hit_timer > 0,
             );
             self.chickens[i].x = nx;
@@ -14031,10 +14129,7 @@ impl GameState {
                 is_day_now,
             );
             let shelter_target = if seek_shelter {
-                self.find_villager_shelter_surface_near_home(
-                    self.villagers[i].home_x,
-                    self.villagers[i].home_y,
-                )
+                self.villager_shelter_target(i)
             } else {
                 None
             };
@@ -14052,10 +14147,10 @@ impl GameState {
             if self.villagers[i].hit_timer == 0 {
                 if let Some((target_x, _target_y)) = shelter_target {
                     let dx = target_x as f64 + 0.5 - self.villagers[i].x;
-                    if sheltered_now && dx.abs() <= 0.75 {
+                    if sheltered_now && dx.abs() <= 0.2 {
                         self.villagers[i].vx = 0.0;
                         self.villagers[i].wander_timer = 0;
-                    } else if dx.abs() > 0.45 {
+                    } else if dx.abs() > 0.2 {
                         self.villagers[i].walk(dx.signum() * 0.15);
                         self.villagers[i].wander_timer = 0;
                     } else {
@@ -14120,6 +14215,21 @@ impl GameState {
             }
             let prefer_straight_path =
                 shelter_target.is_some() || outdoor_target.is_some() || seek_shelter;
+            // Keep followers from piling into the leader at a narrow doorway.
+            if self.villagers[i].hit_timer == 0 && self.villagers[i].vx.abs() > 0.01 {
+                let v = &self.villagers[i];
+                let direction = v.vx.signum();
+                if self.villagers.iter().enumerate().any(|(j, other)| {
+                    j != i
+                        && other.health > 0.0
+                        && (other.y - v.y).abs() < 0.6
+                        && (other.x - v.x) * direction > 0.05
+                        && (other.x - v.x) * direction < 0.75
+                        && other.vx * direction >= 0.0
+                }) {
+                    self.villagers[i].vx = 0.0;
+                }
+            }
             self.villagers[i].age += 1;
             let mut movement = self.calculate_mob_movement(
                 self.villagers[i].x,
@@ -14353,6 +14463,9 @@ impl GameState {
 
         for idx in dead_cows.into_iter().rev() {
             let cow = self.cows.swap_remove(idx);
+            if cow.husbandry.child_ticks > 0 {
+                continue;
+            }
             for _ in 0..rng.gen_range(1..=3) {
                 self.item_entities
                     .push(ItemEntity::new(cow.x, cow.y - 0.5, ItemType::RawBeef));
@@ -14367,6 +14480,9 @@ impl GameState {
         }
         for idx in dead_sheep.into_iter().rev() {
             let sheep = self.sheep.swap_remove(idx);
+            if sheep.husbandry.child_ticks > 0 {
+                continue;
+            }
             if !sheep.sheared {
                 self.item_entities
                     .push(ItemEntity::new(sheep.x, sheep.y - 0.5, ItemType::Wool));
@@ -14377,6 +14493,9 @@ impl GameState {
         }
         for idx in dead_pigs.into_iter().rev() {
             let pig = self.pigs.swap_remove(idx);
+            if pig.husbandry.child_ticks > 0 {
+                continue;
+            }
             self.item_entities
                 .push(ItemEntity::new(pig.x, pig.y - 0.5, ItemType::RawPorkchop));
             if rng.gen_bool(0.35) {
@@ -14389,6 +14508,9 @@ impl GameState {
         }
         for idx in dead_chickens.into_iter().rev() {
             let chicken = self.chickens.swap_remove(idx);
+            if chicken.husbandry.child_ticks > 0 {
+                continue;
+            }
             self.item_entities.push(ItemEntity::new(
                 chicken.x,
                 chicken.y - 0.35,
@@ -14598,7 +14720,7 @@ impl GameState {
             }
         } else {
             if self.player.hunger > 0.0 {
-                self.player.hunger -= 0.0025;
+                self.player.hunger -= 0.0005;
             }
             if self.player.hunger <= 0.0 {
                 let floor = self.starvation_health_floor();

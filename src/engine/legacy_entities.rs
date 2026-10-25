@@ -497,6 +497,7 @@ impl From<CowV10> for Cow {
             hit_timer: e.hit_timer,
             last_player_damage_tick: e.last_player_damage_tick,
             hazards: Default::default(),
+            husbandry: Default::default(),
         }
     }
 }
@@ -533,6 +534,7 @@ impl From<SheepV10> for Sheep {
             last_player_damage_tick: e.last_player_damage_tick,
             sheared: e.sheared,
             hazards: Default::default(),
+            husbandry: Default::default(),
         }
     }
 }
@@ -567,6 +569,7 @@ impl From<PigV10> for Pig {
             hit_timer: e.hit_timer,
             last_player_damage_tick: e.last_player_damage_tick,
             hazards: Default::default(),
+            husbandry: Default::default(),
         }
     }
 }
@@ -603,6 +606,7 @@ impl From<ChickenV10> for Chicken {
             hit_timer: e.hit_timer,
             last_player_damage_tick: e.last_player_damage_tick,
             hazards: Default::default(),
+            husbandry: Default::default(),
         }
     }
 }

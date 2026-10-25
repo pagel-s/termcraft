@@ -156,3 +156,114 @@ fn a_remote_players_body_keeps_an_automatic_door_open() {
     }
     assert_eq!(s.world.get_block(2, 19), BlockType::WoodDoor(true));
 }
+
+#[test]
+fn villagers_cross_the_door_and_settle_apart_for_the_whole_night() {
+    let mut s = flat();
+    s.time_of_day = 23000.0;
+    for x in 2..=12 {
+        s.world.set_block(x, 16, BlockType::Planks);
+    }
+    for y in 17..20 {
+        s.world.set_block(2, y, BlockType::Planks);
+        s.world.set_block(12, y, BlockType::Planks);
+    }
+    for y in [18, 19] {
+        s.world.set_block(2, y, BlockType::WoodDoor(false));
+    }
+    s.villagers = vec![
+        Villager::new(0.5, 20.0, 2, 19),
+        Villager::new(-0.5, 20.0, 2, 19),
+    ];
+    let mut changes = 0;
+    let mut was_open = false;
+    for _ in 0..700 {
+        s.update(0, 0);
+        let open = s.world.get_block(2, 19) == BlockType::WoodDoor(true);
+        changes += usize::from(open != was_open);
+        was_open = open;
+    }
+    assert!(
+        s.villagers
+            .iter()
+            .all(|v| v.x > 3.5 && v.x < 11.5 && (v.y - 20.0).abs() < 0.05),
+        "{:?}",
+        s.villagers
+    );
+    assert!(
+        (s.villagers[0].x - s.villagers[1].x).abs() >= 0.7,
+        "villagers stacked in the entrance: {:?}",
+        s.villagers
+    );
+    assert!(
+        changes <= 2,
+        "door toggled {changes} times during one entry"
+    );
+    assert!(!was_open, "door stayed occupied all night");
+}
+
+#[test]
+fn ripe_wheat_supplies_food_and_surplus_seeds_while_early_harvest_does_not_multiply() {
+    for stage in [0, 3, 7] {
+        let mut s = flat();
+        s.player.x = 0.5;
+        s.world.set_block(1, 20, BlockType::Farmland(7));
+        s.world.set_block(1, 19, BlockType::Crops(stage));
+        s.interact_block(1, 19, true);
+        let seeds = s
+            .item_entities
+            .iter()
+            .filter(|i| i.item_type == ItemType::WheatSeeds)
+            .count();
+        let wheat = s
+            .item_entities
+            .iter()
+            .filter(|i| i.item_type == ItemType::Wheat)
+            .count();
+        if stage == 7 {
+            assert!((2..=3).contains(&seeds));
+            assert_eq!(wheat, 1);
+        } else {
+            assert_eq!(seeds, 1);
+            assert_eq!(wheat, 0);
+        }
+        assert_eq!(s.world.get_block(1, 20), BlockType::Farmland(7));
+    }
+}
+
+#[test]
+fn food_costs_for_idle_walking_sprinting_jumping_and_swimming_are_bounded() {
+    for activity in 0..4 {
+        let mut s = flat();
+        for cx in 3..=10 {
+            s.world
+                .apply_chunk_column_snapshot(cx, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
+        }
+        for x in 96..350 {
+            s.world.set_block(x, 20, BlockType::Stone);
+        }
+        if activity > 0 {
+            s.moving_right = true;
+        }
+        if activity == 2 {
+            s.sprinting = true;
+            s.sprint_direction = 1;
+        }
+        for tick in 0..600 {
+            if activity == 3 && tick % 20 == 0 {
+                s.queue_jump();
+            }
+            s.update(0, 0);
+        }
+        let spent = 20.0 - s.player.hunger;
+        assert!(
+            spent > 0.0 && spent < [0.4, 0.85, 1.9, 1.9][activity],
+            "activity {activity}: {spent} hunger in 30s"
+        );
+    }
+    let mut p = Player::new(0.5, 20.0);
+    for _ in 0..600 {
+        p.jump(1.0, 0.0);
+    }
+    assert!(20.0 - p.hunger < 0.4, "held swimming spent a food bar");
+}

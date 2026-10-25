@@ -37,6 +37,11 @@ Build a home, explore with friends over SSH and take on the dragon together.
 - **Richer places to explore.** Connected village buildings and irrigated gardens,
   refined Nether materials and landmarks, balanced ore pockets, and a front-facing
   dragon with slim pillars and a colorful fourteen-second defeat sequence.
+- **Working farm expansion and animal breeding.** Ripe wheat supplies surplus seeds;
+  holding food attracts farm animals, and feeding pairs produces smaller offspring.
+  Breeding cooldowns, growth, farm persistence and multiplayer replication are saved.
+  Reduced idle, jump and swimming hunger costs. Villagers settle in separate indoor
+  positions and leave doorways clear.
 - **Water and survival fixes.** Connected basins fill toward source height,
   supported underwater building works, and drowning, lava/fire and loose-item
   destruction follow the same world rules.
@@ -76,7 +81,7 @@ item / its stack. See [installation](docs/installation.md) and
 ## Before upgrading
 
 Back up the whole save directory, including hidden checkpoint data. Native saves
-use version **11**, server checkpoints **5**, and co-op protocol **21**; all peers
+use version **12**, server checkpoints **5**, and co-op protocol **22**; all peers
 need matching builds. Older executables cannot read the new checkpoints.
 Saved terrain is preserved, so new villages, ore layouts and terrain details
 require fresh chunks. Furnaces currently use each player's session rather than

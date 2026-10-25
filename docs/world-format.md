@@ -22,8 +22,8 @@ hosting that world.
 
 ## Compatibility
 
-The current build writes native checkpoint version **11**, server version **5**
-and chunk version **2**, with network protocol **21**. Native loaders accept the
+The current build writes native checkpoint version **12**, server version **5**
+and chunk version **2**, with network protocol **22**. Native loaders accept the
 older native formats through version 10; server loaders accept versions 1–4.
 All co-op participants need matching builds. Older executables may reject saves
 written by newer builds.

@@ -91,9 +91,16 @@ pub(super) struct ActorSprite {
     variant: bool,
     helmet: Option<Color>,
     animation_time: f64,
+    animal_scale: f64,
+    love: bool,
 }
 
 impl ActorSprite {
+    pub(super) fn with_husbandry(mut self, state: crate::entities::husbandry::Husbandry) -> Self {
+        self.animal_scale = state.scale();
+        self.love = state.ready();
+        self
+    }
     #[allow(clippy::too_many_arguments)]
     pub(super) fn humanoid(
         x: i32,
@@ -134,6 +141,8 @@ impl ActorSprite {
             variant: false,
             helmet: None,
             animation_time: age as f64,
+            animal_scale: 1.0,
+            love: false,
         }
     }
     #[allow(clippy::too_many_arguments)]
@@ -233,9 +242,11 @@ impl ActorSprite {
             return (pixels, pixels);
         }
         let pixels = self.pixels();
+        let width = ((pixels.width() * scale as usize + 2) / 4).max(1);
+        let height = ((pixels.height() * scale as usize + 2) / 4).max(1);
         (
-            ((pixels.width() * scale as usize + 2) / 4).max(1),
-            ((pixels.height() * scale as usize + 2) / 4).max(1),
+            ((width as f64 * self.animal_scale).round() as usize).max(1),
+            ((height as f64 * self.animal_scale).round() as usize).max(1),
         )
     }
 
@@ -1337,6 +1348,30 @@ impl Renderer {
                 self.put_visible_effect(center, y_pixel - 5 + dy, amber, state);
             }
             self.put_visible_effect(center, y_pixel - 1, amber, state);
+        }
+        if actor.love {
+            let center = x + width as i32 / 2;
+            let rise = (actor.animation_time as i32 / 8).rem_euclid(3);
+            for (dx, dy) in [
+                (-1, 0),
+                (1, 0),
+                (-2, 1),
+                (-1, 1),
+                (0, 1),
+                (1, 1),
+                (2, 1),
+                (-1, 2),
+                (0, 2),
+                (1, 2),
+                (0, 3),
+            ] {
+                self.put_visible_effect(
+                    center + dx,
+                    y_pixel - 7 - rise + dy,
+                    Self::rgb((255, 110, 146)),
+                    state,
+                );
+            }
         }
     }
     #[allow(clippy::too_many_arguments)]

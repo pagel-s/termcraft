@@ -47,6 +47,21 @@ struct Body {
     health: f32,
 }
 impl GameState {
+    pub(super) fn try_use_farm_animal_at(&mut self, x: i32, y: i32) -> bool {
+        use super::husbandry::AnimalKind;
+        let Some(target) = self.pick_combat_target(x as f64 + 0.5, y as f64 + 0.5) else {
+            return false;
+        };
+        match target {
+            Target::Cow(i) => self.feed_farm_animal(AnimalKind::Cow, i),
+            Target::Sheep(i) => {
+                self.feed_farm_animal(AnimalKind::Sheep, i) || self.try_shear_sheep(i)
+            }
+            Target::Pig(i) => self.feed_farm_animal(AnimalKind::Pig, i),
+            Target::Chicken(i) => self.feed_farm_animal(AnimalKind::Chicken, i),
+            _ => false,
+        }
+    }
     fn combat_bodies(&self) -> Vec<Body> {
         self.combat_bodies_for(self.active_peer.or(self.local_player_id))
     }
@@ -95,10 +110,29 @@ impl GameState {
         bodies!(endermen, Enderman, 0.375, 2.75);
         bodies!(ghasts, Ghast, 0.875, 1.875);
         bodies!(blazes, Blaze, 0.5, 1.75);
-        bodies!(cows, Cow, 0.75, 1.375);
-        bodies!(sheep, Sheep, 0.7, 1.125);
-        bodies!(pigs, Pig, 0.7, 1.0);
-        bodies!(chickens, Chicken, 0.375, 1.0);
+        macro_rules! farm_bodies {
+            ($field:ident,$kind:ident,$half:expr,$height:expr) => {
+                for (i, e) in self
+                    .$field
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, e)| e.health > 0.0)
+                {
+                    bodies.push(Body {
+                        target: Target::$kind(i),
+                        x: e.x,
+                        y: e.y,
+                        half: $half * e.husbandry.scale(),
+                        height: $height * e.husbandry.scale(),
+                        health: e.health,
+                    });
+                }
+            };
+        }
+        farm_bodies!(cows, Cow, 0.75, 1.375);
+        farm_bodies!(sheep, Sheep, 0.7, 1.125);
+        farm_bodies!(pigs, Pig, 0.7, 1.0);
+        farm_bodies!(chickens, Chicken, 0.375, 1.0);
         bodies!(wolves, Wolf, 0.7, 0.875);
         bodies!(ocelots, Ocelot, 0.75, 0.75);
         bodies!(squids, Squid, 0.625, 1.0);

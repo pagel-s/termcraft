@@ -2753,7 +2753,8 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(cow.hit_timer > 0)
-                    .with_burning(cow.hazards.burning > 0),
+                    .with_burning(cow.hazards.burning > 0)
+                    .with_husbandry(cow.husbandry),
                 );
             }
         }
@@ -2805,6 +2806,7 @@ impl Renderer {
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(sheep.hit_timer > 0)
                     .with_burning(sheep.hazards.burning > 0)
+                    .with_husbandry(sheep.husbandry)
                     .with_variant(sheep.sheared),
                 );
             }
@@ -2852,7 +2854,8 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(pig.hit_timer > 0)
-                    .with_burning(pig.hazards.burning > 0),
+                    .with_burning(pig.hazards.burning > 0)
+                    .with_husbandry(pig.husbandry),
                 );
             }
         }
@@ -2903,7 +2906,8 @@ impl Renderer {
                     )
                     .with_subcell(actor_x, actor_y, scale)
                     .with_hit(chicken.hit_timer > 0)
-                    .with_burning(chicken.hazards.burning > 0),
+                    .with_burning(chicken.hazards.burning > 0)
+                    .with_husbandry(chicken.husbandry),
                 );
             }
         }

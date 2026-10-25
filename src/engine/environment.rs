@@ -65,13 +65,26 @@ impl GameState {
     pub(super) fn tick_creature_environment(&mut self) {
         macro_rules! hazards {
             ($field:ident,$half:expr,$height:expr,$fireproof:expr,$aquatic:expr,$air:expr) => {
+                hazards!(
+                    $field,
+                    $half,
+                    $height,
+                    $fireproof,
+                    $aquatic,
+                    $air,
+                    |_: &_| 1.0
+                );
+            };
+            ($field:ident,$half:expr,$height:expr,$fireproof:expr,$aquatic:expr,$air:expr,$scale:expr) => {
                 for i in 0..self.$field.len() {
                     let e = &self.$field[i];
                     if e.health <= 0.0 || !self.body_terrain_loaded(e.x, e.y, e.vx, $half) {
                         continue;
                     }
-                    let (water, lava) = self.entity_fluid_submersion(e.x, e.y, $half, $height);
-                    let head = self.world.fluid_at_point(e.x, e.y - $height + 0.25);
+                    let scale = $scale(e);
+                    let (water, lava) =
+                        self.entity_fluid_submersion(e.x, e.y, $half * scale, $height * scale);
+                    let head = self.world.fluid_at_point(e.x, e.y - $height * scale + 0.25);
                     let submerged = matches!(head, BlockType::Water(_));
                     let fire = matches!(
                         self.world
@@ -130,10 +143,18 @@ impl GameState {
         hazards!(endermen, 0.3, 2.75, false, false, true);
         hazards!(ghasts, 0.875, 1.875, true, false, true);
         hazards!(blazes, 0.5, 1.75, true, false, true);
-        hazards!(cows, 0.65, 1.375, false, false, true);
-        hazards!(sheep, 0.65, 1.125, false, false, true);
-        hazards!(pigs, 0.65, 1.0, false, false, true);
-        hazards!(chickens, 0.3, 1.0, false, false, true);
+        hazards!(cows, 0.65, 1.375, false, false, true, |e: &Cow| e
+            .husbandry
+            .scale());
+        hazards!(sheep, 0.65, 1.125, false, false, true, |e: &Sheep| e
+            .husbandry
+            .scale());
+        hazards!(pigs, 0.65, 1.0, false, false, true, |e: &Pig| e
+            .husbandry
+            .scale());
+        hazards!(chickens, 0.3, 1.0, false, false, true, |e: &Chicken| e
+            .husbandry
+            .scale());
         hazards!(squids, 0.6, 1.0, false, true, true);
         hazards!(wolves, 0.6, 0.875, false, false, true);
         hazards!(ocelots, 0.6, 0.75, false, false, true);

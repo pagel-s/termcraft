@@ -95,6 +95,32 @@ This applies to newly generated chunks. Saved terrain and already mined areas
 keep their contents. For an immediate comparison, use a new world or explore
 beyond previously generated terrain.
 
+## Farming and breeding
+
+Use a hoe on grass or dirt, then right-click the tilled soil with wheat seeds.
+Water within four blocks horizontally and one block vertically keeps the soil
+hydrated. Wheat needs light: outdoors it grows during daylight; torches or other
+lights let indoor farms grow at night. Stay near the field so it is simulated.
+Growth has seven stages and usually takes a few minutes on watered, lit soil.
+Bone meal finishes a crop immediately.
+
+Harvest ripe wheat to get one wheat and **two or three seeds**: keep one seed to
+replant and use the surplus to expand. An early harvest returns only one seed.
+
+Hold **wheat** to attract cows, sheep, or pigs; hold **wheat seeds** for chickens.
+Animals follow visible nearby players, including guests in multiplayer. Right-click
+an adult with its food to feed it. Feed two of the same species, keep them close,
+and their hearts show a thirty-second breeding window. They need about three
+seconds together to produce one young animal. Walls and water prevent breeding.
+Parents then have a five-minute cooldown; young animals mature after ten minutes
+of nearby simulated play. Babies are smaller, follow adults, cannot breed or be
+sheared, and do not give meat, wool, or XP when killed. Young chickens do not lay eggs.
+
+Fed animals and their offspring persist when you leave and when the server restarts.
+Unloaded farms pause their movement and lifecycle timers. Breeding is limited to
+128 farm animals per dimension. Sprinting and jumping use more food than walking;
+idle drain and the cost of holding swim-up are much lower than earlier beta builds.
+
 ## Inventory And Crafting
 
 Open the bag with **E**. Main storage is above the numbered hotbar. Hover an
@@ -197,7 +223,7 @@ momentum and accumulated fall distance reset during travel.
 Dimension travel works in single-player and co-op. In co-op only the interacting
 player travels; friends can follow or remain in another dimension. Terrain,
 entities, inventories and saved portal links remain separate, with one shared
-dragon encounter for players in the End. Use matching protocol-21 clients/server.
+dragon encounter for players in the End. Use matching protocol-22 clients/server.
 
 Incoming ghast and blaze fireballs can be hit with a normal left-click attack
 while within 2.6 blocks. Aim at the projectile: a successful return reverses its

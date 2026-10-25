@@ -1557,3 +1557,108 @@ fn entities_and_collected_loot_survive_real_server_restarts() -> io::Result<()> 
     std::fs::remove_dir_all(root)?;
     Ok(())
 }
+
+#[test]
+#[ignore = "requires local TCP sockets and process signals"]
+fn farm_feeding_birth_and_young_animals_replicate_and_survive_restart() -> io::Result<()> {
+    use termcraft::{
+        engine::{
+            server_save::{ServerSave, token},
+            state::PlayerSession,
+        },
+        entities::cow::Cow,
+        world::{block::BlockType, item::ItemStack},
+    };
+    let root = std::env::temp_dir().join(format!("termcraft-farm-tcp-{}", token()));
+    let mut recipe = WorldRecipe::example();
+    recipe.relief = 0;
+    recipe.surface_y = 64;
+    recipe.regions.clear();
+    recipe.landmarks.clear();
+    let world = WorldStore::new(root.join("worlds"))
+        .create("tcp", "Farm lifecycle", &recipe)
+        .unwrap();
+    let mut state = GameState::open_in_directory(&world)?;
+    state.dismiss_startup_splash();
+    for command in [
+        ClientCommand::ToggleRuleMobSpawning,
+        ClientCommand::ToggleRuleDaylightCycle,
+        ClientCommand::ToggleRuleWeatherCycle,
+    ] {
+        state.apply_client_command(command);
+    }
+    for x in -16..48 {
+        for y in 0..64 {
+            state.world.set_block(x, y, BlockType::Air);
+        }
+        state.world.set_block(x, 64, BlockType::Grass);
+    }
+    state.player.x = 0.5;
+    state.player.y = 64.0;
+    state.inventory.slots.fill(None);
+    state.inventory.slots[0] = Some(ItemStack {
+        item_type: ItemType::Wheat,
+        count: 8,
+        durability: None,
+    });
+    state.cows = vec![Cow::new(1.5, 64.0), Cow::new(2.5, 64.0)];
+    state.try_persist_world_and_progress()?;
+    let a_token = token();
+    let b_token = token();
+    let mut saved = ServerSave::read(&state)?;
+    saved
+        .players
+        .insert(a_token.clone(), PlayerSession::capture(&state));
+    saved
+        .players
+        .insert(b_token.clone(), PlayerSession::capture(&state));
+    saved.write(&world)?;
+    drop(state);
+    let reservation = TcpListener::bind("127.0.0.1:0")?;
+    let address = reservation.local_addr()?.to_string();
+    drop(reservation);
+    let cows = |s: &ServerSnapshot| {
+        serde_json::to_value(&s.entities).unwrap()["cows"]
+            .as_array()
+            .unwrap()
+            .clone()
+    };
+    let mut server = Server::start(&root, &address);
+    let mut a = Client::connect(&address, Some(a_token.clone()));
+    let b = Client::connect(&address, Some(b_token.clone()));
+    a.until(|s| cows(s).len() == 2);
+    a.send(ClientCommand::UseAt(1, 63));
+    a.until(|s| count(s, ItemType::Wheat) == 7);
+    a.send(ClientCommand::UseAt(2, 63));
+    a.until(|s| count(s, ItemType::Wheat) == 6);
+    for client in [&a, &b] {
+        client.until(|s| {
+            let c = cows(s);
+            c.len() == 3
+                && c.iter()
+                    .filter(|m| m["husbandry"]["child_ticks"].as_u64().unwrap() > 0)
+                    .count()
+                    == 1
+        });
+    }
+    drop(a);
+    drop(b);
+    server.stop();
+    let mut server = Server::start(&root, &address);
+    let a = Client::connect(&address, Some(a_token));
+    let b = Client::connect(&address, Some(b_token));
+    for client in [&a, &b] {
+        client.until(|s| {
+            let c = cows(s);
+            c.len() == 3
+                && c.iter().all(|m| m["husbandry"]["persistent"] == true)
+                && c.iter()
+                    .any(|m| m["husbandry"]["child_ticks"].as_u64().unwrap() > 0)
+        });
+    }
+    drop(a);
+    drop(b);
+    server.stop();
+    std::fs::remove_dir_all(root)?;
+    Ok(())
+}

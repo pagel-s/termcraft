@@ -27,6 +27,15 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+/// Ripe harvests always leave enough seed to replant and expand the bed.
+pub fn wheat_seed_drop_count_at(x: i32, y: i32, mature: bool) -> u32 {
+    if mature {
+        2 + ((x.wrapping_mul(31) ^ y.wrapping_mul(17)) & 1) as u32
+    } else {
+        1
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub enum Dimension {
     Overworld,
@@ -764,8 +773,10 @@ impl World {
                 }
             }
             BlockType::Crops(stage) => {
-                self.recent_environment_drops
-                    .push((world_x, world_y, ItemType::WheatSeeds));
+                for _ in 0..wheat_seed_drop_count_at(world_x, world_y, stage >= 7) {
+                    self.recent_environment_drops
+                        .push((world_x, world_y, ItemType::WheatSeeds));
+                }
                 if stage >= 7 {
                     self.recent_environment_drops
                         .push((world_x, world_y, ItemType::Wheat));
@@ -1240,10 +1251,12 @@ impl World {
     }
 
     fn update_farming(&mut self, center_chunk: i32) {
+        self.update_farming_with_rng(center_chunk, &mut rand::thread_rng());
+    }
+    fn update_farming_with_rng(&mut self, center_chunk: i32, rng: &mut impl Rng) {
         let mut changes = Vec::new();
         let mut saplings_to_grow = Vec::new();
         let mut support_drops = Vec::new();
-        let mut rng = rand::thread_rng();
         let growth_phase = (self.tick_counter / 20) as i32;
         for (&cx, chunk) in &self.chunks {
             if !self.simulation_chunk_active(cx, center_chunk) || !chunk.has_farming_blocks() {
@@ -1288,7 +1301,9 @@ impl World {
                                 }
                             } else {
                                 changes.push((wx, wy, BlockType::Air));
-                                support_drops.push((wx, wy, ItemType::WheatSeeds));
+                                for _ in 0..wheat_seed_drop_count_at(wx, wy, stage >= 7) {
+                                    support_drops.push((wx, wy, ItemType::WheatSeeds));
+                                }
                                 if stage >= 7 {
                                     support_drops.push((wx, wy, ItemType::Wheat));
                                 }
@@ -11032,5 +11047,41 @@ mod tests {
 
         assert!(!world.apply_chunk_column_snapshot(0, &[BlockType::Air; 8]));
         assert_eq!(world.get_block(0, 0), before);
+    }
+}
+
+#[cfg(test)]
+mod farming_cycle_tests {
+    use super::*;
+    use rand::{SeedableRng, rngs::StdRng};
+    #[test]
+    fn watered_wheat_grows_to_a_replantable_harvest_in_light_but_not_darkness() {
+        let mut w = World::network_replica(Dimension::Overworld);
+        w.apply_chunk_column_snapshot(0, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
+        for x in 0..16 {
+            w.set_block(x, 30, BlockType::Farmland(7));
+            w.set_block(x, 29, BlockType::Crops(0));
+        }
+        w.set_block(4, 31, BlockType::Water(8));
+        w.set_block(12, 31, BlockType::Water(8));
+        let mut rng = StdRng::seed_from_u64(1337);
+        w.farming_skylight = 0;
+        for second in 0..180 {
+            w.tick_counter = second * 20;
+            w.update_farming_with_rng(0, &mut rng);
+        }
+        assert!((0..16).all(|x| w.get_block(x, 29) == BlockType::Crops(0)));
+        // The same crops grow under daylight; torches can provide this indoors.
+        w.farming_skylight = 15;
+        for second in 180..780 {
+            w.tick_counter = second * 20;
+            w.update_farming_with_rng(0, &mut rng);
+        }
+        assert!((0..16).all(|x| w.get_block(x, 29) == BlockType::Crops(7)));
+        assert!((0..16).all(|x| w.get_block(x, 30) == BlockType::Farmland(7)));
+        for x in 0..16 {
+            assert!(wheat_seed_drop_count_at(x, 29, true) >= 2);
+            assert_eq!(wheat_seed_drop_count_at(x, 29, false), 1);
+        }
     }
 }
