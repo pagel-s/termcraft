@@ -1599,6 +1599,53 @@ mod tests {
     }
 
     #[test]
+    fn two_camera_positions_agree_on_light_from_just_outside_the_viewport() {
+        let mut s = GameState::network_view();
+        for cx in -2..=2 {
+            s.world.apply_chunk_column_snapshot(
+                cx,
+                &vec![
+                    BlockType::Stone;
+                    crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+                ],
+            );
+        }
+        for x in -60..60 {
+            for y in 42..50 {
+                s.world.set_block(x, y, BlockType::Air);
+            }
+        }
+        for (zoom, source_x, sample_x) in [(0, -30, -18.5), (1, -50, -38.5), (2, -20, -8.5)] {
+            s.world.set_block(source_x, 46, BlockType::Glowstone);
+            s.player.y = 50.0;
+            let mut samples = Vec::new();
+            for player_x in [0.5, -8.5] {
+                s.player.x = player_x;
+                let mut r = Renderer::with_size(160, 48);
+                for _ in 0..zoom {
+                    r.toggle_zoom();
+                }
+                r.render_to(&s, 0.0, &mut Vec::new()).unwrap();
+                let (vx, vy, cx, cy, scale) = r.world_view.unwrap();
+                let sx = (sample_x * f64::from(scale * 2)).round() as i32 - vx + cx;
+                let sy = (46.5 * f64::from(scale * 2)).round() as i32 - vy * 2 + cy * 2
+                    - r.vertical_pixel_offset;
+                let cell = r.back_buffer[sy as usize / 2 * 160 + sx as usize];
+                samples.push(if cell.ch == ' ' || sy % 2 != 0 {
+                    cell.bg
+                } else {
+                    cell.fg
+                });
+            }
+            assert_eq!(
+                samples[0], samples[1],
+                "the same cave cell must not change lighting between players' cameras at view {zoom}"
+            );
+            s.world.set_block(source_x, 46, BlockType::Air);
+        }
+    }
+
+    #[test]
     fn shallow_surface_hollows_keep_sky_to_the_floor_at_every_scale() {
         let shapes = (1..=4)
             .flat_map(|width| (1..=4).map(move |depth| (width, depth, false)))

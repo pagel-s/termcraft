@@ -1291,7 +1291,9 @@ impl Renderer {
             scale,
         ));
 
-        let margin = 6;
+        // Level-15 sources can reach fourteen blocks through air. Include their
+        // full halo beyond every viewport edge so cameras agree on illumination.
+        let margin = 16;
         let view_left_bx = (view_char_x - screen_center_x).div_euclid(2);
         let view_right_bx = view_left_bx + (self.width as i32 / 2) + 1;
         let view_top_by = view_char_y - screen_center_y;
