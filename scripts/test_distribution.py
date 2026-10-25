@@ -129,6 +129,31 @@ class Distribution(unittest.TestCase):
         installer = d.winget(manifest)[d.IDENTIFIER + ".installer.yaml"]
         self.assertEqual(installer["NestedInstallerFiles"][0]["RelativeFilePath"],
                          f"termcraft-{self.version}-x86_64-pc-windows-msvc/termcraft.exe")
+        self.assertNotIn("Scope", installer)
+
+    def test_legacy_winget_release_gets_native_schema_headers_without_changing_installer(self):
+        output, manifest = self.prepared()
+        records = d.winget(manifest)
+        records[d.IDENTIFIER + ".installer.yaml"]["Scope"] = "user"
+        archive = output / "termcraft-winget-manifests.zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            for name, record in records.items():
+                z.writestr(self.version + "/" + name, json.dumps(record))
+        manifest["assets"]["winget-manifests"]["sha256"] = d.digest(archive.read_bytes())
+        d.write_json(output / "latest.json", manifest)
+        directory = d.unpack_winget(output, self.root / "legacy")
+        for path in directory.glob("*.yaml"):
+            data = path.read_bytes()
+            self.assertTrue(data.startswith(b"# yaml-language-server: $schema=https://aka.ms/winget-manifest."))
+            self.assertEqual(d.read_winget(data), d.winget(manifest)[path.name])
+        records[d.IDENTIFIER + ".installer.yaml"]["Installers"][0]["InstallerUrl"] = "https://example.com/changed.zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            for name, record in records.items():
+                z.writestr(self.version + "/" + name, json.dumps(record))
+        manifest["assets"]["winget-manifests"]["sha256"] = d.digest(archive.read_bytes())
+        d.write_json(output / "latest.json", manifest)
+        with self.assertRaisesRegex(ValueError, "qualified release"):
+            d.unpack_winget(output, self.root / "changed-installer")
 
     def test_missing_supported_release_is_an_explicit_noop(self):
         with patch.object(d, "download", return_value=b'[{"draft":false,"assets":[]}]'):

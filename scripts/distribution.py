@@ -50,6 +50,25 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
+def write_winget(path, value):
+    """Write YAML with the schema header required by native WinGet validation."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    kind = value["ManifestType"]
+    header = f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.{SCHEMA_VERSION}.schema.json\n\n"
+    # JSON values are valid YAML flow values, including nested lists/maps.
+    path.write_text(header + "".join(f"{key}: {json.dumps(item)}\n"
+                                   for key, item in value.items()), encoding="utf-8")
+
+
+def read_winget(data):
+    text = data.decode("utf-8")
+    if text.lstrip().startswith("{"):
+        return json.loads(text)  # Earlier qualified release archives used JSON.
+    return {key: json.loads(value) for line in text.splitlines()
+            if line and not line.startswith("#")
+            for key, value in [line.split(":", 1)]}
+
+
 def read_native(path):
     """Read regular files only, checking every member and every bundled hash."""
     checksum = Path(str(path) + ".sha256").read_text().split()
@@ -144,7 +163,7 @@ def winget(manifest):
             NestedInstallerFiles=[dict(
                 RelativeFilePath=f"termcraft-{version}-x86_64-pc-windows-msvc/termcraft.exe",
                 PortableCommandAlias="termcraft")],
-            Scope="user", UpgradeBehavior="install", Commands=["termcraft"],
+            UpgradeBehavior="install", Commands=["termcraft"],
             Installers=[dict(Architecture="x64", InstallerUrl=archive["url"],
                              InstallerSha256=archive["sha256"].upper())]),
         f"{IDENTIFIER}.locale.en-US.yaml": dict(shared, ManifestType="defaultLocale",
@@ -243,7 +262,7 @@ def prepare(native, output, revision, tag, qualifications=None):
     manifest["assets"]["homebrew-formula"] = dict(name=formula.name, sha256=digest(formula.read_bytes()), url=asset_url(tag, formula.name))
     winget_dir = output / "winget" / version
     for name, value in winget(manifest).items():
-        write_json(winget_dir / name, value)  # JSON is a strict subset of YAML.
+        write_winget(winget_dir / name, value)
     winget_zip = output / "termcraft-winget-manifests.zip"
     with zipfile.ZipFile(winget_zip, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(winget_dir.glob("*.yaml")):
@@ -351,12 +370,17 @@ def unpack_winget(candidate, output):
         if (len(members) != 3 or {m.filename for m in members} != {prefix + n for n in expected}
                 or any(m.file_size > 65536 or m.is_dir() for m in members)):
             raise ValueError("unexpected WinGet archive layout")
-        records = {m.filename.removeprefix(prefix): json.loads(source.read(m)) for m in members}
+        records = {m.filename.removeprefix(prefix): read_winget(source.read(m)) for m in members}
+    # The first beta's immutable, checksum-verified archive included this
+    # unsupported portable setting. WinGet selects the portable scope itself.
+    installer = records[IDENTIFIER + ".installer.yaml"]
+    if installer.get("Scope") == "user":
+        installer.pop("Scope")
     if records != expected:
         raise ValueError("WinGet manifests do not match the qualified release")
     directory = output / manifest["version"]
     for name, record in records.items():
-        write_json(directory / name, record)
+        write_winget(directory / name, record)
     return directory
 
 
