@@ -315,13 +315,6 @@ impl GameState {
         }
     }
     pub(crate) fn tick_cooperative_player(&mut self, x: i32, y: i32) {
-        if self
-            .active_peer
-            .is_some_and(|id| self.sleeping_beds.contains_key(&id))
-        {
-            self.tick_player_survival(&mut rand::thread_rng());
-            return;
-        }
         self.handle_portal_transition();
         if self.credits_active {
             self.update_completion_credits();
@@ -338,6 +331,13 @@ impl GameState {
         }
         self.respawn_grace_ticks = self.respawn_grace_ticks.saturating_sub(1);
         self.player_combat_hurt_cooldown = self.player_combat_hurt_cooldown.saturating_sub(1);
+        if self
+            .active_peer
+            .is_some_and(|id| self.sleeping_beds.contains_key(&id))
+        {
+            self.tick_player_survival(&mut rand::thread_rng());
+            return;
+        }
         self.world
             .load_chunks_for_motion(self.player.x, self.player.vx);
         self.close_chest_if_out_of_range();

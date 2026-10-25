@@ -86,6 +86,12 @@ impl GameState {
                 self.player_notices.push((id, "Sleep interrupted.".into()));
             }
         }
+        if self.sleeping_beds.is_empty() {
+            if let Some(id) = selected {
+                self.activate_peer(id);
+            }
+            return;
+        }
         let eligible: Vec<_> = self
             .peer_ids()
             .into_iter()

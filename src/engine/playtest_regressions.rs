@@ -19,6 +19,35 @@ fn flat() -> GameState {
 }
 
 #[test]
+fn waiting_in_a_multiplayer_bed_keeps_damage_timers_running_and_damage_wakes_the_player() {
+    let mut s = flat();
+    s.join_peer(1);
+    s.join_peer(2);
+    s.activate_peer(1);
+    s.player.x = 0.5;
+    s.player.y = 20.0;
+    s.player.grounded = true;
+    s.world.set_block(1, 19, BlockType::Bed);
+    s.game_rules.do_daylight_cycle = true;
+    s.time_of_day = 22000.0;
+    s.apply_client_command(ClientCommand::UseAt(1, 19));
+    assert!(s.sleeping_beds.contains_key(&1));
+    s.player_combat_hurt_cooldown = 3;
+    s.respawn_grace_ticks = 2;
+    for _ in 0..3 {
+        s.tick_cooperative_player(0, 0);
+    }
+    assert_eq!(s.player_combat_hurt_cooldown, 0);
+    assert_eq!(s.respawn_grace_ticks, 0);
+    assert!(
+        s.apply_player_combat_damage(2.0),
+        "waiting for another sleeper must not freeze invulnerability"
+    );
+    s.poll_sleep();
+    assert!(!s.sleeping_beds.contains_key(&1));
+}
+
+#[test]
 fn sustained_walking_on_a_submerged_floor_stays_slower_than_dry_land() {
     for profile in [
         MovementProfile::Classic,
