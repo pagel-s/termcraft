@@ -30,6 +30,12 @@ macOS builds are unsigned. Check the exact build when downloading from
 [Native artifacts](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml),
 and use matching builds for co-op.
 
+Several development builds can share the same beta version number. Download every
+player's package from the same native CI run; `MANIFEST.json` identifies its
+`source_commit`. Restart the host/server after replacing its executable: an active
+process keeps running the old code. Keep the same world directory, server address,
+and player profile to resume existing player records.
+
 ## Package-manager channels
 
 The beta is not published yet. These channels are prepared for the approved release;
@@ -75,6 +81,10 @@ under `/usr/bin`, guides under `/usr/share/doc/termcraft`, and hosting resources
 under `/usr/share/termcraft/hosting`. Save locations stay the same.
 
 ### Preparing a release
+
+The approved workflows must be on GitHub's default branch before their manual
+release controls and publication event handlers become available. Merge the beta
+branch only after its changes are approved; setting up the channels does not merge it.
 
 1. Finish playtesting and choose the version in `Cargo.toml` and release notes.
    Create its matching tag only when the source is approved.
