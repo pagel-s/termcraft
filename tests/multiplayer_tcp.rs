@@ -16,9 +16,17 @@ use termcraft::{
     },
     worlds::WorldStore,
 };
-struct Server(Child);
+struct Server(Child, std::path::PathBuf);
 impl Drop for Server {
     fn drop(&mut self) {
+        if thread::panicking() {
+            eprintln!("Server status before test cleanup: {:?}", self.0.try_wait());
+            eprintln!(
+                "Server log {}:\n{}",
+                self.1.display(),
+                std::fs::read_to_string(&self.1).unwrap_or_else(|error| error.to_string())
+            );
+        }
         let _ = self.0.kill();
         let _ = self.0.wait();
     }
@@ -526,7 +534,7 @@ impl Server {
             .stderr(log)
             .spawn()
             .unwrap();
-        let mut server = Self(child);
+        let mut server = Self(child, root.join("server.log"));
         let deadline = Instant::now() + Duration::from_secs(10);
         loop {
             if let Ok(stream) = TcpStream::connect(addr) {
