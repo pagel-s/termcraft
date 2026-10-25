@@ -21,9 +21,9 @@
 > Use `beta/terminal-reborn` or its native CI archives to try the beta candidate.
 > The published `0.1.0` release is the older alpha; this beta is not published yet.
 
-[![Termcraft beta gameplay: co-op exploration, crafting, the Nether and the Ender Dragon](https://raw.githubusercontent.com/pagel-s/termcraft/c0999ee2c9989f30d7462e29e1015e1da74dcf2e/docs/assets/termcraft.gif)](https://github.com/pagel-s/termcraft/blob/c0999ee2c9989f30d7462e29e1015e1da74dcf2e/docs/assets/termcraft.mp4)
+![Termcraft beta gameplay: co-op exploration, crafting, the Nether and the Ender Dragon](https://raw.githubusercontent.com/pagel-s/termcraft/c0999ee2c9989f30d7462e29e1015e1da74dcf2e/docs/assets/termcraft.gif)
 
-[Watch the 70-second beta gameplay showcase (MP4)](https://github.com/pagel-s/termcraft/blob/c0999ee2c9989f30d7462e29e1015e1da74dcf2e/docs/assets/termcraft.mp4) ·
+Watch the full video ·
 [Music and media credits](docs/media-credits.md)
 
 ## A survival world, adapted to 2D
