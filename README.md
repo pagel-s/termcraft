@@ -3,8 +3,7 @@
   <p><strong>Survive, build and explore a block world in your terminal. Bring friends over SSH.</strong></p>
   <p>
     <a href="https://pagel-s.github.io/termcraft/"><img alt="Docs" src="https://img.shields.io/badge/docs-project%20guide-2f6feb?style=flat-square"></a>
-    <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Beta candidate" src="https://img.shields.io/badge/beta-0.2.0--beta.1-7452aa?style=flat-square"></a>
-    <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Latest published release" src="https://img.shields.io/github/v/release/pagel-s/termcraft?include_prereleases&amp;label=published&amp;style=flat-square"></a>
+    <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Beta" src="https://img.shields.io/badge/beta-0.2.0--beta.1-7452aa?style=flat-square"></a>
     <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-1.88%2B-93450a?style=flat-square&logo=rust"></a>
   </p>
   <p>
@@ -18,8 +17,7 @@
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
 > **Termcraft `0.2.0-beta.1` — beta prerelease.**
-> Choose this version under [Releases](https://github.com/pagel-s/termcraft/releases)
-> for the updated game. Version `0.1.0` is the older alpha.
+> Download the game from [Releases](https://github.com/pagel-s/termcraft/releases).
 
 ![Termcraft beta gameplay: co-op exploration, crafting, the Nether and the Ender Dragon](docs/assets/termcraft.gif)
 
@@ -81,9 +79,9 @@ cargo build --release --locked
 On Windows, use `.\target\release\termcraft.exe trial`. Omit `trial` for classic
 survival. `cargo install --path . --locked` installs this checkout into Cargo's bin directory.
 
-After publication, Rust users can install this prerelease explicitly with
-`cargo install termcraft --version 0.2.0-beta.1 --locked`. Omitting the version
-can select the older stable alpha. See [package-manager channels](docs/distribution.md#package-manager-channels)
+Rust users can install the beta with
+`cargo install termcraft --version 0.2.0-beta.1 --locked`.
+See [package-manager channels](docs/distribution.md#package-manager-channels)
 for Homebrew, WinGet and APT. Linux users can also find the
 [AUR package](https://aur.archlinux.org/packages/termcraft); check its version.
 
@@ -160,5 +158,3 @@ Report bugs through [GitHub issues](https://github.com/pagel-s/termcraft/issues)
 or `pagel.sebastian.1@gmail.com`. Include build, OS, terminal and reproduction steps.
 
 [Supported content](docs/supported-content.md) · [Media credits](docs/media-credits.md)
-
-[The original alpha highlight video](https://youtu.be/kR986Xqzj7E) shows the older release.

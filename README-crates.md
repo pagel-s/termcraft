@@ -15,7 +15,7 @@ No Rust installation is needed for an archive.
 The included launcher starts **Lantern Run**, a separate combat, traversal and
 bridge-building route. Run the executable directly for classic survival.
 
-To install the published prerelease, use [Rust 1.88 or newer](https://rustup.rs/), then:
+To install the beta, use [Rust 1.88 or newer](https://rustup.rs/), then:
 
 ```sh
 cargo install termcraft --version 0.2.0-beta.1 --locked
@@ -30,8 +30,7 @@ your selected view. Use **-** for more world context.
 
 To build the current source instead, run
 `cargo install --git https://github.com/pagel-s/termcraft --locked`.
-Use the explicit version above for the beta; omitting it can select the older
-stable alpha. See the
+See the
 [installation guide](https://pagel-s.github.io/termcraft/installation/) and
 [source README](https://github.com/pagel-s/termcraft).
 
