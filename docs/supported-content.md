@@ -1,7 +1,7 @@
 # Supported Content
 
-This lists the content implemented in Termcraft `0.2.0-beta.1`,
-ahead of the published `0.1.0` alpha. It is a practical support list rather than
+This lists the content implemented in Termcraft `0.2.0-beta.1`.
+It is a practical support list rather than
 a promise of full parity with the survival games that inspired Termcraft.
 
 ## Supported Mobs

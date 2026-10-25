@@ -19,9 +19,9 @@
 > **Termcraft `0.2.0-beta.1` — beta prerelease.**
 > Download the game from [Releases](https://github.com/pagel-s/termcraft/releases).
 
-![Termcraft beta gameplay: co-op exploration, crafting, the Nether and the Ender Dragon](docs/assets/termcraft.gif)
+[![Termcraft beta gameplay: co-op exploration, crafting, the Nether and the Ender Dragon](docs/assets/termcraft.gif)](https://youtu.be/nn37_15dLFM)
 
-Watch the full video ·
+[Watch the full video](https://youtu.be/nn37_15dLFM) ·
 [Music and media credits](docs/media-credits.md)
 
 ## A survival world, adapted to 2D

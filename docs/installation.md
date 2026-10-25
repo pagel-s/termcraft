@@ -1,8 +1,8 @@
 # Installation
 
-This guide covers **`0.2.0-beta.1`**. Choose this version under
-[Releases](https://github.com/pagel-s/termcraft/releases); `0.1.0` is the older alpha
-and does not contain these changes. Source builds require Rust 1.88 or newer.
+This guide covers **`0.2.0-beta.1`**. Download the game from
+[Releases](https://github.com/pagel-s/termcraft/releases).
+Source builds require Rust 1.88 or newer.
 
 ## Play a native beta build
 
@@ -24,7 +24,7 @@ Rust and Cargo are unnecessary for these archives. Launchers start the separate
 `./play.sh --help`, for example. Start classic survival with `./termcraft` on
 Linux/Mac or `.\termcraft.exe` on Windows. Mac archives are unsigned;
 use your system's normal controls for a downloaded executable you trust. These
-are beta candidates; broader human playtesting is still needed.
+are beta builds; broader human playtesting is still needed.
 
 Use a terminal with raw input, a monospace font and preferably true color,
 keyboard release events and mouse support. Start at **120×40** or larger for more

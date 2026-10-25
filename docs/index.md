@@ -7,11 +7,13 @@ shelter, mine and smelt better tools, explore the Nether and defeat the Ender
 Dragon. Terminal pixel art, shaped terrain and room cutaways adapt the world to
 a side-on view.
 
-> These pages describe `0.2.0-beta.1`.
-> Choose this version under [Releases](https://github.com/pagel-s/termcraft/releases)
-> or build from source. The `0.1.0` alpha predates these changes.
+> **Termcraft `0.2.0-beta.1` — beta prerelease.**
+> Download the game from [Releases](https://github.com/pagel-s/termcraft/releases)
+> or build from source.
 
-![Generated village cottage in the beta renderer](assets/termcraft.png)
+[![Termcraft gameplay: exploration, crafting, the Nether and the Ender Dragon](assets/termcraft.gif)](https://youtu.be/nn37_15dLFM)
+
+[Watch the full video](https://youtu.be/nn37_15dLFM).
 
 ## Start playing
 
@@ -20,7 +22,7 @@ a side-on view.
 - [Multiplayer setup](multiplayer.md): one computer, one network or separate networks, with connection checks.
 - [Safe hosting](hosting.md): a rootless Linux server, restricted network access, backups and restore.
 - [SSH joining](distribution.md#join-through-ssh): play remotely through an existing SSH account.
-- [Release notes](https://github.com/pagel-s/termcraft/blob/main/RELEASE_NOTES.md): changes since the published alpha and current limits.
+- [Release notes](https://github.com/pagel-s/termcraft/blob/main/RELEASE_NOTES.md): beta highlights and current limits.
 
 Launch **Lantern Run** for a focused combat, traversal and building route, or
 start classic survival for the open world. The route has its own save.

@@ -1,27 +1,28 @@
-Termcraft | Beta Gameplay Showcase
+termcraft | Terminal based multiplayer 2D survival
 
-A survival world inside your terminal. Gather resources, explore villages and caves, smelt iron, craft tools and armour, and take on the Nether and the End with friends.
+A whole survival world. Inside your terminal.
 
-Actual recorded co-op gameplay, shown in Termcraft's detailed terminal view.
+Gather resources, build a home, explore villages and caves, smelt iron, craft armour and mine diamonds. Then head into the Nether and face the Ender Dragon—with your friends.
 
-Play / source: https://github.com/pagel-s/termcraft/
-Installation: https://github.com/pagel-s/termcraft/blob/main/docs/installation.md
-Multiplayer: https://github.com/pagel-s/termcraft/blob/main/docs/multiplayer.md
+Termcraft is a free, open-source, Minecraft-inspired 2D survival game for Linux, macOS and Windows. Terminal pixel art, multiplayer for up to eight players, and three dimensions to explore.
 
-00:00 Gather, explore and survive the caves
-00:18 Smelt iron, craft tools and equip armour
-00:32 Into the Nether
-00:43 The Ender Dragon
+This showcase features actual multiplayer gameplay in the detailed terminal view.
 
-Music (CC0):
-Fantasy Orchestral Theme — Joth
+▶ Play, download & source:
+https://github.com/pagel-s/termcraft
+
+▶ Multiplayer setup:
+https://github.com/pagel-s/termcraft/blob/main/docs/multiplayer.md
+
+If you like the project, give it a star on GitHub—and tell me what you’d build first.
+
+Music:
+“Fantasy Orchestral Theme” by Joth — CC0
 https://opengameart.org/content/fantasy-orchestral-theme
-Boss Battle #2 (Symphonic Metal) — nene
+“Boss Battle #2 (Symphonic Metal)” by nene — CC0
 https://opengameart.org/content/boss-battle-2-symphonic-metal
 
-Original pixel-block wordmark and editorial sound design made for this trailer.
-Gameplay recordings: Sebastian Pagel.
-
+Created by Sebastian Pagel.
 Unofficial fan project. Not affiliated with Mojang or Microsoft.
 
-#Termcraft #Terminal #IndieGame #OpenSource #PixelArt
+#Termcraft #Terminal #IndieGame

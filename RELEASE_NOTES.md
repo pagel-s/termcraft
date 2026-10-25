@@ -2,11 +2,12 @@
 
 **Beta prerelease — 25 October 2026.**
 The source, executable and native archives use `0.2.0-beta.1`.
-Version `0.1.0` is the older alpha and predates these changes.
 
 Termcraft's beta brings a new terminal pixel-art presentation, a broader
 2D survival experience and shared adventures across the Overworld, Nether and End.
 Build a home, explore with friends over SSH and take on the dragon together.
+
+[Watch the full video](https://youtu.be/nn37_15dLFM).
 
 ## Highlights
 
