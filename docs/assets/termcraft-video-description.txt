@@ -8,11 +8,10 @@ Play / source: https://github.com/pagel-s/termcraft/tree/beta/terminal-reborn
 Installation: https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/docs/installation.md
 Multiplayer: https://github.com/pagel-s/termcraft/blob/beta/terminal-reborn/docs/multiplayer.md
 
-00:00 A new world — gather and explore together
-00:15 Into the caves — mining, spawners and creepers
-00:33 Smelt iron, craft tools and equip armour
-00:50 The Nether
-01:03 The Ender Dragon
+00:00 Gather, explore and survive the caves
+00:23 Smelt iron, craft tools and equip armour
+00:37 Through the portal to the Nether
+00:49 The Ender Dragon
 
 Music (CC0):
 Fantasy Orchestral Theme — Joth
@@ -20,7 +19,7 @@ https://opengameart.org/content/fantasy-orchestral-theme
 Boss Battle #2 (Symphonic Metal) — nene
 https://opengameart.org/content/boss-battle-2-symphonic-metal
 
-Original block wordmark and editorial sound design made for this trailer.
+Original pixel-block wordmark and editorial sound design made for this trailer.
 Gameplay recordings: Sebastian Pagel.
 
 Unofficial fan project. Not affiliated with Mojang or Microsoft.
