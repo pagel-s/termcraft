@@ -92,6 +92,9 @@ class Distribution(unittest.TestCase):
         output, manifest = self.prepared()
         d.validate_manifest(manifest)
         deb = output / manifest["assets"]["deb-amd64"]["name"]
+        self.assertEqual(deb.name, "termcraft_0.2.0-beta.1_amd64.deb")
+        for asset in manifest["assets"].values():
+            self.assertRegex(asset["name"], r"^[A-Za-z0-9_.-]+$")
         fields = subprocess.check_output(["dpkg-deb", "--field", str(deb)], text=True)
         self.assertIn("Version: 0.2.0~beta.1", fields)
         self.assertIn("Architecture: amd64", fields)

@@ -161,7 +161,9 @@ def winget(manifest):
 
 def build_deb(files, version, output):
     debversion = version.replace("-", "~", 1)
-    filename = f"termcraft_{debversion}_amd64.deb"
+    # GitHub replaces '~' in release asset names. Only the control field uses
+    # Debian's prerelease ordering; the download name follows the release tag.
+    filename = f"termcraft_{version}_amd64.deb"
     with tempfile.TemporaryDirectory(prefix="termcraft-deb-") as directory:
         root = Path(directory)
         payload = {"usr/bin/termcraft": files["termcraft"],
@@ -271,7 +273,7 @@ def validate_manifest(manifest):
             or not re.fullmatch(r"[0-9a-f]{40}", manifest.get("source_commit", ""))):
         raise ValueError("invalid distribution manifest")
     names = {target: f"termcraft-{version}-{target}" + (".zip" if "windows" in target else ".tar.gz") for target in TARGETS}
-    names.update({"deb-amd64": f"termcraft_{version.replace('-', '~', 1)}_amd64.deb",
+    names.update({"deb-amd64": f"termcraft_{version}_amd64.deb",
                   "homebrew-formula": "termcraft.rb", "winget-manifests": "termcraft-winget-manifests.zip"})
     if manifest.get("prerelease") is not ("-" in version):
         raise ValueError("invalid release channel")
