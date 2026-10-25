@@ -7,9 +7,9 @@ shelter, mine and smelt better tools, explore the Nether and defeat the Ender
 Dragon. Terminal pixel art, shaped terrain and room cutaways adapt the world to
 a side-on view.
 
-> These pages describe the `0.2.0-beta.1` candidate.
-> Source builds and native archives report that version. Publication is pending;
-> the published `0.1.0` alpha predates these changes.
+> These pages describe `0.2.0-beta.1`.
+> Choose this version under [Releases](https://github.com/pagel-s/termcraft/releases)
+> or build from source. The `0.1.0` alpha predates these changes.
 
 ![Generated village cottage in the beta renderer](assets/termcraft.png)
 

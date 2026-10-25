@@ -1,7 +1,7 @@
 # Native archives and SSH
 
-Termcraft **`0.2.0-beta.1`** is prepared for prerelease publication. Its
-native CI archives run without Cargo or a Rust installation. See
+Termcraft **`0.2.0-beta.1`** is a beta prerelease. Its
+native archives run without Cargo or a Rust installation. See
 [installation](installation.md) for downloads and terminal requirements.
 
 ## Native archives
@@ -38,8 +38,8 @@ and player profile to resume existing player records.
 
 ## Package-manager channels
 
-The beta is not published yet. These channels are prepared for the approved release;
-use the native CI archives until a version is available. They are our own channels,
+These channels follow approved, published releases. Use native archives or a source
+build if a channel has not made the version available yet. They are our own channels,
 not inclusion in Homebrew core or Debian's official repositories.
 
 | Platform | Channel | Command after publication |

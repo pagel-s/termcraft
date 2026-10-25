@@ -16,7 +16,7 @@ use these music tracks:
 - [Fantasy Orchestral Theme](https://opengameart.org/content/fantasy-orchestral-theme) by Joth — CC0.
 - [Boss Battle #2 (Symphonic Metal)](https://opengameart.org/content/boss-battle-2-symphonic-metal) by nene — CC0.
 
-The beta video is 70 seconds at 1920×1080 and 60 fps, with stereo audio. There
+The beta video is 65 seconds at 1920×1080 and 60 fps, with stereo audio. There
 are no added gameplay captions. The final seconds show only TERMCRAFT and the
 GitHub URL over the continuing gameplay footage. Its
 proposed YouTube description, chapters and credits are saved alongside it in

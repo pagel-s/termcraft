@@ -4,7 +4,7 @@
   <p>
     <a href="https://pagel-s.github.io/termcraft/"><img alt="Docs" src="https://img.shields.io/badge/docs-project%20guide-2f6feb?style=flat-square"></a>
     <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Beta candidate" src="https://img.shields.io/badge/beta-0.2.0--beta.1-7452aa?style=flat-square"></a>
-    <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Latest published release" src="https://img.shields.io/badge/published-0.1.0%20alpha-c97a00?style=flat-square"></a>
+    <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Latest published release" src="https://img.shields.io/github/v/release/pagel-s/termcraft?include_prereleases&amp;label=published&amp;style=flat-square"></a>
     <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-1.88%2B-93450a?style=flat-square&logo=rust"></a>
   </p>
   <p>
@@ -17,11 +17,11 @@
 
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
-> **Termcraft `0.2.0-beta.1` is prepared for prerelease publication.**
-> Build from source or use matching native CI archives to try the beta candidate.
-> The published `0.1.0` release is the older alpha; this beta is not published yet.
+> **Termcraft `0.2.0-beta.1` — beta prerelease.**
+> Choose this version under [Releases](https://github.com/pagel-s/termcraft/releases)
+> for the updated game. Version `0.1.0` is the older alpha.
 
-![Termcraft beta gameplay: co-op exploration, crafting, the Nether and the Ender Dragon](https://raw.githubusercontent.com/pagel-s/termcraft/c0999ee2c9989f30d7462e29e1015e1da74dcf2e/docs/assets/termcraft.gif)
+![Termcraft beta gameplay: co-op exploration, crafting, the Nether and the Ender Dragon](docs/assets/termcraft.gif)
 
 Watch the full video ·
 [Music and media credits](docs/media-credits.md)
@@ -50,12 +50,13 @@ The beta includes:
 
 [Supported content](docs/supported-content.md) · [Release notes](RELEASE_NOTES.md)
 
-## Play the beta candidate
+## Play the beta
 
-**Without Rust:** download your platform's archive from a successful
-[Native artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
-for this version. GitHub may require sign-in. Extract the artifact ZIP,
-then the game archive inside it, keeping all files together.
+**Without Rust:** download your platform's `0.2.0-beta.1` archive from
+[Releases](https://github.com/pagel-s/termcraft/releases). Extract the game archive,
+keeping all files together. Development builds are also available from successful
+[Native artifacts runs](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml);
+those downloads require GitHub sign-in and an additional artifact ZIP extraction.
 
 | Platform | Artifact target | Start Lantern Run |
 | --- | --- | --- |
@@ -80,9 +81,11 @@ cargo build --release --locked
 On Windows, use `.\target\release\termcraft.exe trial`. Omit `trial` for classic
 survival. `cargo install --path . --locked` installs this checkout into Cargo's bin directory.
 
-`cargo install termcraft` installs the published alpha, which predates these
-changes. Linux users can also find the [AUR package](https://aur.archlinux.org/packages/termcraft);
-check its version before comparing it with the beta candidate.
+After publication, Rust users can install this prerelease explicitly with
+`cargo install termcraft --version 0.2.0-beta.1 --locked`. Omitting the version
+can select the older stable alpha. See [package-manager channels](docs/distribution.md#package-manager-channels)
+for Homebrew, WinGet and APT. Linux users can also find the
+[AUR package](https://aur.archlinux.org/packages/termcraft); check its version.
 
 ## Controls
 

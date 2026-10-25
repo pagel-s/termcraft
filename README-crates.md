@@ -5,21 +5,20 @@ build a home, explore three dimensions and face the Ender Dragon.
 
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
-> **Termcraft `0.2.0-beta.1`** is a beta prerelease candidate.
-> Publication is pending; crates.io `0.1.0` is the older alpha.
+> **Termcraft `0.2.0-beta.1`** is a beta prerelease.
 
 ## Try Termcraft
 
-Download a matching native archive from a successful
-[Native artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
-for this version. No Rust installation is needed for an archive.
+Download a matching native archive from
+[Releases](https://github.com/pagel-s/termcraft/releases).
+No Rust installation is needed for an archive.
 The included launcher starts **Lantern Run**, a separate combat, traversal and
 bridge-building route. Run the executable directly for classic survival.
 
-To install from source, use [Rust 1.88 or newer](https://rustup.rs/), then:
+To install the published prerelease, use [Rust 1.88 or newer](https://rustup.rs/), then:
 
 ```sh
-cargo install --git https://github.com/pagel-s/termcraft --locked
+cargo install termcraft --version 0.2.0-beta.1 --locked
 termcraft
 ```
 
@@ -29,8 +28,10 @@ survival fixes, and co-op with independent dimension travel and SSH joining.
 Fresh setups start in Detail; saved view choices and terminal resizing preserve
 your selected view. Use **-** for more world context.
 
-Until beta publication, `cargo install termcraft --locked` installs the older
-alpha. See the
+To build the current source instead, run
+`cargo install --git https://github.com/pagel-s/termcraft --locked`.
+Use the explicit version above for the beta; omitting it can select the older
+stable alpha. See the
 [installation guide](https://pagel-s.github.io/termcraft/installation/) and
 [source README](https://github.com/pagel-s/termcraft).
 

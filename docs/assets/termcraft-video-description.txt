@@ -4,14 +4,14 @@ A survival world inside your terminal. Gather resources, explore villages and ca
 
 Actual recorded co-op gameplay, shown in Termcraft's detailed terminal view.
 
-Play / source: https://github.com/pagel-s/termcraft
+Play / source: https://github.com/pagel-s/termcraft/
 Installation: https://github.com/pagel-s/termcraft/blob/main/docs/installation.md
 Multiplayer: https://github.com/pagel-s/termcraft/blob/main/docs/multiplayer.md
 
 00:00 Gather, explore and survive the caves
-00:23 Smelt iron, craft tools and equip armour
-00:37 Through the portal to the Nether
-00:49 The Ender Dragon
+00:18 Smelt iron, craft tools and equip armour
+00:32 Into the Nether
+00:43 The Ender Dragon
 
 Music (CC0):
 Fantasy Orchestral Theme — Joth

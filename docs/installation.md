@@ -1,16 +1,16 @@
 # Installation
 
-The current source builds the **`0.2.0-beta.1`** prerelease candidate. Publication is
-pending; crates.io `0.1.0` is the older alpha and does not contain these changes.
-Build from source or use a matching native artifact to try the updated game.
+This guide covers **`0.2.0-beta.1`**. Choose this version under
+[Releases](https://github.com/pagel-s/termcraft/releases); `0.1.0` is the older alpha
+and does not contain these changes. Source builds require Rust 1.88 or newer.
 
 ## Play a native beta build
 
-Download the archive for your computer from the latest successful
-[Native artifacts run](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml)
-for this version. Open the run, then its `termcraft-0.2.0-beta.1-TARGET` artifact.
-GitHub may require sign-in to download artifacts. Extract the downloaded artifact,
-then extract the contained game archive with all its files.
+Download the `termcraft-0.2.0-beta.1-TARGET` archive for your computer from
+[Releases](https://github.com/pagel-s/termcraft/releases) and extract all its files.
+Development builds are available from successful
+[Native artifacts runs](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml).
+Those require GitHub sign-in: extract the artifact ZIP, then its contained game archive.
 
 | Computer | Target | Start Lantern Run from the extracted folder |
 | --- | --- | --- |
