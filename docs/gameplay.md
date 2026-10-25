@@ -235,7 +235,17 @@ momentum and accumulated fall distance reset during travel.
 Dimension travel works in single-player and co-op. In co-op only the interacting
 player travels; friends can follow or remain in another dimension. Terrain,
 entities, inventories and saved portal links remain separate, with one shared
-dragon encounter for players in the End. Use matching protocol-22 clients/server.
+dragon encounter for players in the End. Use matching protocol-23 clients/server.
+
+Hold an Ender Pearl and right-click or press `F` to throw toward the cursor.
+The visible teal pearl follows an arc with a purple trail. Aim higher for longer
+throws; distant cursor positions choose a direction rather than an instant
+destination. The first terrain or creature impact teleports only the thrower,
+with room checked for the player's body on the incoming side of the surface.
+Landing costs five health points and resets falling momentum. Throws have a
+one-second cooldown. Other players see the flight and purple impact sparks.
+Death, disconnecting, dimension travel or closing the world cancels pending pearls;
+they are not restored into another connection after loading a save.
 
 Incoming ghast and blaze fireballs can be hit with a normal left-click attack
 while within 2.6 blocks. Aim at the projectile: a successful return reverses its

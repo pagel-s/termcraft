@@ -17,6 +17,8 @@ mod animal_water;
 mod combat;
 #[path = "drops.rs"]
 mod drops;
+#[path = "ender_pearl.rs"]
+mod ender_pearl;
 #[path = "environment.rs"]
 mod environment;
 #[path = "furnace.rs"]
@@ -41,6 +43,7 @@ use crate::entities::cow::Cow;
 use crate::entities::creeper::Creeper;
 use crate::entities::end_crystal::EndCrystal;
 use crate::entities::ender_dragon::EnderDragon;
+use crate::entities::ender_pearl::EnderPearl;
 use crate::entities::enderman::Enderman;
 use crate::entities::experience_orb::ExperienceOrb;
 use crate::entities::fireball::Fireball;
@@ -383,9 +386,6 @@ const SWIM_PHYSICS_MIN_SUBMERSION: f64 = 0.36;
 const PORTAL_SEARCH_RADIUS: i32 = 48;
 const QUICK_TRAVEL_PORTAL_ANCHOR_RADIUS: i32 = 12;
 const NETHER_PORTAL_DWELL_TICKS: u16 = 40;
-const ENDER_PEARL_MAX_THROW_DISTANCE: f64 = 32.0;
-const ENDER_PEARL_LANDING_SEARCH_RADIUS: i32 = 20;
-const ENDER_PEARL_DAMAGE: f32 = 5.0;
 const PLAYER_HOTBAR_SLOTS: usize = 9;
 const ARMOR_SLOT_COUNT: usize = 4;
 const ENCHANT_MAX_LEVEL: u8 = 3;
@@ -978,6 +978,7 @@ pub(crate) use dimensions::{MAX_CHECKPOINT_BYTES, RuntimeCheckpoint, SharedProgr
 pub struct GameState {
     pub quit_confirmation: bool,
     sleeping_beds: std::collections::BTreeMap<u16, (i32, i32, f32)>,
+    last_pearl_throw_age: std::collections::BTreeMap<u16, u64>,
     pub(crate) player_notices: Vec<(u16, String)>,
     pub pvp_enabled: bool,
     pub host_client_id: Option<u16>,
@@ -1026,6 +1027,7 @@ pub struct GameState {
     pub item_entities: Vec<ItemEntity>,
     pub experience_orbs: Vec<ExperienceOrb>,
     pub arrows: Vec<Arrow>,
+    pub ender_pearls: Vec<EnderPearl>,
     pub fireballs: Vec<Fireball>,
     pub end_crystals: Vec<EndCrystal>,
     pub ender_dragon: Option<EnderDragon>,
@@ -2013,6 +2015,7 @@ impl GameState {
         let mut state = Self {
             quit_confirmation: false,
             sleeping_beds: Default::default(),
+            last_pearl_throw_age: Default::default(),
             player_notices: Vec::new(),
             active_peer: None,
             cooperative_players: Default::default(),
@@ -2061,6 +2064,7 @@ impl GameState {
             item_entities: Vec::new(),
             experience_orbs: Vec::new(),
             arrows: Vec::new(),
+            ender_pearls: Vec::new(),
             fireballs: Vec::new(),
             end_crystals: Vec::new(),
             ender_dragon: None,
@@ -4259,6 +4263,7 @@ impl GameState {
     }
 
     fn start_death_screen(&mut self) {
+        self.cancel_ender_pearls();
         self.death_screen_active = true;
         self.death_screen_ticks = 0;
         self.close_settings_menu();
@@ -4501,8 +4506,10 @@ impl GameState {
                 return;
             }
         }
-        let holding_ender_pearl =
-            !is_break && self.current_hotbar_item_type() == Some(ItemType::EnderPearl);
+        if !is_break && self.current_hotbar_item_type() == Some(ItemType::EnderPearl) {
+            self.throw_ender_pearl(bx, by);
+            return;
+        }
         if !is_break
             && self.current_hotbar_item_type() == Some(ItemType::FishingRod)
             && self.fishing_bobber_active
@@ -4516,12 +4523,7 @@ impl GameState {
         let dx = px - (bx as f64 + 0.5);
         let dy = py - (by as f64 + 0.5);
         let dist = (dx * dx + dy * dy).sqrt();
-        let max_interaction_distance = if holding_ender_pearl {
-            ENDER_PEARL_MAX_THROW_DISTANCE
-        } else {
-            4.5
-        };
-        if dist > max_interaction_distance {
+        if dist > 4.5 {
             self.player.mining_timer = 0.0;
             return;
         }
@@ -4901,11 +4903,6 @@ impl GameState {
                     self.apply_inventory_slot_durability_wear(self.hotbar_index as usize);
                     return;
                 }
-            }
-
-            if holding_ender_pearl {
-                self.throw_ender_pearl(bx, by);
-                return;
             }
 
             let holding_eye = self.inventory.slots[self.hotbar_index as usize]
@@ -6696,76 +6693,6 @@ impl GameState {
             dropped_eye.vy = -0.28;
             self.item_entities.push(dropped_eye);
         }
-    }
-
-    fn nearest_safe_landing_y(world: &World, x: i32, around_y: i32) -> Option<i32> {
-        let min_y = 2;
-        let max_y = CHUNK_HEIGHT as i32 - 2;
-        let around_y = around_y.clamp(min_y, max_y);
-        let max_delta = (around_y - min_y).max(max_y - around_y);
-        for delta in 0..=max_delta {
-            let up = around_y - delta;
-            if up >= min_y && Self::is_safe_spawn_column_base(world, x, up, false) {
-                return Some(up);
-            }
-            if delta == 0 {
-                continue;
-            }
-            let down = around_y + delta;
-            if down <= max_y && Self::is_safe_spawn_column_base(world, x, down, false) {
-                return Some(down);
-            }
-        }
-        None
-    }
-
-    fn find_ender_pearl_landing_near(
-        &mut self,
-        target_x: i32,
-        target_y: i32,
-    ) -> Option<(f64, f64)> {
-        let mut best_key: Option<(i32, i32, i32)> = None;
-        let mut best_candidate = None;
-        for dx in -ENDER_PEARL_LANDING_SEARCH_RADIUS..=ENDER_PEARL_LANDING_SEARCH_RADIUS {
-            let x = target_x + dx;
-            self.world.load_chunks_around(x);
-            let Some(ground_y) = Self::nearest_safe_landing_y(&self.world, x, target_y) else {
-                continue;
-            };
-            let candidate_key = (dx.abs(), (ground_y - target_y).abs(), ground_y);
-            let candidate = (x as f64 + 0.5, ground_y as f64 - 0.1);
-            match best_key {
-                None => {
-                    best_key = Some(candidate_key);
-                    best_candidate = Some(candidate);
-                }
-                Some(current_best_key) if candidate_key < current_best_key => {
-                    best_key = Some(candidate_key);
-                    best_candidate = Some(candidate);
-                }
-                _ => {}
-            }
-        }
-        best_candidate
-    }
-
-    fn throw_ender_pearl(&mut self, target_x: i32, target_y: i32) {
-        let Some((landing_x, landing_y)) = self.find_ender_pearl_landing_near(target_x, target_y)
-        else {
-            return;
-        };
-        if !self.consume_held_item(ItemType::EnderPearl) {
-            return;
-        }
-
-        self.player.facing_right = landing_x >= self.player.x;
-        self.player.x = landing_x;
-        self.player.y = landing_y;
-        self.player.vx = 0.0;
-        self.player.vy = 0.0;
-        self.player.grounded = false;
-        self.player.fall_distance = 0.0;
-        self.apply_player_damage(ENDER_PEARL_DAMAGE);
     }
 
     fn has_adjacent_placement_anchor(&self, bx: i32, by: i32) -> bool {
@@ -13546,6 +13473,7 @@ impl GameState {
             }
         }
 
+        self.tick_ender_pearls();
         self.tick_animal_husbandry();
         let farm_goals = self.farm_animal_goals();
         let mut dead_cows = Vec::new();
@@ -18352,68 +18280,6 @@ mod tests {
             .unwrap_or(0);
         assert_eq!(remaining, 1);
         assert_eq!(state.eye_guidance_timer, 0);
-    }
-
-    #[test]
-    fn test_throw_ender_pearl_consumes_item_and_teleports_player() {
-        let mut state = GameState::new();
-        configure_quiet_world(&mut state);
-        for x in -8..=8 {
-            for y in 0..20 {
-                state.world.set_block(x, y, BlockType::Air);
-            }
-            state.world.set_block(x, 10, BlockType::Stone);
-        }
-        state.world.set_block(3, 7, BlockType::Stone);
-
-        state.player.x = 0.5;
-        state.player.y = 9.9;
-        state.player.health = 20.0;
-        state.hotbar_index = 0;
-        state.inventory.slots[0] = Some(ItemStack {
-            item_type: ItemType::EnderPearl,
-            count: 2,
-            durability: None,
-        });
-
-        state.interact_block(3, 7, false);
-
-        assert_eq!(state.player.x, 3.5);
-        assert_eq!(state.player.y, 6.9);
-        assert_eq!(state.player.vx, 0.0);
-        assert_eq!(state.player.vy, 0.0);
-        assert!(state.player.health < 20.0);
-        assert_eq!(
-            state.inventory.slots[0].as_ref().map(|stack| stack.count),
-            Some(1)
-        );
-    }
-
-    #[test]
-    fn test_ender_pearl_can_target_beyond_normal_use_range() {
-        let mut state = GameState::new();
-        configure_quiet_world(&mut state);
-        for x in -16..=16 {
-            for y in 0..20 {
-                state.world.set_block(x, y, BlockType::Air);
-            }
-            state.world.set_block(x, 10, BlockType::Stone);
-        }
-
-        state.player.x = 0.5;
-        state.player.y = 9.9;
-        state.hotbar_index = 0;
-        state.inventory.slots[0] = Some(ItemStack {
-            item_type: ItemType::EnderPearl,
-            count: 1,
-            durability: None,
-        });
-
-        state.interact_block(12, 9, false);
-
-        assert_eq!(state.player.x, 12.5);
-        assert_eq!(state.player.y, 9.9);
-        assert!(state.inventory.slots[0].is_none());
     }
 
     #[test]

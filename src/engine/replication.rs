@@ -8,6 +8,7 @@ use crate::entities::cow::Cow;
 use crate::entities::creeper::Creeper;
 use crate::entities::end_crystal::EndCrystal;
 use crate::entities::ender_dragon::EnderDragon;
+use crate::entities::ender_pearl::EnderPearl;
 use crate::entities::enderman::Enderman;
 use crate::entities::experience_orb::ExperienceOrb;
 use crate::entities::fireball::Fireball;
@@ -51,6 +52,7 @@ pub struct RuntimeEntities {
     item_entities: Vec<ItemEntity>,
     experience_orbs: Vec<ExperienceOrb>,
     arrows: Vec<Arrow>,
+    ender_pearls: Vec<EnderPearl>,
     fireballs: Vec<Fireball>,
     end_crystals: Vec<EndCrystal>,
     ender_dragon: Option<EnderDragon>,
@@ -237,6 +239,14 @@ impl RuntimeEntities {
                 .cloned()
                 .inspect(|_| remaining -= 1)
                 .collect(),
+            ender_pearls: state
+                .ender_pearls
+                .iter()
+                .filter(|e| (e.x - center).abs() <= 128.0)
+                .take(remaining)
+                .cloned()
+                .inspect(|_| remaining -= 1)
+                .collect(),
             fireballs: state
                 .fireballs
                 .iter()
@@ -288,6 +298,7 @@ impl RuntimeEntities {
         state.item_entities = self.item_entities.clone();
         state.experience_orbs = self.experience_orbs.clone();
         state.arrows = self.arrows.clone();
+        state.ender_pearls = self.ender_pearls.clone();
         state.fireballs = self.fireballs.clone();
         state.end_crystals = self.end_crystals.clone();
         state.ender_dragon = self.ender_dragon.clone();
@@ -298,6 +309,24 @@ impl RuntimeEntities {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn flying_pearls_and_impact_effects_reach_other_players_without_connection_ownership() {
+        let mut state = GameState::network_view();
+        state
+            .ender_pearls
+            .push(EnderPearl::new(8.0, 20.0, (1.0, -0.2), Some(2)));
+        let mut impact = EnderPearl::new(12.0, 22.0, (0.0, 0.0), Some(1));
+        impact.impact_ticks = 6;
+        state.ender_pearls.push(impact);
+        let bytes = bincode::serialize(&RuntimeEntities::capture(&state, 0.0)).unwrap();
+        let packet: RuntimeEntities = bincode::deserialize(&bytes).unwrap();
+        let mut view = GameState::network_view();
+        packet.apply(&mut view);
+        assert_eq!(view.ender_pearls.len(), 2);
+        assert_eq!(view.ender_pearls[0].vx, EnderPearl::SPEED);
+        assert_eq!(view.ender_pearls[1].impact_ticks, 6);
+        assert!(view.ender_pearls.iter().all(|p| p.owner.is_none()));
+    }
     #[test]
     fn victory_and_reflected_fireballs_survive_the_binary_snapshot() {
         let mut s = GameState::new();

@@ -140,6 +140,7 @@ impl MotionHistory {
             slimes,
             fireballs,
             arrows,
+            ender_pearls,
             cows,
             sheep,
             pigs,

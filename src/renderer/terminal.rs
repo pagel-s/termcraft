@@ -2664,6 +2664,81 @@ impl Renderer {
             }
         }
 
+        for (index, pearl) in state.ender_pearls.iter().enumerate() {
+            let (x, y) = self.motion.position(
+                "ender_pearls",
+                index,
+                (pearl.x, pearl.y),
+                pearl.age,
+                frame_alpha,
+            );
+            let mut dot = |wx: f64, wy: f64, color: Color, kind, width: usize, rows: usize| {
+                let sx = (wx * 2.0).round() as i32 - view_char_x + screen_center_x;
+                let sy = wy.floor() as i32 - view_char_y + screen_center_y;
+                if sx < -4 || sx >= self.width as i32 + 4 || sy < -4 || sy >= self.height as i32 + 4
+                {
+                    return;
+                }
+                if self.pixel_colors {
+                    self.actor_sprites.push(
+                        ActorSprite::mob(sx, sy, kind, true, 0.0, pearl.age, color)
+                            .with_subcell(wx, wy, scale)
+                            .with_dimensions(width, rows),
+                    );
+                } else {
+                    self.put_char(sx, sy, 'o', color, Color::Reset);
+                }
+            };
+            if pearl.impact_ticks > 0 {
+                let radius = 0.2 + f64::from(8u8.saturating_sub(pearl.impact_ticks)) * 0.12;
+                for n in 0..8 {
+                    let angle = f64::from(n) * std::f64::consts::TAU / 8.0;
+                    dot(
+                        x + angle.cos() * radius,
+                        y + angle.sin() * radius,
+                        Color::Rgb {
+                            r: 184,
+                            g: 116,
+                            b: 245,
+                        },
+                        SpriteKind::Orb,
+                        1,
+                        1,
+                    );
+                }
+            } else {
+                for tail in (1..=3).rev() {
+                    let t = f64::from(tail) * 0.4;
+                    if pearl.age as f64 >= t {
+                        dot(
+                            x - pearl.vx * t,
+                            y - pearl.vy * t + 0.1,
+                            Color::Rgb {
+                                r: 155 - tail * 24,
+                                g: 82 - tail * 12,
+                                b: 225 - tail * 30,
+                            },
+                            SpriteKind::Orb,
+                            1,
+                            1,
+                        );
+                    }
+                }
+                dot(
+                    x,
+                    y + 0.25,
+                    Color::Rgb {
+                        r: 100,
+                        g: 245,
+                        b: 207,
+                    },
+                    SpriteKind::EnderPearl,
+                    (scale + 1) as usize,
+                    ((scale + 1) / 2).max(1) as usize,
+                );
+            }
+        }
+
         if let Some((bobber_x, bobber_y, bite_ready)) = state.fishing_bobber() {
             let sx = (bobber_x * 2.0).round() as i32 - view_char_x + screen_center_x;
             let sy = bobber_y.floor() as i32 - view_char_y + screen_center_y;

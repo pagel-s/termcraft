@@ -997,6 +997,108 @@ fn interrupted_hosted_checkpoint_keeps_three_players_and_dimensions_together() -
     }
     std::fs::remove_dir_all(root)
 }
+#[test]
+#[ignore = "requires local TCP sockets and process signals"]
+fn ender_pearl_flight_is_shared_and_only_the_thrower_teleports_and_saves() -> io::Result<()> {
+    use termcraft::{
+        engine::{
+            server_save::{ServerSave, token},
+            state::PlayerSession,
+        },
+        world::{block::BlockType, item::ItemStack},
+    };
+    let root = std::env::temp_dir().join(format!("termcraft-pearl-tcp-{}", token()));
+    let mut recipe = WorldRecipe::example();
+    recipe.relief = 0;
+    recipe.surface_y = 64;
+    recipe.regions.clear();
+    recipe.landmarks.clear();
+    let world = WorldStore::new(root.join("worlds"))
+        .create("tcp", "Pearl flight", &recipe)
+        .map_err(io::Error::other)?;
+    let mut state = GameState::open_in_directory(&world)?;
+    state.dismiss_startup_splash();
+    for command in [
+        ClientCommand::ToggleRuleMobSpawning,
+        ClientCommand::ToggleRuleDaylightCycle,
+        ClientCommand::ToggleRuleWeatherCycle,
+    ] {
+        state.apply_client_command(command);
+    }
+    state.world.load_chunks_for_spawn_search(0, 64);
+    for x in -50..=60 {
+        for y in 0..64 {
+            state.world.set_block(x, y, BlockType::Air);
+        }
+        state.world.set_block(x, 64, BlockType::Grass);
+    }
+    state.player.x = -10.5;
+    state.player.y = 64.0;
+    state.player.grounded = true;
+    state.inventory.slots.fill(None);
+    state.inventory.slots[0] = Some(ItemStack {
+        item_type: ItemType::EnderPearl,
+        count: 2,
+        durability: None,
+    });
+    state.try_persist_world_and_progress()?;
+    let a_token = token();
+    let b_token = token();
+    let mut saved = ServerSave::read(&state)?;
+    saved
+        .players
+        .insert(a_token.clone(), PlayerSession::capture(&state));
+    state.player.x = 0.5;
+    saved
+        .players
+        .insert(b_token.clone(), PlayerSession::capture(&state));
+    saved.write(&world)?;
+    drop(state);
+    let reserve = TcpListener::bind("127.0.0.1:0")?;
+    let address = reserve.local_addr()?.to_string();
+    drop(reserve);
+    let pearls = |s: &ServerSnapshot| {
+        serde_json::to_value(&s.entities).unwrap()["ender_pearls"]
+            .as_array()
+            .unwrap()
+            .clone()
+    };
+    let mut server = Server::start(&root, &address);
+    let a = Client::connect(&address, Some(a_token.clone()));
+    let mut b = Client::connect(&address, Some(b_token.clone()));
+    a.until(|s| s.remote_players.len() == 1);
+    b.send(ClientCommand::UseAt(24, 51));
+    for client in [&a, &b] {
+        let flight = client.until(|s| pearls(s).iter().any(|p| p["impact_ticks"] == 0));
+        assert_eq!(flight.remote_players.len(), 1);
+    }
+    let landed = b.until(|s| s.player.x > 15.0 && s.player.health < 20.0);
+    assert_eq!(count(&landed, ItemType::EnderPearl), 1);
+    assert_eq!(landed.player.health, 15.0);
+    let observer = a.until(|s| s.remote_players.iter().any(|p| p.player.x > 15.0));
+    assert!((observer.player.x + 10.5).abs() < 0.01);
+    assert_eq!(observer.player.health, 20.0);
+    assert_eq!(count(&observer, ItemType::EnderPearl), 2);
+    let landing_x = landed.player.x;
+    drop(a);
+    drop(b);
+    server.stop();
+    let mut server = Server::start(&root, &address);
+    let a = Client::connect(&address, Some(a_token));
+    let b = Client::connect(&address, Some(b_token));
+    a.until(|s| (s.player.x + 10.5).abs() < 0.01 && count(s, ItemType::EnderPearl) == 2);
+    b.until(|s| {
+        (s.player.x - landing_x).abs() < 0.01
+            && count(s, ItemType::EnderPearl) == 1
+            && pearls(s).is_empty()
+    });
+    drop(a);
+    drop(b);
+    server.stop();
+    std::fs::remove_dir_all(root)?;
+    Ok(())
+}
+
 impl Drop for Client {
     fn drop(&mut self) {
         let _ = self.writer.shutdown(Shutdown::Both);

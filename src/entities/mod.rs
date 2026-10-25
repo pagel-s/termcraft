@@ -6,6 +6,7 @@ pub mod cow;
 pub mod creeper;
 pub mod end_crystal;
 pub mod ender_dragon;
+pub mod ender_pearl;
 pub mod enderman;
 pub mod experience_orb;
 pub mod fireball;

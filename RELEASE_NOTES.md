@@ -26,6 +26,8 @@ Build a home, explore with friends over SSH and take on the dragon together.
 - **Better everyday interactions.** A recipe book and batch crafting, furnace
   input/fuel/output slots, stack handling, dropping, food feedback, working
   doors/portals, redstone-ore glow and projectile returns.
+  Ender Pearls visibly fly along an aimed arc, leave a purple trail, and teleport
+  the thrower at impact with a short burst of sparks and collision-checked room.
   Nether portals allow passing traffic and require a two-second stay for automatic
   travel; direct blasts respect obsidian's resistance. Multiplayer join failures
   explain profile conflicts, build mismatches and lost host connections.
@@ -86,11 +88,10 @@ item / its stack. See [installation](docs/installation.md) and
 ## Before upgrading
 
 Back up the whole save directory, including hidden checkpoint data. Native saves
-use version **12**, server checkpoints **5**, and co-op protocol **22**; all peers
+use version **12**, server checkpoints **5**, and co-op protocol **23**; all peers
 need matching builds. Older executables cannot read the new checkpoints.
 Saved terrain is preserved, so new villages, ore layouts and terrain details
-require fresh chunks. Furnaces currently use each player's session rather than
-independent shared storage in every placed furnace.
+require fresh chunks. Placed furnaces share their block-owned contents and progress.
 
 This beta remains subject to terminal/input, long-session co-op and full
 survival playtesting. Native archives are unsigned. No public hosting service is

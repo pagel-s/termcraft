@@ -494,6 +494,7 @@ impl GameState {
         }
         self.clear_container_interaction_state();
         self.action_visuals.remove(&id);
+        self.cancel_ender_pearls();
         let mut session = PlayerSession::capture(self);
         session.release_inputs();
         Some(session)

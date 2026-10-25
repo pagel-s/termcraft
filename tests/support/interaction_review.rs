@@ -143,8 +143,118 @@ fn pty_fixture(
     Ok(())
 }
 
+fn pearl_review(out: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    use termcraft::world::chunk::{CHUNK_HEIGHT, CHUNK_WIDTH};
+    fs::create_dir_all(out)?;
+    let mut records = Vec::new();
+    for (target, prefix) in [
+        ((24, 27), "pearl-right"),
+        ((-24, 27), "pearl-left"),
+        ((24, 36), "pearl-wall"),
+    ] {
+        let root = std::env::temp_dir().join(format!("termcraft-{prefix}-{}", std::process::id()));
+        let mut s = GameState::open_in_directory(&root)?;
+        s.dismiss_startup_splash();
+        for cx in -4..=4 {
+            s.world
+                .apply_chunk_column_snapshot(cx, &vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT]);
+        }
+        for x in -60..=60 {
+            for y in 40..45 {
+                s.world.set_block(
+                    x,
+                    y,
+                    if y == 40 {
+                        BlockType::Grass
+                    } else {
+                        BlockType::Dirt
+                    },
+                );
+            }
+        }
+        if prefix == "pearl-wall" {
+            for y in 33..40 {
+                s.world.set_block(9, y, BlockType::Stone);
+            }
+        }
+        for cmd in [
+            ClientCommand::ToggleRuleMobSpawning,
+            ClientCommand::ToggleRuleDaylightCycle,
+            ClientCommand::ToggleRuleWeatherCycle,
+        ] {
+            s.apply_client_command(cmd);
+        }
+        s.player.x = 0.5;
+        s.player.y = 40.0;
+        s.player.grounded = true;
+        s.player.health = 20.0;
+        s.time_of_day = 12000.0;
+        hold(&mut s, ItemType::EnderPearl);
+        s.inventory.slots[0].as_mut().unwrap().count = 8;
+        s.apply_client_command(ClientCommand::UseAt(target.0, target.1));
+        capture(
+            &s,
+            out,
+            &format!("{prefix}-launch"),
+            "Ender Pearl · throw and release",
+            &mut records,
+        )?;
+        let mut saw_flight = false;
+        let mut saw_impact = false;
+        for tick in 1..=120 {
+            s.update(target.0, target.1);
+            if tick == 5 {
+                capture(
+                    &s,
+                    out,
+                    &format!("{prefix}-flight"),
+                    "Ender Pearl · visible flight and trail",
+                    &mut records,
+                )?;
+                saw_flight = s.ender_pearls.iter().any(|p| p.impact_ticks == 0);
+            }
+            if s.ender_pearls.iter().any(|p| p.impact_ticks > 0) {
+                assert!(s.player.x.abs() > 2.0);
+                capture(
+                    &s,
+                    out,
+                    &format!("{prefix}-impact"),
+                    "Ender Pearl · impact and teleport",
+                    &mut records,
+                )?;
+                for _ in 0..4 {
+                    s.update(target.0, target.1);
+                }
+                capture(
+                    &s,
+                    out,
+                    &format!("{prefix}-burst"),
+                    "Ender Pearl · dissipating teleport sparks",
+                    &mut records,
+                )?;
+                saw_impact = true;
+                break;
+            }
+        }
+        assert!(
+            saw_flight && saw_impact,
+            "missing flight/impact in {prefix}"
+        );
+        drop(s);
+        fs::remove_dir_all(root)?;
+    }
+    fs::write(
+        out.join("scenes.json"),
+        serde_json::to_vec_pretty(&json!({"scenes":records}))?,
+    )?;
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().collect();
+    if args.get(1).is_some_and(|s| s == "--pearl-review") {
+        return pearl_review(Path::new(args.get(2).ok_or("output required")?));
+    }
     if args
         .get(1)
         .is_some_and(|s| s == "--session-inspect" || s == "--furnace-inspect")

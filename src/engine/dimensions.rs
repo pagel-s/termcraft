@@ -198,6 +198,10 @@ dimension_fields! { world;
     item_entities: Vec<ItemEntity> = Vec::new();
     experience_orbs: Vec<ExperienceOrb> = Vec::new();
     arrows: Vec<Arrow> = Vec::new();
+    // In-flight teleports belong to a live connection. Keep native checkpoint
+    // layouts unchanged, and never restore a pearl into a different session.
+    #[serde(skip)]
+    ender_pearls: Vec<EnderPearl> = Vec::new();
     fireballs: Vec<Fireball> = Vec::new();
     end_crystals: Vec<EndCrystal> = Vec::new();
     ender_dragon: Option<EnderDragon> = None;
@@ -314,6 +318,7 @@ impl GameState {
     }
     pub(super) fn travel_dimension(&mut self, dimension: Dimension) {
         if dimension != self.current_dimension {
+            self.cancel_ender_pearls();
             // Player references index the current world's vectors/coordinates.
             // Keep the boat in its source world, never mount a destination boat
             // that happens to occupy the same vector index.

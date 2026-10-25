@@ -302,6 +302,14 @@ impl GameState {
     ) -> Option<(f64, f64)> {
         self.hit_owned_projectile_segment(from, to, damage, terrain_t, None)
     }
+    pub(super) fn projectile_body_contact_t(
+        &self,
+        from: (f64, f64),
+        to: (f64, f64),
+        owner: Option<u16>,
+    ) -> Option<f64> {
+        self.first_arrow_body(from, to, owner).map(|(t, _)| t)
+    }
     pub(super) fn hit_owned_player_arrow_segment(
         &mut self,
         from: (f64, f64),

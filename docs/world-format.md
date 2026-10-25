@@ -23,7 +23,7 @@ hosting that world.
 ## Compatibility
 
 The current build writes native checkpoint version **12**, server version **5**
-and chunk version **3**, with network protocol **22**. Native loaders accept the
+and chunk version **3**, with network protocol **23**. Native loaders accept the
 older native formats through version 11; server loaders accept versions 1–4,
 and chunk loaders import versions 1–2. Placed furnace contents live in their chunks.
 All co-op participants need matching builds. Older executables may reject saves
@@ -32,6 +32,8 @@ written by newer builds.
 Saved terrain and player edits are preserved. New terrain, villages and ore
 layouts appear in fresh chunks. Weather, world clocks, entities and encounters
 resume from saved state; the world does not advance while offline.
+In-flight Ender Pearls and their impact effects are transient. They are not saved,
+so loading a checkpoint cannot teleport a different or reconnected player.
 
 ## Interrupted saves
 

@@ -59,6 +59,7 @@ pub(super) enum SpriteKind {
     Boat,
     Fireball,
     Arrow,
+    EnderPearl,
     Orb,
     Item,
 }
@@ -461,6 +462,7 @@ impl ActorSprite {
                 "    r   ", "  rrrr  ", " rtttrr ", "rtwwttrr", " rtttrr ", "  rrrr  ", "    r   ",
             ],
             SpriteKind::Arrow => &["       g", "tppppppg", "       g"],
+            SpriteKind::EnderPearl => &["  +++ ", " +nss+", " +ssc+", " ssccp", "  cpp ", "      "],
             SpriteKind::Item => {
                 return SpritePixels::Item(self.held_item.unwrap_or(super::ItemType::Dirt));
             }
@@ -579,6 +581,7 @@ impl ActorSprite {
                 (96, 74, 50),
                 (231, 220, 181),
             ),
+            EnderPearl => palette((43, 181, 156), (24, 91, 85), (15, 49, 57), (151, 255, 225)),
             Orb | Item => (
                 self.colors[0],
                 self.colors[1],
@@ -935,6 +938,7 @@ impl Renderer {
             actor.kind,
             SpriteKind::Fireball
                 | SpriteKind::Arrow
+                | SpriteKind::EnderPearl
                 | SpriteKind::Orb
                 | SpriteKind::Squid
                 | SpriteKind::Boat
@@ -1420,6 +1424,7 @@ impl Renderer {
         let phase = pose.map_or(0.0, |p| p.progress);
         let kind = pose.map(|p| p.kind);
         let bow = item == Some(ItemType::Bow);
+        let throwing = matches!(kind, Some(ActionKind::Use)) && item == Some(ItemType::EnderPearl);
         let eating = matches!(kind, Some(ActionKind::Eat | ActionKind::Drink));
         let (hand, tool_angle) = if bow {
             let aim = pose.map_or([dir, 0.0], |p| p.aim);
@@ -1474,6 +1479,20 @@ impl Renderer {
                 );
             }
             return;
+        } else if throwing {
+            let aim = pose.unwrap().aim;
+            let reach = if phase < 0.2 {
+                0.28 + phase * 0.8
+            } else {
+                0.44 - (phase - 0.2) * 0.3
+            };
+            (
+                (
+                    shoulder.0 + aim[0] * h * reach,
+                    shoulder.1 + aim[1] * h * reach - h * 0.06 * (1.0 - phase),
+                ),
+                0.0,
+            )
         } else if eating {
             let hand = (
                 x as f64
@@ -1511,7 +1530,7 @@ impl Renderer {
         );
         line(shoulder, elbow, sleeve);
         line(elbow, hand, skin);
-        if let Some(item) = item {
+        if let Some(item) = item.filter(|_| !throwing) {
             let is_tool = item.max_durability().is_some()
                 && !matches!(item, ItemType::FlintAndSteel | ItemType::Shears);
             let size = if is_tool {
@@ -1878,7 +1897,7 @@ mod tests {
         for kind in [
             Player, Zombie, Pigman, Enderman, Creeper, Skeleton, Cow, Sheep, Pig, Chicken, Wolf,
             Ocelot, Villager, Ghast, Blaze, Spider, Silverfish, Slime, Squid, Dragon, Crystal,
-            Boat, Fireball, Arrow, Orb, Item,
+            Boat, Fireball, Arrow, EnderPearl, Orb, Item,
         ] {
             let sprite = ActorSprite::mob(0, 0, kind, true, 0.0, 0, Color::White);
             let pixels = sprite.pixels();
