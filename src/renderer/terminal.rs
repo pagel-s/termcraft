@@ -1045,8 +1045,8 @@ impl Renderer {
     }
 
     fn overworld_backdrop_profile(state: &GameState, left: i32, right: i32) -> Vec<i32> {
-        // The backdrop represents terrain behind the cutaway. A narrow shaft
-        // opens skylight in the foreground, not a blue stripe to the bedrock.
+        // The backdrop represents terrain behind the cutaway. Deep, narrow
+        // shafts should not draw a sky stripe all the way to the bedrock.
         // Use fixed world neighbours, including outside the viewport, so the
         // backdrop does not change when the camera moves or zooms.
         let raw: Vec<_> = (left - 4..=right + 4)
@@ -1071,7 +1071,15 @@ impl Renderer {
                     .unwrap_or(CHUNK_HEIGHT as i32)
             })
             .collect();
-        Self::smooth_horizon_profile(&raw)[4..raw.len() - 4].to_vec()
+        let rim = Self::smooth_horizon_profile(&raw);
+        // Keep shallow pits and sloping hollows open to the sky. Smoothing the
+        // rim alone painted cave-colored bands above their actual floors.
+        // A deep shaft also keeps an open-air mouth before its cave backdrop.
+        raw[4..raw.len() - 4]
+            .iter()
+            .zip(&rim[4..rim.len() - 4])
+            .map(|(&ground, &rim)| ground.min(rim + 4))
+            .collect()
     }
 
     fn day_mix(tod: f32) -> f32 {

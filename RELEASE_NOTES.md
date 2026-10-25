@@ -46,7 +46,8 @@ Build a home, explore with friends over SSH and take on the dragon together.
   until respawning. Villagers share a doorway hold timer and wait for players to
   clear the opening. Feet-level attacks keep their visibility checks above the
   floor, and distant surface enemies no longer suppress local night refills.
-  Narrow excavated shafts retain an underground backdrop while admitting skylight.
+  Shallow hollows keep their sky background; deep narrow shafts retain an
+  underground backdrop below their open-air mouths while admitting skylight.
 - **Lantern Run.** A separate combat, traversal and bridge/signal route gives new
   players a focused place to start.
 - **Safer saves and native distribution.** Persistent entities and encounter state,

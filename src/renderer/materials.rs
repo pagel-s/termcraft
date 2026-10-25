@@ -1547,6 +1547,73 @@ mod tests {
     }
 
     #[test]
+    fn shallow_surface_hollows_keep_sky_to_the_floor_at_every_scale() {
+        let shapes = (1..=4)
+            .flat_map(|width| (1..=4).map(move |depth| (width, depth, false)))
+            .chain((1..=12).map(|depth| (3, depth, true)));
+        for (width, depth, sloped) in shapes {
+            let mut state = GameState::network_view();
+            for cx in -1..=1 {
+                state.world.apply_chunk_column_snapshot(
+                    cx,
+                    &vec![
+                        BlockType::Air;
+                        crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+                    ],
+                );
+            }
+            let surface = |x: i32| {
+                20 + if sloped {
+                    (depth + 1 - (x - 7).abs()).clamp(0, depth)
+                } else if (4..4 + width).contains(&x) {
+                    depth
+                } else {
+                    0
+                }
+            };
+            for x in -32..64 {
+                for y in surface(x)..60 {
+                    state.world.set_block(x, y, BlockType::Stone);
+                }
+            }
+            state.time_of_day = 12000.0;
+            let x = if sloped { 7 } else { 4 };
+            let floor = surface(x);
+            assert!(state.world.has_open_sky(x, floor - 1));
+            for scale in [1, 2, 4] {
+                let lighting = super::super::shading::SceneLighting::new(
+                    &state,
+                    &[15; 32 * 64],
+                    (0, 0, 32, 64),
+                );
+                let mut renderer = Renderer::with_size(160, 48);
+                renderer.world_view = Some((0, (floor - 4) * scale, 0, 0, scale));
+                renderer.render_pixel_sky(&state, &lighting, 0.0);
+                let sx = (x * 2 + 1) * scale;
+                let sy = 7 * scale;
+                let expected = Renderer::screen_sky_pixel(
+                    &state,
+                    (sx, sy),
+                    (160, 88),
+                    (
+                        Renderer::day_mix(state.time_of_day),
+                        Renderer::twilight_mix(state.time_of_day),
+                    ),
+                );
+                assert_eq!(
+                    Renderer::color_rgb(attachment_pixel(&renderer, sx, sy)),
+                    Some(expected),
+                    "dark surface hollow: width={width}, depth={depth}, sloped={sloped}, scale={scale}"
+                );
+            }
+            assert_eq!(
+                Renderer::overworld_backdrop_profile(&state, 0, 16),
+                (0..=16).map(surface).collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
     fn excavated_shafts_keep_a_lit_underground_backdrop_at_every_scale() {
         let mut state = GameState::network_view();
         for cx in -1..=1 {
@@ -1575,8 +1642,8 @@ mod tests {
             );
             let profile = Renderer::overworld_backdrop_profile(&state, 0, 12);
             assert_eq!(
-                profile[4], 20,
-                "a {width}-wide shaft exposed the sky below ground"
+                profile[4], 24,
+                "a {width}-wide shaft lost its recessed cave backdrop"
             );
             assert_eq!(
                 Renderer::overworld_backdrop_profile(&state, 4, 7)[0],
@@ -1609,10 +1676,18 @@ mod tests {
                 );
             }
         }
-        // A broad open valley retains its own skyline.
+        // Remove the earlier shafts for a separate broad-valley case.
         for x in 0..12 {
-            for y in 20..40 {
-                state.world.set_block(x, y, BlockType::Air);
+            for y in 20..50 {
+                state.world.set_block(
+                    x,
+                    y,
+                    if y < 40 {
+                        BlockType::Air
+                    } else {
+                        BlockType::Stone
+                    },
+                );
             }
         }
         assert_eq!(Renderer::overworld_backdrop_profile(&state, 0, 12)[5], 40);
