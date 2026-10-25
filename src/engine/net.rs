@@ -736,16 +736,19 @@ impl ServerSimulation {
             .filter(|id| *id != client_id)
             .filter(|&id| self.state.peer_dimension(id) == self.state.current_dimension)
             .filter_map(|id| {
-                self.state.peer_session(id).map(|p| PeerPlayerSnapshot {
-                    client_id: id,
-                    armor: p.armor_items(),
-                    hurt_ticks: p.hurt_ticks(),
-                    player: PlayerSnapshot::from_player(p.player()),
-                    action: self.state.peer_action_visual(id, p.player().age, 0.0),
-                    held_item: p.inventory().slots[p.hotbar_index() as usize]
-                        .as_ref()
-                        .map(|s| s.item_type),
-                })
+                self.state
+                    .peer_session(id)
+                    .filter(|p| !p.dead() && p.player().health > 0.0)
+                    .map(|p| PeerPlayerSnapshot {
+                        client_id: id,
+                        armor: p.armor_items(),
+                        hurt_ticks: p.hurt_ticks(),
+                        player: PlayerSnapshot::from_player(p.player()),
+                        action: self.state.peer_action_visual(id, p.player().age, 0.0),
+                        held_item: p.inventory().slots[p.hotbar_index() as usize]
+                            .as_ref()
+                            .map(|s| s.item_type),
+                    })
             })
             .collect();
         if let Some(id) = selected {

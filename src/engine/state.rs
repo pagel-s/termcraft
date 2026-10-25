@@ -6814,16 +6814,30 @@ impl GameState {
     }
 
     fn entity_overlaps_doorway(&self, x: f64, y: f64, door_x: i32, base_y: i32) -> bool {
-        (x - (door_x as f64 + 0.5)).abs() <= 0.38 && (y - (base_y as f64 - 0.1)).abs() <= 0.95
+        // y is the feet line; base_y is the lower door block, not its floor.
+        // Include the whole body so a door cannot close on a shoulder or foot.
+        x + 0.3 > door_x as f64
+            && x - 0.3 < door_x as f64 + 1.0
+            && y > base_y as f64 - 1.0
+            && y - PLAYER_HEIGHT < base_y as f64 + 1.0
     }
 
     fn doorway_is_occupied(&self, door_x: i32, base_y: i32) -> bool {
-        if self.entity_overlaps_doorway(self.player.x, self.player.y, door_x, base_y) {
+        if self.player.health > 0.0
+            && self.entity_overlaps_doorway(self.player.x, self.player.y, door_x, base_y)
+        {
             return true;
         }
-        self.villagers
-            .iter()
-            .any(|villager| self.entity_overlaps_doorway(villager.x, villager.y, door_x, base_y))
+        if self.other_players_here().any(|actor| {
+            actor.player.health > 0.0
+                && self.entity_overlaps_doorway(actor.player.x, actor.player.y, door_x, base_y)
+        }) {
+            return true;
+        }
+        self.villagers.iter().any(|villager| {
+            villager.health > 0.0
+                && self.entity_overlaps_doorway(villager.x, villager.y, door_x, base_y)
+        })
     }
 
     fn refresh_villager_door_hold_for_entity(&mut self, x: f64, y: f64) {
@@ -6872,8 +6886,11 @@ impl GameState {
             if self.doorway_is_occupied(door_x, base_y) {
                 continue;
             }
-            let _ = self.set_door_open_state(door_x, base_y, false);
-            self.villager_open_doors.remove(&(door_x, base_y));
+            // Each villager uses the same doorway timer. A leading villager
+            // must not close it immediately in the next villager's face.
+            self.villager_open_doors
+                .entry((door_x, base_y))
+                .or_insert(VILLAGER_DOOR_HOLD_TICKS);
         }
     }
 
@@ -8534,12 +8551,15 @@ impl GameState {
             .chain(self.slimes.iter().map(|m| (m.x, m.y)))
         {
             total += 1;
-            local += usize::from(if outdoor_night {
-                self.world
-                    .has_open_sky(x.floor() as i32, (y - 1.0).floor() as i32)
-            } else {
-                (y - self.player.y).abs() <= 16.0
-            });
+            local += usize::from(
+                (x - self.player.x).abs() <= 40.0
+                    && if outdoor_night {
+                        self.world
+                            .has_open_sky(x.floor() as i32, (y - 1.0).floor() as i32)
+                    } else {
+                        (y - self.player.y).abs() <= 16.0
+                    },
+            );
         }
         let cap = self.scaled_hostile_cap(OVERWORLD_HOSTILE_CAP);
         total < cap && local < Self::spawn_refill_threshold(cap, 2, 3)
@@ -14714,15 +14734,14 @@ impl GameState {
                 if self.sprinting {
                     desired_speed *= SPRINT_SPEED_MULTIPLIER;
                 }
-                // Fluid drag already limits speed strongly. Keep enough forward
-                // authority to escape a bank while land movement becomes finer.
-                if !self.player.sneaking && (water_submersion > 0.0 || lava_submersion > 0.0) {
+                // Water scales the chosen walking speed; the former minimum
+                // of 0.6 cancelled drag on a submerged floor. Lava retains its
+                // existing escape stroke, which its stronger resistance needs.
+                if !self.player.sneaking && lava_submersion > 0.0 {
                     desired_speed = desired_speed.max(0.6);
                 }
-                let fluid_speed_scale = if water_submersion >= SWIM_CONTROL_MIN_SUBMERSION {
-                    0.62 - water_submersion * 0.08
-                } else if water_submersion > 0.0 {
-                    0.8 - water_submersion * 0.08
+                let fluid_speed_scale = if water_submersion > 0.0 {
+                    1.0 - water_submersion * 0.46
                 } else if lava_submersion > 0.0 {
                     0.62 - lava_submersion * 0.22
                 } else {
@@ -14745,7 +14764,9 @@ impl GameState {
                         tuning.air_accel
                     };
                     let accel = if water_submersion >= SWIM_CONTROL_MIN_SUBMERSION {
-                        (accel * 0.64).clamp(0.12, 0.27)
+                        // Responsive steering toward a lower top speed, rather
+                        // than a high target speed approached sluggishly.
+                        (accel * 1.2).clamp(0.48, 0.65)
                     } else if water_submersion > 0.0 {
                         (accel * 0.72).clamp(0.12, 0.28)
                     } else if lava_submersion > 0.0 {
@@ -22463,6 +22484,41 @@ mod tests {
     }
 
     #[test]
+    fn test_two_villagers_enter_one_door_without_repeatedly_closing_it_on_each_other() {
+        let mut state = isolated_villager_behavior_fixture();
+        state.game_rules.do_mob_spawning = false;
+        build_side_entry_hut(&mut state, 0, 9, true);
+        state.villagers = vec![
+            Villager::new(-3.5, 9.9, 0, 9),
+            Villager::new(-4.5, 9.9, 0, 9),
+        ];
+        state.player.x = -10.0;
+        state.player.y = 9.9;
+        state.time_of_day = 23000.0;
+        let mut previous = false;
+        let mut changes = 0;
+        for _ in 0..300 {
+            state.update(0, 0);
+            let open = state.world.get_block(0, 9) == BlockType::WoodDoor(true);
+            changes += usize::from(open != previous);
+            previous = open;
+        }
+        assert!(
+            state.villagers.iter().all(|v| v.x > 0.8),
+            "queue stalled: {:?}",
+            state.villagers
+        );
+        assert!(
+            changes > 0 && changes <= 4,
+            "door toggled {changes} times for two arrivals"
+        );
+        assert!(
+            !previous,
+            "door must close after both villagers have entered"
+        );
+    }
+
+    #[test]
     fn test_villager_auto_step_crosses_single_block_obstacle() {
         let mut state = isolated_villager_behavior_fixture();
         state.current_dimension = Dimension::Overworld;
@@ -24235,6 +24291,10 @@ mod tests {
 #[cfg(test)]
 #[path = "physics_tests.rs"]
 mod physics_tests;
+
+#[cfg(test)]
+#[path = "playtest_regressions.rs"]
+mod playtest_regressions;
 
 #[cfg(test)]
 #[path = "persistence_tests.rs"]

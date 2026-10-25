@@ -467,6 +467,14 @@ fn three_players_keep_playing_when_the_primary_dies_or_leaves() {
     assert!(sim.snapshot_for_client(1).unwrap().death_screen_active);
     assert!(!sim.snapshot_for_client(2).unwrap().death_screen_active);
     assert!(!sim.snapshot_for_client(3).unwrap().death_screen_active);
+    assert!(
+        sim.snapshot_for_client(3)
+            .unwrap()
+            .remote_players
+            .iter()
+            .all(|p| p.client_id != 1),
+        "a player waiting to respawn must not stand upright on other screens"
+    );
     let before = sim.snapshot_for_client(3).unwrap().player.x;
     command(&mut sim, 3, ClientCommand::SetMoveRight(true));
     for _ in 0..10 {
@@ -475,6 +483,14 @@ fn three_players_keep_playing_when_the_primary_dies_or_leaves() {
     assert!(sim.snapshot_for_client(3).unwrap().player.x > before + 1.0);
     command(&mut sim, 1, ClientCommand::RespawnFromDeathScreen);
     assert!(!sim.snapshot_for_client(1).unwrap().death_screen_active);
+    assert!(
+        sim.snapshot_for_client(3)
+            .unwrap()
+            .remote_players
+            .iter()
+            .any(|p| p.client_id == 1),
+        "the respawned player must become visible again"
+    );
     assert_eq!(sim.snapshot_for_client(3).unwrap().host_client_id, Some(1));
     sim.unregister_client(1);
     sim.step(0, 0);

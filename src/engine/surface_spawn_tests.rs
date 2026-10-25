@@ -224,3 +224,54 @@ fn night_spawns_keep_a_safe_gap_but_can_enter_normal_awareness() {
         assert!(!s.is_spawn_too_close_to_player(x, y, OVERWORLD_HOSTILE_SPAWN_MIN_DIST_SQ));
     }
 }
+
+#[test]
+fn a_distant_players_surface_mobs_do_not_suppress_local_night_refill() {
+    let mut s = surface_with_cave();
+    // The distant player's mobs are still resident, but outside this player's
+    // 40-block spawning neighbourhood. Keep the existing total hard cap.
+    let soft_cap = GameState::spawn_refill_threshold(OVERWORLD_HOSTILE_CAP, 2, 3);
+    s.zombies = (0..soft_cap)
+        .map(|i| Zombie::new(65.5 + i as f64, 31.9))
+        .collect();
+    assert!(s.can_refill_overworld_hostiles());
+    s.zombies
+        .extend((soft_cap..OVERWORLD_HOSTILE_CAP).map(|i| Zombie::new(65.5 + i as f64, 31.9)));
+    assert!(
+        !s.can_refill_overworld_hostiles(),
+        "the global safety cap must stay in force"
+    );
+}
+
+#[test]
+fn thirty_seconds_of_unforced_night_spawning_remain_bounded() {
+    for seed in [42, 73, 1337, 2026] {
+        let mut s = surface_with_cave();
+        let mut rng = StdRng::seed_from_u64(seed);
+        for _ in 0..600 {
+            s.update_ambient_respawns(&mut rng, false);
+        }
+        let mobs: Vec<_> = s
+            .zombies
+            .iter()
+            .map(|m| (m.x, m.y))
+            .chain(s.creepers.iter().map(|m| (m.x, m.y)))
+            .chain(s.skeletons.iter().map(|m| (m.x, m.y)))
+            .chain(s.spiders.iter().map(|m| (m.x, m.y)))
+            .collect();
+        let aware = mobs
+            .iter()
+            .filter(|(x, _)| (x - s.player.x).abs() < 20.0)
+            .count();
+        eprintln!(
+            "night seed {seed}: {} surface mobs after 30s; {aware} inside 20 blocks",
+            mobs.len()
+        );
+        assert!(mobs.len() >= 4 && mobs.len() <= 9);
+        assert!(mobs.iter().all(|&(x, y)| !s.is_spawn_too_close_to_player(
+            x,
+            y,
+            OVERWORLD_HOSTILE_SPAWN_MIN_DIST_SQ
+        )));
+    }
+}

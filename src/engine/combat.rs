@@ -140,13 +140,17 @@ impl GameState {
             let x = mx.clamp(b.x - b.half, b.x + b.half);
             let y = my.clamp(b.y - b.height, b.y);
             let distance = (mx - x).powi(2) + (my - y).powi(2);
+            // A body may rest exactly on solid ground. Aim inside its visible
+            // outline rather than ending the ray in that supporting block.
+            let aim_x = x.clamp(b.x - b.half + 0.02, b.x + b.half - 0.02);
+            let aim_y = y.clamp(b.y - b.height + 0.02, b.y - 0.02);
             let reach_x = self.player.x.clamp(b.x - b.half, b.x + b.half);
             let reach_y = (self.player.y - 0.9).clamp(b.y - b.height, b.y);
             let reachable = (self.player.x - reach_x).hypot(self.player.y - 0.9 - reach_y) <= 2.0;
             if distance > 0.36
                 || !reachable
                 || self
-                    .terrain_segment_hit(self.player.x, self.player.y - 0.9, x, y, false)
+                    .terrain_segment_hit(self.player.x, self.player.y - 0.9, aim_x, aim_y, false)
                     .is_some()
             {
                 continue;
@@ -515,6 +519,67 @@ mod tests {
         s.zombies.clear();
         s.world.set_block(1, 19, BlockType::Stone);
         assert!(!s.perform_melee(2.2, 19.1));
+    }
+    #[test]
+    fn cursor_cells_at_mob_feet_do_not_ray_cast_into_the_floor() {
+        let mut s = arena();
+        s.cows.push(Cow::new(1.8, 20.0));
+        assert!(
+            s.perform_melee(1.5, 20.5),
+            "the visible feet cell selected the ground instead of the body"
+        );
+        assert!(s.cows[0].health < 10.0);
+        s.cows[0].health = 10.0;
+        s.world.set_block(1, 19, BlockType::Stone);
+        assert!(
+            !s.perform_melee(1.5, 20.5),
+            "aim assistance must respect a blocking wall"
+        );
+    }
+    #[test]
+    fn cursor_cells_at_a_players_feet_use_the_same_pick_as_mobs() {
+        let mut s = arena();
+        s.join_peer(1);
+        s.join_peer(2);
+        s.activate_peer(2);
+        s.player.x = 2.0;
+        s.player.y = 20.0;
+        s.activate_peer(1);
+        s.player.x = 0.5;
+        s.player.y = 20.0;
+        assert!(s.perform_melee(2.5, 20.5));
+        assert!(s.peer_session(2).unwrap().player().health < 20.0);
+    }
+    #[test]
+    fn body_cells_of_small_tall_and_wide_mobs_are_consistently_pickable() {
+        for kind in 0..12 {
+            let mut s = arena();
+            match kind {
+                0 => s.zombies.push(Zombie::new(1.8, 20.0)),
+                1 => s.skeletons.push(Skeleton::new(1.8, 20.0)),
+                2 => s.creepers.push(Creeper::new(1.8, 20.0)),
+                3 => s.spiders.push(Spider::new(1.8, 20.0)),
+                4 => s.silverfish.push(Silverfish::new(1.8, 20.0)),
+                5 => s.endermen.push(Enderman::new(1.8, 20.0)),
+                6 => s.cows.push(Cow::new(1.8, 20.0)),
+                7 => s.sheep.push(Sheep::new(1.8, 20.0)),
+                8 => s.pigs.push(Pig::new(1.8, 20.0)),
+                9 => s.chickens.push(Chicken::new(1.8, 20.0)),
+                10 => s.villagers.push(Villager::new(1.8, 20.0, 0, 19)),
+                _ => s.slimes.push(Slime::new(1.8, 20.0, 2)),
+            }
+            let b = s.combat_bodies().into_iter().next().unwrap();
+            for x in (b.x - b.half).floor() as i32..=(b.x + b.half - 0.001).floor() as i32 {
+                for y in (b.y - b.height).floor() as i32..=(b.y - 0.001).floor() as i32 {
+                    assert_eq!(
+                        s.pick_combat_target(x as f64 + 0.5, y as f64 + 0.5),
+                        Some(b.target),
+                        "visible body cell {x},{y} missed {:?}",
+                        b.target
+                    );
+                }
+            }
+        }
     }
     #[test]
     fn fireballs_can_be_returned_to_ghasts_and_blazes_but_not_through_walls() {

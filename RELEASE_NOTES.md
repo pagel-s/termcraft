@@ -40,6 +40,13 @@ Build a home, explore with friends over SSH and take on the dragon together.
 - **Water and survival fixes.** Connected basins fill toward source height,
   supported underwater building works, and drowning, lava/fire and loose-item
   destruction follow the same world rules.
+  Underwater walking stays slower than dry land while retaining responsive steering;
+  land animals cannot add an airborne step to jump over a two-block barrier.
+- **Co-op playtest refinements.** Dead players disappear from other players' views
+  until respawning. Villagers share a doorway hold timer and wait for players to
+  clear the opening. Feet-level attacks keep their visibility checks above the
+  floor, and distant surface enemies no longer suppress local night refills.
+  Narrow excavated shafts retain an underground backdrop while admitting skylight.
 - **Lantern Run.** A separate combat, traversal and bridge/signal route gives new
   players a focused place to start.
 - **Safer saves and native distribution.** Persistent entities and encounter state,

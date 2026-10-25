@@ -76,7 +76,9 @@ impl GameState {
             grounded,
             half,
             height,
-            true,
+            // Airborne step assist can add another block to a normal animal
+            // jump and let it climb out over a two-block wall or closed door.
+            grounded || water > 0.0,
             swimming && !recovering,
         )
     }

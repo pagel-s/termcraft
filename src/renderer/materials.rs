@@ -703,31 +703,13 @@ impl Renderer {
         let right = (vx - cx + i32::from(self.width)).div_euclid(unit);
         let mut horizons = std::mem::take(&mut self.pixel_horizons);
         horizons.clear();
+        let backdrop = if state.current_dimension == Dimension::Overworld {
+            Self::overworld_backdrop_profile(state, left, right)
+        } else {
+            vec![crate::world::chunk::CHUNK_HEIGHT as i32; (right - left + 1) as usize]
+        };
         for bx in left..=right {
-            let ground = if state.current_dimension == Dimension::Overworld {
-                (0..crate::world::chunk::CHUNK_HEIGHT as i32)
-                    .find(|&by| {
-                        // Isolated props and floating blocks cannot turn all the air
-                        // below them into underground. Find an actual terrain layer.
-                        (0..3).all(|dy| {
-                            matches!(
-                                state.world.get_block(bx, by + dy),
-                                BlockType::Grass
-                                    | BlockType::Dirt
-                                    | BlockType::Sand
-                                    | BlockType::Snow
-                                    | BlockType::Stone
-                                    | BlockType::Water(_)
-                                    | BlockType::Gravel
-                                    | BlockType::Farmland(_)
-                                    | BlockType::Ice
-                            )
-                        })
-                    })
-                    .unwrap_or(crate::world::chunk::CHUNK_HEIGHT as i32)
-            } else {
-                crate::world::chunk::CHUNK_HEIGHT as i32
-            };
+            let ground = backdrop[(bx - left) as usize];
             horizons.push(
                 state
                     .world
@@ -1562,6 +1544,78 @@ mod tests {
                 "false background column below {block:?}"
             );
         }
+    }
+
+    #[test]
+    fn excavated_shafts_keep_a_lit_underground_backdrop_at_every_scale() {
+        let mut state = GameState::network_view();
+        for cx in -1..=1 {
+            state.world.apply_chunk_column_snapshot(
+                cx,
+                &vec![
+                    BlockType::Air;
+                    crate::world::chunk::CHUNK_WIDTH * crate::world::chunk::CHUNK_HEIGHT
+                ],
+            );
+        }
+        for x in -32..64 {
+            for y in 20..60 {
+                state.world.set_block(x, y, BlockType::Stone);
+            }
+        }
+        for width in [1, 2, 3, 4] {
+            for x in 4..4 + width {
+                for y in 20..50 {
+                    state.world.set_block(x, y, BlockType::Air);
+                }
+            }
+            assert!(
+                state.world.has_open_sky(4, 30),
+                "a shaft must still admit skylight"
+            );
+            let profile = Renderer::overworld_backdrop_profile(&state, 0, 12);
+            assert_eq!(
+                profile[4], 20,
+                "a {width}-wide shaft exposed the sky below ground"
+            );
+            assert_eq!(
+                Renderer::overworld_backdrop_profile(&state, 4, 7)[0],
+                profile[4],
+                "moving the viewport must not change the cutaway backdrop"
+            );
+            for scale in [1, 2, 4] {
+                let lighting = super::super::shading::SceneLighting::new(
+                    &state,
+                    &[15; 32 * 64],
+                    (0, 0, 32, 64),
+                );
+                let mut renderer = Renderer::with_size(160, 48);
+                renderer.world_view = Some((0, 27 * scale, 0, 0, scale));
+                renderer.render_pixel_sky(&state, &lighting, 0.0);
+                let cell = renderer.back_buffer[3 * scale as usize * 160 + 9 * scale as usize];
+                let sky = Renderer::screen_sky_pixel(
+                    &state,
+                    (9 * scale, 6 * scale),
+                    (160, 88),
+                    (
+                        Renderer::day_mix(state.time_of_day),
+                        Renderer::twilight_mix(state.time_of_day),
+                    ),
+                );
+                assert_ne!(
+                    Renderer::color_rgb(cell.fg),
+                    Some(sky),
+                    "sky stripe at scale {scale}"
+                );
+            }
+        }
+        // A broad open valley retains its own skyline.
+        for x in 0..12 {
+            for y in 20..40 {
+                state.world.set_block(x, y, BlockType::Air);
+            }
+        }
+        assert_eq!(Renderer::overworld_backdrop_profile(&state, 0, 12)[5], 40);
     }
     #[test]
     fn overview_preserves_thin_fixture_silhouettes() {

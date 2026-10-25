@@ -1044,6 +1044,36 @@ impl Renderer {
         block_y > 34 && block_y > sky_horizon_y
     }
 
+    fn overworld_backdrop_profile(state: &GameState, left: i32, right: i32) -> Vec<i32> {
+        // The backdrop represents terrain behind the cutaway. A narrow shaft
+        // opens skylight in the foreground, not a blue stripe to the bedrock.
+        // Use fixed world neighbours, including outside the viewport, so the
+        // backdrop does not change when the camera moves or zooms.
+        let raw: Vec<_> = (left - 4..=right + 4)
+            .map(|x| {
+                (0..CHUNK_HEIGHT as i32)
+                    .find(|&y| {
+                        (0..3).all(|dy| {
+                            matches!(
+                                state.world.get_block(x, y + dy),
+                                BlockType::Grass
+                                    | BlockType::Dirt
+                                    | BlockType::Sand
+                                    | BlockType::Snow
+                                    | BlockType::Stone
+                                    | BlockType::Water(_)
+                                    | BlockType::Gravel
+                                    | BlockType::Farmland(_)
+                                    | BlockType::Ice
+                            )
+                        })
+                    })
+                    .unwrap_or(CHUNK_HEIGHT as i32)
+            })
+            .collect();
+        Self::smooth_horizon_profile(&raw)[4..raw.len() - 4].to_vec()
+    }
+
     fn day_mix(tod: f32) -> f32 {
         if !(4000.0..=20000.0).contains(&tod) {
             0.0
@@ -1346,6 +1376,11 @@ impl Renderer {
         } else {
             sky_horizon_raw_by_bx
         };
+        let backdrop_by_bx = if is_overworld {
+            Self::overworld_backdrop_profile(state, min_bx, min_bx + width_b as i32 - 1)
+        } else {
+            vec![CHUNK_HEIGHT as i32; width_b]
+        };
 
         for x in 0..width_b {
             let bx = min_bx + x as i32;
@@ -1427,7 +1462,8 @@ impl Renderer {
                 let sky_occluder_y = sky_occluder_by_bx[light_x];
                 let precipitation_cutoff_y = precipitation_cutoff_by_bx[light_x];
                 let sky_horizon_y = sky_horizon_by_bx[light_x];
-                let sky_exposed = is_overworld && block_y < sky_occluder_y;
+                let sky_exposed =
+                    is_overworld && block_y < sky_occluder_y && block_y < backdrop_by_bx[light_x];
                 let sky_bg = if sky_exposed {
                     Some(Self::overworld_sky_background(
                         block_y,
@@ -1799,6 +1835,9 @@ impl Renderer {
         }
 
         for (actor_index, remote) in state.remote_players.iter().enumerate() {
+            if remote.health <= 0.0 {
+                continue;
+            }
             let (actor_x, actor_y) = self.motion.position(
                 "remote_players",
                 actor_index,
