@@ -172,6 +172,9 @@ class TerminalGame:
         self.pump(0.4)
         self.process.wait(timeout=6)
         assert self.process.returncode == 0, self.process.returncode
+        # Saving can outlast the first pump. After exit, consume the final PTY
+        # trailer before checking that the game restored the terminal.
+        self.pump(0.1)
         assert b"\x1b[?1049l" in self.raw, "alternate screen was not restored"
         assert self.before == termios.tcgetattr(self.slave), "terminal input mode was not restored"
         return {
