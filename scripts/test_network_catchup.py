@@ -37,6 +37,8 @@ def check(binary, root):
     guest = None
     stop = threading.Event()
     flood = None
+    mouse_bytes_written = 0
+    mouse_partial_writes = 0
     try:
         guest = TerminalGame(binary, save, root / "guest", "terminal-input", address,
                              observe=False, start_server=False, profile="catchup-guest")
@@ -64,15 +66,25 @@ def check(binary, root):
         # rebuilding, command writes or incoming authoritative updates.
         os.set_blocking(guest.master, False)
         def flood_mouse():
+            nonlocal mouse_bytes_written, mouse_partial_writes
             packet = (b"\x1b[<35;60;20M\x1b[<35;70;20M") * 16
-            while not stop.is_set():
+            pending = b""
+            # PTY writes can be partial. Preserve every suffix and finish the
+            # last packet on stop, or a truncated mouse escape can consume the
+            # next real key (including Q) instead of delivering a key event.
+            while pending or not stop.is_set():
+                if not pending:
+                    pending = packet
                 try:
-                    os.write(guest.master, packet)
+                    written = os.write(guest.master, pending)
+                    mouse_bytes_written += written
+                    mouse_partial_writes += written < len(pending)
+                    pending = pending[written:]
                 except BlockingIOError:
                     pass
                 except OSError:
                     break
-                stop.wait(0.001)
+                time.sleep(0.001)
         flood = threading.Thread(target=flood_mouse, daemon=True)
         flood.start()
         deadline = time.monotonic() + 3
@@ -95,6 +107,8 @@ def check(binary, root):
         return dict(status="passed", blocked_terminal_seconds=6,
                     recovery_seconds=catchup_seconds, superseded_snapshots=skipped,
                     guest_tick_advance=after-before, continuous_mouse_seconds=3,
+                    mouse_bytes_written=mouse_bytes_written,
+                    mouse_partial_writes=mouse_partial_writes,
                     final_tick_gap=current-final,
                     both_clients_saved_and_restored=True,
                     limits="Local TCP and PTYs; does not reproduce radio packet loss or Ghostty itself.")

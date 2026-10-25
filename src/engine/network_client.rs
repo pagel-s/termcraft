@@ -2,6 +2,8 @@
 mod identity;
 #[path = "server_inbox.rs"]
 mod server_inbox;
+#[path = "terminal_events.rs"]
+mod terminal_events;
 use super::command::ClientCommand;
 use super::game_loop::{
     LegacyJumpGrace, confirms_control_key_releases, frame_deadline, input_stale_timeout,
@@ -18,7 +20,7 @@ use server_inbox::ServerInbox;
 
 use crate::world::{Dimension, World};
 use crossterm::event::{
-    self, Event, KeyCode, KeyEventKind, KeyModifiers, ModifierKeyCode, MouseEventKind,
+    Event, KeyCode, KeyEventKind, KeyModifiers, ModifierKeyCode, MouseEventKind,
 };
 use std::collections::VecDeque;
 use std::io;
@@ -464,6 +466,7 @@ fn run_tcp_client_loop(
     client_id: u16,
     hint: &str,
 ) -> io::Result<()> {
+    let input = terminal_events::TerminalEvents::spawn()?;
     let mut state = GameState::network_view();
     state.connection_address = Some(hint.into());
     clear_remote_runtime_entities(&mut state);
@@ -499,12 +502,12 @@ fn run_tcp_client_loop(
     while running {
         let input_started = Instant::now();
         for _ in 0..MAX_INPUT_EVENTS_PER_FRAME {
-            if input_started.elapsed() >= INPUT_TIME_BUDGET
-                || !event::poll(Duration::from_millis(0))?
-            {
+            if input_started.elapsed() >= INPUT_TIME_BUDGET {
                 break;
             }
-            let ev = event::read()?;
+            let Some(ev) = input.next()? else {
+                break;
+            };
             if matches!(&ev, Event::Key(key) if confirms_control_key_releases(key)) {
                 key_releases = true;
                 renderer.note_key_release();
@@ -1446,7 +1449,7 @@ fn run_tcp_client_loop(
                 frame_deadline(render_started, Instant::now(), CLIENT_FRAME_DURATION);
         }
         let wake_at = next_frame_deadline.min(last_tick + CLIENT_TICK_DURATION);
-        event::poll(wake_at.saturating_duration_since(Instant::now()))?;
+        input.wait(wake_at.saturating_duration_since(Instant::now()));
     }
 
     Ok(())
