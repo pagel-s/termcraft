@@ -42,6 +42,10 @@ pub struct PerformanceMetrics {
     pub render: TimingWindow,
     pub save_and_cache: TimingWindow,
     pub dropped_catchups: u64,
+    pub network_inbox: TimingWindow,
+    pub network_received_at: Option<std::time::Instant>,
+    pub network_tick: u64,
+    pub network_superseded: u64,
 }
 
 #[cfg(test)]

@@ -42,6 +42,11 @@ jobs:
           cargo +"$RUST_VERSION" test --locked --lib temporary_socket -- --ignored
           cargo +"$RUST_VERSION" test --locked --test multiplayer_tcp -- --ignored
 
+      - name: Test stalled terminal catch-up and mouse bursts
+        run: |
+          python3 -m pip install pillow==12.1.1
+          python3 scripts/test_network_catchup.py --binary target/debug/termcraft
+
       - name: Play Lantern Run through normal CLI tools
         run: python3 scripts/test_lantern_trial.py --binary target/debug/termcraft
 

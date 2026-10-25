@@ -1,5 +1,7 @@
 #[path = "client_identity.rs"]
 mod identity;
+#[path = "server_inbox.rs"]
+mod server_inbox;
 use super::command::ClientCommand;
 use super::game_loop::{
     LegacyJumpGrace, confirms_control_key_releases, frame_deadline, input_stale_timeout,
@@ -12,6 +14,7 @@ use super::net::{
 };
 use super::state::GameState;
 use crate::renderer::Renderer;
+use server_inbox::ServerInbox;
 
 use crate::world::{Dimension, World};
 use crossterm::event::{
@@ -28,6 +31,8 @@ const CLIENT_TICK_DURATION: Duration = Duration::from_millis(1000 / SERVER_TICK_
 const CLIENT_MAX_CATCHUP_TICKS_PER_FRAME: u8 = 5;
 const CLIENT_TARGET_FPS: u64 = 60;
 const CLIENT_FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / CLIENT_TARGET_FPS);
+const MAX_INPUT_EVENTS_PER_FRAME: usize = 64;
+const INPUT_TIME_BUDGET: Duration = Duration::from_millis(2);
 // Match native input: conservative pulses until a control release is observed,
 // then hold until actual release or a focus/menu/connection reset.
 const REMOTE_HORIZONTAL_STALE_TIMEOUT_INITIAL: Duration = Duration::from_millis(150);
@@ -348,25 +353,48 @@ fn sync_remote_sneak_hold(
     );
 }
 
-fn spawn_server_message_reader(
-    mut reader: TcpStream,
-    tx: mpsc::SyncSender<io::Result<ServerWireMessage>>,
-) {
+fn spawn_server_message_reader(mut reader: TcpStream, inbox: ServerInbox) {
     thread::spawn(move || {
         loop {
             match read_framed_server_message(&mut reader) {
                 Ok(message) => {
-                    if tx.send(Ok(message)).is_err() {
+                    if !inbox.push(message) {
                         break;
                     }
                 }
                 Err(err) => {
-                    let _ = tx.send(Err(err));
+                    inbox.fail(err);
                     break;
                 }
             }
         }
     });
+}
+
+fn apply_server_updates(
+    state: &mut GameState,
+    prediction: &mut ClientPredictionState,
+    server_inbox: &ServerInbox,
+) -> io::Result<()> {
+    let (updates, error) = server_inbox.take();
+    for mut update in updates {
+        if let Some(snapshot) = update.snapshot.take() {
+            state
+                .performance
+                .network_inbox
+                .record(update.received_at.elapsed());
+            state.performance.network_received_at = Some(update.received_at);
+            state.performance.network_tick = snapshot.tick;
+            state.performance.network_superseded += update.superseded_snapshots;
+            sync_state_from_snapshot(state, &snapshot);
+            prediction.apply_server_message(ServerWireMessage::Snapshot(snapshot));
+        }
+        if let Some(delta) = update.take_terrain() {
+            apply_chunk_delta_to_state(state, &delta);
+            prediction.apply_server_message(ServerWireMessage::ChunkDelta(delta));
+        }
+    }
+    error.map_or(Ok(()), Err)
 }
 
 pub fn run_tcp_client(connect_addr: &str) -> io::Result<()> {
@@ -405,17 +433,17 @@ fn run_tcp_client_with_identity_and_hint(
     reader.set_nodelay(true)?;
     let client_writer = ClientWriter::spawn(writer.try_clone()?);
 
-    let (server_msg_tx, server_msg_rx) = mpsc::sync_channel::<io::Result<ServerWireMessage>>(128);
+    let server_inbox = ServerInbox::default();
     let mut renderer = Renderer::new()?;
     if let Err(error) = renderer.init() {
         let _ = renderer.restore();
         return Err(error);
     }
 
-    spawn_server_message_reader(reader, server_msg_tx);
+    spawn_server_message_reader(reader, server_inbox.clone());
     let result = run_tcp_client_loop(
         &client_writer,
-        &server_msg_rx,
+        &server_inbox,
         &mut renderer,
         welcome.client_id,
         hint,
@@ -431,7 +459,7 @@ fn run_tcp_client_with_identity_and_hint(
 
 fn run_tcp_client_loop(
     writer: &ClientWriter,
-    server_msg_rx: &mpsc::Receiver<io::Result<ServerWireMessage>>,
+    server_inbox: &ServerInbox,
     renderer: &mut Renderer,
     client_id: u16,
     hint: &str,
@@ -464,10 +492,18 @@ fn run_tcp_client_loop(
     let mut next_frame_deadline = Instant::now();
     let mut running = true;
     let mut last_heartbeat = Instant::now();
+    let mut pending_aim = None;
+    let mut last_aim_sent = Instant::now() - CLIENT_TICK_DURATION;
     let mut key_releases = renderer.reports_key_releases();
 
     while running {
-        while event::poll(Duration::from_millis(0))? {
+        let input_started = Instant::now();
+        for _ in 0..MAX_INPUT_EVENTS_PER_FRAME {
+            if input_started.elapsed() >= INPUT_TIME_BUDGET
+                || !event::poll(Duration::from_millis(0))?
+            {
+                break;
+            }
             let ev = event::read()?;
             if matches!(&ev, Event::Key(key) if confirms_control_key_releases(key)) {
                 key_releases = true;
@@ -1070,11 +1106,20 @@ fn run_tcp_client_loop(
                     state.mouse_y = mouse_event.row;
                     let (bx, by) = renderer.screen_to_world(&state, state.mouse_x, state.mouse_y);
                     if !state.inventory_open {
-                        queue_client_command(
-                            &mut prediction,
-                            &mut pending_outbound,
-                            ClientCommand::AimAt(bx, by),
-                        );
+                        if matches!(
+                            mouse_event.kind,
+                            MouseEventKind::Moved | MouseEventKind::Drag(_)
+                        ) {
+                            pending_aim = Some((bx, by));
+                        } else {
+                            pending_aim = None;
+                            last_aim_sent = Instant::now();
+                            queue_client_command(
+                                &mut prediction,
+                                &mut pending_outbound,
+                                ClientCommand::AimAt(bx, by),
+                            );
+                        }
                     }
                     match mouse_event.kind {
                         MouseEventKind::ScrollDown if state.inventory_open => {
@@ -1259,6 +1304,18 @@ fn run_tcp_client_loop(
             }
         }
 
+        if last_aim_sent.elapsed() >= CLIENT_TICK_DURATION
+            && let Some((x, y)) = pending_aim.take()
+        {
+            queue_client_command(
+                &mut prediction,
+                &mut pending_outbound,
+                ClientCommand::AimAt(x, y),
+            );
+            last_aim_sent = Instant::now();
+            last_heartbeat = last_aim_sent;
+        }
+
         let now = Instant::now();
         if left_active
             && !jump_movement_grace.active(now)
@@ -1369,36 +1426,8 @@ fn run_tcp_client_loop(
         flush_outbound_commands(writer, &mut pending_outbound)
             .map_err(|error| connection_error(error, hint, false))?;
 
-        loop {
-            match server_msg_rx.try_recv() {
-                Ok(Ok(message)) => {
-                    prediction.apply_server_message(message.clone());
-                    match message {
-                        ServerWireMessage::Welcome(_) => {
-                            return Err(io::Error::other("unexpected second welcome"));
-                        }
-                        ServerWireMessage::Rejected(_, message) => {
-                            return Err(io::Error::other(message));
-                        }
-                        ServerWireMessage::Snapshot(snapshot) => {
-                            sync_state_from_snapshot(&mut state, &snapshot);
-                        }
-                        ServerWireMessage::ChunkDelta(delta) => {
-                            apply_chunk_delta_to_state(&mut state, &delta);
-                        }
-                    }
-                }
-                Ok(Err(err)) => return Err(connection_error(err, hint, false)),
-                Err(mpsc::TryRecvError::Empty) => break,
-                Err(mpsc::TryRecvError::Disconnected) => {
-                    return Err(connection_error(
-                        io::Error::new(io::ErrorKind::UnexpectedEof, "server reader disconnected"),
-                        hint,
-                        false,
-                    ));
-                }
-            }
-        }
+        apply_server_updates(&mut state, &mut prediction, server_inbox)
+            .map_err(|error| connection_error(error, hint, false))?;
 
         if let Some(predicted) = prediction.predicted_snapshot() {
             sync_state_from_snapshot(&mut state, predicted);
@@ -1432,6 +1461,69 @@ mod tests {
     use crate::world::block::BlockType;
     use crate::world::chunk::{CHUNK_HEIGHT, CHUNK_WIDTH};
     use crate::world::item::ItemType;
+
+    #[test]
+    fn catchup_installs_latest_inventory_edits_and_resets_returned_world_terrain() {
+        let inbox = ServerInbox::default();
+        let mut state = GameState::network_view();
+        let mut prediction = ClientPredictionState::new(1);
+        let mut blocks = vec![BlockType::Stone; CHUNK_WIDTH * CHUNK_HEIGHT];
+        state.world.apply_chunk_column_snapshot(2, &blocks);
+        for (tick, dimension, block) in [
+            (1, SnapshotDimension::Overworld, BlockType::Stone),
+            (2, SnapshotDimension::Nether, BlockType::Netherrack),
+            (3, SnapshotDimension::Overworld, BlockType::Dirt),
+        ] {
+            let mut snapshot = ServerSnapshot::from_state(tick, &GameState::network_view());
+            snapshot.dimension = dimension;
+            inbox.push(ServerWireMessage::Snapshot(Box::new(snapshot)));
+            blocks.fill(block);
+            inbox.push(ServerWireMessage::ChunkDelta(ChunkDeltaPacket {
+                protocol: NET_PROTOCOL_VERSION,
+                tick,
+                dimension,
+                center_chunk_x: 0,
+                chunks: vec![ChunkColumnSnapshot {
+                    chunk_x: 0,
+                    revision: tick,
+                    biomes: Vec::new(),
+                    blocks: blocks.clone(),
+                }],
+            }));
+        }
+        apply_server_updates(&mut state, &mut prediction, &inbox).unwrap();
+        assert_eq!(state.current_dimension, Dimension::Overworld);
+        assert_eq!(state.world.get_block(0, 40), BlockType::Dirt);
+        assert_eq!(
+            state.world.get_block(2 * CHUNK_WIDTH as i32, 40),
+            BlockType::Air
+        );
+        assert_eq!(
+            prediction.replicated_chunk(0).unwrap().blocks[40 * CHUNK_WIDTH],
+            BlockType::Dirt
+        );
+        let mut latest = GameState::network_view();
+        latest.inventory.slots[0] = Some(crate::world::item::ItemStack {
+            item_type: ItemType::Diamond,
+            count: 17,
+            durability: None,
+        });
+        for tick in 4..80 {
+            let mut snapshot = ServerSnapshot::from_state(tick, &latest);
+            snapshot.player.health = 13.0;
+            snapshot.chat.lines = vec!["latest message".into()].into();
+            inbox.push(ServerWireMessage::Snapshot(Box::new(snapshot)));
+        }
+        apply_server_updates(&mut state, &mut prediction, &inbox).unwrap();
+        assert_eq!(state.inventory.slots[0].as_ref().unwrap().count, 17);
+        assert_eq!(state.player.health, 13.0);
+        assert_eq!(
+            state.chat.lines.front().map(String::as_str),
+            Some("latest message")
+        );
+        assert_eq!(state.performance.network_tick, 79);
+        assert_eq!(state.performance.network_superseded, 75);
+    }
 
     #[test]
     #[ignore = "requires local TCP sockets"]

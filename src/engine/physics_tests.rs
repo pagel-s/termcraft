@@ -509,6 +509,30 @@ fn flying_spawns_reject_pockets_that_only_fit_the_center() {
 }
 
 #[test]
+fn ghast_spawns_prefer_the_players_cavern_height_over_the_ceiling() {
+    let mut s = scene();
+    for x in -2..=2 {
+        for y in 0..100 {
+            s.world.set_block(x, y, BlockType::Air);
+        }
+    }
+    s.player.y = 70.0;
+    let y = s.find_nether_air_spawn_for_ghast(0).unwrap();
+    assert!(
+        (y - 67.5).abs() < 1.0,
+        "spawned at {y} instead of near the player"
+    );
+    assert!(!s.entity_collides_with_world(0.5, y, 0.875, 1.875));
+    // A nearby roof must still leave clearance for the whole sprite/body.
+    for x in -1..=1 {
+        s.world.set_block(x, 65, BlockType::Netherrack);
+    }
+    let y = s.find_nether_air_spawn_for_ghast(0).unwrap();
+    assert!(!s.entity_collides_with_world(0.5, y, 0.875, 1.875));
+    assert!(y > 65.0);
+}
+
+#[test]
 fn villager_home_and_shelter_steering_wait_for_hit_recovery() {
     for time in [6000.0, 23000.0] {
         let mut s = scene();

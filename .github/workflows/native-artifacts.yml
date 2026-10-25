@@ -36,6 +36,7 @@ on:
       - 'scripts/test_terminal_input.py'
       - 'scripts/test_player_chat.py'
       - 'scripts/test_host_input.py'
+      - 'scripts/test_network_catchup.py'
       - 'scripts/test_hosting_launcher.py'
       - 'scripts/test_sandbox_server.py'
       - 'scripts/test_inventory_input.py'
@@ -99,6 +100,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           python scripts/test_host_input.py --binary target/${{ matrix.target }}/release/termcraft --report host-qualification.json
+          python scripts/test_network_catchup.py --binary target/${{ matrix.target }}/release/termcraft --report network-catchup-qualification.json
           python scripts/test_player_chat.py --binary target/${{ matrix.target }}/release/termcraft --report player-chat-qualification.json
           python scripts/test_terminal_input.py --binary target/${{ matrix.target }}/release/termcraft --report terminal-input-qualification.json
           python scripts/test_terminal_views.py --binary target/${{ matrix.target }}/release/termcraft --report terminal-views-qualification.json
@@ -147,6 +149,7 @@ jobs:
           name: terminal-qualification-${{ matrix.target }}
           path: |
             host-qualification.json
+            network-catchup-qualification.json
             player-chat-qualification.json
             terminal-input-qualification.json
             terminal-views-qualification.json

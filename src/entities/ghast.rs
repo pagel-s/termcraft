@@ -32,6 +32,15 @@ impl Ghast {
     }
 
     pub fn update_ai(&mut self, player_x: f64, player_y: f64) -> bool {
+        self.update_ai_with_visibility(player_x, player_y, true)
+    }
+
+    pub fn update_ai_with_visibility(
+        &mut self,
+        player_x: f64,
+        player_y: f64,
+        visible: bool,
+    ) -> bool {
         if self.hit_timer > 0 {
             return false;
         }
@@ -45,13 +54,13 @@ impl Ghast {
             self.shoot_cooldown -= 1;
         }
 
-        if dist < 22.0 {
+        if visible && dist < 48.0 {
             self.facing_right = dx > 0.0;
 
             // Keep pressure on the player, but float at a standoff distance.
-            let target_vx = if dist > 11.0 {
+            let target_vx = if dx.abs() > 11.0 {
                 dx.signum() * 0.16
-            } else if dist < 7.0 {
+            } else if dx.abs() < 7.0 && dy.abs() < 6.0 {
                 -dx.signum() * 0.12
             } else {
                 0.0
@@ -61,7 +70,7 @@ impl Ghast {
             self.vx += (target_vx - self.vx) * 0.18;
             self.vy += (target_vy - self.vy) * 0.18;
 
-            if dist < 16.0 && self.shoot_cooldown == 0 {
+            if dist < 16.0 && dy.abs() < 6.0 && self.shoot_cooldown == 0 {
                 shoot = true;
                 self.shoot_cooldown = 75;
             }
@@ -69,7 +78,13 @@ impl Ghast {
             // Slow idle drift when player is far away.
             let wave = (self.age as f64 * 0.05).sin();
             self.vx += ((if self.facing_right { 0.07 } else { -0.07 }) - self.vx) * 0.08;
-            self.vy += (wave * 0.05 - self.vy) * 0.08;
+            // Patrol near the local player's altitude, without detecting or
+            // shooting through walls. Old ceiling spawns can gradually return
+            // to the playable cavern instead of remaining permanently above it.
+            let altitude_error = (player_y - 3.0).clamp(10.0, 94.0) - self.y;
+            let return_speed =
+                ((altitude_error - altitude_error.clamp(-8.0, 8.0)) * 0.015).clamp(-0.12, 0.12);
+            self.vy += (return_speed + wave * 0.025 - self.vy) * 0.08;
             if self.age.is_multiple_of(160) {
                 self.facing_right = !self.facing_right;
             }
@@ -98,5 +113,36 @@ mod tests {
         let mut ghast = Ghast::new(0.0, 30.0);
         assert!(ghast.update_ai(8.0, 30.0));
         assert!(!ghast.update_ai(8.0, 30.0));
+    }
+
+    #[test]
+    fn high_visible_ghast_descends_before_firing_and_keeps_horizontal_standoff() {
+        let mut ghast = Ghast::new(8.0, 12.0);
+        let mut shot = false;
+        for _ in 0..400 {
+            let fires = ghast.update_ai(0.0, 48.0);
+            if fires {
+                assert!((ghast.y - 45.5).abs() < 6.0);
+                shot = true;
+            }
+            ghast.x += ghast.vx;
+            ghast.y += ghast.vy;
+            ghast.age += 1;
+        }
+        assert!(ghast.y > 40.0, "ceiling ghast never descended");
+        assert!((ghast.x - 8.0).abs() < 0.5);
+        assert!(shot);
+    }
+
+    #[test]
+    fn unseen_ceiling_ghast_returns_to_flight_band_without_attacking() {
+        let mut ghast = Ghast::new(8.0, 8.0);
+        for _ in 0..700 {
+            assert!(!ghast.update_ai_with_visibility(0.0, 75.0, false));
+            ghast.y += ghast.vy;
+            ghast.age += 1;
+        }
+        assert!(ghast.y > 60.0);
+        assert_eq!(ghast.shoot_cooldown, 0);
     }
 }

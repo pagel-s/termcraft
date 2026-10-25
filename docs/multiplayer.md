@@ -107,6 +107,16 @@ the client's rendering. Connections that remain blocked are still disconnected
 with bounded queues. If a player is repeatedly kicked while the host stays open,
 check `multiplayer/default/host.log` inside the host's save directory: it records
 joins, socket errors and output-queue limits. Keep the full client error too.
+The client keeps the newest complete state during presentation pauses, including
+the latest nearby terrain columns; it preserves the reset needed when returning
+from another dimension. Mouse motion is combined into bounded aim updates.
+
+Press **F3** for diagnostics. Low `tick` and `render` times alongside a high
+`net recv age` point toward missing incoming updates rather than slow rendering.
+`inbox p95` measures time between local reception and application, not network
+round-trip latency. `skipped` counts superseded full snapshots, not lost inputs
+or discarded block edits. A bad wireless link can still cause lag and disconnects;
+compare a wired connection or another terminal before changing game settings.
 
 To use a separate multiplayer world, prefix **one** host command with a save root:
 

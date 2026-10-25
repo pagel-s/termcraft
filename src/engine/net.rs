@@ -424,8 +424,12 @@ fn write_framed_payload<W: Write>(writer: &mut W, payload: &[u8]) -> io::Result<
     }
     let length_u32 = u32::try_from(payload.len())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "payload too large"))?;
-    writer.write_all(&length_u32.to_be_bytes())?;
-    writer.write_all(payload)?;
+    // With TCP_NODELAY, separate header/payload writes send a tiny extra packet
+    // for every update. Submit one frame so Wi-Fi and delayed ACKs do less work.
+    let mut frame = Vec::with_capacity(4 + payload.len());
+    frame.extend_from_slice(&length_u32.to_be_bytes());
+    frame.extend_from_slice(payload);
+    writer.write_all(&frame)?;
     Ok(())
 }
 
@@ -1074,7 +1078,9 @@ impl ClientPredictionState {
         self.next_sequence = self.next_sequence.wrapping_add(1).max(1);
         self.pending_inputs.push(frame);
         self.outbound_inputs.push(frame);
-        self.rebuild_prediction_from_authoritative();
+        if !matches!(command, ClientCommand::AimAt(_, _)) {
+            self.rebuild_prediction_from_authoritative();
+        }
         frame
     }
 

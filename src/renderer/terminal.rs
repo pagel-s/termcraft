@@ -3814,6 +3814,21 @@ impl Renderer {
         }
 
         if state.show_debug_overlay {
+            if let Some(received_at) = state.performance.network_received_at {
+                self.put_str(
+                    1,
+                    self.height.saturating_sub(6) as i32,
+                    &format!(
+                        "net recv age {:.0}ms | inbox p95 {:.1}ms | skipped {} | server tick {}",
+                        received_at.elapsed().as_secs_f64() * 1000.0,
+                        state.performance.network_inbox.p95_ms(),
+                        state.performance.network_superseded,
+                        state.performance.network_tick
+                    ),
+                    Color::Grey,
+                    Color::AnsiValue(234),
+                );
+            }
             let chunk_ms = state.world.chunk_metrics.last_load_us as f64 / 1000.0;
             let chunk_max_ms = state.world.chunk_metrics.max_load_us as f64 / 1000.0;
             let (rule_spawn, rule_day, rule_weather, rule_keep_inv) = state.game_rule_flags();

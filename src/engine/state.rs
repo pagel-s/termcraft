@@ -9119,7 +9119,10 @@ impl GameState {
     }
 
     fn find_nether_air_spawn_for_ghast(&self, x: i32) -> Option<f64> {
-        for y in 8..96 {
+        let preferred_y = (self.player.y - 2.5 + 0.6).round() as i32;
+        let mut heights: Vec<i32> = (8..96).collect();
+        heights.sort_by_key(|y| (y - preferred_y).abs());
+        for y in heights {
             if self.world.get_block(x, y) != BlockType::Air
                 || self.world.get_block(x, y - 1) != BlockType::Air
                 || self.world.get_block(x, y - 2) != BlockType::Air
@@ -12986,9 +12989,13 @@ impl GameState {
             if self.ghasts[i].hit_timer > 0 {
                 self.ghasts[i].hit_timer -= 1;
             }
-            let (target_x, target_y, _visible) =
+            let (target_x, target_y, visible) =
                 self.hostile_target(self.ghasts[i].x, self.ghasts[i].y, 1.4);
-            let shoot = self.ghasts[i].update_ai(target_x, target_y);
+            let shoot = self.ghasts[i].update_ai_with_visibility(
+                if visible { target_x } else { self.player.x },
+                if visible { target_y } else { self.player.y },
+                visible,
+            );
             self.ghasts[i].age += 1;
             if self.ghasts[i].health <= 0.0 {
                 dead_ghasts.push(i);
