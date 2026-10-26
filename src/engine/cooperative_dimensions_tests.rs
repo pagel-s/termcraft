@@ -2,6 +2,35 @@ use super::cooperative_tests::{command, count, fixture};
 use super::*;
 use crate::world::item::ItemStack;
 
+#[test]
+fn eye_guidance_reaches_only_the_throwing_players_client() {
+    let (_root, mut sim) = fixture();
+    sim.state.activate_peer(1);
+    sim.state.inventory.slots[0] = Some(ItemStack {
+        item_type: ItemType::EyeOfEnder,
+        count: 1,
+        durability: None,
+    });
+    command(&mut sim, 1, ClientCommand::SelectHotbarSlot(0));
+    command(&mut sim, 1, ClientCommand::UseAt(40, 50));
+    let thrown = sim.snapshot_for_client(1).unwrap();
+    let friend = sim.snapshot_for_client(2).unwrap();
+    assert_eq!(count(&sim, 1, ItemType::EyeOfEnder), 0);
+    let mut client = GameState::network_view();
+    friend.session.apply(&mut client);
+    assert!(client.eye_guidance_hint().is_none());
+    thrown.session.apply(&mut client);
+    assert!(client.eye_guidance_hint().unwrap().contains("right"));
+    sim.state.activate_peer(1);
+    sim.state.player.x = crate::world::STRONGHOLD_CENTER_X as f64 + 0.5;
+    sim.state.player.y = 40.0;
+    sim.snapshot_for_client(1)
+        .unwrap()
+        .session
+        .apply(&mut client);
+    assert!(client.eye_guidance_hint().unwrap().contains("below"));
+}
+
 fn light_portal(sim: &mut ServerSimulation, id: u16) {
     sim.state.activate_peer(id);
     sim.state.player.x = 0.5;

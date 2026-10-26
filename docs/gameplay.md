@@ -224,6 +224,18 @@ or `Portal recharging...` during the two-second cooldown. Breaking a required fr
 block extinguishes the whole opening. Repair the frame and ignite it again.
 Obsidian resists normal blasts, including a direct fireball impact on the frame.
 
+To find the stronghold, craft an **Eye of Ender** from one **Ender Pearl** and one
+**Blaze Powder**. Hold the Eye and right-click or press **F**. Its guidance shows
+left/right and distance for fifteen seconds; near the stronghold it points below
+or above toward the portal room. Most used Eyes fall nearby and can be recovered;
+there is a 20% chance of shattering. Ender Pearls themselves are teleportation items.
+
+Endermen can refill in explored, dark Overworld areas at night with mob spawning
+enabled and difficulty above Peaceful. They remain rare: normal difficulty allows
+at most two from the refill, and another attempt uses the regular enemy refill
+interval. Torches, insufficient headroom and nearby players prevent spawning.
+Each Enderman has a 55% chance of dropping one pearl.
+
 An End portal uses twelve frame blocks around a 2×2 opening. Fill each with an
 Eye of Ender, then use the opening or frame. The bedrock return portal uses the
 same interaction. Portal surfaces cannot be mined; their breakable frames can.

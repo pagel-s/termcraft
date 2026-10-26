@@ -271,6 +271,7 @@ const OVERWORLD_SQUID_CAP: usize = 8;
 const OVERWORLD_WOLF_CAP: usize = 5;
 const OVERWORLD_OCELOT_CAP: usize = 4;
 const OVERWORLD_ENDERMAN_CAP: usize = 3;
+const OVERWORLD_ENDERMAN_REFILL_CHANCE: f64 = 0.08;
 const OVERWORLD_SILVERFISH_CAP: usize = 10;
 const OVERWORLD_SLIME_CAP: usize = 6;
 const OVERWORLD_DUNGEON_SPAWNER_LOCAL_CLUSTER_LIMIT: usize = 4;
@@ -4523,7 +4524,12 @@ impl GameState {
         let dx = px - (bx as f64 + 0.5);
         let dy = py - (by as f64 + 0.5);
         let dist = (dx * dx + dy * dy).sqrt();
+        let wants_eye_guidance =
+            !is_break && self.current_hotbar_item_type() == Some(ItemType::EyeOfEnder);
         if dist > 4.5 {
+            if wants_eye_guidance {
+                self.throw_eye_of_ender_for_guidance();
+            }
             self.player.mining_timer = 0.0;
             return;
         }
@@ -4536,6 +4542,9 @@ impl GameState {
             self.can_see_block(px, py, bx, by)
         };
         if !has_use_los {
+            if wants_eye_guidance {
+                self.throw_eye_of_ender_for_guidance();
+            }
             self.player.mining_timer = 0.0;
             return;
         }
@@ -4905,11 +4914,7 @@ impl GameState {
                 }
             }
 
-            let holding_eye = self.inventory.slots[self.hotbar_index as usize]
-                .as_ref()
-                .map(|s| s.item_type == ItemType::EyeOfEnder)
-                .unwrap_or(false);
-            if holding_eye {
+            if wants_eye_guidance {
                 self.throw_eye_of_ender_for_guidance();
                 return;
             }
@@ -6678,7 +6683,7 @@ impl GameState {
         let dx = target_x - self.player.x;
         self.eye_guidance_dir = if dx >= 0.0 { 1 } else { -1 };
         self.eye_guidance_distance = dx.abs().round() as i32;
-        self.eye_guidance_timer = 140;
+        self.eye_guidance_timer = 20 * 15;
         self.player.facing_right = self.eye_guidance_dir > 0;
 
         let mut rng = rand::thread_rng();
@@ -6692,6 +6697,29 @@ impl GameState {
             dropped_eye.vx = self.eye_guidance_dir as f64 * 0.18;
             dropped_eye.vy = -0.28;
             self.item_entities.push(dropped_eye);
+        }
+    }
+
+    pub fn eye_guidance_hint(&self) -> Option<String> {
+        if self.eye_guidance_timer == 0 || self.current_dimension != Dimension::Overworld {
+            return None;
+        }
+        let dx = STRONGHOLD_CENTER_X as f64 + 0.5 - self.player.x;
+        let dy = STRONGHOLD_PORTAL_INNER_Y as f64 + 1.0 - (self.player.y - 0.9);
+        if dx.abs() > 8.0 {
+            Some(format!(
+                "Eye: stronghold ~{} blocks {}",
+                dx.abs().round() as i32,
+                if dx > 0.0 { "right" } else { "left" },
+            ))
+        } else if dy.abs() > 4.0 {
+            Some(format!(
+                "Eye: portal ~{} blocks {}",
+                dy.abs().round() as i32,
+                if dy > 0.0 { "below" } else { "above" },
+            ))
+        } else {
+            Some("Eye: portal room nearby; fill the frame with Eyes".to_string())
         }
     }
 
@@ -8505,6 +8533,43 @@ impl GameState {
         }
     }
 
+    fn try_refill_overworld_enderman(&mut self, rng: &mut impl Rng) -> bool {
+        let cap =
+            Self::spawn_refill_threshold(self.scaled_hostile_cap(OVERWORLD_ENDERMAN_CAP), 1, 2);
+        if self.current_dimension != Dimension::Overworld
+            || !self.can_spawn_hostiles()
+            || (self.time_of_day > 4000.0 && self.time_of_day < 20000.0)
+            || self.endermen.len() >= cap
+            || !rng.gen_bool(
+                (OVERWORLD_ENDERMAN_REFILL_CHANCE * self.hostile_spawn_chance_multiplier())
+                    .clamp(0.0, 0.95),
+            )
+        {
+            return false;
+        }
+        for _ in 0..6 {
+            let offset = rng.gen_range(12..=40);
+            let wx =
+                self.player.x.floor() as i32 + if rng.gen_bool(0.5) { offset } else { -offset };
+            let Some(y) = self.find_dark_overworld_spawn(wx) else {
+                continue;
+            };
+            let x = wx as f64 + 0.5;
+            // Endermen need a full three-block body space and a dark head too.
+            let head_y = (y - 2.6).floor() as i32;
+            if self.is_spawn_too_close_to_player(x, y, OVERWORLD_HOSTILE_SPAWN_MIN_DIST_SQ)
+                || self.entity_collides_with_world(x, y, 0.3, 2.7)
+                || !Self::ambient_spawn_clearance(self.world.get_block(wx, head_y))
+                || self.world.block_light_at(wx, head_y) != 0
+            {
+                continue;
+            }
+            self.endermen.push(Enderman::new(x, y));
+            return true;
+        }
+        false
+    }
+
     fn can_refill_overworld_hostiles(&self) -> bool {
         // Measure local pressure separately from the resident population. A full
         // save may contain only cave mobs; those must not block every night.
@@ -9532,6 +9597,9 @@ impl GameState {
                         self.overworld_hostile_spawn_timer = self
                             .scaled_hostile_respawn_base(OVERWORLD_HOSTILE_RESPAWN_BASE)
                             + rng.gen_range(0..20);
+                        // Share the slow refill clock, not ordinary mobs' slot
+                        // budget. Existing terrain must still provide pearls.
+                        self.try_refill_overworld_enderman(rng);
                         let slime_cap = self.scaled_hostile_cap(OVERWORLD_SLIME_CAP);
                         if self.can_refill_overworld_hostiles() {
                             for _ in 0..6 {
@@ -11568,33 +11636,6 @@ impl GameState {
                                         chunk_predator_spawns_remaining.saturating_sub(1);
                                     break;
                                 }
-                            }
-                        }
-                    }
-                    if !is_day_now
-                        && hostile_spawning_enabled
-                        && chunk_hostile_spawns_remaining > 0
-                        && self.endermen.len()
-                            < Self::spawn_refill_threshold(
-                                self.scaled_hostile_cap(OVERWORLD_ENDERMAN_CAP),
-                                1,
-                                2,
-                            )
-                        && rng.gen_bool(
-                            (0.07 * self.hostile_spawn_chance_multiplier()).clamp(0.0, 0.95),
-                        )
-                    {
-                        let wx = wx_start + rng.gen_range(0..CHUNK_WIDTH as i32);
-                        if let Some(spawn_y) = self.find_dark_overworld_spawn(wx) {
-                            let spawn_x = wx as f64 + 0.5;
-                            if !self.is_spawn_too_close_to_player(
-                                spawn_x,
-                                spawn_y,
-                                OVERWORLD_SPAWN_MIN_DIST_SQ,
-                            ) {
-                                self.endermen.push(Enderman::new(spawn_x, spawn_y));
-                                chunk_hostile_spawns_remaining =
-                                    chunk_hostile_spawns_remaining.saturating_sub(1);
                             }
                         }
                     }
@@ -18290,6 +18331,51 @@ mod tests {
     }
 
     #[test]
+    fn test_eye_guidance_finds_the_portal_depth_from_both_directions() {
+        let mut state = GameState::network_view();
+        state.eye_guidance_timer = 300;
+        state.player.x = STRONGHOLD_CENTER_X as f64 - 100.0;
+        state.player.y = 40.0;
+        assert!(state.eye_guidance_hint().unwrap().contains("right"));
+        state.player.x = STRONGHOLD_CENTER_X as f64 + 100.0;
+        assert!(state.eye_guidance_hint().unwrap().contains("left"));
+        state.player.x = STRONGHOLD_CENTER_X as f64 + 0.5;
+        assert!(state.eye_guidance_hint().unwrap().contains("below"));
+        state.player.y = 110.0;
+        assert!(state.eye_guidance_hint().unwrap().contains("above"));
+        state.player.y = STRONGHOLD_PORTAL_INNER_Y as f64 + 1.9;
+        assert!(
+            state
+                .eye_guidance_hint()
+                .unwrap()
+                .contains("portal room nearby")
+        );
+        state.eye_guidance_timer = 0;
+        assert!(state.eye_guidance_hint().is_none());
+        state.eye_guidance_timer = 300;
+        state.current_dimension = Dimension::Nether;
+        assert!(state.eye_guidance_hint().is_none());
+    }
+
+    #[test]
+    fn test_eye_guidance_accepts_a_far_cursor_without_loading_its_target_chunk() {
+        let mut state = GameState::network_view();
+        state.player.x = 0.5;
+        state.player.y = 40.0;
+        state.inventory.slots[0] = Some(ItemStack {
+            item_type: ItemType::EyeOfEnder,
+            count: 2,
+            durability: None,
+        });
+        assert!(!state.world.is_chunk_loaded_at(2000));
+        state.interact_block(2000, 12, false);
+        assert_eq!(state.inventory.slots[0].as_ref().unwrap().count, 1);
+        assert_eq!(state.eye_guidance_timer, 300);
+        assert!(state.eye_guidance_hint().unwrap().contains("right"));
+        assert!(!state.world.is_chunk_loaded_at(2000));
+    }
+
+    #[test]
     fn test_progression_spawn_point_prefers_surface_over_hole_column() {
         let mut state = GameState::new();
         state.world.load_chunks_for_spawn_search(0, 64);
@@ -21708,6 +21794,94 @@ mod tests {
             + state.skeletons.len()
             + state.spiders.len();
         assert!(after > before);
+    }
+
+    fn enderman_refill_fixture() -> GameState {
+        let mut state = GameState::network_view();
+        state.difficulty = Difficulty::Normal;
+        state.time_of_day = 23000.0;
+        state.player.x = 0.5;
+        state.player.y = 19.9;
+        for cx in -2..=2 {
+            let mut blocks = vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT];
+            for x in 0..CHUNK_WIDTH {
+                blocks[20 * CHUNK_WIDTH + x] = BlockType::Stone;
+            }
+            state.world.apply_chunk_column_snapshot(cx, &blocks);
+        }
+        assert!(state.world.newly_generated_chunks.is_empty());
+        state
+    }
+
+    #[test]
+    fn test_enderman_refill_works_in_explored_world_at_full_ordinary_mob_cap() {
+        use rand::{SeedableRng, rngs::StdRng};
+        let mut state = enderman_refill_fixture();
+        state.zombies = (0..OVERWORLD_HOSTILE_CAP)
+            .map(|_| Zombie::new(20.5, 19.9))
+            .collect();
+        let mut rng = StdRng::seed_from_u64(20261026);
+        for _ in 0..20 * 60 * 3 {
+            state.update_ambient_respawns(&mut rng, false);
+            assert!(state.endermen.len() <= 2);
+        }
+        assert_eq!(state.endermen.len(), 2);
+        assert!(state.world.newly_generated_chunks.is_empty());
+        for enderman in &state.endermen {
+            assert!((enderman.x - state.player.x).abs() >= 12.0);
+            assert!((enderman.x - state.player.x).abs() <= 40.0);
+            assert!(!state.entity_collides_with_world(enderman.x, enderman.y, 0.3, 2.7));
+        }
+        state.endermen.clear();
+        state.overworld_hostile_spawn_timer = 60;
+        for _ in 0..60 {
+            state.update_ambient_respawns(&mut rng, false);
+        }
+        assert!(
+            state.endermen.is_empty(),
+            "refill must respect the shared clock"
+        );
+    }
+
+    #[test]
+    fn test_enderman_refill_is_rare_and_respects_daylight_rules_and_headroom() {
+        use rand::{SeedableRng, rngs::StdRng};
+        let mut rng = StdRng::seed_from_u64(912);
+        let mut state = enderman_refill_fixture();
+        let mut arrivals = 0;
+        for _ in 0..1000 {
+            state.endermen.clear();
+            arrivals += usize::from(state.try_refill_overworld_enderman(&mut rng));
+        }
+        assert!(
+            (40..130).contains(&arrivals),
+            "unexpected refill share: {arrivals}"
+        );
+        for scenario in 0..5 {
+            let mut state = enderman_refill_fixture();
+            match scenario {
+                0 => state.time_of_day = 12000.0,
+                1 => state.difficulty = Difficulty::Peaceful,
+                2 => state.game_rules.do_mob_spawning = false,
+                3 => {
+                    for x in -48..=48 {
+                        state.world.set_block(x, 17, BlockType::Stone);
+                    }
+                }
+                _ => {
+                    for x in (-48..=48).step_by(4) {
+                        state.world.set_block(x, 19, BlockType::Torch);
+                    }
+                }
+            }
+            for _ in 0..300 {
+                assert!(
+                    !state.try_refill_overworld_enderman(&mut rng),
+                    "scenario {scenario}"
+                );
+            }
+            assert!(state.endermen.is_empty());
+        }
     }
 
     #[test]

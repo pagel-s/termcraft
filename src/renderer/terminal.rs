@@ -3902,22 +3902,8 @@ impl Renderer {
                 Color::AnsiValue(52),
             );
         }
-        if state.eye_guidance_timer > 0 {
-            let dir = if state.eye_guidance_dir >= 0 {
-                "E"
-            } else {
-                "W"
-            };
-            self.put_str(
-                1,
-                1,
-                &format!(
-                    "Eye points {}  ~{} blocks  t-{}",
-                    dir, state.eye_guidance_distance, state.eye_guidance_timer
-                ),
-                Color::Cyan,
-                Color::Reset,
-            );
+        if let Some(hint) = state.eye_guidance_hint() {
+            self.put_str(1, 1, &hint, Color::Cyan, Color::Reset);
         }
         if let Some(fishing_status) = state.fishing_status_line() {
             self.put_str(1, 2, fishing_status, Color::Yellow, Color::Reset);
@@ -6268,6 +6254,25 @@ mod tests {
         assert_eq!(renderer.back_buffer[0].bg, Color::AnsiValue(234));
         drop(state);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn eye_guidance_is_readable_in_compact_and_detailed_views() {
+        for (width, height) in [(80, 24), (120, 40)] {
+            let mut state = GameState::network_view();
+            state.dismiss_startup_splash();
+            state.player.x = crate::world::STRONGHOLD_CENTER_X as f64 + 0.5;
+            state.player.y = 40.0;
+            state.eye_guidance_timer = 300;
+            let mut renderer = Renderer::with_size(width, height);
+            renderer.render_to(&state, 0.0, &mut Vec::new()).unwrap();
+            let row = renderer.back_buffer[width as usize..2 * width as usize]
+                .iter()
+                .map(|cell| cell.ch)
+                .collect::<String>();
+            assert!(row.contains("Eye: portal ~"), "{width}x{height}: {row}");
+            assert!(row.contains("below"), "{width}x{height}: {row}");
+        }
     }
 
     #[test]

@@ -39,6 +39,9 @@ Build a home, explore with friends over SSH and take on the dragon together.
   crowded out by cave populations or start entirely beyond normal awareness.
   Ground vegetation and a cave-dwelling first co-op player no longer suppress
   nighttime surface spawning.
+  Rare, capped Endermen can refill in explored dark areas at night, so pearls
+  remain obtainable without generating new chunks. Crafted Eyes of Ender show
+  direction and distance to the stronghold, then the portal room's vertical direction.
 - **Richer places to explore.** Connected village buildings and irrigated gardens,
   refined Nether materials and landmarks, balanced ore pockets, and a front-facing
   dragon with slim pillars and a colorful fourteen-second defeat sequence.
