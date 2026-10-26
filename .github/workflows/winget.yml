@@ -98,8 +98,10 @@ jobs:
           $title="New version: PagelS.Termcraft version $version"
           $query=[uri]::EscapeDataString(('repo:microsoft/winget-pkgs is:pr "{0}" in:title' -f $title))
           $existing=Invoke-RestMethod "https://api.github.com/search/issues?q=$query" -Headers $headers
-          if ($existing.total_count -gt 0) {
-            "A submission for this version already exists; review it before retrying." >> $env:GITHUB_STEP_SUMMARY
+          # GitHub search can match 0.2.0-beta.1 when looking for 0.2.0.
+          $matching=@($existing.items | Where-Object { $_.title -eq $title })
+          if ($matching.Count -gt 0) {
+            "A submission for this version already exists: $($matching[0].html_url)" >> $env:GITHUB_STEP_SUMMARY
             exit 0
           }
           & .\wingetcreate.exe submit --no-open --prtitle $title (Join-Path manifests $version)
