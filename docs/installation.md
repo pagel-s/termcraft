@@ -1,23 +1,23 @@
 # Installation
 
-This guide covers **`0.2.0-beta.1`**. Download the game from
-[Releases](https://github.com/pagel-s/termcraft/releases).
+This guide covers **`0.2.0`**. Download the game from
+[Releases](https://github.com/pagel-s/termcraft/releases/tag/v0.2.0).
 Source builds require Rust 1.88 or newer.
 
 ## Play a native beta build
 
-Download the `termcraft-0.2.0-beta.1-TARGET` archive for your computer from
-[Releases](https://github.com/pagel-s/termcraft/releases) and extract all its files.
+Download the `termcraft-0.2.0-TARGET` archive for your computer from
+[Releases](https://github.com/pagel-s/termcraft/releases/tag/v0.2.0) and extract all its files.
 Development builds are available from successful
 [Native artifacts runs](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml).
 Those require GitHub sign-in: extract the artifact ZIP, then its contained game archive.
 
-| Computer | Target | Start Lantern Run from the extracted folder |
+| Computer | Download `0.2.0` | Start Lantern Run from the extracted folder |
 | --- | --- | --- |
-| Linux, Intel/AMD 64-bit | `x86_64-unknown-linux-gnu` | `./play.sh` |
-| Windows, Intel/AMD 64-bit | `x86_64-pc-windows-msvc` | `.\PLAY.cmd` in Windows Terminal |
-| Mac, Apple silicon | `aarch64-apple-darwin` | `./PLAY.command` in Terminal |
-| Mac, Intel | `x86_64-apple-darwin` | `./PLAY.command` in Terminal |
+| Linux, Intel/AMD 64-bit | [Linux archive](https://github.com/pagel-s/termcraft/releases/download/v0.2.0/termcraft-0.2.0-x86_64-unknown-linux-gnu.tar.gz) | `./play.sh` |
+| Windows, Intel/AMD 64-bit | [Windows archive](https://github.com/pagel-s/termcraft/releases/download/v0.2.0/termcraft-0.2.0-x86_64-pc-windows-msvc.zip) | `.\PLAY.cmd` in Windows Terminal |
+| Mac, Apple silicon | [Apple silicon archive](https://github.com/pagel-s/termcraft/releases/download/v0.2.0/termcraft-0.2.0-aarch64-apple-darwin.tar.gz) | `./PLAY.command` in Terminal |
+| Mac, Intel | [Intel Mac archive](https://github.com/pagel-s/termcraft/releases/download/v0.2.0/termcraft-0.2.0-x86_64-apple-darwin.tar.gz) | `./PLAY.command` in Terminal |
 
 Rust and Cargo are unnecessary for these archives. Launchers start the separate
 **Lantern Run** combat/building route by default, and forward any arguments:
@@ -31,6 +31,14 @@ keyboard release events and mouse support. Start at **120×40** or larger for mo
 world context. **Detail is the default** unless you have saved another view.
 **-** zooms out, **=** zooms in, and **F4** cycles views. Resizing keeps your
 selection; Detail also works at 80×24. **F3** shows timing/input diagnostics.
+
+## Install with a package manager
+
+On macOS, run `brew install pagel-s/termcraft/termcraft`. With Rust 1.88 or newer,
+run `cargo install termcraft --locked`; the current release is `0.2.0`.
+Debian/Ubuntu users can follow the [signed APT setup](distribution.md#apt-setup).
+WinGet is pending Microsoft's review; Windows users can download the archive above.
+See [package-manager channels](distribution.md#package-manager-channels).
 
 ## Build from source
 

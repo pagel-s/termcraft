@@ -1,6 +1,6 @@
-# Native archives and SSH
+# Downloads, package managers and SSH
 
-Termcraft **`0.2.0-beta.1`** is a beta prerelease. Its
+Termcraft **`0.2.0`** is the beta release. Its
 native archives run without Cargo or a Rust installation. See
 [installation](installation.md) for downloads and terminal requirements.
 
@@ -20,8 +20,8 @@ survival uses the executable directly. The archive includes player documentation
 a license, release notes, launch instructions, a file-hash manifest and an archive
 SHA-256 checksum. It excludes development reports, test scripts and review media.
 
-Archives are named `termcraft-0.2.0-beta.1-TARGET.tar.gz` on Linux/macOS or
-`termcraft-0.2.0-beta.1-TARGET.zip` on Windows. `MANIFEST.json` records the version,
+Archives are named `termcraft-0.2.0-TARGET.tar.gz` on Linux/macOS or
+`termcraft-0.2.0-TARGET.zip` on Windows. `MANIFEST.json` records the version,
 target, source commit, prerelease status and each bundled file's SHA-256 hash. The executable's
 `--version` output matches the archive version.
 
@@ -42,18 +42,20 @@ These channels follow approved, published releases. Use native archives or a sou
 build if a channel has not made the version available yet. They are our own channels,
 not inclusion in Homebrew core or Debian's official repositories.
 
-| Platform | Channel | Command after publication |
+| Platform | Channel | Install |
 | --- | --- | --- |
-| macOS, Apple Silicon or Intel | Homebrew tap | `brew install pagel-s/termcraft/termcraft` |
-| Windows x64 | WinGet community repository, pending Microsoft review | `winget install --id PagelS.Termcraft --exact` |
+| macOS, Apple Silicon or Intel | [Homebrew tap](https://github.com/pagel-s/homebrew-termcraft) | `brew install pagel-s/termcraft/termcraft` |
+| Windows x64 | WinGet community repository, pending Microsoft review | Use the [Windows archive](https://github.com/pagel-s/termcraft/releases/download/v0.2.0/termcraft-0.2.0-x86_64-pc-windows-msvc.zip) until accepted; then `winget install --id PagelS.Termcraft --exact` |
 | Ubuntu 22.04+ / Debian 12+, x64 | Signed Termcraft APT feed | Configure the source below, then `sudo apt install termcraft` |
-| Rust users, any supported native target | crates.io, Rust 1.88+ | `cargo install termcraft --version 0.2.0-beta.1 --locked` |
+| Rust users, any supported native target | [crates.io](https://crates.io/crates/termcraft), Rust 1.88+ | `cargo install termcraft --locked` |
 
 Homebrew and APT automatically follow supported published releases. The APT
-`beta` suite includes prereleases. WinGet becomes available after the community
+`beta` suite carries the game's beta releases, including `0.2.0`. WinGet becomes available after the community
 submission is accepted. Native archives remain available for manual installation.
 
-### APT setup after publication
+<span id="apt-setup-after-publication"></span>
+
+### APT setup
 
 Download the repository's public key and check its fingerprint against
 [`signing-fingerprint.txt`](https://github.com/pagel-s/termcraft-apt/blob/main/signing-fingerprint.txt)
@@ -82,9 +84,8 @@ under `/usr/share/termcraft/hosting`. Save locations stay the same.
 
 ### Preparing a release
 
-The approved workflows must be on GitHub's default branch before their manual
-release controls and publication event handlers become available. Merge the beta
-branch only after its changes are approved; setting up the channels does not merge it.
+Keep the approved workflows on GitHub's default branch so their manual release
+controls and publication event handlers are available.
 
 1. Finish playtesting and choose the version in `Cargo.toml` and release notes.
    Create its matching tag only when the source is approved.
@@ -153,12 +154,12 @@ submission or missing credential does not prevent downloading native release arc
    together with the source changes.
 2. Open a pull request into `main`, review it, and merge
    once its required checks pass. This activates the new release workflows.
-3. Tag the approved merged source as `v0.2.0-beta.1` and push that tag. Do not move
+3. Tag the approved merged source as `v0.2.0` and push that tag. Do not move
    an existing release tag or reuse an already published version.
 4. In Termcraft's Actions tab, run **Prepare verified draft release** on `main`
-   with tag `v0.2.0-beta.1`. Wait for all native and package-manager checks to pass.
-5. Open the resulting draft under Releases. Check the release notes, prerelease
-   marker, four native archives, Debian package, checksums and distribution metadata.
+   with tag `v0.2.0`. Wait for all native and package-manager checks to pass.
+5. Open the resulting draft under Releases. Check the release notes, release type,
+   four native archives, Debian package, checksums and distribution metadata.
 6. Publish the reviewed draft when the release is approved. Cargo publication and
    WinGet submission start automatically. Homebrew and APT pick up the release
    within their hourly checks, or their **Update** workflows can be run immediately.

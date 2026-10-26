@@ -1,6 +1,6 @@
 # Gameplay
 
-> This guide describes Termcraft `0.2.0-beta.1`.
+> This guide describes Termcraft `0.2.0`.
 
 ## Core Loop
 

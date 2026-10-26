@@ -13,7 +13,7 @@ nav:
   - Gameplay: gameplay.md
   - Multiplayer Setup: multiplayer.md
   - Safe Hosting: hosting.md
-  - Native Archives and SSH: distribution.md
+  - Downloads and Packages: distribution.md
   - Release Notes: https://github.com/pagel-s/termcraft/blob/main/RELEASE_NOTES.md
   - Supported Content: supported-content.md
   - Media Credits: media-credits.md

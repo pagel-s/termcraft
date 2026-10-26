@@ -3,7 +3,7 @@
   <p><strong>Survive, build and explore a block world in your terminal. Bring friends over SSH.</strong></p>
   <p>
     <a href="https://pagel-s.github.io/termcraft/"><img alt="Docs" src="https://img.shields.io/badge/docs-project%20guide-2f6feb?style=flat-square"></a>
-    <a href="https://github.com/pagel-s/termcraft/releases"><img alt="Beta" src="https://img.shields.io/badge/beta-0.2.0--beta.1-7452aa?style=flat-square"></a>
+    <a href="https://github.com/pagel-s/termcraft/releases/tag/v0.2.0"><img alt="Beta release 0.2.0" src="https://img.shields.io/badge/beta-0.2.0-7452aa?style=flat-square"></a>
     <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-1.88%2B-93450a?style=flat-square&logo=rust"></a>
   </p>
   <p>
@@ -16,8 +16,8 @@
 
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
-> **Termcraft `0.2.0-beta.1` — beta prerelease.**
-> Download the game from [Releases](https://github.com/pagel-s/termcraft/releases).
+> **Termcraft `0.2.0` — the beta release.**
+> Download the game from [Releases](https://github.com/pagel-s/termcraft/releases/tag/v0.2.0).
 
 [![Termcraft beta gameplay: co-op exploration, crafting, the Nether and the Ender Dragon](docs/assets/termcraft.gif)](https://youtu.be/nn37_15dLFM)
 
@@ -50,18 +50,18 @@ The beta includes:
 
 ## Play the beta
 
-**Without Rust:** download your platform's `0.2.0-beta.1` archive from
-[Releases](https://github.com/pagel-s/termcraft/releases). Extract the game archive,
+**Without Rust:** download your platform's `0.2.0` archive from
+[Releases](https://github.com/pagel-s/termcraft/releases/tag/v0.2.0). Extract the game archive,
 keeping all files together. Development builds are also available from successful
 [Native artifacts runs](https://github.com/pagel-s/termcraft/actions/workflows/native-artifacts.yml);
 those downloads require GitHub sign-in and an additional artifact ZIP extraction.
 
-| Platform | Artifact target | Start Lantern Run |
+| Platform | Download `0.2.0` | Start Lantern Run |
 | --- | --- | --- |
-| Linux, Intel/AMD 64-bit | `x86_64-unknown-linux-gnu` | `./play.sh` |
-| Windows, Intel/AMD 64-bit | `x86_64-pc-windows-msvc` | `.\PLAY.cmd` in Windows Terminal |
-| macOS, Apple silicon | `aarch64-apple-darwin` | `./PLAY.command` |
-| macOS, Intel | `x86_64-apple-darwin` | `./PLAY.command` |
+| Linux, Intel/AMD 64-bit | [Linux archive](https://github.com/pagel-s/termcraft/releases/download/v0.2.0/termcraft-0.2.0-x86_64-unknown-linux-gnu.tar.gz) | `./play.sh` |
+| Windows, Intel/AMD 64-bit | [Windows archive](https://github.com/pagel-s/termcraft/releases/download/v0.2.0/termcraft-0.2.0-x86_64-pc-windows-msvc.zip) | `.\PLAY.cmd` in Windows Terminal |
+| macOS, Apple silicon | [Apple silicon archive](https://github.com/pagel-s/termcraft/releases/download/v0.2.0/termcraft-0.2.0-aarch64-apple-darwin.tar.gz) | `./PLAY.command` |
+| macOS, Intel | [Intel Mac archive](https://github.com/pagel-s/termcraft/releases/download/v0.2.0/termcraft-0.2.0-x86_64-apple-darwin.tar.gz) | `./PLAY.command` |
 
 For classic survival run `./termcraft` on Linux/macOS or `.\termcraft.exe` on
 Windows. macOS archives are unsigned. See [installation](docs/installation.md)
@@ -79,10 +79,12 @@ cargo build --release --locked
 On Windows, use `.\target\release\termcraft.exe trial`. Omit `trial` for classic
 survival. `cargo install --path . --locked` installs this checkout into Cargo's bin directory.
 
-Rust users can install the beta with
-`cargo install termcraft --version 0.2.0-beta.1 --locked`.
+**Package managers:** on macOS run `brew install pagel-s/termcraft/termcraft`.
+Rust users can run `cargo install termcraft --locked` (Rust 1.88+).
+For Debian/Ubuntu, follow the [signed APT setup](docs/distribution.md#apt-setup).
+WinGet is pending Microsoft's review; use the Windows archive above meanwhile.
 See [package-manager channels](docs/distribution.md#package-manager-channels)
-for Homebrew, WinGet and APT. Linux users can also find the
+for details. Linux users can also find the
 [AUR package](https://aur.archlinux.org/packages/termcraft); check its version.
 
 ## Controls
@@ -146,7 +148,7 @@ including hidden checkpoint files, before upgrading. Newer saves cannot be
 opened by older builds. Existing terrain is preserved; new village layouts,
 ore distribution and terrain details require fresh chunks.
 
-This is a beta prerelease. Terminal input/presentation, long human co-op
+The game is in beta. Terminal input/presentation, long human co-op
 sessions and complete survival progression need broader playtesting. Fluid
 volume is source-based. Placed furnaces share their contents and progress across
 players. See [save recovery](docs/world-format.md)

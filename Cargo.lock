@@ -467,7 +467,7 @@ dependencies = [
 
 [[package]]
 name = "termcraft"
-version = "0.2.0-beta.1"
+version = "0.2.0"
 dependencies = [
  "bincode",
  "crossterm",

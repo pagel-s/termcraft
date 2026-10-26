@@ -1,7 +1,9 @@
-# Termcraft — v0.2.0-beta.1
+# Termcraft — v0.2.0
 
-**Beta prerelease — 25 October 2026.**
-The source, executable and native archives use `0.2.0-beta.1`.
+**Beta release — 26 October 2026.**
+The source, executable and native archives use `0.2.0`.
+This publishes the beta gameplay under the normal release version so default
+Cargo installs and GitHub's latest-release link select the current game.
 
 Termcraft's beta brings a new terminal pixel-art presentation, a broader
 2D survival experience and shared adventures across the Overworld, Nether and End.
@@ -85,7 +87,7 @@ Build a home, explore with friends over SSH and take on the dragon together.
 ## Play the beta
 
 Get the matching native archive from
-[Releases](https://github.com/pagel-s/termcraft/releases),
+[Releases](https://github.com/pagel-s/termcraft/releases/tag/v0.2.0),
 or build from source with Rust 1.88+. Archive launchers start Lantern Run; run the
 executable directly for classic survival. Rust is not needed to run an archive.
 

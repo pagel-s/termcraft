@@ -7,8 +7,8 @@ shelter, mine and smelt better tools, explore the Nether and defeat the Ender
 Dragon. Terminal pixel art, shaped terrain and room cutaways adapt the world to
 a side-on view.
 
-> **Termcraft `0.2.0-beta.1` — beta prerelease.**
-> Download the game from [Releases](https://github.com/pagel-s/termcraft/releases)
+> **Termcraft `0.2.0` — the beta release.**
+> Download the game from [Releases](https://github.com/pagel-s/termcraft/releases/tag/v0.2.0)
 > or build from source.
 
 [![Termcraft gameplay: exploration, crafting, the Nether and the Ender Dragon](assets/termcraft.gif)](https://youtu.be/nn37_15dLFM)
@@ -18,6 +18,7 @@ a side-on view.
 ## Start playing
 
 - [Installation](installation.md): native Linux, Windows and macOS archives, or a source build.
+- [Package managers](distribution.md#package-manager-channels): Homebrew, Cargo and signed APT setup; WinGet submission status.
 - [Gameplay](gameplay.md): movement, inventory, crafting, farming and portals.
 - [Multiplayer setup](multiplayer.md): one computer, one network or separate networks, with connection checks.
 - [Safe hosting](hosting.md): a rootless Linux server, restricted network access, backups and restore.

@@ -12,7 +12,7 @@ inventories are replicated to clients.
 Use trusted local connections or the SSH join command for a host you control.
 Native archives build and pass automated checks on Linux, Windows and both Mac
 architectures. Public hosting, sustained human sessions and remote-link input
-quality still need broader playtesting. The `0.2.0-beta.1` candidate is not yet published.
+quality still need broader playtesting. Use the published `0.2.0` builds for all players.
 
 ## Before you start
 

@@ -5,12 +5,12 @@ build a home, explore three dimensions and face the Ender Dragon.
 
 > Unofficial fan project. Not affiliated with Mojang or Microsoft.
 >
-> **Termcraft `0.2.0-beta.1`** is a beta prerelease.
+> **Termcraft `0.2.0`** is the beta release.
 
 ## Try Termcraft
 
 Download a matching native archive from
-[Releases](https://github.com/pagel-s/termcraft/releases).
+[Releases](https://github.com/pagel-s/termcraft/releases/tag/v0.2.0).
 No Rust installation is needed for an archive.
 The included launcher starts **Lantern Run**, a separate combat, traversal and
 bridge-building route. Run the executable directly for classic survival.
@@ -18,7 +18,7 @@ bridge-building route. Run the executable directly for classic survival.
 To install the beta, use [Rust 1.88 or newer](https://rustup.rs/), then:
 
 ```sh
-cargo install termcraft --version 0.2.0-beta.1 --locked
+cargo install termcraft --locked
 termcraft
 ```
 
