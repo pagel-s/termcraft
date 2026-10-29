@@ -2,7 +2,21 @@ const $ = id => document.getElementById(id);
 const canvas = $('game');
 const context = canvas.getContext('2d', { alpha: false });
 const CELL_W = 8, CELL_H = 16, COLUMNS = 200, ROWS = 60;
-const SAVE_KEY = 'lantern-run-v1';
+const MODES = {
+  survival: {
+    key: 'survival-v1', name: 'Survival', title: 'Make this world yours.',
+    eyebrow: 'A NEW WORLD. A CLEAN START.',
+    intro: 'Gather wood. Find shelter. Explore beyond the next hill.\nEvery new world has a fresh seed.',
+    objective: 'Gather. Build. Explore.',
+  },
+  'lantern-run': {
+    key: 'lantern-run-v1', name: 'Lantern Run', title: 'Light the way.',
+    eyebrow: 'A LITTLE RUIN. A LONG NIGHT.',
+    intro: 'Cross the broken trail. Reclaim the ruins.\nBuild a bridge and restore the signal.',
+    objective: 'Traverse. Fight. Rebuild.',
+  },
+};
+let selectedMode = 'survival';
 let worker, paused = true, started = false, busy = false, inFlight = false;
 let previousCells, lastFrame = 0, sequence = 1, database, lockHeld = false;
 let savePromise, aim, lastAim = '', lastDrag = '', buttons = 0;
@@ -26,20 +40,20 @@ function databaseOpen() {
   });
   return database;
 }
-async function storedSave() {
+async function storedSave(mode = selectedMode) {
   const db = await databaseOpen();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('saves', 'readonly');
-    const request = transaction.objectStore('saves').get(SAVE_KEY);
+    const request = transaction.objectStore('saves').get(MODES[mode].key);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
-async function storeSave(snapshot) {
+async function storeSave(snapshot, mode) {
   const db = await databaseOpen();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('saves', 'readwrite');
-    transaction.objectStore('saves').put({ snapshot, savedAt: Date.now() }, SAVE_KEY);
+    transaction.objectStore('saves').put({ snapshot, savedAt: Date.now() }, MODES[mode].key);
     transaction.oncomplete = resolve;
     transaction.onerror = () => reject(transaction.error);
     transaction.onabort = () => reject(transaction.error ?? new Error('Save transaction aborted.'));
@@ -91,7 +105,7 @@ function paint(cells) {
   previousCells = cells;
 }
 function releaseControls() {
-  keys.clear(); buttons = 0; aim = undefined; lastDrag = '';
+  keys.clear(); buttons = 0; aim = undefined; lastAim = ''; lastDrag = '';
   send('release');
 }
 function cover(title, message) {
@@ -99,15 +113,38 @@ function cover(title, message) {
   $('cover').querySelector('h1').textContent = title;
   $('loading').textContent = message;
 }
+function presentMode(saved) {
+  const mode = MODES[selectedMode];
+  document.title = `Play Termcraft · ${mode.name}`;
+  $('world-mode').value = selectedMode;
+  $('eyebrow').textContent = mode.eyebrow;
+  $('intro').textContent = mode.intro;
+  $('objective').textContent = mode.objective;
+  $('play').textContent = saved ? 'Continue adventure →' : `Play ${mode.name} →`;
+  $('save-status').textContent = saved ? 'Saved on this browser' : 'No saved world yet';
+  $('restart').textContent = selectedMode === 'survival' ? 'New survival world' : 'Restart Lantern Run';
+  canvas.setAttribute('aria-label', `${mode.name}. Move with A and D, jump with Space. Left click to mine or attack, right click to interact. Escape pauses.`);
+  cover(mode.title, 'Runs on your computer · no account or installation');
+}
+function stopWorker() {
+  worker?.terminate(); worker = undefined;
+  // Intentional mode changes end pending UI work without turning the next
+  // adventure into an error. A completed save acts as the worker barrier.
+  for (const entry of pending.values()) entry.resolve(undefined);
+  pending.clear(); previousCells = undefined; inFlight = false;
+  started = false; paused = true; keys.clear(); buttons = 0;
+  canvas.dataset.ready = 'false';
+}
 async function save() {
   if (!started || !worker) return;
   if (savePromise) return savePromise;
   const current = worker;
+  const mode = selectedMode;
   savePromise = (async () => {
     $('save-status').textContent = 'Saving…';
     const snapshot = await request('save');
     if (worker !== current) return snapshot;
-    await storeSave(snapshot);
+    await storeSave(snapshot, mode);
     $('save-status').textContent = 'Saved on this browser';
     return snapshot;
   })().catch(error => {
@@ -143,6 +180,7 @@ function frame(now) {
 }
 function fatal(error) {
   paused = true; started = false;
+  canvas.dataset.ready = 'false';
   keys.clear(); buttons = 0;
   worker?.terminate(); worker = undefined;
   const abandoned = [...pending.values()]; pending.clear();
@@ -152,19 +190,17 @@ function fatal(error) {
   cover('Something interrupted play.', 'Your last completed save is retained.');
   notice(`${errorText(error)} You can retry or download the native game above.`);
 }
-async function boot(snapshot) {
+async function boot(snapshot, mode = selectedMode) {
   if (busy) return;
   busy = true; paused = true;
   $('play').disabled = true; $('loading').textContent = 'Loading the Rust game engine…';
+  $('world-mode').disabled = true;
   notice('');
   try {
     await claimSave();
     if (savePromise) await savePromise;
-    started = false;
-    worker?.terminate();
-    for (const entry of pending.values()) entry.reject(new Error('Game restarted.'));
-    pending.clear(); previousCells = undefined; inFlight = false;
-    const current = new Worker(new URL('./worker.js',import.meta.url), { type: 'module' });
+    stopWorker();
+    const current = new Worker(new URL('./worker.js?v=natural-world-1',import.meta.url), { type: 'module' });
     worker = current;
     current.onmessage = ({data}) => {
       if (worker !== current) return;
@@ -178,6 +214,7 @@ async function boot(snapshot) {
         canvas.dataset.playerY = data.status.y;
         canvas.dataset.health = data.status.health;
         canvas.dataset.inventoryOpen = data.status.inventory_open;
+        canvas.dataset.worldMode = data.status.mode;
         canvas.dataset.ready = 'true';
       }
       entry?.resolve(data.result);
@@ -187,7 +224,9 @@ async function boot(snapshot) {
       for (const entry of pending.values()) entry.reject(error);
       pending.clear(); fatal(error);
     };
-    await request('start',{columns:COLUMNS,rows:ROWS,saved:snapshot ?? null});
+    const status = await request('start',{columns:COLUMNS,rows:ROWS,saved:snapshot ?? null,mode});
+    selectedMode = status.mode;
+    presentMode(Boolean(snapshot));
     await request('frame',{elapsed:0});
     started = true;
     $('pause').disabled = false; $('export').disabled = false;
@@ -196,8 +235,29 @@ async function boot(snapshot) {
     await save().catch(() => {});
   } catch (error) {
     fatal(error);
-  } finally { busy = false; $('play').disabled = false; }
+  } finally { busy = false; $('play').disabled = false; $('world-mode').disabled = false; }
 }
+$('world-mode').onchange = async event => {
+  if (busy) { event.target.value = selectedMode; return; }
+  busy = true;
+  const nextMode = event.target.value;
+  event.target.disabled = true;
+  $('play').disabled = true; $('pause').disabled = true;
+  pause();
+  try {
+    if (started) await save();
+    const saved = await storedSave(nextMode);
+    stopWorker(); selectedMode = nextMode;
+    $('pause').disabled = true; $('pause').textContent = 'Pause'; $('export').disabled = true;
+    notice(''); presentMode(saved);
+  } catch (error) {
+    event.target.value = selectedMode;
+    notice(`Cannot switch worlds: ${errorText(error)}. Your current world is retained.`);
+  } finally {
+    busy = false; event.target.disabled = false;
+    $('play').disabled = false; $('pause').disabled = !started;
+  }
+};
 $('play').onclick = async () => {
   if (started) { resume(); return; }
   try { await boot((await storedSave())?.snapshot); }
@@ -220,7 +280,7 @@ $('export').onclick = async () => {
   try {
     const snapshot = await request('save');
     const url = URL.createObjectURL(new Blob([snapshot],{type:'application/json'}));
-    const link = document.createElement('a'); link.href = url; link.download = 'termcraft-lantern-run.json'; link.click();
+    const link = document.createElement('a'); link.href = url; link.download = `termcraft-${selectedMode}.json`; link.click();
     setTimeout(() => URL.revokeObjectURL(url),1000);
   } catch (error) { notice(`Could not export: ${errorText(error)}`); }
 };
@@ -229,7 +289,7 @@ $('import').onchange = async event => {
   pause();
   try {
     if (file.size > 128*1024*1024) throw new Error('Save file exceeds the browser limit.');
-    if (!confirm('Import this browser save and replace the current adventure? Export your current save first if you want to keep both.')) return;
+    if (!confirm('Import this browser save? It replaces the saved adventure for its mode (Survival or Lantern Run). Export a backup first if you want to keep both.')) return;
     const snapshot = await file.text();
     await boot(snapshot);
   } catch (error) { notice(`Could not import: ${errorText(error)} Your previous saved game is retained.`); }
@@ -237,7 +297,10 @@ $('import').onchange = async event => {
 };
 $('restart').onclick = async () => {
   pause();
-  if (!confirm('Start a fresh Lantern Run? This replaces the current browser adventure. Export a backup first if you want to keep it.')) return;
+  const message = selectedMode === 'survival'
+    ? 'Generate a new survival world with a fresh seed? This replaces your current Survival save. Export a backup first if you want to keep it.'
+    : 'Restart Lantern Run? This replaces your Lantern Run save. Your Survival world is kept. Export a backup first if you want to keep this run.';
+  if (!confirm(message)) return;
   await boot();
 };
 const gameKeys = new Set(['KeyA','KeyD','KeyW','KeyE','KeyV','KeyO','KeyR','KeyF','KeyQ','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','ShiftLeft','ShiftRight','Enter','Delete','Escape','Tab','PageUp','PageDown','F4','Equal','Minus','NumpadAdd','NumpadSubtract',...Array.from({length:9},(_,i)=>`Digit${i+1}`)]);
@@ -286,5 +349,5 @@ canvas.addEventListener('blur',releaseControls);
 window.addEventListener('blur',pause);
 document.addEventListener('visibilitychange',() => {if(document.hidden)pause();});
 setInterval(() => {if(started&&!paused)save().catch(()=>{});},15000);
-storedSave().then(saved => {if(saved)$('play').textContent='Continue adventure →';}).catch(() => {});
+storedSave('survival').then(saved => {if(!started&&!busy&&selectedMode==='survival')presentMode(saved);}).catch(() => {});
 requestAnimationFrame(frame);

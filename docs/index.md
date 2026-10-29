@@ -17,7 +17,7 @@ a side-on view.
 
 ## Start playing
 
-- **[Play in your browser](play.md):** try the single-player Lantern Run immediately, with local saves. No installation.
+- **[Play in your browser](play.md):** explore a naturally generated solo survival world, with local saves. Lantern Run is also available. No installation.
 - [Installation](installation.md): native Linux, Windows and macOS archives, or a source build.
 - [Package managers](distribution.md#package-manager-channels): Homebrew, Cargo and signed APT setup; WinGet submission status.
 - [Gameplay](gameplay.md): movement, inventory, crafting, farming and portals.

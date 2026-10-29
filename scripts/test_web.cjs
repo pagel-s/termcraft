@@ -50,4 +50,36 @@ game=new BrowserGame(columns,rows,snapshot);
 const started=performance.now();steps(100);
 const msPerTick=(performance.now()-started)/100;
 game.free();
-console.log(JSON.stringify({status:'passed',real_wasm_engine:true,movement_and_jump:true,release_stops:true,inventory_controls:true,save_roundtrip:true,invalid_imports_rejected:true,frame_cells:columns*rows,render_and_tick_ms:Math.round(msPerTick*100)/100}));
+
+// Natural worlds must use native generation, never a flattened trial recipe.
+game=new BrowserGame(columns,rows,undefined,'survival');
+assert.equal(status().mode,'survival');
+assert.equal(status().dimension,'Overworld');
+assert.equal(status().health,20);
+assert.equal(game.frame(0).length,columns*rows*3);
+const naturalStatus=status();
+const naturalSnapshot=game.snapshot();
+const naturalFiles=JSON.parse(naturalSnapshot).files;
+const seedPath='saves/survival/overworld_world_seed.bin';
+assert.equal(naturalFiles[seedPath].length,16,'four native generator seeds');
+assert(!Object.keys(naturalFiles).some(name=>name.endsWith('/world.json')||name.endsWith('/lantern-trial.json')),'natural terrain must not use a custom map recipe');
+assert(Object.keys(naturalFiles).some(name=>name.startsWith('saves/survival/overworld_chunk_')),'native chunks are saved');
+game.free();
+// Import identifies its own mode rather than silently changing the terrain.
+game=new BrowserGame(columns,rows,naturalSnapshot,'lantern-run');
+assert.equal(status().mode,'survival');
+assert.equal(status().x,naturalStatus.x);
+assert.equal(status().y,naturalStatus.y);
+assert.deepEqual(JSON.parse(game.snapshot()).files[seedPath],naturalFiles[seedPath]);
+game.free();
+game=new BrowserGame(columns,rows,undefined,'survival');
+assert.notDeepEqual(JSON.parse(game.snapshot()).files[seedPath],naturalFiles[seedPath],'New survival world must generate fresh seeds');
+game.free();
+game=new BrowserGame(columns,rows,snapshot,'survival');
+assert.equal(status().mode,'lantern-run','legacy Lantern Run saves remain playable');
+assert(Math.abs(status().x-beforeSave.x)<0.001);
+game.free();
+const badSeed=JSON.parse(naturalSnapshot);badSeed.files[seedPath]=[1,2,3];
+assert.throws(()=>new BrowserGame(columns,rows,JSON.stringify(badSeed)),'corrupt natural seed must not be regenerated');
+assert.throws(()=>new BrowserGame(columns,rows,undefined,'unknown'),'reject invalid world modes');
+console.log(JSON.stringify({status:'passed',real_wasm_engine:true,movement_and_jump:true,release_stops:true,inventory_controls:true,save_roundtrip:true,invalid_imports_rejected:true,native_world_generation:true,fresh_seeds:true,legacy_trial_restore:true,frame_cells:columns*rows,render_and_tick_ms:Math.round(msPerTick*100)/100}));

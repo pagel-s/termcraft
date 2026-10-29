@@ -20,6 +20,7 @@ fn js_error(error: impl std::fmt::Display) -> JsValue {
 pub struct BrowserGame {
     state: GameState,
     renderer: Renderer,
+    mode: String,
     columns: u16,
     rows: u16,
     accumulated_ms: f64,
@@ -33,18 +34,42 @@ pub struct BrowserGame {
 #[wasm_bindgen]
 impl BrowserGame {
     #[wasm_bindgen(constructor)]
-    pub fn new(columns: u16, rows: u16, saved: Option<String>) -> Result<BrowserGame, JsValue> {
+    pub fn new(
+        columns: u16,
+        rows: u16,
+        saved: Option<String>,
+        mode: Option<String>,
+    ) -> Result<BrowserGame, JsValue> {
         fs::reset();
-        if let Some(saved) = saved {
+        let mode = if let Some(saved) = saved {
             fs::restore(&saved).map_err(js_error)?;
-        }
-        let store = WorldStore::new("saves/worlds".into());
-        let root = match store.open("lantern-run") {
-            Ok(root) => root,
-            Err(_) => {
-                GameState::create_lantern_trial(&store, "lantern-run").map_err(js_error)?;
+            // Identify the saved world before opening it. Invalid imports must
+            // never quietly start a different world or overwrite either save.
+            match (
+                fs::exists("saves/survival/overworld_world_seed.bin").map_err(js_error)?,
+                fs::exists("saves/worlds/world-lantern-run/world.json").map_err(js_error)?,
+            ) {
+                (true, false) => "survival".to_owned(),
+                (false, true) => "lantern-run".to_owned(),
+                _ => return Err(js_error("save must contain one supported browser world")),
+            }
+        } else {
+            // The original three-argument bindings created Lantern Run. Keep
+            // that contract for cached clients; the page explicitly selects
+            // survival as its default.
+            mode.unwrap_or_else(|| "lantern-run".into())
+        };
+        let root = match mode.as_str() {
+            "survival" => std::path::PathBuf::from("saves/survival"),
+            "lantern-run" => {
+                let store = WorldStore::new("saves/worlds".into());
+                let root = store.path("lantern-run").map_err(js_error)?;
+                if !fs::exists(&root).map_err(js_error)? {
+                    GameState::create_lantern_trial(&store, "lantern-run").map_err(js_error)?;
+                }
                 store.open("lantern-run").map_err(js_error)?
             }
+            _ => return Err(js_error("unknown browser world mode")),
         };
         let mut state = GameState::open_in_directory(&root).map_err(js_error)?;
         state.dismiss_startup_splash();
@@ -53,6 +78,7 @@ impl BrowserGame {
         Ok(Self {
             state,
             renderer: Renderer::browser_view(columns, rows),
+            mode,
             columns,
             rows,
             accumulated_ms: 0.0,
@@ -297,7 +323,7 @@ impl BrowserGame {
         fs::snapshot().map_err(js_error)
     }
     pub fn status(&self) -> String {
-        serde_json::json!({"x":self.state.player.x,"y":self.state.player.y,"health":self.state.player.health,"inventory_open":self.state.inventory_open,"objective":self.state.trial_controls_hint(),"dimension":format!("{:?}",self.state.current_dimension),"columns":self.columns,"rows":self.rows}).to_string()
+        serde_json::json!({"x":self.state.player.x,"y":self.state.player.y,"health":self.state.player.health,"inventory_open":self.state.inventory_open,"mode":self.mode,"objective":self.state.trial_controls_hint().unwrap_or("Gather wood · craft tools · build a shelter before nightfall"),"dimension":format!("{:?}",self.state.current_dimension),"columns":self.columns,"rows":self.rows}).to_string()
     }
 }
 

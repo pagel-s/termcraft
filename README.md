@@ -24,7 +24,7 @@
 [Watch the full video](https://youtu.be/nn37_15dLFM) ·
 [Music and media credits](docs/media-credits.md)
 
-**[Play in your browser](https://pagel-s.github.io/termcraft/play/)** — try solo Lantern Run with local saves. No installation. Download the native game below for full survival and multiplayer.
+**[Play in your browser](https://pagel-s.github.io/termcraft/play/)** — explore a naturally generated solo survival world, with local saves. No installation. Download the native game below for multiplayer and the full terminal experience.
 
 ## A survival world, adapted to 2D
 

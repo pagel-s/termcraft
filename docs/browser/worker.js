@@ -1,7 +1,7 @@
 // The simulation and renderer run off the UI thread. No server processes or sockets.
-import init, { BrowserGame } from './pkg/termcraft.js';
+import init, { BrowserGame } from './pkg/termcraft.js?v=natural-world-1';
 
-const ready = init();
+const ready = init({module_or_path:new URL('./pkg/termcraft_bg.wasm?v=natural-world-1',import.meta.url)});
 let game;
 self.onmessage = async ({ data }) => {
   const { id, type } = data;
@@ -12,7 +12,7 @@ self.onmessage = async ({ data }) => {
       case 'start':
         game?.free();
         game = undefined;
-        game = new BrowserGame(data.columns, data.rows, data.saved ?? undefined);
+        game = new BrowserGame(data.columns, data.rows, data.saved ?? undefined, data.mode);
         result = JSON.parse(game.status());
         break;
       case 'frame': {

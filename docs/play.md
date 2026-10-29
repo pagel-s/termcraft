@@ -1,18 +1,25 @@
 # Play in your browser
 
-Try **Lantern Run**: cross a broken trail, reclaim the ruins, fight the guards,
-and rebuild the signal route. This single-player preview runs the real Rust
-simulation and terminal pixel-art renderer locally using WebAssembly.
+Start **Survival** to explore a naturally generated world with the same terrain,
+biomes, caves and structures as the native game. Each new world uses a fresh
+random seed. This single-player preview runs the real Rust simulation and
+terminal pixel-art renderer locally using WebAssembly.
+
+Choose **Lantern Run** in the world selector for the hand-built combat and
+building challenge. The two modes keep separate saves, including existing
+Lantern Run progress. To generate another natural world, expand **Your adventure,
+your save** and click **New survival world**; export your current world first if
+you want to keep it.
 
 **[Open the game in its own tab](browser/index.html){target="_blank" rel="noopener"}**
 for more room, or play below. Click **Fullscreen** to expand the game; **Esc** returns to this page. A desktop keyboard and mouse are recommended.
 
-<iframe src="../browser/index.html" title="Play Termcraft — Lantern Run" width="100%" height="1050" style="border:0;border-radius:5px;background:#0d151b" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
+<iframe src="../browser/index.html" title="Play Termcraft" width="100%" height="1050" style="border:0;border-radius:5px;background:#0d151b" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
 
 Progress saves in this browser. Use **Export save** inside the game to keep a
 backup; clearing site data removes local saves. Browser saves are separate from
-native saves. This preview supports solo Lantern Run; download the
-[native game](installation.md) for multiplayer and the full survival experience.
+native saves. This browser preview is single-player; download the
+[native game](installation.md) for multiplayer and the full terminal experience.
 
 ## Controls
 
