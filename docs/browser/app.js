@@ -214,6 +214,7 @@ $('fullscreen').onclick = async () => {
 document.addEventListener('fullscreenchange', () => {
   $('fullscreen').textContent = document.fullscreenElement ? 'Exit fullscreen ⛶' : 'Fullscreen ⛶';
   releaseControls();
+  if (!document.fullscreenElement) pause();
 });
 $('export').onclick = async () => {
   try {
