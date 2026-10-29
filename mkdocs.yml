@@ -9,6 +9,7 @@ site_dir: site
 
 nav:
   - Home: index.md
+  - Play in Browser: play.md
   - Installation: installation.md
   - Gameplay: gameplay.md
   - Multiplayer Setup: multiplayer.md

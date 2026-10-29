@@ -5,6 +5,8 @@ on:
     branches:
       - main
   workflow_dispatch:
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -27,10 +29,32 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Setup browser build
+        uses: dtolnay/rust-toolchain@1.88
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust builds
+        uses: Swatinem/rust-cache@v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned WebAssembly bindings tool
+        run: cargo install wasm-bindgen-cli --version 0.2.105 --locked
+
+      - name: Build and verify browser game
+        run: |
+          python scripts/build_web.py --node-output /tmp/termcraft-web-test
+          node scripts/test_web.cjs /tmp/termcraft-web-test
+
       - name: Install docs dependencies
         run: pip install -r docs/requirements.txt
 
       - name: Configure Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
       - name: Build site
@@ -42,6 +66,7 @@ jobs:
           path: site
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment:

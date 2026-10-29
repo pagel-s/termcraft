@@ -22,3 +22,6 @@ __pycache__/
 
 # Local development release archives
 /dist/
+
+# Browser bindings are built reproducibly in the Pages workflow.
+/docs/browser/pkg/

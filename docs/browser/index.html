@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0d151b">
+  <meta name="description" content="Play Termcraft's Lantern Run in your browser. The real Rust survival game, with terminal pixel art, combat and building. No installation.">
+  <title>Play Termcraft · Lantern Run</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+<main>
+  <header class="masthead">
+    <a class="brand" href="../" target="_top" aria-label="Termcraft home"><span class="prompt">&gt;_</span> TERMCRAFT<span class="cursor" aria-hidden="true">▌</span></a>
+    <span class="edition">BROWSER PREVIEW <span>· SOLO</span></span>
+    <a class="native-link" href="https://github.com/pagel-s/termcraft/releases/latest" target="_blank" rel="noopener">Get the full game ↗</a>
+  </header>
+
+  <section id="game-shell" aria-label="Termcraft game">
+    <div class="toolbar">
+      <span class="world-name"><i aria-hidden="true"></i> LANTERN RUN</span>
+      <span id="save-status" role="status">Saved on this browser</span>
+      <button id="pause" type="button" disabled>Pause</button>
+      <button id="fullscreen" type="button">Fullscreen ⛶</button>
+    </div>
+    <div class="screen">
+      <canvas id="game" width="1600" height="960" tabindex="0" aria-label="Lantern Run. Move with A and D, jump with Space. Left click to mine or attack, right click to interact. Escape pauses."></canvas>
+      <div id="cover" class="cover">
+        <div class="cover-inner">
+          <span class="eyebrow">A LITTLE RUIN. A LONG NIGHT.</span>
+          <h1>Light the way.</h1>
+          <p>Cross the broken trail. Reclaim the ruins.<br>Build a bridge and restore the signal.</p>
+          <button id="play" class="primary" type="button">Play Lantern Run <span aria-hidden="true">→</span></button>
+          <p id="loading" class="muted" role="status">Runs on your computer · no account or installation</p>
+          <p class="keyboard-note">Keyboard + mouse recommended</p>
+        </div>
+      </div>
+    </div>
+    <div class="objective"><span aria-hidden="true">◆</span><span id="objective">Traverse. Fight. Rebuild.</span></div>
+  </section>
+
+  <p id="notice" class="notice" role="alert" hidden></p>
+  <div class="below-game">
+    <section class="controls" aria-label="Controls">
+      <span><kbd>A</kbd><kbd>D</kbd> move <small>double-tap to sprint</small></span>
+      <span><kbd>Space</kbd> jump / climb</span>
+      <span><kbd>E</kbd> inventory + crafting</span>
+      <span><kbd>1</kbd>–<kbd>9</kbd> select</span>
+      <span><kbd>V</kbd> drop</span>
+      <span><kbd>−</kbd><kbd>+</kbd> zoom</span>
+      <span>Left click mine / attack · Right click use / place</span>
+    </section>
+    <details>
+      <summary>Your adventure, your save</summary>
+      <p>Progress saves locally in this browser. Clearing site data removes it; export a backup to keep it. This browser preview has its own save, separate from the native game. Browser multiplayer is not available yet.</p>
+      <div class="save-actions">
+        <button id="export" type="button" disabled>Export save</button>
+        <label class="file-button">Import save<input id="import" type="file" accept="application/json,.json"></label>
+        <button id="restart" type="button" class="danger">Start fresh</button>
+      </div>
+      <p>In the inventory: click to move or merge, right click to split, Shift+click to transfer. Enter crafts from the grid; Shift+Enter crafts the maximum. F uses the hovered block. Escape closes menus or pauses.</p>
+    </details>
+  </div>
+  <footer>Made with Rust. Still terminal at heart. <a href="https://github.com/pagel-s/termcraft" target="_blank" rel="noopener">Source ↗</a> <a href="../media-credits/" target="_top">Credits</a><span>Unofficial fan project. Not affiliated with Mojang or Microsoft.</span></footer>
+</main>
+</body>
+</html>
