@@ -454,9 +454,6 @@ impl OpenOptions {
                 ));
             }
             if !files.contains_key(&p) {
-                if !(self.create || self.create_new) && !self.write {
-                    return Err(missing());
-                }
                 if !(self.create || self.create_new) {
                     return Err(missing());
                 }
