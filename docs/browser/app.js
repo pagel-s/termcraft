@@ -211,6 +211,10 @@ $('fullscreen').onclick = async () => {
     if (started && !paused) canvas.focus({preventScroll:true});
   } catch { notice('Fullscreen is unavailable here. Open the game in its own tab using the link on the guide page.'); }
 };
+document.addEventListener('fullscreenchange', () => {
+  $('fullscreen').textContent = document.fullscreenElement ? 'Exit fullscreen ⛶' : 'Fullscreen ⛶';
+  releaseControls();
+});
 $('export').onclick = async () => {
   try {
     const snapshot = await request('save');
@@ -237,6 +241,12 @@ $('restart').onclick = async () => {
 };
 const gameKeys = new Set(['KeyA','KeyD','KeyW','KeyE','KeyV','KeyO','KeyR','KeyF','KeyQ','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','ShiftLeft','ShiftRight','Enter','Delete','Escape','Tab','PageUp','PageDown','F4','Equal','Minus','NumpadAdd','NumpadSubtract',...Array.from({length:9},(_,i)=>`Digit${i+1}`)]);
 canvas.addEventListener('keydown',event => {
+  if (event.code === 'Escape' && document.fullscreenElement) {
+    event.preventDefault();
+    pause();
+    document.exitFullscreen().catch(() => {});
+    return;
+  }
   if (event.ctrlKey || event.metaKey || event.altKey || !gameKeys.has(event.code)) return;
   if (event.code === 'Tab' && canvas.dataset.inventoryOpen !== 'true') return;
   event.preventDefault();

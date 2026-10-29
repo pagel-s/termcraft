@@ -5,7 +5,7 @@ and rebuild the signal route. This single-player preview runs the real Rust
 simulation and terminal pixel-art renderer locally using WebAssembly.
 
 **[Open the game in its own tab](browser/index.html){target="_blank" rel="noopener"}**
-for more room, or play below. A desktop keyboard and mouse are recommended.
+for more room, or play below. Click **Fullscreen** to expand the game; **Esc** returns to this page. A desktop keyboard and mouse are recommended.
 
 <iframe src="../browser/index.html" title="Play Termcraft — Lantern Run" width="100%" height="1050" style="border:0;border-radius:5px;background:#0d151b" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
 
