@@ -1,3 +1,4 @@
+mod color;
 mod lighting;
 pub mod terminal;
 

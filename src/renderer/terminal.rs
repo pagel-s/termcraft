@@ -22,9 +22,11 @@ mod sprites;
 mod victory;
 #[path = "weather.rs"]
 mod weather;
+use crate::renderer::color::Color;
 use crate::world::block::BlockType;
 use crate::world::chunk::CHUNK_HEIGHT;
 use crate::world::item::{ItemStack, ItemType};
+#[cfg(not(target_arch = "wasm32"))]
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
@@ -33,7 +35,7 @@ use crossterm::{
         PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute, queue,
-    style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
+    style::{Print, ResetColor, SetBackgroundColor, SetForegroundColor},
     terminal::{
         BeginSynchronizedUpdate, Clear, ClearType, EndSynchronizedUpdate, EnterAlternateScreen,
         LeaveAlternateScreen, disable_raw_mode, enable_raw_mode, size,
@@ -85,7 +87,7 @@ pub struct Renderer {
     motion: motion::MotionHistory,
     player_preview: Option<Box<motion::PlayerPreview>>,
     frame_seconds: f64,
-    last_frame_at: Option<std::time::Instant>,
+    last_frame_at: Option<crate::platform::Instant>,
     vertical_pixel_offset: i32,
     pixel_horizons: Vec<f64>,
 }
@@ -97,6 +99,7 @@ impl Renderer {
         self.dragon_art_preview = Some(enabled);
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> std::io::Result<Self> {
         let (cols, rows) = size()?;
         let mut renderer = Self::with_size(cols, rows);
@@ -142,6 +145,7 @@ impl Renderer {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn init(&mut self) -> std::io::Result<()> {
         enable_raw_mode()?;
         if std::env::var_os("NO_COLOR").is_some() {
@@ -169,6 +173,7 @@ impl Renderer {
         Ok(())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn restore(&mut self) -> std::io::Result<()> {
         let screen = execute!(
             self.stdout,
@@ -248,6 +253,7 @@ impl Renderer {
         self.key_releases = true;
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn check_resize(&mut self) -> std::io::Result<()> {
         let (cols, rows) = size()?;
         if cols != self.width || rows != self.height {
@@ -288,6 +294,41 @@ impl Renderer {
 
     pub fn capture_motion_step(&mut self, state: &GameState) {
         self.motion.capture(state);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn browser_view(cols: u16, rows: u16) -> Self {
+        let mut renderer = Self::with_size(cols, rows);
+        renderer.zoom = Self::saved_view();
+        renderer.persist_view = true;
+        renderer.key_releases = true;
+        renderer
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn browser_frame(
+        &mut self,
+        state: &GameState,
+        alpha: f64,
+        seconds: f64,
+    ) -> std::io::Result<Vec<u32>> {
+        self.frame_seconds = seconds.clamp(0.001, 0.1);
+        self.render_to(state, alpha, &mut std::io::sink())?;
+        let packed = |color, fallback| {
+            let (r, g, b) = Self::color_rgb(color).unwrap_or(fallback);
+            ((r as u32) << 16) | ((g as u32) << 8) | b as u32
+        };
+        Ok(self
+            .back_buffer
+            .iter()
+            .flat_map(|cell| {
+                [
+                    cell.ch as u32,
+                    packed(cell.fg, (226, 232, 234)),
+                    packed(cell.bg, (10, 14, 18)),
+                ]
+            })
+            .collect())
     }
 
     fn view_char_y(&self, player_y: f64) -> i32 {
@@ -1197,9 +1238,10 @@ impl Renderer {
         Self::rgb(base)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn render(&mut self, state: &GameState, frame_alpha: f64) -> std::io::Result<()> {
         self.check_resize()?;
-        let now = std::time::Instant::now();
+        let now = crate::platform::Instant::now();
         self.frame_seconds = self
             .last_frame_at
             .map_or(1.0 / 60.0, |last| now.duration_since(last).as_secs_f64());
@@ -4243,74 +4285,82 @@ impl Renderer {
             self.draw_chat_overlay(state);
         }
 
-        let mut encoded = std::mem::take(&mut self.frame_output);
-        encoded.clear();
-        queue!(&mut encoded, BeginSynchronizedUpdate)?;
-        // Uniform pixel halves are a background cell. Invisible foreground
-        // colors must not cause extra updates or split otherwise identical runs.
-        for cell in &mut self.back_buffer {
-            if matches!(cell.ch, '▀' | '▄' | '█') && cell.fg == cell.bg {
-                cell.ch = ' ';
-            }
-            if cell.ch == ' ' {
-                cell.fg = Color::Reset;
-            }
-        }
-        let mut run = String::new();
-        let mut cursor = None;
-        let mut last_fg = Color::Reset;
-        let mut last_bg = Color::Reset;
-        let row_width = self.width as usize;
-        for y in 0..self.height {
-            let row_start = (y as usize) * row_width;
-            let mut x = 0usize;
-            while x < row_width {
-                let idx = row_start + x;
-                let cell = self.back_buffer[idx];
-                if self.buffer[idx] == cell {
-                    x += 1;
-                    continue;
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut encoded = std::mem::take(&mut self.frame_output);
+            encoded.clear();
+            queue!(&mut encoded, BeginSynchronizedUpdate)?;
+            // Uniform pixel halves are a background cell. Invisible foreground
+            // colors must not cause extra updates or split otherwise identical runs.
+            for cell in &mut self.back_buffer {
+                if matches!(cell.ch, '▀' | '▄' | '█') && cell.fg == cell.bg {
+                    cell.ch = ' ';
                 }
-
-                let run_fg = cell.fg;
-                let run_bg = cell.bg;
-                let run_start = x;
-                run.clear();
-
+                if cell.ch == ' ' {
+                    cell.fg = Color::Reset;
+                }
+            }
+            let mut run = String::new();
+            let mut cursor = None;
+            let mut last_fg = Color::Reset;
+            let mut last_bg = Color::Reset;
+            let row_width = self.width as usize;
+            for y in 0..self.height {
+                let row_start = (y as usize) * row_width;
+                let mut x = 0usize;
                 while x < row_width {
-                    let run_idx = row_start + x;
-                    let run_cell = self.back_buffer[run_idx];
-                    if self.buffer[run_idx] != run_cell
-                        && run_cell.fg == run_fg
-                        && run_cell.bg == run_bg
-                    {
-                        self.buffer[run_idx] = run_cell;
-                        run.push(run_cell.ch);
+                    let idx = row_start + x;
+                    let cell = self.back_buffer[idx];
+                    if self.buffer[idx] == cell {
                         x += 1;
-                    } else {
-                        break;
+                        continue;
                     }
-                }
 
-                if cursor != Some((run_start, y)) {
-                    queue!(&mut encoded, MoveTo(run_start as u16, y))?;
+                    let run_fg = cell.fg;
+                    let run_bg = cell.bg;
+                    let run_start = x;
+                    run.clear();
+
+                    while x < row_width {
+                        let run_idx = row_start + x;
+                        let run_cell = self.back_buffer[run_idx];
+                        if self.buffer[run_idx] != run_cell
+                            && run_cell.fg == run_fg
+                            && run_cell.bg == run_bg
+                        {
+                            self.buffer[run_idx] = run_cell;
+                            run.push(run_cell.ch);
+                            x += 1;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if cursor != Some((run_start, y)) {
+                        queue!(&mut encoded, MoveTo(run_start as u16, y))?;
+                    }
+                    cursor = Some((x, y));
+                    if run_fg != last_fg {
+                        queue!(&mut encoded, SetForegroundColor(run_fg))?;
+                        last_fg = run_fg;
+                    }
+                    if run_bg != last_bg {
+                        queue!(&mut encoded, SetBackgroundColor(run_bg))?;
+                        last_bg = run_bg;
+                    }
+                    queue!(&mut encoded, Print(&run))?;
                 }
-                cursor = Some((x, y));
-                if run_fg != last_fg {
-                    queue!(&mut encoded, SetForegroundColor(run_fg))?;
-                    last_fg = run_fg;
-                }
-                if run_bg != last_bg {
-                    queue!(&mut encoded, SetBackgroundColor(run_bg))?;
-                    last_bg = run_bg;
-                }
-                queue!(&mut encoded, Print(&run))?;
             }
+            queue!(&mut encoded, ResetColor, EndSynchronizedUpdate)?;
+            let result = output.write_all(&encoded).and_then(|_| output.flush());
+            self.frame_output = encoded;
+            result?;
         }
-        queue!(&mut encoded, ResetColor, EndSynchronizedUpdate)?;
-        let result = output.write_all(&encoded).and_then(|_| output.flush());
-        self.frame_output = encoded;
-        result?;
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = output;
+            self.buffer.clone_from(&self.back_buffer);
+        }
         Ok(())
     }
 

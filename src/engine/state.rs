@@ -62,6 +62,7 @@ use crate::entities::villager::Villager;
 use crate::entities::wolf::Wolf;
 use crate::entities::zombie::Zombie;
 use crate::entities::zombie_pigman::ZombiePigman;
+use crate::platform::fs::File;
 use crate::save_path;
 use crate::world::block::BlockType;
 use crate::world::chunk::{CHUNK_HEIGHT, CHUNK_WIDTH};
@@ -74,7 +75,6 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
-use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -1722,7 +1722,7 @@ impl GameState {
 
     fn write_progression_payload_atomically(path: &Path, payload: &[u8]) -> std::io::Result<()> {
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
+            crate::platform::fs::create_dir_all(parent)?;
         }
         crate::checkpoint::protect(path)?;
         let temp_path = Self::progression_temp_path(path);
@@ -1731,8 +1731,8 @@ impl GameState {
             file.write_all(payload)?;
             file.sync_all()?;
         }
-        if let Err(err) = std::fs::rename(&temp_path, path) {
-            let _ = std::fs::remove_file(&temp_path);
+        if let Err(err) = crate::platform::fs::rename(&temp_path, path) {
+            let _ = crate::platform::fs::remove_file(&temp_path);
             return Err(err);
         }
         crate::checkpoint::sync_directory(path.parent().unwrap())
@@ -1962,7 +1962,7 @@ impl GameState {
         crate::checkpoint::recover(root)?;
         let path = root.join(PLAYER_PROGRESS_FILE);
         let progress = Self::load_progression_data_from_path(&path);
-        if path.try_exists()? && progress.is_none() {
+        if crate::platform::fs::exists(&path)? && progress.is_none() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "player save could not be decoded; the world was not reset",
@@ -1980,7 +1980,7 @@ impl GameState {
         }
         // Terrain is shared between solo and hosted play; use the newest entity
         // checkpoint while keeping their deliberately separate player inventories.
-        if root.join("server-state.json").try_exists()? {
+        if crate::platform::fs::exists(root.join("server-state.json"))? {
             let server = super::server_save::ServerSave::read(&state)?;
             if let Some(runtime) = &server.runtime
                 && runtime.revision > state.runtime_revision.get()
@@ -15990,7 +15990,7 @@ mod tests {
     fn dimension_travel_keeps_current_world_when_its_save_fails() {
         let root = std::env::temp_dir().join(format!(
             "termcraft-travel-{}-{}",
-            std::process::id(),
+            crate::platform::process_id(),
             rand::random::<u64>()
         ));
         let store = crate::worlds::WorldStore::new(root.clone());
@@ -16004,7 +16004,7 @@ mod tests {
         let mut state = GameState::open_in_directory(&path).unwrap();
         state.world.try_save_all().unwrap();
         state.world.set_block(1, 30, BlockType::DiamondOre);
-        std::fs::create_dir(path.join("overworld_chunk_0.bin.tmp")).unwrap();
+        crate::platform::fs::create_dir(path.join("overworld_chunk_0.bin.tmp")).unwrap();
         let position = (state.player.x, state.player.y);
         state.transfer_nether_dimension();
         assert_eq!(state.current_dimension, Dimension::Overworld);
@@ -16019,7 +16019,7 @@ mod tests {
                 .contains("Travel cancelled")
         );
         drop(state);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -20202,7 +20202,7 @@ mod tests {
         assert_eq!(state.player.y, before - 2.0);
         assert_eq!(state.end_crystals.len(), 4);
         drop(state);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -23990,7 +23990,7 @@ mod tests {
             .as_nanos();
         let path = format!("saves/test_player_progress_{unique}.bin");
 
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
         GameState::save_progression_data_to_path(&path, &data).expect("helper save should succeed");
         let loaded =
             GameState::load_progression_data_from_path(&path).expect("helper load should succeed");
@@ -24028,7 +24028,7 @@ mod tests {
         assert_eq!(loaded.experience_total, 321);
         assert_eq!(loaded.experience_level, state.player.experience_level);
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
@@ -24044,14 +24044,14 @@ mod tests {
         let path = format!("saves/test_player_progress_tmp_{unique}.bin");
         let temp_path = GameState::progression_temp_path(&path);
 
-        let _ = std::fs::remove_file(&path);
-        let _ = std::fs::remove_file(&temp_path);
+        let _ = crate::platform::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&temp_path);
         GameState::save_progression_data_to_path(&path, &data).expect("helper save should succeed");
 
         assert!(std::path::Path::new(&path).exists());
         assert!(!temp_path.exists());
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
@@ -24112,9 +24112,9 @@ mod tests {
             .expect("clock should be monotonic enough")
             .as_nanos();
         let path = format!("saves/test_player_progress_v1_{unique}.bin");
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
         let encoded = bincode::serialize(&legacy).expect("legacy v1 serialization should succeed");
-        std::fs::write(&path, encoded).expect("legacy v1 fixture should write");
+        crate::platform::fs::write(&path, encoded).expect("legacy v1 fixture should write");
 
         let loaded =
             GameState::load_progression_data_from_path(&path).expect("v1 payload should upgrade");
@@ -24127,7 +24127,7 @@ mod tests {
         assert!(loaded.rule_do_weather_cycle);
         assert!(!loaded.rule_keep_inventory);
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
@@ -24171,9 +24171,9 @@ mod tests {
             .expect("clock should be monotonic enough")
             .as_nanos();
         let path = format!("saves/test_player_progress_v2_{unique}.bin");
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
         let encoded = bincode::serialize(&legacy).expect("legacy v2 serialization should succeed");
-        std::fs::write(&path, encoded).expect("legacy v2 fixture should write");
+        crate::platform::fs::write(&path, encoded).expect("legacy v2 fixture should write");
 
         let loaded =
             GameState::load_progression_data_from_path(&path).expect("v2 payload should upgrade");
@@ -24185,7 +24185,7 @@ mod tests {
         assert!(!loaded.rule_do_weather_cycle);
         assert!(loaded.rule_keep_inventory);
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
@@ -24233,9 +24233,9 @@ mod tests {
             .expect("clock should be monotonic enough")
             .as_nanos();
         let path = format!("saves/test_player_progress_v3_{unique}.bin");
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
         let encoded = bincode::serialize(&legacy).expect("legacy v3 serialization should succeed");
-        std::fs::write(&path, encoded).expect("legacy v3 fixture should write");
+        crate::platform::fs::write(&path, encoded).expect("legacy v3 fixture should write");
 
         let loaded =
             GameState::load_progression_data_from_path(&path).expect("v3 payload should upgrade");
@@ -24245,7 +24245,7 @@ mod tests {
         assert_eq!(loaded.spawn_point_x, 0);
         assert_eq!(loaded.spawn_point_y, 0);
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
@@ -24296,9 +24296,9 @@ mod tests {
             .expect("clock should be monotonic enough")
             .as_nanos();
         let path = format!("saves/test_player_progress_v4_{unique}.bin");
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
         let encoded = bincode::serialize(&legacy).expect("legacy v4 serialization should succeed");
-        std::fs::write(&path, encoded).expect("legacy v4 fixture should write");
+        crate::platform::fs::write(&path, encoded).expect("legacy v4 fixture should write");
 
         let loaded =
             GameState::load_progression_data_from_path(&path).expect("v4 payload should upgrade");
@@ -24307,7 +24307,7 @@ mod tests {
         assert!(loaded.armor_slots.iter().all(Option::is_none));
         assert_eq!(loaded.experience_total, 0);
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
@@ -24359,9 +24359,9 @@ mod tests {
             .expect("clock should be monotonic enough")
             .as_nanos();
         let path = format!("saves/test_player_progress_v5_{unique}.bin");
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
         let encoded = bincode::serialize(&legacy).expect("legacy v5 serialization should succeed");
-        std::fs::write(&path, encoded).expect("legacy v5 fixture should write");
+        crate::platform::fs::write(&path, encoded).expect("legacy v5 fixture should write");
 
         let loaded =
             GameState::load_progression_data_from_path(&path).expect("v5 payload should upgrade");
@@ -24369,7 +24369,7 @@ mod tests {
         assert_eq!(loaded.player_x, 11.5);
         assert_eq!(loaded.experience_total, 0);
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
@@ -24504,10 +24504,10 @@ mod tests {
             .expect("clock should be monotonic enough")
             .as_nanos();
         let path = format!("saves/test_player_progress_badver_{unique}.bin");
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
         GameState::save_progression_data_to_path(&path, &data).expect("helper save should succeed");
         assert!(GameState::load_progression_data_from_path(&path).is_none());
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 }
 

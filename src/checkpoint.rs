@@ -3,10 +3,10 @@
 //! Chunk eviction/autosave can publish terrain before the player/server file.
 //! Keep synced before-images until the owner commits all dimensions and player
 //! records. Startup rolls an interrupted checkpoint back before loading anything.
+use crate::platform::fs::{self, File, OpenOptions};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
-    fs::{self, File, OpenOptions},
     io::{self, Read, Write},
     path::{Path, PathBuf},
 };
@@ -205,7 +205,7 @@ fn discard_orphans(root: &Path) -> io::Result<()> {
     // These namespaces are reserved for unpublished initialization, completed
     // cleanup and rollback temporaries. Never follow a symlink or remove an
     // unfinished active journal. Called only after successful checked recovery.
-    if !root.exists() {
+    if !fs::exists(root)? {
         return Ok(());
     }
     for entry in fs::read_dir(root)? {

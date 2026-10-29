@@ -1,7 +1,7 @@
 //! Named worlds keep generated content and player saves separate from classic saves.
+use crate::platform::fs::{self, OpenOptions};
 use crate::world::recipe::{RECIPE_FILE, WorldRecipe};
 use serde_json::json;
-use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
@@ -122,7 +122,7 @@ impl WorldLease {
         let mut file = OpenOptions::new().write(true).create_new(true).open(&path)
             .map_err(|e| format!("world is already open, or cannot be locked ({e}); after a crash, verify it is closed before removing {}", path.display()))?;
         let lease = Self { path };
-        writeln!(file, "{}", std::process::id()).map_err(|e| e.to_string())?;
+        writeln!(file, "{}", crate::platform::process_id()).map_err(|e| e.to_string())?;
         file.sync_all().map_err(|e| e.to_string())?;
         Ok(lease)
     }
@@ -142,8 +142,10 @@ mod tests {
 
     #[test]
     fn worlds_are_isolated_persist_edits_and_do_not_overwrite() {
-        let root =
-            std::env::temp_dir().join(format!("termcraft-world-isolation-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!(
+            "termcraft-world-isolation-{}",
+            crate::platform::process_id()
+        ));
         let store = WorldStore::new(root.clone());
         let a = store.create("a", "snow", &WorldRecipe::example()).unwrap();
         let b = store.create("b", "snow", &WorldRecipe::example()).unwrap();

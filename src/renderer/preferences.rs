@@ -13,7 +13,7 @@ impl Renderer {
 }
 fn read_view(path: &Path) -> u8 {
     let mut bytes = Vec::new();
-    let Ok(file) = std::fs::File::open(path) else {
+    let Ok(file) = crate::platform::fs::File::open(path) else {
         return DEFAULT_VIEW;
     };
     if file.take(1025).read_to_end(&mut bytes).is_err() || bytes.len() > 1024 {
@@ -37,20 +37,20 @@ pub(super) fn write_view(path: &Path, view: u8) -> std::io::Result<()> {
     let parent = path
         .parent()
         .ok_or_else(|| std::io::Error::other("view has no parent"))?;
-    std::fs::create_dir_all(parent)?;
+    crate::platform::fs::create_dir_all(parent)?;
     let temp = parent.join(format!(
         ".view-{}-{}.tmp",
-        std::process::id(),
+        crate::platform::process_id(),
         rand::random::<u64>()
     ));
     let result = (|| {
-        let mut file = std::fs::File::create(&temp)?;
+        let mut file = crate::platform::fs::File::create(&temp)?;
         writeln!(file, "{{\"version\":1,\"view\":{view}}}")?;
         file.sync_all()?;
-        std::fs::rename(&temp, path)
+        crate::platform::fs::rename(&temp, path)
     })();
     if result.is_err() {
-        let _ = std::fs::remove_file(temp);
+        let _ = crate::platform::fs::remove_file(temp);
     }
     result
 }
@@ -73,11 +73,11 @@ mod tests {
             "{\"version\":2,\"view\":0}",
             "{\"version\":1,\"view\":\"0\"}",
         ] {
-            std::fs::write(&path, invalid).unwrap();
+            crate::platform::fs::write(&path, invalid).unwrap();
             assert_eq!(read_view(&path), 2);
         }
-        std::fs::write(&path, vec![b' '; 1025]).unwrap();
+        crate::platform::fs::write(&path, vec![b' '; 1025]).unwrap();
         assert_eq!(read_view(&path), 2);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
 }

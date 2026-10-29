@@ -402,7 +402,7 @@ mod tests {
         s.update_trial();
         assert_eq!(s.trial.as_ref().unwrap().stage, TrialStage::Complete);
         drop(s);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn fresh_trial_peer_gets_one_kit_and_rejoin_does_not_refill() {

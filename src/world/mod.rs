@@ -15,6 +15,7 @@ pub mod item;
 pub mod recipe;
 pub mod village;
 
+use crate::platform::Instant;
 use crate::save_path;
 use block::BlockType;
 use chunk::{CHUNK_HEIGHT, CHUNK_WIDTH, Chunk};
@@ -25,8 +26,8 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::mpsc::{self, Receiver, Sender};
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 
 /// Ripe harvests always leave enough seed to replant and expand the bed.
 pub fn wheat_seed_drop_count_at(x: i32, y: i32, mature: bool) -> u32 {
@@ -363,9 +364,9 @@ impl World {
         self.replica
     }
     pub(crate) fn network_replica(dimension: Dimension) -> Self {
-        let root = std::env::temp_dir().join(format!(
+        let root = crate::platform::temp_dir().join(format!(
             ".termcraft-replica-{}-{}",
-            std::process::id(),
+            crate::platform::process_id(),
             rand::random::<u64>()
         ));
         let mut world = Self::new_at(
@@ -464,11 +465,16 @@ impl World {
         let temp_seed = seeds.temp_seed;
         let moist_seed = seeds.moist_seed;
         let cave_seed = seeds.cave_seed;
+        #[cfg(not(target_arch = "wasm32"))]
         let worker_save_key = save_key.clone();
 
         let (chunk_request_tx, chunk_request_rx) = mpsc::channel::<ChunkWorkItem>();
         let (chunk_result_tx, chunk_result_rx) = mpsc::channel();
+        #[cfg(not(target_arch = "wasm32"))]
         let shared_request_rx = Arc::new(Mutex::new(chunk_request_rx));
+        #[cfg(target_arch = "wasm32")]
+        drop((chunk_request_rx, chunk_result_tx));
+        #[cfg(not(target_arch = "wasm32"))]
         for _ in 0..CHUNK_PIPELINE_WORKERS {
             let worker_root = save_root.clone();
             let worker_recipe = recipe.clone();
@@ -578,7 +584,7 @@ impl World {
     #[cfg(test)]
     fn load_world_seed_data(save_key: &str) -> Option<WorldSeedData> {
         let path = Self::world_seed_path(save_key);
-        let encoded = std::fs::read(path).ok()?;
+        let encoded = crate::platform::fs::read(path).ok()?;
         bincode::deserialize::<WorldSeedData>(&encoded).ok()
     }
 
@@ -603,7 +609,7 @@ impl World {
     ) -> std::io::Result<WorldSeedData> {
         use std::io::Write;
         let path = root.join(format!("{save_key}_world_seed.bin"));
-        match std::fs::read(&path) {
+        match crate::platform::fs::read(&path) {
             Ok(bytes) => bincode::deserialize(&bytes).map_err(|_| {
                 std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
@@ -616,36 +622,36 @@ impl World {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 let seeds = Self::create_world_seed_data();
                 let bytes = bincode::serialize(&seeds).map_err(std::io::Error::other)?;
-                std::fs::create_dir_all(root)?;
+                crate::platform::fs::create_dir_all(root)?;
                 crate::checkpoint::protect(&path)?;
                 // Publish a fully written seed without replacing another
                 // writer's file or exposing a partially written seed to readers.
                 let temp = root.join(format!(
                     ".{save_key}_seed_{}_{}.tmp",
-                    std::process::id(),
+                    crate::platform::process_id(),
                     rand::random::<u64>()
                 ));
-                let mut file = std::fs::OpenOptions::new()
+                let mut file = crate::platform::fs::OpenOptions::new()
                     .write(true)
                     .create_new(true)
                     .open(&temp)?;
                 let result = (|| {
                     file.write_all(&bytes)?;
                     file.sync_all()?;
-                    match std::fs::hard_link(&temp, &path) {
+                    match crate::platform::fs::hard_link(&temp, &path) {
                         Ok(()) => {
                             crate::checkpoint::sync_directory(root)?;
                             Ok(seeds)
                         }
                         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                            let bytes = std::fs::read(&path)?;
+                            let bytes = crate::platform::fs::read(&path)?;
                             bincode::deserialize(&bytes).map_err(std::io::Error::other)
                         }
                         Err(error) => Err(error),
                     }
                 })();
                 drop(file);
-                let _ = std::fs::remove_file(temp);
+                let _ = crate::platform::fs::remove_file(temp);
                 result
             }
             Err(error) => Err(error),
@@ -1118,7 +1124,7 @@ impl World {
                 "network replicas cannot export server saves",
             ));
         }
-        let directory = std::fs::DirBuilder::new();
+        let directory = crate::platform::fs::DirBuilder::new();
         #[cfg(unix)]
         let directory = {
             use std::os::unix::fs::DirBuilderExt;
@@ -1128,7 +1134,7 @@ impl World {
         };
         directory.create(root)?;
         if let Some(recipe) = &self.recipe {
-            std::fs::write(
+            crate::platform::fs::write(
                 root.join(recipe::RECIPE_FILE),
                 serde_json::to_vec_pretty(recipe.as_ref())?,
             )?;
@@ -1139,7 +1145,7 @@ impl World {
             moist_seed: self.moist_perlin.seed(),
             cave_seed: self.cave_perlin.seed(),
         };
-        std::fs::write(
+        crate::platform::fs::write(
             root.join(format!("{}_world_seed.bin", self.save_key)),
             bincode::serialize(&seeds).map_err(std::io::Error::other)?,
         )?;
@@ -1147,7 +1153,7 @@ impl World {
         for chunk in self.chunks.values() {
             chunk.write_recovery_copy(root)?;
         }
-        std::fs::write(
+        crate::platform::fs::write(
             root.join("RECOVERY.txt"),
             "Partial recovery: loaded chunks and current player state only. Unloaded terrain regions and terrain from other dimensions are absent; checkpoint entities cannot recreate that terrain. Preserve the original world. Overlay these files onto a separate backup copy; do not replace the original folder with this directory. See docs/world-format.md.\n",
         )
@@ -3715,7 +3721,16 @@ impl World {
     }
 
     fn dispatch_chunk_requests(&mut self) {
+        #[cfg(target_arch = "wasm32")]
+        let mut generated = 0;
         while self.in_flight_chunks.len() < CHUNK_PIPELINE_MAX_IN_FLIGHT {
+            #[cfg(target_arch = "wasm32")]
+            {
+                if generated >= 1 {
+                    break;
+                }
+                generated += 1;
+            }
             let Some(request) = self.chunk_request_queue.pop() else {
                 break;
             };
@@ -6437,10 +6452,10 @@ mod tests {
     fn storage_test_root() -> std::path::PathBuf {
         let root = std::env::temp_dir().join(format!(
             "termcraft-storage-{}-{}",
-            std::process::id(),
+            crate::platform::process_id(),
             rand::random::<u64>()
         ));
-        std::fs::create_dir(&root).unwrap();
+        crate::platform::fs::create_dir(&root).unwrap();
         root
     }
 
@@ -6448,45 +6463,48 @@ mod tests {
     fn corrupt_chunk_is_preserved_and_never_regenerated_or_saved_over() {
         let root = storage_test_root();
         let path = root.join("overworld_chunk_0.bin");
-        std::fs::write(&path, b"broken chunk").unwrap();
+        crate::platform::fs::write(&path, b"broken chunk").unwrap();
         let mut world = World::open_in_directory(Dimension::Overworld, &root).unwrap();
         world.load_chunks_around(0);
         assert!(world.check_storage().is_err());
         assert!(!world.chunks.contains_key(&0));
         assert!(world.try_save_all().is_err());
-        assert_eq!(std::fs::read(&path).unwrap(), b"broken chunk");
+        assert_eq!(crate::platform::fs::read(&path).unwrap(), b"broken chunk");
         drop(world);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
     fn async_chunk_load_reports_corruption_without_generating_replacement() {
         let root = storage_test_root();
         let path = root.join("overworld_chunk_3.bin");
-        std::fs::write(&path, b"broken async chunk").unwrap();
+        crate::platform::fs::write(&path, b"broken async chunk").unwrap();
         let mut world = World::open_in_directory(Dimension::Overworld, &root).unwrap();
         world.enqueue_chunk_request(3, 0);
         world.dispatch_chunk_requests();
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-        while world.check_storage().is_ok() && std::time::Instant::now() < deadline {
+        let deadline = crate::platform::Instant::now() + std::time::Duration::from_secs(2);
+        while world.check_storage().is_ok() && crate::platform::Instant::now() < deadline {
             world.collect_ready_chunks();
             std::thread::sleep(std::time::Duration::from_millis(2));
         }
         assert!(world.check_storage().is_err());
         assert!(!world.chunks.contains_key(&3));
-        assert_eq!(std::fs::read(path).unwrap(), b"broken async chunk");
+        assert_eq!(
+            crate::platform::fs::read(path).unwrap(),
+            b"broken async chunk"
+        );
         drop(world);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
     fn corrupt_seed_is_not_replaced() {
         let root = storage_test_root();
         let path = root.join("overworld_world_seed.bin");
-        std::fs::write(&path, b"broken seed").unwrap();
+        crate::platform::fs::write(&path, b"broken seed").unwrap();
         assert!(World::open_in_directory(Dimension::Overworld, &root).is_err());
-        assert_eq!(std::fs::read(path).unwrap(), b"broken seed");
-        std::fs::remove_dir_all(root).unwrap();
+        assert_eq!(crate::platform::fs::read(path).unwrap(), b"broken seed");
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -6498,17 +6516,17 @@ mod tests {
         chunk.set_block(0, 10, BlockType::Stone);
         world.chunks.insert(0, chunk);
         let blocked = root.join("overworld_chunk_0.bin.tmp");
-        std::fs::create_dir(&blocked).unwrap();
+        crate::platform::fs::create_dir(&blocked).unwrap();
         assert!(world.try_save_dirty_chunk_budget(1).is_err());
         assert!(world.chunks[&0].dirty);
-        std::fs::remove_dir(blocked).unwrap();
+        crate::platform::fs::remove_dir(blocked).unwrap();
         assert!(!world.try_save_dirty_chunk_budget(1).unwrap());
         let loaded = Chunk::try_load_from_directory(0, "overworld", &root)
             .unwrap()
             .unwrap();
         assert_eq!(loaded.get_block(0, 10), BlockType::Stone);
         drop(world);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -6526,14 +6544,14 @@ mod tests {
         assert!(world.chunks.contains_key(&20));
         world.ensure_chunk_loaded_now(-20);
         assert_eq!(world.get_block(-20 * 32 + 1, 10), BlockType::DiamondOre);
-        std::fs::create_dir(root.join("overworld_chunk_20.bin.tmp")).unwrap();
+        crate::platform::fs::create_dir(root.join("overworld_chunk_20.bin.tmp")).unwrap();
         assert!(world.trim_chunk_cache(&[-20 * 32], 1).is_err());
         assert!(
             world.chunks[&20].dirty,
             "failed eviction must retain unsaved edits"
         );
         drop(world);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
     use crate::world::block::BlockType;
     use crate::world::item::ItemType;
@@ -6804,7 +6822,7 @@ mod tests {
     fn test_world_seed_data_persists_for_save_key() {
         let save_key = "seedpersist_test";
         let path = World::world_seed_path(save_key);
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
 
         let first = World::load_or_create_world_seed_data(save_key);
         let second = World::load_or_create_world_seed_data(save_key);
@@ -6819,7 +6837,7 @@ mod tests {
         assert_eq!(loaded.moist_seed, first.moist_seed);
         assert_eq!(loaded.cave_seed, first.cave_seed);
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
@@ -9813,7 +9831,7 @@ mod tests {
             assert_eq!(world.get_block(-14, altered_top), BlockType::StoneBricks);
             assert_eq!(world.get_block(4, 25), BlockType::Chest);
             drop(world);
-            std::fs::remove_dir_all(root).unwrap();
+            crate::platform::fs::remove_dir_all(root).unwrap();
         }
     }
 
@@ -9850,7 +9868,7 @@ mod tests {
         assert!(world.refine_legacy_end_towers().is_empty());
         assert_eq!(world.get_block(-14, old_top - 3), BlockType::StoneBricks);
         drop(world);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

@@ -1,12 +1,12 @@
 use super::block::BlockType;
 use super::item::Inventory;
+use crate::platform::fs::File;
 use crate::save_path;
 use flate2::Compression;
 use flate2::read::DeflateDecoder;
 use flate2::write::DeflateEncoder;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, hash_map::Entry};
-use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -151,7 +151,7 @@ impl Chunk {
 
     fn write_payload_atomically(path: &Path, payload: &[u8]) -> std::io::Result<()> {
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
+            crate::platform::fs::create_dir_all(parent)?;
         }
         crate::checkpoint::protect(path)?;
         let temp_path = Self::temp_chunk_path(path);
@@ -160,24 +160,26 @@ impl Chunk {
             file.write_all(payload)?;
             file.sync_all()?;
         }
-        if let Err(err) = std::fs::rename(&temp_path, path) {
-            let _ = std::fs::remove_file(&temp_path);
+        if let Err(err) = crate::platform::fs::rename(&temp_path, path) {
+            let _ = crate::platform::fs::remove_file(&temp_path);
             return Err(err);
         }
         crate::checkpoint::sync_directory(path.parent().unwrap())
     }
 
     fn migrate_legacy_chunk_path(legacy_path: &Path, namespaced_path: &Path) {
-        if !legacy_path.exists() || namespaced_path.exists() {
+        if !crate::platform::fs::exists(legacy_path).unwrap_or(false)
+            || crate::platform::fs::exists(namespaced_path).unwrap_or(false)
+        {
             return;
         }
         if let Some(parent) = namespaced_path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            let _ = crate::platform::fs::create_dir_all(parent);
         }
-        if std::fs::rename(legacy_path, namespaced_path).is_err()
-            && std::fs::copy(legacy_path, namespaced_path).is_ok()
+        if crate::platform::fs::rename(legacy_path, namespaced_path).is_err()
+            && crate::platform::fs::copy(legacy_path, namespaced_path).is_ok()
         {
-            let _ = std::fs::remove_file(legacy_path);
+            let _ = crate::platform::fs::remove_file(legacy_path);
         }
     }
 
@@ -641,14 +643,14 @@ mod tests {
         let save_key = "chunkdeflate";
         let chunk_x = 710_001;
         let path = chunk_path(save_key, chunk_x);
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
 
         let mut chunk = Chunk::new(chunk_x, save_key);
         chunk.set_block(2, 3, BlockType::Stone);
         chunk.set_block(7, 9, BlockType::RedFlower);
         chunk.save_to_disk();
 
-        let bytes = std::fs::read(&path).expect("saved chunk should be readable");
+        let bytes = crate::platform::fs::read(&path).expect("saved chunk should be readable");
         assert!(bytes.starts_with(CHUNK_SAVE_MAGIC));
         assert_eq!(bytes[CHUNK_SAVE_MAGIC.len()], CHUNK_SAVE_CODEC_DEFLATE);
 
@@ -656,7 +658,7 @@ mod tests {
         assert_eq!(loaded.get_block(2, 3), BlockType::Stone);
         assert_eq!(loaded.get_block(7, 9), BlockType::RedFlower);
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
@@ -664,20 +666,20 @@ mod tests {
         let save_key = "chunklegacy";
         let chunk_x = 710_002;
         let path = chunk_path(save_key, chunk_x);
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
 
-        let _ = std::fs::create_dir_all(save_path::save_dir());
+        let _ = crate::platform::fs::create_dir_all(save_path::save_dir());
         let mut blocks = vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT];
         blocks[5 * CHUNK_WIDTH + 4] = BlockType::GoldOre;
         let payload = bincode::serialize(&ChunkSaveDataV1 { blocks })
             .expect("legacy payload should serialize");
-        std::fs::write(&path, payload).expect("legacy payload should write");
+        crate::platform::fs::write(&path, payload).expect("legacy payload should write");
 
         assert!(path.exists());
         let loaded = Chunk::load_from_disk(chunk_x, save_key).expect("legacy chunk should load");
         assert_eq!(loaded.get_block(4, 5), BlockType::GoldOre);
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
@@ -685,7 +687,7 @@ mod tests {
         let save_key = "chunkchest";
         let chunk_x = 710_003;
         let path = chunk_path(save_key, chunk_x);
-        let _ = std::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&path);
 
         let mut chunk = Chunk::new(chunk_x, save_key);
         chunk.set_block(4, 6, BlockType::Chest);
@@ -703,13 +705,13 @@ mod tests {
             .expect("loaded chest inventory should be present");
         assert!(chest.has_item(super::super::item::ItemType::Diamond, 3));
 
-        let _ = std::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(path);
     }
 
     #[test]
     fn chest_inventory_only_edits_save_after_a_clean_checkpoint() {
         let root = std::env::temp_dir().join(format!("tc-chest-dirty-{}", rand::random::<u64>()));
-        std::fs::create_dir_all(&root).unwrap();
+        crate::platform::fs::create_dir_all(&root).unwrap();
         let mut chunk = Chunk::new(0, "overworld");
         chunk.set_save_root(&root);
         chunk.set_block(4, 6, BlockType::Chest);
@@ -738,7 +740,7 @@ mod tests {
             .unwrap()
             .add_item(super::super::item::ItemType::Bread, 1);
         assert!(chunk.dirty);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::platform::fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn test_chunk_save_does_not_leave_temporary_file() {
@@ -746,8 +748,8 @@ mod tests {
         let chunk_x = 710_004;
         let path = chunk_path(save_key, chunk_x);
         let temp = temp_path(save_key, chunk_x);
-        let _ = std::fs::remove_file(&path);
-        let _ = std::fs::remove_file(&temp);
+        let _ = crate::platform::fs::remove_file(&path);
+        let _ = crate::platform::fs::remove_file(&temp);
 
         let mut chunk = Chunk::new(chunk_x, save_key);
         chunk.set_block(1, 1, BlockType::Stone);
@@ -756,8 +758,8 @@ mod tests {
         assert!(path.exists());
         assert!(!temp.exists());
 
-        let _ = std::fs::remove_file(path);
-        let _ = std::fs::remove_file(temp);
+        let _ = crate::platform::fs::remove_file(path);
+        let _ = crate::platform::fs::remove_file(temp);
     }
 
     #[test]
@@ -839,15 +841,15 @@ mod tests {
         let chunk_x = 710_005;
         let namespaced = chunk_path(save_key, chunk_x);
         let legacy = legacy_chunk_path(chunk_x);
-        let _ = std::fs::remove_file(&namespaced);
-        let _ = std::fs::remove_file(&legacy);
+        let _ = crate::platform::fs::remove_file(&namespaced);
+        let _ = crate::platform::fs::remove_file(&legacy);
 
-        let _ = std::fs::create_dir_all(save_path::save_dir());
+        let _ = crate::platform::fs::create_dir_all(save_path::save_dir());
         let mut blocks = vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT];
         blocks[3 * CHUNK_WIDTH + 2] = BlockType::DiamondOre;
         let payload = bincode::serialize(&ChunkSaveDataV1 { blocks })
             .expect("legacy payload should serialize");
-        std::fs::write(&legacy, payload).expect("legacy payload should write");
+        crate::platform::fs::write(&legacy, payload).expect("legacy payload should write");
 
         let loaded =
             Chunk::load_from_disk(chunk_x, save_key).expect("legacy overworld chunk should load");
@@ -855,8 +857,8 @@ mod tests {
         assert!(namespaced.exists());
         assert!(!legacy.exists());
 
-        let _ = std::fs::remove_file(namespaced);
-        let _ = std::fs::remove_file(legacy);
+        let _ = crate::platform::fs::remove_file(namespaced);
+        let _ = crate::platform::fs::remove_file(legacy);
     }
 
     #[test]
@@ -865,23 +867,23 @@ mod tests {
         let chunk_x = 710_006;
         let namespaced = chunk_path(save_key, chunk_x);
         let legacy = legacy_chunk_path(chunk_x);
-        let _ = std::fs::remove_file(&namespaced);
-        let _ = std::fs::remove_file(&legacy);
+        let _ = crate::platform::fs::remove_file(&namespaced);
+        let _ = crate::platform::fs::remove_file(&legacy);
 
-        let _ = std::fs::create_dir_all(save_path::save_dir());
+        let _ = crate::platform::fs::create_dir_all(save_path::save_dir());
         let mut blocks = vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT];
         blocks[2 * CHUNK_WIDTH + 1] = BlockType::GoldOre;
         let payload = bincode::serialize(&ChunkSaveDataV1 { blocks })
             .expect("legacy payload should serialize");
-        std::fs::write(&legacy, payload).expect("legacy payload should write");
+        crate::platform::fs::write(&legacy, payload).expect("legacy payload should write");
 
         let loaded = Chunk::load_from_disk(chunk_x, save_key);
         assert!(loaded.is_none());
         assert!(legacy.exists());
         assert!(!namespaced.exists());
 
-        let _ = std::fs::remove_file(namespaced);
-        let _ = std::fs::remove_file(legacy);
+        let _ = crate::platform::fs::remove_file(namespaced);
+        let _ = crate::platform::fs::remove_file(legacy);
     }
 
     #[test]
@@ -890,10 +892,10 @@ mod tests {
         let chunk_x = 710_007;
         let namespaced = chunk_path(save_key, chunk_x);
         let legacy = legacy_chunk_path(chunk_x);
-        let _ = std::fs::remove_file(&namespaced);
-        let _ = std::fs::remove_file(&legacy);
+        let _ = crate::platform::fs::remove_file(&namespaced);
+        let _ = crate::platform::fs::remove_file(&legacy);
 
-        let _ = std::fs::create_dir_all(save_path::save_dir());
+        let _ = crate::platform::fs::create_dir_all(save_path::save_dir());
 
         let mut namespaced_blocks = vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT];
         namespaced_blocks[4 * CHUNK_WIDTH + 3] = BlockType::DiamondOre;
@@ -904,7 +906,8 @@ mod tests {
             furnaces: Vec::new(),
         })
         .expect("namespaced payload should serialize");
-        std::fs::write(&namespaced, namespaced_payload).expect("namespaced payload should write");
+        crate::platform::fs::write(&namespaced, namespaced_payload)
+            .expect("namespaced payload should write");
 
         let mut legacy_blocks = vec![BlockType::Air; CHUNK_WIDTH * CHUNK_HEIGHT];
         legacy_blocks[4 * CHUNK_WIDTH + 3] = BlockType::GoldOre;
@@ -912,14 +915,14 @@ mod tests {
             blocks: legacy_blocks,
         })
         .expect("legacy payload should serialize");
-        std::fs::write(&legacy, legacy_payload).expect("legacy payload should write");
+        crate::platform::fs::write(&legacy, legacy_payload).expect("legacy payload should write");
 
         let loaded = Chunk::load_from_disk(chunk_x, save_key).expect("chunk should load");
         assert_eq!(loaded.get_block(3, 4), BlockType::DiamondOre);
         assert!(namespaced.exists());
         assert!(legacy.exists());
 
-        let _ = std::fs::remove_file(namespaced);
-        let _ = std::fs::remove_file(legacy);
+        let _ = crate::platform::fs::remove_file(namespaced);
+        let _ = crate::platform::fs::remove_file(legacy);
     }
 }

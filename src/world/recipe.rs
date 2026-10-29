@@ -175,7 +175,7 @@ impl WorldRecipe {
 
     pub fn read(root: &Path) -> Result<Option<Self>, String> {
         let path = root.join(RECIPE_FILE);
-        let file = match std::fs::File::open(path) {
+        let file = match crate::platform::fs::File::open(path) {
             Ok(file) => file,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(e) => return Err(format!("cannot read world recipe: {e}")),

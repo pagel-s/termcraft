@@ -15,7 +15,7 @@ struct SavedEnvironment {
 }
 
 pub fn read(root: &Path) -> Result<Vec<Region>, String> {
-    let file = match std::fs::File::open(root.join(FILE)) {
+    let file = match crate::platform::fs::File::open(root.join(FILE)) {
         Ok(file) => file,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(e) => return Err(format!("cannot read environment: {e}")),
@@ -97,24 +97,24 @@ pub fn write(root: &Path, regions: &[Region]) -> Result<(), String> {
     let path = root.join(FILE);
     let temp = root.join(format!(
         ".environment-{}-{}.tmp",
-        std::process::id(),
+        crate::platform::process_id(),
         rand::random::<u64>()
     ));
     let result = (|| -> std::io::Result<()> {
-        std::fs::create_dir_all(root)?;
+        crate::platform::fs::create_dir_all(root)?;
         crate::checkpoint::protect(&path)?;
-        let mut file = std::fs::OpenOptions::new()
+        let mut file = crate::platform::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&temp)?;
         file.write_all(&data)?;
         file.sync_all()?;
         drop(file);
-        std::fs::rename(&temp, path)?;
+        crate::platform::fs::rename(&temp, path)?;
         crate::checkpoint::sync_directory(root)
     })();
     if result.is_err() {
-        let _ = std::fs::remove_file(temp);
+        let _ = crate::platform::fs::remove_file(temp);
     }
     result.map_err(|e| format!("cannot save environment: {e}"))
 }

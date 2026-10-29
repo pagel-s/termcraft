@@ -667,6 +667,7 @@ impl ServerSimulation {
     }
     /// An isolated replica composed through the native client's actual handlers.
     /// Useful for renderer review; this does not measure transport/presentation latency.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn client_view(&mut self, id: u16) -> Option<GameState> {
         let snapshot = self.snapshot_for_client(id)?;
         let mut view = GameState::network_view();
